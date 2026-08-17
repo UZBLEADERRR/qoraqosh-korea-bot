@@ -2,7 +2,7 @@
 <html lang="uz">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QoraQosh Korea</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -13,73 +13,62 @@
   </header>
 
   <div class="tabs">
-    <div class="tab active" onclick="tabOzgardi('katalog')">Katalog</div>
-    <div class="tab" onclick="tabOzgardi('savat')">
+    <div class="tab active" data-tab="katalog">Katalog</div>
+    <div class="tab" data-tab="savat">
       Savat
       <span id="cart-badge" class="cart-badge" hidden>0</span>
     </div>
-    <div class="tab" onclick="tabOzgardi('profil')">Profil</div>
+    <div class="tab" data-tab="profil">Profil</div>
   </div>
 
-  <!-- Katalog Ko'rinishi -->
+  <!-- Katalog ko'rinishi -->
   <div id="view-katalog">
-    <div class="categories">
-      <button class="cat-btn active" onclick="katOzgardi('hammasi')">Hammasi</button>
-      <button class="cat-btn" onclick="katOzgardi('serum')">Zardoblar</button>
-      <button class="cat-btn" onclick="katOzgardi('maska')">Niqoblar</button>
-      <button class="cat-btn" onclick="katOzgardi('toner')">Tonerlar</button>
-      <button class="cat-btn" onclick="katOzgardi('krem')">Kremlar</button>
-      <button class="cat-btn" onclick="katOzgardi('quyosh')">SPF</button>
-      <button class="cat-btn" onclick="katOzgardi('lab')">Lab</button>
-      <button class="cat-btn" onclick="katOzgardi('tozalash')">Tozalash</button>
-      <button class="cat-btn" onclick="katOzgardi('aksessuar')">Aksessuarlar</button>
+    <div class="search-wrap">
+      <input id="search-input" type="search" placeholder="🔍 Mahsulot yoki brend qidirish..." autocomplete="off">
     </div>
+    <div id="categories" class="categories"></div>
     <div id="product-grid" class="grid"></div>
   </div>
 
-  <!-- Savat Ko'rinishi -->
+  <!-- Savat ko'rinishi -->
   <div id="view-savat" class="hidden">
-    <div id="cart-empty" class="hidden" style="text-align: center; padding: 40px; color: #666;">
-      <div style="font-size: 50px; margin-bottom: 16px;">🛒</div>
+    <div id="cart-empty" class="hidden" style="text-align:center; padding:40px 16px; color:#666;">
+      <div style="font-size:50px; margin-bottom:16px;">🛒</div>
       <p>Savat bo'sh. Katalogdan mahsulot tanlang.</p>
-      <button class="add-btn" style="width: auto; padding: 10px 20px;" onclick="tabOzgardi('katalog')">Katalogga o'tish</button>
+      <button class="add-btn" style="width:auto; padding:10px 20px;" onclick="tabOzgardi('katalog')">Katalogga o'tish</button>
     </div>
-    <div id="cart-list" class="cart-list"></div>
-    <div id="cart-footer" class="hidden" style="padding: 16px; border-top: 1px solid #333; margin-bottom: 80px;">
-      <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: 800; margin-bottom: 16px;">
+    <div id="cart-list" class="cart-list" style="padding:0 16px;"></div>
+    <div id="cart-footer" class="hidden" style="padding:16px; border-top:1px solid #333; margin-bottom:80px;">
+      <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:800; margin-bottom:16px;">
         <span>Jami:</span>
-        <span id="total-price" style="color: var(--accent);">0 so'm</span>
+        <span id="total-price" style="color:var(--accent);">0 so'm</span>
       </div>
-      <button class="footer-btn" onclick="buyurtmaBer()">Buyurtma berish</button>
+      <button id="order-btn" class="footer-btn">Buyurtma berish</button>
     </div>
   </div>
 
-  <!-- Profil Ko'rinishi -->
+  <!-- Profil ko'rinishi -->
   <div id="view-profil" class="hidden">
     <div class="profile-card">
-      <div style="font-size: 18px; font-weight: 800; margin-bottom: 4px;">Sizning tahlilingiz</div>
-      <div style="font-size: 12px; color: var(--accent);">Gemini AI tomonidan tahlil qilingan</div>
+      <div style="font-size:18px; font-weight:800; margin-bottom:4px;">Sizning tahlilingiz</div>
+      <div style="font-size:12px; color:var(--accent); margin-bottom:12px;">Gemini AI tomonidan tahlil qilingan</div>
       <div id="analysis-result"></div>
     </div>
-    <div style="padding: 16px; color: #666; font-size: 12px; text-align: center;">
+    <div style="padding:16px; color:#666; font-size:12px; text-align:center;">
       Yangi tahlil uchun botga yuz rasmini yuboring.
     </div>
   </div>
 
-  <!-- Mahsulot Modali -->
-  <div id="modal" class="modal" onclick="modalYop()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <div class="close-btn" onclick="modalYop()">×</div>
+  <!-- Mahsulot modali -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <div class="close-btn" data-close-modal>×</div>
       <div class="modal-img"></div>
       <div class="modal-title"></div>
       <div class="modal-price"></div>
-      
-      <div id="modal-details">
-        <!-- Tafsilotlar app.js orqali qo'shiladi -->
-      </div>
-      
-      <div style="height: 80px;"></div>
-      <button class="footer-btn">Savatga qo'shish</button>
+      <div id="modal-details"></div>
+      <div style="height:80px;"></div>
+      <button class="footer-btn modal-add">Savatga qo'shish</button>
     </div>
   </div>
 

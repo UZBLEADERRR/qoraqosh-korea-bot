@@ -21,6 +21,7 @@ Koreyadan original kosmetika mahsulotlari brendi uchun Telegram bot va Mini App.
 Loyihani ishga tushirish uchun quyidagi kalitlar kerak:
 - `BOT_TOKEN`: @BotFather orqali olingan bot tokeni.
 - `GEMINI_API_KEY`: Google AI Studio'dan olingan API kalit.
+- `GEMINI_MODEL`: (Ixtiyoriy) Gemini model nomi, standart: `gemini-1.5-flash`.
 - `RAILWAY_PUBLIC_DOMAIN`: (Ixtiyoriy) Railway'da avtomatik beriladigan domen.
 
 ### 2. Mahalliy ishga tushirish

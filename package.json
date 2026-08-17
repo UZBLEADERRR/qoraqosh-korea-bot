@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node -e \"import('./data/products.js').then(m => { if (!Array.isArray(m.MAHSULOTLAR) || m.MAHSULOTLAR.length === 0) process.exit(1); console.log('OK: ' + m.MAHSULOTLAR.length + ' mahsulot'); })\""
+    "test": "node --check server.js && node -e \"import('./data/products.js').then(m => { if (!Array.isArray(m.MAHSULOTLAR) || m.MAHSULOTLAR.length === 0) process.exit(1); console.log('OK: server.js sintaksisi toza, ' + m.MAHSULOTLAR.length + ' mahsulot'); })\""
   },
   "keywords": ["telegram-bot", "telegram-mini-app", "korean-cosmetics", "gemini-ai"],
   "author": "QoraQosh",
