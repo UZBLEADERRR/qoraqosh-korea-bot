@@ -1,21 +1,14 @@
 {
   "name": "qoraqosh-korea-bot",
   "version": "1.0.0",
-  "description": "QoraQosh — Telegram bot + Mini App: AI yuz tahlili va Koreya kosmetikasi marketpleysi",
+  "description": "QoraQosh — Telegram bot + Mini App (Koreya original kosmetikasi)",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node -e \"import('./data/products.js').then(m => console.log('Products:', m.PRODUCTS.length))\""
+    "test": "node -e \"import('./data/products.js').then(m => { if (!Array.isArray(m.MAHSULOTLAR) || m.MAHSULOTLAR.length === 0) process.exit(1); console.log('OK: ' + m.MAHSULOTLAR.length + ' mahsulot'); })\""
   },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "keywords": [
-    "telegram-bot",
-    "mini-app",
-    "korean-cosmetics",
-    "gemini-ai",
-    "skincare"
-  ]
+  "keywords": ["telegram-bot", "telegram-mini-app", "korean-cosmetics", "gemini-ai"],
+  "author": "QoraQosh",
+  "license": "MIT"
 }

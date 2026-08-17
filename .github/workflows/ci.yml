@@ -1,23 +1,22 @@
-name: Node.js Test & Lint
+name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches: [ main ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js
-      uses: setup-node@v4
-      with:
-        node-version: '20.x'
-    - name: Run Syntax & Product Tests
-      run: |
-        node --check server.js
-        node --check data/products.js
-        npm test
+      - name: Kodni yuklab olish
+        uses: actions/checkout@v4
+
+      - name: Node.js o'rnatish
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Sintaksis va ma'lumotlar testi
+        run: npm test

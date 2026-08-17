@@ -55,7 +55,6 @@ async function katalogniOlish() {
     }
   } catch (e) {
     console.error('Katalog yuklashda xato, fallback ishlatiladi:', e);
-    // Fallback: products-data.js dan olingan bo'lishi kerak
     if (typeof FALLBACK_PRODUCTS !== 'undefined') {
       MAHSULOTLAR = FALLBACK_PRODUCTS;
     }
@@ -72,7 +71,6 @@ async function tahlilniOlish() {
       tahlil = await res.json();
       tahlilChiz();
       
-      // Agar tahlildan kelgan bo'lsa, tavsiyalarni savatga qo'shish
       const params = new URLSearchParams(window.location.search);
       if (params.get('start') === 'tahlil' && tahlil.teg) {
         tavsiyalarniSavatgaQoshish();
@@ -85,9 +83,9 @@ function tavsiyalarniSavatgaQoshish() {
   const bugun = new Date().toISOString().slice(0, 10);
   const oxirgi = localStorage.getItem('oxirgi_tavsiya_sana');
   
-  if (oxirgi === bugun) return; // Bir kunda bir marta avto-qo'shish
+  if (oxirgi === bugun) return;
 
-  const teglari = tahl.teg || [];
+  const teglari = tahlil?.teg || [];
   const mos = MAHSULOTLAR
     .map(p => ({ ...p, b: p.teglari.filter(t => teglari.includes(t)).length }))
     .filter(p => p.b > 0)
@@ -103,7 +101,6 @@ function tavsiyalarniSavatgaQoshish() {
   if (tg) tg.showAlert("Sizga mos mahsulotlar savatga qo'shildi! ✨");
 }
 
-// UI Chizish
 function gridChiz() {
   const container = document.getElementById('product-grid');
   if (!container) return;
@@ -246,7 +243,6 @@ function tahlilChiz() {
   `;
 }
 
-// Buyurtma
 function buyurtmaBer() {
   const ids = Object.keys(savat);
   if (ids.length === 0) return;
@@ -265,7 +261,6 @@ function buyurtmaBer() {
   
   matn += `\nJami: ${narxFmt(jami)}`;
   
-  // Savatni tozalash
   savat = {};
   savatSaqlash();
   savatChiz();
@@ -280,11 +275,10 @@ function buyurtmaBer() {
   }
 }
 
-// Tab va Kategoriya
 function tabOzgardi(tab) {
   joriyTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelector(`.tab[onclick*="${tab}"]`).classList.add('active');
+  document.querySelector(`.tab[onclick*="'${tab}'"]`).classList.add('active');
   
   document.getElementById('view-katalog').classList.toggle('hidden', tab !== 'katalog');
   document.getElementById('view-savat').classList.toggle('hidden', tab !== 'savat');
@@ -301,7 +295,6 @@ function katOzgardi(kat) {
   gridChiz();
 }
 
-// Boshlash
 async function start() {
   await katalogniOlish();
   badgeYangila();

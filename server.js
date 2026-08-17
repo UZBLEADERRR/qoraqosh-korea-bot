@@ -1,270 +1,263 @@
-// QoraQosh — Telegram bot + Mini App serveri (Railway uchun, bitta Node.js jarayon).
-// - Telegram long-polling (bot qismi)
-// - Gemini API bilan yuz rasmini tahlil qilish
-// - Mini App uchun static fayllar va JSON API
-// - Fayl-baza: data/db.json (offset + tahlil natijalari)
-import http from 'node:http';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { MAHSULOTLAR, KATEGORIYALAR, mahsulotTop } from './data/products.js';
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { MAHSULOTLAR, TEG_NOM } = require('./data/products');
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PORT = process.env.PORT || 3000;
 const TOKEN = process.env.BOT_TOKEN;
 const GEMINI_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const TG = `https://api.telegram.org/bot${TOKEN}`;
-const WEBAPP_PATH = path.join(__dirname, 'webapp');
+const DOMAIN = process.env.RAILWAY_PUBLIC_DOMAIN || process.env.DOMAIN || 'localhost:3000';
+const PROTOCOL = DOMAIN.includes('localhost') ? 'http' : 'https';
+const WEBAPP_URL = `${PROTOCOL}://${DOMAIN}`;
 const DB_PATH = path.join(__dirname, 'data', 'db.json');
+const WEBAPP_PATH = path.join(__dirname, 'webapp');
 
-// ==================== FAYL-BAZA ====================
+// Ma'lumotlar bazasi
+let db = { offset: 0, analyses: {} };
 function loadDb() {
   try {
-    return JSON.parse(readFileSync(DB_PATH, 'utf8'));
-  } catch {
-    return { offset: 0, analyses: {} };
-  }
+    if (fs.existsSync(DB_PATH)) {
+      db = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+    }
+  } catch (e) { console.error('DB yuklashda xato:', e); }
 }
-function saveDb(db) {
+function saveDb() {
   try {
-    if (!existsSync(path.dirname(DB_PATH))) mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+    const tmp = DB_PATH + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
+    fs.renameSync(tmp, DB_PATH);
+  } catch (e) { console.error('DB saqlashda xato:', e); }
+}
+loadDb();
+
+// Yordamchi funksiyalar
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+const esc = (str) => String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const narxFmt = (n) => n.toLocaleString('uz-UZ') + ' so\'m';
+
+// Telegram initData tekshiruvi
+function verifyInitData(initData) {
+  if (!initData || !TOKEN) return false;
+  try {
+    const params = new URLSearchParams(initData);
+    const hash = params.get('hash');
+    params.delete('hash');
+    const dataCheckString = Array.from(params.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, value]) => `${key}=${value}`)
+      .join('\n');
+    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(TOKEN).digest();
+    const hmac = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+    return hmac === hash;
+  } catch (e) { return false; }
+}
+
+// Telegram API
+async function tg(method, body = {}) {
+  const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+// Gemini AI tahlili
+async function tahlilQil(photoUrl) {
+  if (!GEMINI_KEY) return fallbackAnaliz();
+  try {
+    const prompt = `Ushbu yuz rasmini tahlil qiling. Faqat quyidagi JSON formatda javob bering:
+    {"yosh": "taxminiy yosh", "teri_turi": "turi", "muammolar": ["muammo1", "muammo2"], "maslahat": ["maslahat1"], "teg": ["serum", "maska"]}`;
+    
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_KEY}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { text: prompt },
+          { inline_data: { mime_type: "image/jpeg", data: photoUrl } }
+        ]}]
+      })
+    });
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const cleanJson = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(cleanJson);
   } catch (e) {
-    console.error('DB saqlash xatosi:', e.message);
+    console.error('Gemini xatosi:', e);
+    return fallbackAnaliz();
   }
 }
-const db = loadDb();
 
-// ==================== TELEGRAM API ====================
-async function tg(method, body) {
-  const res = await fetch(`${TG}/${method}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!data.ok) console.error(`TG ${method} xato:`, data.description);
-  return data;
-}
-const sendText = (chat_id, text, extra = {}) =>
-  tg('sendMessage', { chat_id, text, parse_mode: 'HTML', ...extra });
-const sendAction = (chat_id, action) => tg('sendChatAction', { chat_id, action });
-
-// Rasmni Telegram serveridan yuklab oladi → base64
-async function downloadPhoto(fileId) {
-  const meta = await tg('getFile', { file_id: fileId });
-  const filePath = meta.result?.file_path;
-  if (!filePath) throw new Error('file_path topilmadi');
-  const res = await fetch(`https://api.telegram.org/file/bot${TOKEN}/${filePath}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  return { base64: buf.toString('base64'), mime: 'image/jpeg' };
-}
-
-// ==================== GEMINI AI TAHLIL ====================
-const AI_PROMPT = `Sen professional dermatolog-kosmetologsan. Rasmdagi inson yuzini tahlil qil.
-Faqat quyidagi JSON formatda javob ber (boshqa hech narsa yozma):
-{
-  "yosh": "taxminiy yosh oralig'i, masalan: 25-30",
-  "teri_turi": "bittasi: Normal | Quruq | Yog'li | Aralash | Sezgir",
-  "muammolar": ["yuzdagi muammolar, 3-5 ta, o'zbekcha qisqa"],
-  "teg": ["quyidagi kalitlardan moslarini tanla: quruq, yogli, sezgir, husnbuzar, dog, ajin, quyuq, namlash, tozalash, quyosh, yallig, ton"],
-  "maslahat": ["parvarish bo'yicha 3 ta qisqa maslahat, o'zbekcha"]
-}`;
-
-async function geminiAnaliz(base64, mime) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_KEY}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: AI_PROMPT }, { inline_data: { mime_type: mime, data: base64 } }] }],
-      generationConfig: { temperature: 0.3, responseMimeType: 'application/json' },
-    }),
-  });
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error(data.error?.message || 'Gemini javob bermadi');
-  return JSON.parse(text.replace(/```json|```/g, '').trim());
-}
-
-// AI ishlamasa (kalit yo'q/xato) — namunaviy tahlil, bot to'xtab qolmasligi uchun.
 function fallbackAnaliz() {
   return {
-    yosh: '22-28',
-    teri_turi: 'Aralash',
-    muammolar: ['T-hududda yogʻlanish', 'Yengil qizarish', 'Nem yetishmovchiligi'],
-    teg: ['namlash', 'tozalash', 'sezgir'],
-    maslahat: [
-      'Kuniga 2 marta yumshoq vosita bilan yuving',
-      'SPF50+ niqobni har kuni ertalab surting',
-      'Haftasiga 2 marta namlash niqobini ishlating',
-    ],
-    namunaviy: true,
+    yosh: "20-25",
+    teri_turi: "Aralash",
+    muammolar: ["Yengil qizarish", "Namlik yetishmasligi"],
+    maslahat: ["Kuniga 2 mahal namlantiring", "Quyoshdan himoya kremi ishlating"],
+    teg: ["serum", "maska"],
+    namuna: true
   };
 }
 
-// Teglar bo'yicha katalogdan eng mos 5 ta mahsulotni tanlaydi.
-function tavsiyaTanla(teglar) {
-  const ball = (m) => m.teg.reduce((s, t) => s + (teglar.includes(t) ? 1 : 0), 0);
-  return [...MAHSULOTLAR]
-    .map((m) => ({ m, b: ball(m) }))
-    .sort((a, b) => b.b - a.b)
-    .slice(0, 5)
-    .map((x) => x.m);
-}
-
-function narxFmt(n) {
-  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + " so'm";
-}
-
-// Tahlil natijasini Telegram xabar matniga aylantiradi.
-function analizMatn(a, tavsiyalar) {
-  let t = `🔍 <b>QoraQosh — Yuz tahlili</b>\n\n`;
-  t += `👤 <b>Taxminiy yosh:</b> ${a.yosh}\n`;
-  t += `🧬 <b>Teri turi:</b> ${a.teri_turi}\n\n`;
-  t += `⚠️ <b>Yuzdagi muammolar:</b>\n` + a.muammolar.map((m) => `  • ${m}`).join('\n') + '\n\n';
-  t += `💡 <b>Maslahatlar:</b>\n` + a.maslahat.map((m) => `  • ${m}`).join('\n') + '\n\n';
-  t += `🛍️ <b>Sizga tavsiya mahsulotlar:</b>\n`;
-  t += tavsiyalar.map((m, i) => `${i + 1}. ${m.emoji} ${m.nom} — <b>${narxFmt(m.narx)}</b>`).join('\n');
-  t += `\n\n👇 Tugmani bosing — mini doʻkon ochiladi, tavsiyalar savatga qoʻshilgan boʻladi.`;
-  return t;
-}
-
-// ==================== BOT LOGIKA ====================
-async function rasmniTahlilQil(msg) {
+// Bot mantiqi
+async function handleUpdate(upd) {
+  const msg = upd.message;
+  if (!msg || !msg.chat) return;
   const chatId = msg.chat.id;
-  await sendAction(chatId, 'typing');
-  const photo = msg.photo[msg.photo.length - 1];
-  let analiz;
-  try {
-    if (!GEMINI_KEY) throw new Error('GEMINI_API_KEY yoʻq');
-    const img = await downloadPhoto(photo.file_id);
-    analiz = await geminiAnaliz(img.base64, img.mime);
-  } catch (e) {
-    console.error('Tahlil xatosi:', e.message);
-    analiz = fallbackAnaliz();
-  }
-  const tavsiyalar = tavsiyaTanla(analiz.teg || []);
-  // Natijani bazaga saqlaymiz — Mini App profil bo'limi uchun.
-  db.analyses[chatId] = {
-    ...analiz,
-    tavsiya: tavsiyalar.map((m) => m.id),
-    sana: new Date().toISOString(),
-  };
-  saveDb(db);
 
-  const webappUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || process.env.DOMAIN || `localhost:${PORT}`}/?u=${chatId}`;
-  await sendText(chatId, analizMatn(analiz, tavsiyalar), {
-    reply_markup: {
-      inline_keyboard: [[{ text: '🛍️ Doʻkonni ochish — savat tayyor', web_app: { url: webappUrl } }]],
-    },
-  });
-}
-
-async function handleUpdate(u) {
-  const msg = u.message;
-  if (!msg?.chat?.id) return;
-  const chatId = msg.chat.id;
-  const text = (msg.text || '').trim();
-
-  if (msg.photo?.length) return rasmniTahlilQil(msg);
-
-  if (text === '/start') {
-    await sendText(
-      chatId,
-      `🖤 <b>QoraQosh</b>ga xush kelibsiz!\n\n` +
-        `Koreya original kosmetikasi — arzon narxda, yetkazish <b>7-14 kun</b>.\n\n` +
-        `📸 <b>Yuz tahlili uchun rasmingizni yuboring</b> — AI teringizni tahlil qilib, sizga mos mahsulotlarni tavsiya qiladi.`
-    );
-    // Shaxsiy chatda menyu tugmasini Mini Appga sozlaymiz.
-    if (msg.chat.type === 'private') {
-      const url = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || `localhost:${PORT}`}/?u=${chatId}`;
-      await tg('setChatMenuButton', {
-        chat_id: chatId,
-        menu_button: { type: 'web_app', text: '🛍️ Doʻkon', web_app: { url } },
-      }).catch(() => {});
-    }
-    return;
-  }
-
-  if (text === '/yordam') {
-    return sendText(
-      chatId,
-      `📌 <b>Buyruqlar:</b>\n/start — boshlash\n/katalog — doʻkonni ochish\n\n📸 Yuz rasmingizni yuborsangiz — AI tahlil qiladi.`
-    );
-  }
-
-  if (text === '/katalog') {
-    const url = `https://${process.env.RAILWAY_PUBLIC_DOMAIN || `localhost:${PORT}`}/?u=${chatId}`;
-    return sendText(chatId, `🛍️ QoraQosh doʻkoni:`, {
-      reply_markup: { inline_keyboard: [[{ text: '🛍️ Katalogni ochish', web_app: { url } }]] },
+  if (msg.text === '/start') {
+    await tg('sendMessage', {
+      chat_id: chatId,
+      text: `👋 <b>QoraQosh Korea</b> botiga xush kelibsiz!\n\nKoreyaning original kosmetikasi. Yuzingizni tahlil qilishimiz uchun <b>yuzingiz aniq ko'ringan rasm</b> yuboring.`,
+      parse_mode: 'HTML'
     });
-  }
+  } else if (msg.photo || msg.document?.mime_type?.startsWith('image/')) {
+    const fileId = msg.photo ? msg.photo[msg.photo.length - 1].file_id : msg.document.file_id;
+    await tg('sendChatAction', { chat_id: chatId, action: 'typing' });
+    
+    const file = await tg('getFile', { file_id: fileId });
+    if (!file.ok) return;
 
-  await sendText(chatId, `Tushunmadim 🙈 Yuz rasmingizni yuboring yoki /yordam deb yozing.`);
+    const imgRes = await fetch(`https://api.telegram.org/file/bot${TOKEN}/${file.result.file_path}`);
+    const buffer = await imgRes.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+
+    const analiz = await tahlilQil(base64);
+    db.analyses[chatId] = { ...analiz, vaqt: Date.now() };
+    saveDb();
+
+    // Tavsiyalar
+    const teglari = analiz.teg || [];
+    const tavsiyalar = MAHSULOTLAR
+      .map(p => ({ ...p, b: p.teglari.filter(t => teglari.includes(t)).length }))
+      .filter(p => p.b > 0)
+      .sort((a, b) => b.b - a.b)
+      .slice(0, 5);
+
+    let text = `🔍 <b>Tahlil natijalari:</b>\n`;
+    if (analiz.namuna) text += `⚠️ <i>(Server bandligi sababli namunaviy tahlil)</i>\n`;
+    text += `\n👤 Yosh: ${esc(analiz.yosh)}`;
+    text += `\n✨ Teri turi: ${esc(analiz.teri_turi)}`;
+    text += `\n\n📝 <b>Muammolar:</b>\n${(analiz.muammolar || []).map(m => "• " + esc(m)).join('\n')}`;
+    text += `\n\n💡 <b>Maslahat:</b>\n${(analiz.maslahat || []).map(m => "• " + esc(m)).join('\n')}`;
+    
+    if (tavsiyalar.length > 0) {
+      text += `\n\n🛍 <b>Sizga mos mahsulotlar:</b>\n`;
+      tavsiyalar.forEach(p => {
+        text += `\n- ${esc(p.nom)} (${narxFmt(p.narx)})`;
+      });
+    }
+
+    await tg('sendMessage', {
+      chat_id: chatId,
+      text: text,
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[{
+          text: "🛒 Katalogda ko'rish",
+          web_app: { url: `${WEBAPP_URL}?start=tahlil` }
+        }]]
+      }
+    });
+  } else {
+    await tg('sendMessage', { chat_id: chatId, text: "Iltimos, yuz tahlili uchun rasm yuboring." });
+  }
 }
 
-async function pollingLoop() {
-  console.log('Bot long-polling boshlandi');
+// Polling
+async function startBot() {
+  console.log('Bot ishga tushdi...');
   while (true) {
     try {
-      const res = await fetch(`${TG}/getUpdates?offset=${db.offset}&timeout=30&allowed_updates=["message"]`);
-      const data = await res.json();
-      for (const u of data.result ?? []) {
-        db.offset = u.update_id + 1;
-        saveDb(db);
-        await handleUpdate(u).catch((e) => console.error('handleUpdate:', e.message));
+      const data = await tg('getUpdates', { offset: db.offset, timeout: 30, allowed_updates: ["message"] });
+      if (data.ok && data.result.length > 0) {
+        for (const upd of data.result) {
+          await handleUpdate(upd);
+          db.offset = upd.update_id + 1;
+          saveDb();
+        }
+      } else if (!data.ok) {
+        console.error('Telegram xatosi:', data);
+        await sleep(5000);
       }
     } catch (e) {
-      console.error('Polling xato:', e.message);
-      await new Promise((r) => setTimeout(r, 5000));
+      console.error('Polling xatosi:', e);
+      await sleep(5000);
     }
   }
 }
 
-// ==================== HTTP SERVER (Mini App + API) ====================
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json',
-  '.png': 'image/png',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-};
+// HTTP Server
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const pathname = decodeURIComponent(url.pathname);
 
-function json(res, obj, status = 200) {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
-  res.end(JSON.stringify(obj));
-}
-
-function serveStatic(res, urlPath) {
-  const p = urlPath === '/' ? '/index.html' : urlPath;
-  const full = path.normalize(path.join(WEBAPP_PATH, p));
-  if (!full.startsWith(WEBAPP_PATH) || !existsSync(full)) {
-    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    return res.end('Topilmadi');
+  // API: Mahsulotlar
+  if (pathname === '/api/products') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(MAHSULOTLAR));
   }
-  res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream' });
-  res.end(readFileSync(full));
-}
 
-const server = http.createServer((req, res) => {
-  const url = new URL(req.url, 'http://x');
-  const p = url.pathname;
+  // API: Tahlil natijasi
+  if (pathname.startsWith('/api/analysis/')) {
+    const chatId = pathname.split('/').pop();
+    const initData = req.headers['x-tg-init-data'];
 
-  if (p === '/health') return json(res, { ok: true, bot: !!TOKEN, ai: !!GEMINI_KEY });
-  if (p === '/api/products') return json(res, { kategoriya: KATEGORIYALAR, mahsulotlar: MAHSULOTLAR });
-  if (p.startsWith('/api/analysis/')) {
-    const id = p.split('/').pop();
-    return json(res, db.analyses[id] || null);
+    if (!Object.hasOwn(db.analyses, chatId)) {
+      res.writeHead(404);
+      return res.end('Topilmadi');
+    }
+
+    if (!verifyInitData(initData)) {
+      res.writeHead(403);
+      return res.end('Ruxsat berilmadi');
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify(db.analyses[chatId]));
   }
-  return serveStatic(res, p);
+
+  // Statik fayllar
+  let filePath = path.join(WEBAPP_PATH, pathname === '/' ? 'index.html' : pathname);
+  
+  // Path traversal himoyasi
+  if (!filePath.startsWith(WEBAPP_PATH + path.sep) && filePath !== WEBAPP_PATH) {
+    res.writeHead(403);
+    return res.end('Taqiqlangan');
+  }
+
+  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+    const ext = path.extname(filePath).toLowerCase();
+    const mime = {
+      '.html': 'text/html',
+      '.js': 'application/javascript',
+      '.css': 'text/css',
+      '.json': 'application/json',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
+      '.svg': 'image/svg+xml',
+      '.woff2': 'font/woff2'
+    }[ext] || 'application/octet-stream';
+
+    res.writeHead(200, { 
+      'Content-Type': mime,
+      'Cache-Control': 'public, max-age=3600'
+    });
+    return fs.createReadStream(filePath).pipe(res);
+  }
+
+  res.writeHead(404);
+  res.end('404 Topilmadi');
 });
 
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`QoraQosh serveri ${PORT}-portda ishlayapti`);
-  if (TOKEN) pollingLoop();
-  else console.error('BOT_TOKEN yoʻq — bot ishlamaydi (Railway Variables ga qoʻshing)');
+  console.log(`Server ${PORT}-portda ishlamoqda`);
+  if (TOKEN) startBot();
+  else console.warn('BOT_TOKEN topilmadi, bot ishga tushmadi.');
 });
+
+process.on('uncaughtException', (err) => console.error('Kutilmagan xato:', err));
+process.on('unhandledRejection', (reason) => console.error('Unhandled Rejection:', reason));
