@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>QoraQosh — Koreya kosmetikasi</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <!-- Yuqori sarlavha paneli -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">🖤</span>
+      <div>
+        <div class="brand-name">QoraQosh</div>
+        <div class="brand-sub">Koreya original kosmetikasi</div>
+      </div>
+    </div>
+    <div class="top-badge">🚚 7–14 kun</div>
+  </header>
+
+  <!-- Qidiruv -->
+  <div class="search-wrap" id="searchWrap">
+    <input id="search" type="search" placeholder="Mahsulot qidirish…" autocomplete="off" />
+  </div>
+
+  <!-- Kategoriya chiplari -->
+  <div class="chips" id="chips"></div>
+
+  <!-- Sahifalar -->
+  <main>
+    <!-- DO'KON -->
+    <section id="page-shop" class="page active">
+      <div class="grid" id="grid"></div>
+      <div class="empty" id="emptyShop" hidden>Hech narsa topilmadi 😔</div>
+    </section>
+
+    <!-- SAVAT -->
+    <section id="page-cart" class="page">
+      <div id="cartList"></div>
+      <div class="empty" id="emptyCart" hidden>
+        <div class="empty-ico">🛒</div>
+        Savat boʻsh<br /><span class="muted">Doʻkondan mahsulot tanlang</span>
+      </div>
+      <div class="cart-footer" id="cartFooter" hidden>
+        <div class="cart-total-row">
+          <span>Jami:</span>
+          <b id="cartTotal"></b>
+        </div>
+        <div class="cart-note">Yetkazish: 7–14 kun · Toʻlov — yetkazilganda</div>
+        <button class="btn btn-primary btn-big" id="orderBtn">✅ Buyurtma berish</button>
+      </div>
+    </section>
+
+    <!-- PROFIL -->
+    <section id="page-profile" class="page">
+      <div id="profileBox"></div>
+    </section>
+  </main>
+
+  <!-- Pastki navigatsiya -->
+  <nav class="tabbar">
+    <button class="tab active" data-page="shop">
+      <span class="tab-ico">🏬</span><span>Doʻkon</span>
+    </button>
+    <button class="tab" data-page="cart">
+      <span class="tab-ico">🛒</span><span>Savat</span>
+      <span class="cart-badge" id="cartBadge" hidden>0</span>
+    </button>
+    <button class="tab" data-page="profile">
+      <span class="tab-ico">👤</span><span>Profil</span>
+    </button>
+  </nav>
+
+  <!-- Mahsulot modal oynasi -->
+  <div class="modal" id="modal">
+    <div class="modal-back" id="modalBack"></div>
+    <div class="modal-card" id="modalCard"></div>
+  </div>
+
+  <!-- Toast xabar -->
+  <div class="toast" id="toast"></div>
+
+  <script src="products-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
