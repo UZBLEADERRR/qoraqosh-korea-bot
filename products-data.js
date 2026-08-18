@@ -1,5 +1,5 @@
 // QoraQosh — Offline / Fallback mahsulotlar maʼlumotlari (data/products.js bilan 100% sinxron)
-window.FALLBACK_DATA = {
+globalThis.FALLBACK_DATA = {
   kategoriya: [
     { id: 'hammasi', nom: 'Hammasi', emoji: '✨' },
     { id: 'tozalash', nom: 'Tozalash', emoji: '🫧' },
