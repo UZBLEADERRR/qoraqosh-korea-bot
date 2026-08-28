@@ -296,13 +296,18 @@ const voronkaQator = (nom, son, asos) => `
     <div class="son">${som(son)}${asos ? ` · ${Math.round(son / asos * 100)}%` : ''}</div></div>`;
 
 // ═══════════ 2. BUYURTMALAR ═══════════
+// Koreyadan mijozgacha bo'lgan yo'l. Tartib SHU YERDA — Postgres enum'idagi
+// tartib tarixiy sabablarga ko'ra boshqacha (src/lib/bosqichlar.js ga qarang).
 const HOLATLAR = {
-  yangi:        ['🆕 Yangi',        'kok'],
-  tasdiqlangan: ['✅ Tasdiqlangan', 'urgu'],
-  omborda:      ['🏬 Omborda',      'sariq'],
-  yolda:        ['🚚 Yo‘lda',       'sariq'],
-  yetkazildi:   ['📦 Yetkazildi',   'yashil'],
-  bekor:        ['❌ Bekor',        'qizil'],
+  yangi:            ['🆕 Yangi',                  'kok'],
+  tasdiqlangan:     ['✅ To‘lov tasdiqlandi',     'urgu'],
+  qadoqlanmoqda:    ['📦 Koreyada qadoqlanmoqda', 'sariq'],
+  korea_jonatildi:  ['✈️ Koreyadan jo‘natildi',   'sariq'],
+  yolda:            ['🌍 Yo‘lda',                 'sariq'],
+  omborda:          ['🏢 O‘zbekiston omborida',   'kok'],
+  pochta_jonatildi: ['📮 Pochtadan jo‘natildi',   'kok'],
+  yetkazildi:       ['🎉 Yetib keldi',            'yashil'],
+  bekor:            ['❌ Bekor',                  'qizil'],
 };
 const TOLOV = {
   kutilmoqda:      ['⏳ To‘lov kutilmoqda', 'sariq'],
@@ -532,6 +537,13 @@ function mahsulotOyna(p) {
       <div><label>Ombor (dona)</label><input id="m-stock" type="number" inputmode="numeric" value="${p?.stock ?? 0}"></div>
       <div><label>Emoji</label><input id="m-emoji" value="${esc(p?.emoji || '🧴')}" maxlength="4"></div>
     </div>
+    <label>🔗 Qayerdan olinadi <span class="yordam">Coupang yoki Daiso havolasi</span></label>
+    <input id="m-manba" type="url" inputmode="url" placeholder="https://www.coupang.com/vp/products/..."
+      value="${esc(p?.manba_url || '')}">
+    <p class="mayda" style="margin:6px 0 0">
+      Bu havola <b>/orders</b> xarid ro‘yxatida mahsulot nomiga bog‘lanadi —
+      xodim bosib to‘g‘ridan-to‘g‘ri sotib olish sahifasiga o‘tadi.</p>
+
     <label>Tavsif — nima qiladi</label><textarea id="m-desc">${esc(p?.description || '')}</textarea>
     <label>Qanday foydalanish</label><textarea id="m-usage">${esc(p?.usage_text || '')}</textarea>
     <label>Tarkibi (INCI)</label><textarea id="m-ing">${esc(p?.ingredients || '')}</textarea>
@@ -561,6 +573,7 @@ function mahsulotOyna(p) {
       concerns: $$('input[name=concern]:checked').map((i) => i.value),
       skin_types: $$('input[name=skin]:checked').map((i) => i.value),
       is_active: $('#m-faol').checked, ai_filled: Boolean(p?.ai_filled),
+      manba_url: $('#m-manba').value.trim(),
     };
     if (!tana.name)  return xato.textContent = 'Nomi kerak.';
     if (!tana.price) return xato.textContent = 'Narx kerak.';

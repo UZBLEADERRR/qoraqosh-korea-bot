@@ -2,18 +2,12 @@
 import { qatorlar, qiymat, sozlama } from '../../db.js';
 import { yubor } from '../tg.js';
 import { adminmi } from '../../lib/admin.js';
+import { bosqich, jarayonMatni } from '../../lib/bosqichlar.js';
 import { brendNomi } from '../../lib/brend.js';
 import { esc, narx } from '../format.js';
 import { asosiyMenyu, ortga, appTugma } from '../keyboards.js';
 import { xabar } from '../shablon.js';
 
-const HOLAT_EMOJI = {
-  yangi: '🆕', tasdiqlangan: '✅', yolda: '🚚', yetkazildi: '📦', bekor: '❌',
-};
-const HOLAT_NOM = {
-  yangi: 'Yangi', tasdiqlangan: 'Tasdiqlangan', yolda: 'Yo‘lda',
-  yetkazildi: 'Yetkazildi', bekor: 'Bekor qilingan',
-};
 
 export async function buyurtmalarniKorsat(chatId, user) {
   const data = await qatorlar(
@@ -28,9 +22,17 @@ export async function buyurtmalarniKorsat(chatId, user) {
 
   const q = ['📋 <b>Buyurtmalaringiz</b>', ''];
   for (const o of data) {
-    q.push(`${HOLAT_EMOJI[o.status] || '•'} <b>${esc(o.order_no)}</b> — ${narx(o.total)}`);
-    q.push(`<i>${HOLAT_NOM[o.status] || o.status} · ${new Date(o.created_at).toLocaleDateString('uz-UZ')}</i>`);
+    const b = bosqich(o.status);
+    q.push(`${b.emoji} <b>${esc(o.order_no)}</b> — ${narx(o.total)}`);
+    q.push(`<i>${esc(b.nom)}</i>`);
     q.push('');
+  }
+  // Eng oxirgi buyurtmaning to'liq yo'li — mijoz qayerdaligini ko'rsin
+  const oxirgi = data[0];
+  if (oxirgi && oxirgi.status !== 'bekor') {
+    q.push(`━━━━━━━━━━━━━━`, '');
+    q.push(`🚀 <b>${esc(oxirgi.order_no)}</b> qayerda:`, '');
+    q.push(jarayonMatni(oxirgi.status), '');
   }
   const kb = appTugma('📋 Batafsil ko‘rish', '/app/?tab=buyurtma');
   await yubor(chatId, q.join('\n'),

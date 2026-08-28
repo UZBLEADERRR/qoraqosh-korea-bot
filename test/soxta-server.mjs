@@ -47,6 +47,17 @@ function javobMatni(sxemaMatni) {
     category: 'krem', step: 'namlash', volume: '50 ml', country: 'KR',
     description: 'Sinov', usage_text: 'Surting', ingredients: 'Aqua',
     actives: [], concerns: [], skin_types: [], warnings: '', emoji: '🧴' });
+  // Agent: reja mavzulari
+  if (sxemaMatni.includes('mavzular')) return JSON.stringify({
+    nom: 'Teri parvarishi',
+    mavzular: Array.from({ length: 30 }, (_, i) => `${i + 1}-kun: teri parvarishi maslahati`),
+  });
+  // Agent: post matni
+  if (sxemaMatni.includes('rasm_tavsifi')) return JSON.stringify({
+    matn: '<b>Terini to‘g‘ri namlang</b> 💧\n\nKuniga ikki marta namlovchi krem ' +
+          'surting — teri yumshoq bo‘ladi. <i>Botdan bepul tahlil oling!</i> 🌸',
+    rasm_tavsifi: 'A minimal skincare flatlay on pastel background',
+  });
   return JSON.stringify({ ok: true });
 }
 
@@ -72,8 +83,17 @@ export function soxtaServer(port = 4444) {
         const xom = await tana(req);
         const izoh = /name="caption"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
         const chat = /name="chat_id"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
-        yuborilgan.push({ rasm: true, chat_id: chat?.[1], text: izoh?.[1] || '', hajm: xom.length });
+        const kb   = /name="reply_markup"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
+        yuborilgan.push({ rasm: true, chat_id: chat?.[1], text: izoh?.[1] || '', hajm: xom.length,
+          reply_markup: kb ? JSON.parse(kb[1]) : undefined });
         return j({ ok: true, result: { message_id: yuborilgan.length, photo: [{ file_id: 'f1' }] } });
+      }
+      if (yol.endsWith('/sendDocument')) {
+        const xom = await tana(req);
+        const izoh = /name="caption"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
+        const chat = /name="chat_id"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
+        yuborilgan.push({ hujjat: true, chat_id: chat?.[1], text: izoh?.[1] || '', hajm: xom.length });
+        return j({ ok: true, result: { message_id: yuborilgan.length } });
       }
       if (yol.endsWith('/sendChatAction') || yol.endsWith('/deleteMessage') ||
           yol.endsWith('/editMessageReplyMarkup') || yol.endsWith('/answerCallbackQuery') ||
@@ -83,6 +103,11 @@ export function soxtaServer(port = 4444) {
       // ---- Google Gemini ----
       if (yol.includes(':generateContent')) {
         const b = JSON.parse(await tana(req) || '{}');
+        // Rasm chizish so'rovi — JSON sxema bo'lmaydi, rasm qaytariladi
+        if (!b.generationConfig?.responseSchema) {
+          return j({ candidates: [{ finishReason: 'STOP', content: { parts: [
+            { inline_data: { mime_type: 'image/png', data: png().toString('base64') } }] } }] });
+        }
         const kichik = (b.generationConfig?.maxOutputTokens || 0) < 512;
         // Haqiqiy hayotdagi kabi: byudjet kichik bo'lsa o'ylash uni yeb qo'yadi
         if (kichik) return j({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [] } }] });

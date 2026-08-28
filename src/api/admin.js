@@ -8,6 +8,7 @@ import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
 import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi } from '../ai/index.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { config } from '../config.js';
+import { HOLATLAR } from '../lib/bosqichlar.js';
 import { yubor, tg } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
 import { xabar, keshniTozala } from '../bot/shablon.js';
@@ -22,7 +23,7 @@ import { brendNomi } from '../lib/brend.js';
 const katalogYangilandi = () => keshniTashla('katalog');
 
 const kunlarOldin = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString(); };
-const HOLATLAR = ['yangi', 'tasdiqlangan', 'omborda', 'yolda', 'yetkazildi', 'bekor'];
+// Ro'yxat bitta manbadan — bot ham, panel ham bir xil bosqichlarni biladi
 
 export async function adminRoutes(req, res, yol) {
   // ---------- Kirish ----------
@@ -127,10 +128,25 @@ export async function adminRoutes(req, res, yol) {
     if (!o) return xato(res, 404, 'Buyurtma topilmadi.');
 
     await sorov('update orders set payment_status=$1, updated_at=now() where id=$2', [holat, b.id]);
-    if (holat === 'tolangan' && o.telegram_id) {
-      xabar('xabar_tolov_tasdiq', { raqam: esc(o.order_no) },
-        '✅ <b>{raqam}</b> — to‘lovingiz tasdiqlandi.')
-        .then((m) => yubor(o.telegram_id, m)).catch(() => {});
+
+    if (holat === 'tolangan') {
+      // To'lov tasdiqlangach buyurtma xarid ro'yxatiga tushishi kerak
+      await sorov(
+        `update orders set status = 'tasdiqlangan', updated_at = now()
+          where id = $1 and status = 'yangi'`, [b.id]);
+
+      // Chek rasmini saqlab o'tirmaymiz: u tekshirish uchun kerak edi, tekshirildi.
+      // Mijozning bank ma'lumoti bazada yotishi shart emas.
+      if (!(await sozlama('chek_saqlansin', false)) && o.receipt_id) {
+        await sorov('update orders set receipt_id = null where id = $1', [b.id]);
+        await sorov('delete from media where id = $1', [o.receipt_id]).catch(() => {});
+      }
+
+      if (o.telegram_id) {
+        xabar('xabar_tolov_tasdiq', { raqam: esc(o.order_no) },
+          '✅ <b>{raqam}</b> — to‘lovingiz tasdiqlandi.')
+          .then((m) => yubor(o.telegram_id, m)).catch(() => {});
+      }
     }
     return ok(res, { ok: true });
   }
@@ -236,6 +252,8 @@ export async function adminRoutes(req, res, yol) {
       skin_types: (Array.isArray(b.skin_types) ? b.skin_types : []).slice(0, 8),
       warnings: String(b.warnings || '').slice(0, 400) || null,
       emoji: String(b.emoji || '🧴').slice(0, 4),
+      manba_url: manbaUrl(b.manba_url),
+      manba: manbaTuri(b.manba_url),
       ai_filled: Boolean(b.ai_filled),
       is_active: b.is_active !== false,
     };
@@ -244,20 +262,21 @@ export async function adminRoutes(req, res, yol) {
 
     const q = [m.name, m.brand, m.category_id, m.step, m.price, m.old_price, m.cost_price,
                m.stock, m.volume, m.country, m.description, m.usage_text, m.ingredients,
-               m.actives, m.concerns, m.skin_types, m.warnings, m.emoji, m.ai_filled, m.is_active];
+               m.actives, m.concerns, m.skin_types, m.warnings, m.emoji, m.ai_filled, m.is_active,
+               m.manba_url, m.manba];
     try {
       const natija = b.id
         ? await qator(
             `update products set name=$1,brand=$2,category_id=$3,step=$4,price=$5,old_price=$6,
                     cost_price=$7,stock=$8,volume=$9,country=$10,description=$11,usage_text=$12,
                     ingredients=$13,actives=$14,concerns=$15,skin_types=$16,warnings=$17,
-                    emoji=$18,ai_filled=$19,is_active=$20,updated_at=now()
-              where id=$21 returning *`, [...q, b.id])
+                    emoji=$18,ai_filled=$19,is_active=$20,manba_url=$21,manba=$22,updated_at=now()
+              where id=$23 returning *`, [...q, b.id])
         : await qator(
             `insert into products (name,brand,category_id,step,price,old_price,cost_price,stock,
                     volume,country,description,usage_text,ingredients,actives,concerns,skin_types,
-                    warnings,emoji,ai_filled,is_active)
-             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+                    warnings,emoji,ai_filled,is_active,manba_url,manba)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
              returning *`, q);
       katalogYangilandi();
       return ok(res, { mahsulot: natija });
@@ -435,6 +454,21 @@ export async function adminRoutes(req, res, yol) {
 }
 
 // ---------- Yordamchilar ----------
+/** Faqat http(s) havolasini qabul qilamiz — javascript: kabi narsa o'tmasin. */
+function manbaUrl(xom) {
+  const u = String(xom || '').trim().slice(0, 500);
+  if (!u) return null;
+  return /^https?:\/\//i.test(u) ? u : null;
+}
+
+/** Havoladan manbani taniymiz — /orders ro'yxatida belgi qo'yish uchun. */
+function manbaTuri(xom) {
+  const u = String(xom || '').toLowerCase();
+  if (/coupang\./.test(u)) return 'coupang';
+  if (/daiso/.test(u))      return 'daiso';
+  return u ? 'boshqa' : null;
+}
+
 function rasmniOl(qiymat) {
   const xom = String(qiymat || '');
   const mos = xom.match(/^data:(image\/\w+);base64,(.+)$/s);

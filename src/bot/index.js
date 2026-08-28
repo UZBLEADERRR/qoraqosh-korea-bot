@@ -3,6 +3,9 @@ import { qator, sorov, hodisa } from '../db.js';
 import { yubor, javobBer, tg } from './tg.js';
 import { asosiyMenyu, ortga } from './keyboards.js';
 import { adminmi } from '../lib/admin.js';
+import * as admin from './handlers/admin.js';
+import { obunaHolati, obunaXabari, obunaniUnut } from '../services/majburiy-kanal.js';
+import { brendNomi } from '../lib/brend.js';
 import * as reg from './handlers/register.js';
 import * as skaner from './handlers/scanner.js';
 import * as dokon from './handlers/shop.js';
@@ -31,6 +34,17 @@ export async function yangilanish(upd) {
 
   const chatId = msg.chat.id;
   const matn = (msg.text || '').trim();
+
+  // ---- Majburiy obuna ----
+  const obuna = await obunaHolati(user.telegram_id, user);
+  if (obuna.kerak) {
+    const x = obunaXabari(obuna.havola, await brendNomi());
+    return yubor(chatId, x.matn, { reply_markup: x.reply_markup });
+  }
+
+  // ---- Admin buyruqlari va ko'p qadamli holatlari ----
+  if (await admin.adminBuyrugi(msg, user)) return;
+  if (await admin.adminHolati(msg, user)) return;
 
   // ---- Buyruqlar ----
   if (matn === '/start') {
@@ -77,6 +91,17 @@ async function callback(cq) {
   const chatId = cq.message?.chat?.id;
   const user = await foydalanuvchi(cq.from);
   const data = cq.data || '';
+
+  // Obunani qayta tekshirish
+  if (data === 'obuna_tekshir') {
+    await obunaniUnut(user.telegram_id);
+    const h = await obunaHolati(user.telegram_id, user);
+    if (h.kerak) return javobBer(cq.id, 'Hali obuna bo‘lmagansiz. Kanalga kiring va qayta bosing.', true);
+    await javobBer(cq.id, '✅ Rahmat!');
+    return dokon.menyuniKorsat(chatId, user);
+  }
+
+  if (await admin.adminCallback(cq, user)) return;
 
   if (data === 'roziman') {
     await javobBer(cq.id, '✅ Qabul qilindi');

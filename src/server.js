@@ -19,6 +19,7 @@ import { yangilanish } from './bot/index.js';
 import { tg } from './bot/tg.js';
 import { ofertaSahifasi } from './lib/oferta.js';
 import { migratsiyalarniQoll } from './db/migrate.js';
+import { agentniIshgaTushir } from './services/agent-jadval.js';
 import { qator, ulanishniTekshir } from './db.js';
 import { verifyAdminToken } from './lib/auth.js';
 
@@ -169,6 +170,7 @@ async function boshla() {
     console.log(`   Mini App : ${asos}/app/`);
     console.log(`   Admin    : ${asos}/admin/\n`);
     botniUla().catch((e) => console.error('Botni ulashda xato:', e.message));
+    agentniIshgaTushir();   // kanal rejasi bo'yicha kunlik postlar
   });
 }
 
