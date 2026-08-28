@@ -10,8 +10,11 @@ export function appTugma(matn, yol = '/app/') {
   return url ? { text: matn, web_app: { url } } : null;
 }
 
-/** Asosiy menyu — inline. */
-export function asosiyMenyu() {
+/**
+ * Asosiy menyu — inline.
+ * @param {boolean} adminmi  admin bo'lsa panel tugmasi ham qo'shiladi
+ */
+export function asosiyMenyu(adminmi = false) {
   const qatorlar = [];
   const katalog = appTugma('🛍 Do‘kon', '/app/');
   const savat   = appTugma('🛒 Savatim', '/app/?tab=savat');
@@ -26,6 +29,13 @@ export function asosiyMenyu() {
     { text: '👤 Profilim', callback_data: 'profil' },
     { text: 'ℹ️ Yordam', callback_data: 'yordam' },
   ]);
+
+  // Admin panel — faqat adminlarga ko'rinadi. Panel Telegram ID orqali
+  // o'zi ham qayta tekshiradi, bu tugma shunchaki qulaylik.
+  if (adminmi) {
+    const panel = appTugma('⚙️ Admin panel', '/admin/');
+    if (panel) qatorlar.push([panel]);
+  }
   return { inline_keyboard: qatorlar };
 }
 

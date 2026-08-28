@@ -1,0 +1,6 @@
+Liberation Sans (Regular, Bold)
+SIL Open Font License, Version 1.1 — https://openfontlicense.org
+(c) 2012 Red Hat, Inc. — "Liberation" is a trademark of Red Hat, Inc.
+
+Shriftlar rasm chizish uchun repozitoriyaga qo'shilgan: Railway konteynerida
+tizim shriftlari bo'lmasligi mumkin, u holda rasmdagi matn jimgina yo'qoladi.

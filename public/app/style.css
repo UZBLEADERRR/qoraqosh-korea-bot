@@ -283,7 +283,6 @@ textarea{resize:vertical;min-height:86px}
 .limit-satr.tugadi{background:var(--sariq-och);border-color:transparent;color:var(--sariq)}
 
 /* ---------- Ulashish rasmi ---------- */
-.ulashish-oldi{width:100%;border-radius:var(--r);display:block;border:1px solid var(--chiziq)}
 
 /* Uzun ro'yxatlarda chizishni tejash */
 .karta{content-visibility:auto;contain-intrinsic-size:auto 200px}

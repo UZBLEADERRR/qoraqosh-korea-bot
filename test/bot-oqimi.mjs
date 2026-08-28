@@ -65,7 +65,7 @@ test('Mini App tugmasi bor',
   (oxirgi().reply_markup?.inline_keyboard || []).flat().some((b) => b.web_app));
 
 for (const [data, kutilgan] of [
-  ['menyu', /QoraQosh/], ['skaner', /Yuz skaneri/], ['konsultatsiya', /Konsultatsiya/],
+  ['menyu', /Meduza Cosmetics/], ['skaner', /Yuz skaneri/], ['konsultatsiya', /Konsultatsiya/],
   ['profil', /Profilingiz/], ['yordam', /Yordam/], ['buyurtmalar', /buyurtma/i],
 ]) {
   yuborilgan.length = 0;
@@ -81,6 +81,45 @@ yuborilgan.length = 0; await rasmYubor();
 test('limit tugaganda ogohlantiradi', /limit tugadi/i.test(oxirgi().text || ''));
 test('limit xabarida do‘kon tugmasi bor',
   (oxirgi().reply_markup?.inline_keyboard || []).flat().some((b) => /Do‘kon|Dokon/i.test(b.text)));
+
+// ═══════════ NATIJA RASMI ═══════════
+console.log('\n── NATIJA RASMI ──');
+await sorov(`update settings set value = '9'::jsonb where key = 'limit_bepul'`);
+await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
+yuborilgan.length = 0;
+await rasmYubor();
+
+const rasmlar = yuborilgan.filter((x) => x.rasm);
+test('tahlil RASM bilan yuboriladi', rasmlar.length === 1,
+  `${rasmlar.length} ta rasm, ${(rasmlar[0]?.hajm / 1024 || 0).toFixed(0)} KB`);
+test('rasm bo‘sh emas', (rasmlar[0]?.hajm || 0) > 20000);
+test('rasm izohida ball bor', /\d+\/100/.test(rasmlar[0]?.text || ''));
+test('rasmdan keyin batafsil matn ham keladi',
+  yuborilgan.some((x) => !x.rasm && /Sababi/.test(x.text || '')));
+
+const { qator } = await import('../src/db.js');
+const saqlangan = await qator(
+  `select natija_rasm_id from analyses where user_id = (select id from users where telegram_id = $1)
+    order by created_at desc limit 1`, [TG]);
+test('rasm bazaga bog‘landi', Boolean(saqlangan?.natija_rasm_id));
+
+// ═══════════ KANALLAR ═══════════
+console.log('\n── KANALLAR ──');
+await sorov(`update settings set value = '"-100555"'::jsonb where key = 'kanal_tahlil'`);
+await sorov(`update settings set value = 'false'::jsonb where key = 'kanal_tahlil_yoqilgan'`);
+await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
+yuborilgan.length = 0; await rasmYubor();
+test('o‘chiq bo‘lsa tahlil kanalga YUBORILMAYDI',
+  !yuborilgan.some((x) => String(x.chat_id) === '-100555'));
+
+await sorov(`update settings set value = 'true'::jsonb where key = 'kanal_tahlil_yoqilgan'`);
+await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
+yuborilgan.length = 0; await rasmYubor();
+await new Promise((r) => setTimeout(r, 400));
+const kanalga = yuborilgan.find((x) => String(x.chat_id) === '-100555');
+test('yoqilganda tahlil kanalga rasm bilan tushadi', Boolean(kanalga?.rasm));
+test('kanal izohida ball va muammo bor',
+  /Ball/.test(kanalga?.text || '') && /Muammolar/.test(kanalga?.text || ''));
 
 console.log(`\n${xato ? '❌' : '✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close();

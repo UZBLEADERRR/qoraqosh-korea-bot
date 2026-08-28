@@ -2,6 +2,7 @@
 import { qator, sorov, hodisa } from '../db.js';
 import { yubor, javobBer, tg } from './tg.js';
 import { asosiyMenyu, ortga } from './keyboards.js';
+import { adminmi } from '../lib/admin.js';
 import * as reg from './handlers/register.js';
 import * as skaner from './handlers/scanner.js';
 import * as dokon from './handlers/shop.js';
@@ -59,7 +60,7 @@ export async function yangilanish(upd) {
   if (await skaner.rasmniQabulQil(msg, user)) return;
 
   await yubor(chatId, '📸 Yuz tahlili uchun rasm yuboring yoki menyudan tanlang.',
-    { reply_markup: asosiyMenyu() });
+    { reply_markup: asosiyMenyu(adminmi(user)) });
 }
 
 // ---------- Inline tugmalar ----------

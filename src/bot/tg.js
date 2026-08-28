@@ -27,6 +27,48 @@ export async function tg(method, body = {}) {
   return data;
 }
 
+/**
+ * Fayl yuklab yuborish (multipart). Telegram'ga baytlarni to'g'ridan-to'g'ri
+ * beramiz — /media/... havolasi orqali emas: mahalliy ishlab chiqishda
+ * PUBLIC_URL bo'lmaydi, Railway'da esa Telegram bizga qayta so'rov yuborishi
+ * kerak bo'lardi.
+ */
+export async function tgFayl(method, maydonlar = {}, fayllar = {}) {
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(maydonlar)) {
+    if (v === undefined || v === null) continue;
+    fd.append(k, typeof v === 'object' ? JSON.stringify(v) : String(v));
+  }
+  for (const [k, f] of Object.entries(fayllar)) {
+    fd.append(k, new Blob([f.bayt], { type: f.mime || 'image/png' }), f.nom || 'fayl.png');
+  }
+  const res = await fetch(`${API}/${method}`, { method: 'POST', body: fd });
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    const xom = await res.text().catch(() => '');
+    console.error(`TG ${method}: JSON emas (HTTP ${res.status}) ${xom.slice(0, 120)}`);
+    return { ok: false, description: `HTTP ${res.status}` };
+  }
+  if (!data.ok) console.error(`TG ${method}:`, data.description);
+  return data;
+}
+
+/** Rasm + izoh. Izoh 1024 belgidan uzun bo'lolmaydi. */
+export const rasmYubor = (chat_id, bayt, caption = '', extra = {}) =>
+  tgFayl('sendPhoto', {
+    chat_id,
+    caption: caption.slice(0, 1024),
+    parse_mode: 'HTML',
+    ...extra,
+  }, { photo: { bayt, mime: 'image/png', nom: 'natija.png' } });
+
+/** Telegram'dagi mavjud rasmni (file_id) qayta yuborish — qayta yuklamaymiz. */
+export const rasmniUzat = (chat_id, file_id, caption = '', extra = {}) =>
+  tg('sendPhoto', { chat_id, photo: file_id, caption: caption.slice(0, 1024),
+    parse_mode: 'HTML', ...extra });
+
 export const yubor = (chat_id, text, extra = {}) =>
   tg('sendMessage', { chat_id, text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, ...extra });
 

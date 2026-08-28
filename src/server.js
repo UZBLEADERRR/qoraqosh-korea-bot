@@ -1,4 +1,4 @@
-// QoraQosh — yagona server:
+// Meduza Cosmetics — yagona server:
 //   /                 -> qo'nish sahifasi
 //   /app/             -> Telegram Mini App
 //   /admin/           -> admin panel
@@ -149,7 +149,7 @@ async function botniUla() {
 // Jadvallarni qo'lda yaratish shart emas — migratsiyalar o'zi qo'llanadi.
 // ============================================================
 async function boshla() {
-  console.log('\n🌸 QoraQosh');
+  console.log('\n🌸 Meduza Cosmetics');
   try {
     const { baza, versiya } = await ulanishniTekshir();
     console.log(`   Baza: ${baza} (${versiya})`);

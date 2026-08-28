@@ -3,14 +3,13 @@
 import { esc, narx } from './format.js';
 import { xabar, shkala, darajaNuqta } from './shablon.js';
 import { RAD_SABABLARI } from '../ai/faceAnalysis.js';
-import { sozlama } from '../db.js';
+import { brendNomi } from '../lib/brend.js';
 
 const RAD_EMOJI = {
   yuz_yoq:'🙈', uzoq:'🔭', xira:'🌫', qorongi:'🌑', yopiq:'🧣',
   bir_nechta:'👥', pardoz:'💄', sunday:'🤖', ekran:'📺', yuz_emas:'🖼',
 };
 
-const dokonNomi = async () => String(await sozlama('dokon_nomi', 'QoraQosh')).replace(/"/g, '');
 
 export async function radXabari(sabab, izoh) {
   const s = RAD_SABABLARI[sabab] || RAD_SABABLARI.xira;
@@ -41,7 +40,7 @@ export async function tahlilXabari(a, tavsiyaSoni = 0, maxMuammo = 3) {
     ball:       a.ball ?? 0,
     baho:       holatSozi(a.ball ?? 0),
     shkala:     shkala(a.ball ?? 0),
-    dokon:      esc(await dokonNomi()),
+    dokon:      esc(await brendNomi()),
   }));
 
   if (a.oflayn) bolaklar.push('<i>⚠️ AI hozir mavjud emas — bazaviy tavsiya.</i>');

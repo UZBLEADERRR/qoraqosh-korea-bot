@@ -1,5 +1,5 @@
 // Admin API. Kirish: login/parol -> muddati cheklangan token (8 soat).
-import { qator, qatorlar, sorov, qiymat } from '../db.js';
+import { qator, qatorlar, sorov, qiymat, sozlama } from '../db.js';
 import { issueAdminToken, verifyAdminToken, loginBloklanganmi, loginXato, loginTozala } from '../lib/auth.js';
 import { ok, xato, tana, ipOl } from '../lib/http.js';
 import { verifyInitData } from '../lib/auth.js';
@@ -13,6 +13,10 @@ import { esc } from '../bot/format.js';
 import { xabar, keshniTozala } from '../bot/shablon.js';
 import { STANDART, GURUHLAR, TAVSIF } from '../bot/shablonlar-standart.js';
 import { keshniTashla } from '../lib/kesh.js';
+import { kanalniSina, kanalgaHolat } from '../services/kanal.js';
+import { rasmChizaOlamizmi, svgdanPng } from '../rasm/chiz.js';
+import { natijaSvg } from '../rasm/natija-kartochka.js';
+import { brendNomi } from '../lib/brend.js';
 
 // Katalog keshini bekor qilish: admin nimadir o'zgartirsa ilova darhol yangisini ko'rsin
 const katalogYangilandi = () => keshniTashla('katalog');
@@ -107,6 +111,7 @@ export async function adminRoutes(req, res, yol) {
       [b.status, b.status === 'bekor' ? String(b.reason || '').slice(0, 200) : null, b.id]);
 
     mijozgaXabar(eski, b.status, b.reason).catch((e) => console.error('Xabar:', e.message));
+    kanalgaHolat(eski.order_no, b.status, b.reason).catch(() => {});
     return ok(res, { ok: true });
   }
 
@@ -398,6 +403,15 @@ export async function adminRoutes(req, res, yol) {
     return ok(res, { ok: true, yozildi: yozildi.length });
   }
 
+  // Kanal ID to'g'rimi va bot unga yoza oladimi
+  if (yol === '/api/admin/kanal-sinov' && req.method === 'POST') {
+    const [buyurtma, tahlil] = await Promise.all([
+      kanalniSina('kanal_buyurtma').catch((e) => ({ holat: 'xato', xabar: e.message })),
+      kanalniSina('kanal_tahlil').catch((e) => ({ holat: 'xato', xabar: e.message })),
+    ]);
+    return ok(res, { buyurtma, tahlil });
+  }
+
   // ================= SOZLAMALAR =================
   if (yol === '/api/admin/settings' && req.method === 'GET') {
     const r = await qatorlar('select key, value from settings');
@@ -411,8 +425,9 @@ export async function adminRoutes(req, res, yol) {
          on conflict (key) do update set value=excluded.value, updated_at=now()`,
         [key, JSON.stringify(value)]);
     }
-    keshniTozala();        // yangi bot matni darhol kuchga kirsin
-    katalogYangilandi();   // narx/karta/menejer sozlamalari ham
+    keshniTozala();          // yangi bot matni darhol kuchga kirsin
+    katalogYangilandi();     // narx/karta/menejer sozlamalari ham
+    keshniTashla('brend');   // brend nomi ham
     return ok(res, { ok: true });
   }
 
@@ -484,6 +499,23 @@ async function tizimTekshir() {
       { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'] },
       { maxTokens: 2048, timeoutMs: 30000 });
     return `javob berdi (${Date.now() - boshlandi} ms): ${JSON.stringify(j).slice(0, 40)}`;
+  });
+
+  await qadam('Natija rasmi', 'Tahlilni rasm qilib chizish', async () => {
+    const r = await rasmChizaOlamizmi();
+    if (!r.ha) throw new Error(r.sabab);
+    // Haqiqiy chizish: shrift yo'q bo'lsa rasm bo'sh chiqadi, buni bilib turaylik
+    const bayt = await svgdanPng(
+      natijaSvg({ rasmBase64: null, tahlil: { ball: 70, teri_turi: 'aralash', muammolar: [] },
+                  tavsiyalar: [], brend: await brendNomi() }), 400);
+    if (bayt.length < 1000) throw new Error('Rasm chizildi, lekin bo‘sh chiqdi');
+    return `chizildi (${(bayt.length / 1024).toFixed(0)} KB)`;
+  });
+
+  await qadam('Buyurtmalar kanali', 'Telegram kanal', async () => {
+    const k = String(await sozlama('kanal_buyurtma', '') || '');
+    if (!k) throw new Error('Sozlanmagan — buyurtmalar kanalga tushmaydi');
+    return k;
   });
 
   await qadam('Mini App manzili', 'PUBLIC_URL', async () => {

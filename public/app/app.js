@@ -1,4 +1,4 @@
-/* QoraQosh Mini App */
+/* Meduza Cosmetics Mini App */
 (() => {
 'use strict';
 
@@ -459,12 +459,12 @@ async function tahlilQil() {
       return;
     }
     holat.tahlil = {
+      id: j.analysisId || null,
       age_estimate: j.tahlil.taxminiy_yosh, skin_tone: j.tahlil.teri_rangi,
       skin_type: j.tahlil.teri_turi, score: j.tahlil.ball,
       problems: j.tahlil.muammolar, forecast: j.tahlil.prognoz,
       routine: j.tahlil.tavsiya, raw: { xulosa: j.tahlil.xulosa }, is_offline: j.tahlil.oflayn,
     };
-    holat.oxirgiRasm = tanlanganRasm;   // faqat shu qurilmada, ulashish uchun
     holat.limit = j.limit || holat.limit;
     kor($('#skaner-boshlash'), true);
     tanlanganRasm = null; $('#fayl').value = '';
@@ -643,8 +643,8 @@ function natijaniChiz() {
   </div>` : ''}
 
   <div class="karta">
-    ${holat.oxirgiRasm ? `<button class="asosiy" id="t-ulash" style="margin-bottom:9px">
-      📸 Natijani rasm qilib saqlash</button>` : ''}
+    <button class="asosiy" id="t-ulash" style="margin-bottom:9px">
+      📸 Natijani rasm qilib olish</button>
     <button class="ikkilamchi" id="t-qayta">🔄 Boshqa rasm bilan qayta tahlil</button>
     ${holat.konsultatsiya ? `<a class="tugma ikkilamchi" style="margin-top:9px;text-decoration:none"
        href="https://t.me/${esc(holat.konsultatsiya)}" target="_blank">💬 Telegramda yozish</a>` : ''}
@@ -660,7 +660,7 @@ function natijaniChiz() {
   });
 
   const u = $('#t-ulash');
-  if (u) u.onclick = () => ulashishRasmi(t, tavsiyalar);
+  if (u) u.onclick = () => natijaniTelegramgaYubor(u);
 
   const h = $('#t-hammasi');
   if (h) h.onclick = async () => {
@@ -681,165 +681,44 @@ async function tavsiyaniSavatgaSol() {
   } catch {}
 }
 
-// ---------------- Natijani rasmga aylantirish ----------------
-// Canvas'da chiziladi: tepada foydalanuvchi surati, pastida tahlil.
-// Rasm serverga yuborilmaydi — hammasi qurilmada.
+// ---------------- Natijani rasm qilib olish ----------------
+// Rasmni SERVER chizadi va bot orqali yuboradi.
+// Sabab: Telegram WebView ichida <a download> ham, navigator.share ham
+// ishonchli ishlamaydi — foydalanuvchi tugmani bosardi, hech narsa bo'lmasdi.
+// Endi natija to'g'ridan-to'g'ri chatga tushadi: u yerdan saqlash va
+// ulashish Telegram'ning o'z vositalari bilan ishlaydi.
 
-const CH = {
-  eni: 1080, chetlash: 64, fon: '#faf9f7', matn: '#191716', kul: '#635e5a',
-  urgu: '#8a5a3d', yashil: '#2c7a51', sariq: '#8f6c0d', qizil: '#b0423a', chiziq: '#e9e4df',
-};
-
-function qatorlarGaBol(ctx, matn, maxEni) {
-  const sozlar = String(matn).split(' ');
-  const q = []; let joriy = '';
-  for (const w of sozlar) {
-    const sinov = joriy ? joriy + ' ' + w : w;
-    if (ctx.measureText(sinov).width > maxEni && joriy) { q.push(joriy); joriy = w; }
-    else joriy = sinov;
-  }
-  if (joriy) q.push(joriy);
-  return q;
-}
-
-async function ulashishRasmi(t, tavsiyalar) {
-  const tugma = $('#t-ulash');
-  const eskiMatn = tugma.textContent;
-  tugma.disabled = true; tugma.textContent = 'Tayyorlanmoqda…';
+async function natijaniTelegramgaYubor(tugma) {
+  const eski = tugma.textContent;
+  tugma.disabled = true;
+  tugma.textContent = 'Yuborilmoqda…';
   try {
-    const png = await natijaRasminiChiz(t, tavsiyalar);
+    await api('/api/natija-yubor', {
+      method: 'POST',
+      body: JSON.stringify({ analysis_id: holat.tahlil?.id || null }),
+    });
+    titra('medium');
+    tugma.textContent = '✅ Chatga yuborildi';
     $('#modal-tan').innerHTML = `
-      <div style="padding:16px 18px 0">
-        <h2 style="margin-bottom:10px">📸 Tahlil natijasi</h2>
-        <img class="ulashish-oldi" src="${png}" alt="Tahlil natijasi">
-        <button class="asosiy" id="t-ulash-yubor" style="margin-top:14px">📤 Ulashish</button>
-        <a class="tugma ikkilamchi" id="t-ulash-yukla" download="qoraqosh-tahlil.png"
-           href="${png}" style="margin-top:9px;text-decoration:none">⬇︎ Saqlash</a>
-        <p class="ozgina" style="margin-top:10px">
-          Tugma ishlamasa — rasmni bosib turing va «Rasmni saqlash» ni tanlang.</p>
+      <div style="padding:18px 18px 0">
+        <h2 style="margin-bottom:10px">📸 Natija yuborildi</h2>
+        <p style="margin:0 0 12px">Tahlil rasmi Telegram chatingizga tushdi.</p>
+        <p class="ozgina" style="margin:0 0 18px">
+          Uni o‘sha yerdan galereyaga saqlashingiz yoki do‘stlaringizga
+          ulashishingiz mumkin.</p>
+        <button class="asosiy" id="t-chatga">💬 Chatni ochish</button>
+        <button class="ikkilamchi" id="t-chat-yop" style="margin-top:9px">Yopish</button>
       </div>`;
     kor($('#modal'), true);
-    $('#t-ulash-yubor').onclick = async () => {
-      try {
-        const blob = await (await fetch(png)).blob();
-        const fayl = new File([blob], 'qoraqosh-tahlil.png', { type: 'image/png' });
-        if (navigator.canShare?.({ files: [fayl] })) {
-          await navigator.share({ files: [fayl], title: 'Teri tahlilim' });
-        } else {
-          ogohlantir('Ulashish qo‘llab-quvvatlanmadi. Rasmni bosib turib saqlang.');
-        }
-      } catch { /* foydalanuvchi bekor qildi */ }
-    };
+    $('#t-chatga').onclick = () => { modalYop(); tg?.close?.(); };
+    $('#t-chat-yop').onclick = modalYop;
+    setTimeout(() => { tugma.textContent = eski; }, 4000);
   } catch (e) {
-    ogohlantir('Rasmni tayyorlab bo‘lmadi.');
-    console.error(e);
+    ogohlantir(e.message || 'Yuborib bo‘lmadi.');
+    tugma.textContent = eski;
   } finally {
-    tugma.disabled = false; tugma.textContent = eskiMatn;
+    tugma.disabled = false;
   }
-}
-
-function natijaRasminiChiz(t, tavsiyalar) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onerror = reject;
-    img.onload = () => {
-      const W = CH.eni, P = CH.chetlash;
-      const rasmH = Math.round(W * 0.72);
-      const muammolar = (t.problems || []).slice(0, 4);
-
-      // Balandlikni oldindan hisoblaymiz
-      const o = document.createElement('canvas').getContext('2d');
-      o.font = '400 30px system-ui, sans-serif';
-      let h = rasmH + 200 + 130;
-      for (const m of muammolar) {
-        h += 56 + 42;
-        h += qatorlarGaBol(o, m.yechim || '', W - P * 2 - 20).length * 40 + 16;
-      }
-      h += tavsiyalar.length ? 90 + tavsiyalar.length * 62 : 0;
-      h += 130;
-
-      const c = document.createElement('canvas');
-      c.width = W; c.height = h;
-      const x = c.getContext('2d');
-      x.fillStyle = CH.fon; x.fillRect(0, 0, W, h);
-
-      // --- Surat (markazdan kesib) ---
-      const nis = Math.max(W / img.width, rasmH / img.height);
-      const sw = img.width * nis, sh = img.height * nis;
-      x.save(); x.beginPath(); x.rect(0, 0, W, rasmH); x.clip();
-      x.drawImage(img, (W - sw) / 2, (rasmH - sh) / 2, sw, sh);
-      // pastki tomonga yumshoq qorayish — matn o'qilsin
-      const g = x.createLinearGradient(0, rasmH - 260, 0, rasmH);
-      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.72)');
-      x.fillStyle = g; x.fillRect(0, rasmH - 260, W, 260);
-      x.restore();
-
-      // Suratdagi yozuv
-      x.fillStyle = '#fff';
-      x.font = '700 64px system-ui, sans-serif';
-      x.fillText(`${t.score ?? 0}/100`, P, rasmH - 96);
-      x.font = '400 30px system-ui, sans-serif';
-      x.fillStyle = 'rgba(255,255,255,.9)';
-      x.fillText(`${t.age_estimate || ''} · ${t.skin_type || ''} teri`, P, rasmH - 48);
-      x.textAlign = 'right';
-      x.font = '700 34px system-ui, sans-serif';
-      x.fillStyle = '#fff';
-      x.fillText('QoraQosh', W - P, rasmH - 48);
-      x.textAlign = 'left';
-
-      let y = rasmH + 76;
-      x.fillStyle = CH.matn; x.font = '700 42px system-ui, sans-serif';
-      x.fillText('Nima topildi', P, y);
-      y += 56;
-
-      for (const m of muammolar) {
-        const foiz = m.foiz ?? 40;
-        const rang = foiz >= 70 ? CH.qizil : foiz >= 40 ? CH.sariq : CH.yashil;
-        x.fillStyle = CH.matn; x.font = '600 36px system-ui, sans-serif';
-        x.fillText(m.nom || '', P, y);
-        x.fillStyle = rang; x.textAlign = 'right';
-        x.fillText(`${foiz}%`, W - P, y);
-        x.textAlign = 'left';
-        y += 26;
-        // chiziq
-        x.fillStyle = CH.chiziq; x.fillRect(P, y, W - P * 2, 14);
-        x.fillStyle = rang; x.fillRect(P, y, Math.round((W - P * 2) * foiz / 100), 14);
-        y += 46;
-        if (m.zona) {
-          x.fillStyle = CH.kul; x.font = '400 28px system-ui, sans-serif';
-          x.fillText('📍 ' + m.zona, P, y); y += 38;
-        }
-        if (m.yechim) {
-          x.fillStyle = CH.yashil; x.font = '400 30px system-ui, sans-serif';
-          for (const qat of qatorlarGaBol(x, '✅ ' + m.yechim, W - P * 2 - 20)) {
-            x.fillText(qat, P, y); y += 40;
-          }
-        }
-        y += 22;
-      }
-
-      if (tavsiyalar.length) {
-        y += 16;
-        x.fillStyle = CH.matn; x.font = '700 42px system-ui, sans-serif';
-        x.fillText('Tavsiya etilgan parvarish', P, y);
-        y += 56;
-        tavsiyalar.forEach((r, i) => {
-          x.fillStyle = CH.urgu; x.font = '700 32px system-ui, sans-serif';
-          x.fillText(`${i + 1}.`, P, y);
-          x.fillStyle = CH.matn; x.font = '500 32px system-ui, sans-serif';
-          const nom = r.p.name.length > 34 ? r.p.name.slice(0, 33) + '…' : r.p.name;
-          x.fillText(nom, P + 50, y);
-          y += 62;
-        });
-      }
-
-      x.fillStyle = CH.kul; x.font = '400 26px system-ui, sans-serif';
-      x.fillText('AI bahosi · tibbiy tashxis emas', P, h - 56);
-
-      resolve(c.toDataURL('image/png'));
-    };
-    img.src = holat.oxirgiRasm;
-  });
 }
 
 // ---------------- Savat ----------------

@@ -10,6 +10,9 @@ import { esc, narx } from '../bot/format.js';
 import { kesh } from '../lib/kesh.js';
 import { cheklov } from '../lib/cheklov.js';
 import { VILOYATLAR, tumanlar } from '../lib/hududlar.js';
+import { kanalgaBuyurtma, kanalgaChek } from '../services/kanal.js';
+import { natijaRasminiYarat, saqlanganRasm, kanalgaTahlil } from '../services/natija-rasm.js';
+import { rasmYubor } from '../bot/tg.js';
 
 // Kuniga minglab foydalanuvchi bo'lganda katalog eng ko'p so'raladigan yo'l.
 // 30 soniyalik kesh bazaga ketadigan bir xil so'rovlarni yig'ib bitta qiladi.
@@ -95,7 +98,20 @@ export async function apiRoutes(req, res, yol) {
     if (!base64 || base64.length < 1000)      return xato(res, 400, 'Rasm yuborilmadi.');
     if (base64.length > 12 * 1024 * 1024)     return xato(res, 413, 'Rasm juda katta.');
     try {
-      return ok(res, await tahlilQil(user, base64, tozaMime(b.mime)));
+      const mime = tozaMime(b.mime);
+      const natija = await tahlilQil(user, base64, mime);
+
+      // Natija rasmini SHU YERDA chizamiz — asl suratni saqlamaymiz, keyin
+      // qayta chizib bo'lmaydi. Chizish ~170 ms, AI chaqiruvi yonida sezilmaydi.
+      if (natija.yaroqli) {
+        const rasm = await natijaRasminiYarat({
+          analysisId: natija.analysisId, userId: user.id,
+          rasmBase64: base64, mime, tahlil: natija.tahlil, mahsulotlar: natija.mahsulotlar,
+        });
+        natija.rasm_bor = Boolean(rasm);
+        if (rasm) kanalgaTahlil(rasm.bayt, user, natija.tahlil).catch(() => {});
+      }
+      return ok(res, natija);
     } catch (e) {
       if (e.message === 'LIMIT_TUGADI') {
         return json(res, 429, { error: 'Bugungi limit tugadi.', limit: e.limit });
@@ -152,6 +168,7 @@ export async function apiRoutes(req, res, yol) {
         where id = $4`,
       [manzil, viloyat, tuman, user.id]);
       xabarYubor(user, buyurtma).catch(() => {});
+      kanalgaBuyurtma(buyurtma, user).catch(() => {});
       return ok(res, { buyurtma });
     } catch (e) {
       return xato(res, 400, e.message);
@@ -202,6 +219,30 @@ export async function apiRoutes(req, res, yol) {
       `update orders set receipt_id = $1, payment_status = 'chek_yuborilgan', updated_at = now()
         where id = $2`, [media.id, buyurtma.id]);
     await hodisa(user.id, 'receipt', { order_no: buyurtma.order_no });
+    kanalgaChek(buyurtma.id).catch(() => {});
+    return ok(res, { ok: true });
+  }
+
+  // --- Natija rasmini Telegram orqali yuborish ---
+  // Telegram WebView ichida <a download> va navigator.share ishlamaydi,
+  // shuning uchun rasmni foydalanuvchining o'z chatiga yuboramiz.
+  if (yol === '/api/natija-yubor' && req.method === 'POST') {
+    const c = cheklov('natija:' + user.id, 8, 10 * 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: 'Biroz kuting va qayta urinib ko‘ring.' });
+
+    const b = await tana(req);
+    const oxirgi = b.analysis_id
+      ? await qator('select id from analyses where id = $1 and user_id = $2', [Number(b.analysis_id), user.id])
+      : await qator('select id from analyses where user_id = $1 order by created_at desc limit 1', [user.id]);
+    if (!oxirgi) return xato(res, 404, 'Tahlil topilmadi.');
+
+    const bayt = await saqlanganRasm(oxirgi.id, user.id);
+    if (!bayt) return xato(res, 404, 'Bu tahlilning rasmi saqlanmagan. Yangi skaner qiling.');
+
+    const r = await rasmYubor(user.telegram_id, bayt,
+      '📸 <b>Teri tahlilingiz</b>\n\nRasmni bosib turib saqlashingiz yoki do‘stlaringizga ulashishingiz mumkin.');
+    if (!r?.ok) return xato(res, 502, 'Telegram orqali yuborib bo‘lmadi. Botni bloklamaganingizni tekshiring.');
+    await hodisa(user.id, 'natija_yuborildi', { analysis_id: oxirgi.id });
     return ok(res, { ok: true });
   }
 

@@ -1,4 +1,4 @@
-/* QoraQosh admin — mobil uchun mo'ljallangan boshqaruv paneli. */
+/* Meduza Cosmetics admin — mobil uchun mo'ljallangan boshqaruv paneli. */
 (() => {
 'use strict';
 
@@ -971,6 +971,35 @@ async function sozlamalar() {
       </div>
 
       <div class="karta tor">
+        <div class="karta-bosh"><h2>🏷 Brend</h2></div>
+        <label>Do‘kon nomi <span class="yordam">bot, ilova va rasmlarda ko‘rinadi</span></label>
+        <input id="s-brend" value="${esc(matn('dokon_nomi'))}" placeholder="Meduza Cosmetics">
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>📢 Telegram kanallar</h2></div>
+        <p class="mayda" style="margin:0 0 12px">
+          Botni kanalga <b>admin</b> qilib qo‘shing, so‘ng kanal ID sini
+          (<code>-100…</code>) yoki <code>@nom</code> ni yozing.
+          Bo‘sh qoldirsangiz hech narsa yuborilmaydi.</p>
+
+        <label>🛒 Buyurtmalar kanali</label>
+        <input id="s-kanal-buyurtma" value="${esc(matn('kanal_buyurtma'))}" placeholder="-1001234567890">
+        <p class="mayda" style="margin:6px 0 14px">
+          Yangi buyurtma, to‘lov cheki (rasm + ma’lumot) va holat o‘zgarishi shu yerga tushadi.</p>
+
+        <label>🔬 Tahlillar kanali</label>
+        <input id="s-kanal-tahlil" value="${esc(matn('kanal_tahlil'))}" placeholder="-1009876543210">
+        <label class="belgi-qator" style="margin-top:8px"><input type="checkbox" id="s-kanal-tahlil-yoq"
+          ${String(st.kanal_tahlil_yoqilgan) === 'true' ? 'checked' : ''}> Tahlillarni kanalga yuborish</label>
+        <div class="xabar-quti ogoh" style="margin:10px 0 0">
+          ⚠️ Bu kanalga <b>mijozlarning yuz suratlari</b> tushadi. Kanal yopiq bo‘lsin va
+          faqat xodimlaringiz kirsin. Shu sababli u sukut bo‘yicha o‘chiq turadi.
+        </div>
+        <button class="tug keng" id="t-kanal-sina" style="margin-top:12px">📨 Kanallarni sinash</button>
+      </div>
+
+      <div class="karta tor">
         <div class="karta-bosh"><h2>🔬 Kunlik skaner limiti</h2></div>
         <p class="mayda" style="margin:0 0 10px"><b>Mijoz</b> — kamida bitta buyurtmasi bor
           foydalanuvchi. Unga limit kattaroq: bu xaridga undaydi.</p>
@@ -997,6 +1026,7 @@ async function sozlamalar() {
     pogonalarniChiz();
     $('#p-qosh').onclick = () => { holat.kesh.pogonalar.push({ dan: 0, chegirma: 0 }); pogonalarniChiz(); };
     $('#s-saqla').onclick = sozlamalarniSaqla;
+    $('#t-kanal-sina').onclick = kanallarniSina;
     adminlarniChiz();
   } catch (e) { xatoChiz(e); }
 }
@@ -1058,10 +1088,37 @@ async function sozlamalarniSaqla() {
       limit_yoqilgan:     $('#s-limit-yoq').checked,
       limit_bepul:        Math.max(0, Number($('#s-limit-bepul').value) || 0),
       limit_mijoz:        Math.max(0, Number($('#s-limit-mijoz').value) || 0),
+      dokon_nomi:            $('#s-brend').value.trim() || 'Meduza Cosmetics',
+      kanal_buyurtma:        $('#s-kanal-buyurtma').value.trim(),
+      kanal_tahlil:          $('#s-kanal-tahlil').value.trim(),
+      kanal_tahlil_yoqilgan: $('#s-kanal-tahlil-yoq').checked,
     }})});
     holatEl.innerHTML = `<div class="xabar-quti ok" style="margin:0 0 10px">✓ Saqlandi</div>`;
     tost('Sozlamalar saqlandi');
   } catch (e) { holatEl.innerHTML = `<div class="xabar-quti xato" style="margin:0 0 10px">${esc(e.message)}</div>`; }
+}
+
+/** Kanal ID to'g'rimi va bot unga yoza oladimi — darhol tekshiramiz. */
+async function kanallarniSina() {
+  const t = $('#t-kanal-sina');
+  t.disabled = true; t.textContent = 'Sinovdan o‘tkazilmoqda…';
+  try {
+    // Avval saqlaymiz — aks holda eski qiymat sinaladi
+    await sozlamalarniSaqla();
+    const j = await api('/api/admin/kanal-sinov', { method: 'POST' });
+    const belgi = (h) => (h === 'ok' ? '✅' : h === 'yoq' ? '➖' : '❌');
+    modal('📨 Kanal sinovi', `
+      <div class="qator-satr"><span class="k">🛒 Buyurtmalar</span>
+        <span class="v">${belgi(j.buyurtma.holat)} ${esc(j.buyurtma.xabar)}</span></div>
+      <div class="qator-satr"><span class="k">🔬 Tahlillar</span>
+        <span class="v">${belgi(j.tahlil.holat)} ${esc(j.tahlil.xabar)}</span></div>
+      <p class="mayda" style="margin-top:12px">✅ bo‘lsa kanalga sinov xabari yuborildi —
+        kanalni ochib tekshiring. ❌ bo‘lsa botni kanalga admin qilib qo‘shing.</p>`);
+  } catch (e) {
+    tost(e.message || 'Sinov bajarilmadi');
+  } finally {
+    t.disabled = false; t.textContent = '📨 Kanallarni sinash';
+  }
 }
 
 async function adminlarniChiz() {
@@ -1109,7 +1166,7 @@ const SHKALA = (foiz, n = 10) => {
   return '■'.repeat(t) + '□'.repeat(n - t);
 };
 const NAMUNA = {
-  dokon:'QoraQosh', ism:'Malika', yosh:'24–28', teri_turi:'aralash',
+  dokon:'Meduza Cosmetics', ism:'Malika', yosh:'24–28', teri_turi:'aralash',
   teri_rangi:'och bug‘doyrang, iliq ton', ball:62, baho:'o‘rtacha 😌', shkala:SHKALA(62),
   nuqta:'🔴', nom:'Kengaygan teshiklar', foiz:72, zona:'Burun qanotlari va peshona (T-zona)',
   izoh:'Teshiklar aniq ko‘rinadi', sabab:'Yog‘ bezlari faol ishlaydi, teshiklar tiqiladi',
@@ -1258,11 +1315,26 @@ function qollanma() {
     <div class="karta">
       <h2>🚀 Birinchi kun</h2>
       <ol style="padding-left:18px;line-height:1.9;margin:10px 0 0" class="mayda">
-        <li><b>Sozlamalar</b> → karta raqami, menejer telefoni, chegirma pog‘onalari.</li>
+        <li><b>Sozlamalar</b> → do‘kon nomi, karta raqami, menejer telefoni, chegirma pog‘onalari.</li>
+        <li><b>Telegram kanallar</b> → ikkita yopiq kanal oching, botni ikkalasiga ham
+          <b>admin</b> qilib qo‘shing, ID larini kiriting va «Kanallarni sinash» ni bosing.</li>
         <li><b>Omborlar</b> → filiallaringizni qo‘shing (viloyat va tuman bilan).</li>
         <li><b>Mahsulotlar</b> → har birining <b>narx, tannarx va ombor</b> sonini kiriting.
           Tannarxsiz foyda hisoblanmaydi.</li>
       </ol>
+    </div>
+
+    <div class="karta">
+      <h2>📢 Kanallar nima qiladi</h2>
+      <p class="mayda" style="margin:8px 0 0;line-height:1.8">
+        <b>Buyurtmalar kanali</b> — mijoz buyurtma bergani, to‘lov chekini yuborgani
+        (chek rasmi va ostida ism, manzil, summa) va holat o‘zgargani shu yerga tushadi.
+        Xodimlaringiz admin panelni ochmasdan ham hammasini ko‘rib turadi.<br><br>
+        <b>Tahlillar kanali</b> — har bir yuz tahlili natijasi rasm bilan.
+        Bu kanalga <b>mijozlarning suratlari</b> tushadi: kanal yopiq bo‘lsin,
+        faqat xodimlaringiz kirsin. Shuning uchun u sukut bo‘yicha o‘chiq —
+        yoqishdan oldin kanal sozlamalarini tekshiring.
+      </p>
     </div>
 
     <div class="karta">

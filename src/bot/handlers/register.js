@@ -6,8 +6,9 @@ import { config } from '../../config.js';
 import { yubor } from '../tg.js';
 import { esc } from '../format.js';
 import { asosiyMenyu, telefonSora, shartnomaTugmalari } from '../keyboards.js';
+import { brendNomi } from '../../lib/brend.js';
+import { adminmi } from '../../lib/admin.js';
 import { xabar } from '../shablon.js';
-import { sozlama } from '../../db.js';
 
 export const HOLAT = {
   TELEFON:   'reg_telefon',
@@ -21,7 +22,7 @@ export const royxatdanOtganmi = (u) => Boolean(u?.phone && u?.full_name && u?.ag
 const holat = (userId, state) => sorov('update users set state = $1 where id = $2', [state, userId]);
 
 export async function boshla(chatId, user) {
-  const dokon = String(await sozlama('dokon_nomi', 'QoraQosh')).replace(/"/g, '');
+  const dokon = await brendNomi();
   await yubor(chatId, await xabar('xabar_start', { dokon: esc(dokon) },
     '👋 <b>{dokon}</b>\n\n<b>1/3</b> · Telefon raqamingizni ulashing 👇'),
     { reply_markup: telefonSora() });
@@ -98,5 +99,5 @@ export async function roziBol(chatId, user) {
   await yubor(chatId, await xabar('xabar_royxat_tugadi',
     { ism: esc((user.full_name || '').split(' ')[0] || '') },
     '🎉 <b>Tayyor!</b>\n\nEndi <b>🔬 Yuz skaneri</b> ni bosing.'),
-    { reply_markup: asosiyMenyu() });
+    { reply_markup: asosiyMenyu(adminmi(user)) });
 }

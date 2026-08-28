@@ -1,8 +1,8 @@
 {
-  "name": "qoraqosh",
+  "name": "meduza-cosmetics",
   "version": "2.0.0",
   "private": true,
-  "description": "QoraQosh — Koreya kosmetikasi: Telegram bot + Mini App + admin panel",
+  "description": "Meduza Cosmetics — Koreya kosmetikasi: Telegram bot + Mini App + admin panel",
   "type": "module",
   "main": "src/server.js",
   "engines": {
@@ -16,6 +16,7 @@
     "test:bot": "node test/bot-oqimi.mjs"
   },
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "pg": "^8.13.0"
   }
 }

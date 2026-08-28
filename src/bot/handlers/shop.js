@@ -1,6 +1,8 @@
 // Botdagi matnli bo'limlar — hammasi qisqa, batafsili ilovada.
 import { qatorlar, qiymat, sozlama } from '../../db.js';
 import { yubor } from '../tg.js';
+import { adminmi } from '../../lib/admin.js';
+import { brendNomi } from '../../lib/brend.js';
 import { esc, narx } from '../format.js';
 import { asosiyMenyu, ortga, appTugma } from '../keyboards.js';
 import { xabar } from '../shablon.js';
@@ -87,6 +89,11 @@ export async function yordamKorsat(chatId) {
     { reply_markup: { inline_keyboard: kb } });
 }
 
-export const menyuniKorsat = (chatId, user) =>
-  yubor(chatId, `🌸 <b>QoraQosh</b>\n\nNima qilamiz, ${esc((user.full_name || '').split(' ')[0] || 'do‘stim')}?`,
-    { reply_markup: asosiyMenyu() });
+export async function menyuniKorsat(chatId, user) {
+  const brend = await brendNomi();
+  const admin = adminmi(user);
+  const ism = esc((user.full_name || '').split(' ')[0] || 'do‘stim');
+  const qatorlar = [`🌸 <b>${esc(brend)}</b>`, ``, `Nima qilamiz, ${ism}?`];
+  if (admin) qatorlar.push('', '⚙️ <i>Siz adminsiz — panel tugmasi quyida.</i>');
+  return yubor(chatId, qatorlar.join('\n'), { reply_markup: asosiyMenyu(admin) });
+}

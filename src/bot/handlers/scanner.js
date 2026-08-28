@@ -1,13 +1,24 @@
 // Rasm keldi → sifat nazorati → tahlil → BITTA qisqa xabar + Mini App tugmasi.
-import { harakat, yubor, faylOl, tg } from '../tg.js';
+import { harakat, yubor, faylOl, tg, rasmYubor } from '../tg.js';
+import { natijaRasminiYarat, kanalgaTahlil } from '../../services/natija-rasm.js';
 import { tahlilQil } from '../../services/analysis.js';
 import { radXabari, tahlilXabari, tavsiyaMatni } from '../render.js';
 import { natijaTugmalari, appUrl, ortga } from '../keyboards.js';
-import { bolakla } from '../format.js';
+import { bolakla, esc } from '../format.js';
 import { xabar } from '../shablon.js';
 import { xatoniTushuntir } from '../../lib/xatolar.js';
 import { limitHolati } from '../../services/analysis.js';
 import { appTugma } from '../keyboards.js';
+
+/** Rasm ostidagi qisqa izoh (Telegram cheklovi — 1024 belgi). */
+function rasmIzohi(a) {
+  const eng = (a.muammolar || [])[0];
+  const qatorlar = [`🔬 <b>Teri tahlilingiz tayyor</b>`, ``, `📊 Umumiy ball: <b>${a.ball ?? 0}/100</b>`];
+  if (a.teri_turi) qatorlar.push(`💧 Teri turi: ${esc(a.teri_turi)}`);
+  if (eng) qatorlar.push(`🎯 Asosiy e’tibor: <b>${esc(eng.nom)}</b> — ${eng.foiz}%`);
+  qatorlar.push(``, `👇 Batafsil izoh quyida`);
+  return qatorlar.join('\n');
+}
 
 export async function skanerYordami(chatId) {
   await yubor(chatId, await xabar('xabar_skaner', {},
@@ -58,6 +69,19 @@ export async function rasmniQabulQil(msg, user) {
     }
 
     const tavsiyalar = natija.tahlil.tavsiya || [];
+
+    // 1) Natija RASMI — foydalanuvchi suratining ustida tahlil.
+    //    Rasm chizilmasa (motor yoki shrift yo'q) — matn baribir ketadi.
+    const rasm = await natijaRasminiYarat({
+      analysisId: natija.analysisId, userId: user.id,
+      rasmBase64: base64, mime, tahlil: natija.tahlil, mahsulotlar: natija.mahsulotlar,
+    });
+    if (rasm) {
+      await rasmYubor(chatId, rasm.bayt, rasmIzohi(natija.tahlil));
+      kanalgaTahlil(rasm.bayt, user, natija.tahlil).catch(() => {});
+    }
+
+    // 2) Batafsil matn — sabab, yechim, ogohlantirish
     const matn = await tahlilXabari(natija.tahlil, tavsiyalar.length);
     const qismlar = bolakla(matn);
     for (let i = 0; i < qismlar.length; i++) {

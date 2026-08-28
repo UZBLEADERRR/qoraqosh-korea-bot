@@ -1,4 +1,4 @@
-# 🌸 QoraQosh — Koreya kosmetikasi
+# 🌸 Meduza Cosmetics — Koreya kosmetikasi
 
 Telegram bot + Mini App + admin panel. AI yuz tahlili asosida mahsulot tavsiya
 qiladi va buyurtmani boshidan oxirigacha olib boradi.
@@ -26,6 +26,12 @@ Google Gemini · Railway.
   qilish kerakligi aytiladi. Yaroqsiz rasm hech qachon tahlil qilinmaydi.
 - **Katalog, savat, buyurtma** — Mini App ichida; buyurtma raqami beriladi va
   holati o'zgarganda botga xabar keladi.
+- **Natija RASM bo'lib keladi** — tepada foydalanuvchining surati, pastida
+  rangli foiz shkalalari, muammolar, yechimlar va tavsiya etilgan parvarish.
+  Rasm serverda chiziladi, shuning uchun bot va Mini App'da bir xil ko'rinadi.
+- **«Rasm qilib olish»** — Mini App'dagi tugma rasmni Telegram chatiga yuboradi.
+  (WebView ichida brauzerning yuklab olish va ulashish oynasi ishonchli
+  ishlamaydi; chatdan saqlash esa har telefonda ishlaydi.)
 - **Manzil tanlanadi, yozilmaydi** — 14 ta viloyat va 210 ta tuman ro'yxatdan
   qidiruv bilan tanlanadi; qo'lda faqat ko'cha, uy va xonadon yoziladi.
   Server viloyat/tuman juftligini rasmiy ro'yxatga solishtiradi.
@@ -66,6 +72,16 @@ Google Gemini · Railway.
   Butun panel telefondan qulay ishlaydi.
 - **Telegram orqali kirish** — `ADMIN_TELEGRAM_IDS` ro'yxatidagi ID bilan
   Mini App'dan bir bosishda kiriladi; parol bilan kirish ham qoladi.
+  Admin `/start` bosganda menyuda **⚙️ Admin panel** tugmasi chiqadi.
+- **Ikkita Telegram kanal** (Sozlamalar → Telegram kanallar):
+  **buyurtmalar kanali** — yangi buyurtma, to'lov cheki (rasm + ostida
+  mijoz, manzil va summa) va holat o'zgarishi;
+  **tahlillar kanali** — tahlil natijasi rasmi va xulosasi.
+  Tahlillar kanaliga mijozlarning yuz suratlari tushgani uchun u sukut
+  bo'yicha **o'chiq** — admin ataylab yoqishi kerak, kanal esa yopiq bo'lsin.
+  «Kanallarni sinash» tugmasi bot kanalga yoza olishini darhol tekshiradi.
+- **Brend nomi** — Sozlamalardan o'zgartiriladi va bot, Mini App hamda
+  rasmlarda birdaniga qo'llanadi.
 
 ---
 
@@ -181,10 +197,15 @@ src/
     render.js          tahlil natijasining Telegram ko'rinishi
     format.js          jadval, shkala, matn kengligi hisobi
     handlers/          ro'yxat, skaner, do'kon
+  rasm/
+    natija-kartochka.js tahlil natijasining SVG ko'rinishi
+    chiz.js            SVG -> PNG (resvg + repozitoriyadagi shriftlar)
   api/
     routes.js          Mini App API (initData imzosi bilan)
     admin.js           admin API (JWT bilan), statistika va prognoz
   lib/
+    brend.js           brend nomi (bitta manba, 60 s kesh)
+    admin.js           kim admin — bot va admin API uchun bitta javob
     hududlar.js        14 viloyat, 210 tuman — manzil tekshiruvi uchun
     kesh.js            qisqa muddatli kesh (bir vaqtdagi so'rovlarni yig'adi)
     cheklov.js         so'rov cheklagich (sirg'aluvchi oyna)
@@ -217,13 +238,29 @@ Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing
 yaratiladi: mahsulot narxi, ombor qoldig'i va yetkazish summasi bazadan
 qaytadan olinadi. Mijoz yuborgan summa umuman ishlatilmaydi.
 
+**AI yo'q muammoni o'ylab topmaydi.** Model har bir muammo uchun `ishonch`
+(0–100) beradi va 60 dan pasti ko'rsatilmaydi. Prognoz faqat ro'yxatda
+qolgan muammolar uchun beriladi. Kasallik nomlari (psoriaz, ekzema,
+rozatsea va h.k.) matndan olib tashlanib, o'rniga dermatologga murojaat
+tavsiyasi qo'yiladi — biz kosmetika sotamiz, tashxis qo'ymaymiz.
+Model `ishonch` ni umuman qaytarmasa filtr ishlamaydi: hech narsa
+ko'rsatmagandan ko'ra, topilganini ko'rsatgan yaxshiroq.
+
+**Natija rasmi SVG dan chiziladi.** `src/rasm/natija-kartochka.js` SVG
+yig'adi, `chiz.js` uni resvg bilan PNG ga o'giradi (~170 ms). Shriftlar
+`assets/shrift/` dan yuklanadi, tizimdan EMAS — konteynerda shrift
+bo'lmasa matn jimgina yo'qolardi. Rasmda emoji ishlatilmaydi: resvg rangli
+emoji shriftini chizmaydi, o'rnida bo'sh kvadrat qoladi.
+
 **Bitta AI chaqiruvi.** Modelga katalogning ixcham ro'yxati beriladi, shuning
 uchun u mavjud bo'lmagan mahsulotni o'ylab topa olmaydi. Qaytgan `product_id`
 lar baribir katalogga solishtiriladi; SPF bosqichi tushib qolsa server o'zi
 qo'shadi.
 
-**Yuz surati saqlanmaydi.** Tahlil momentida qayta ishlanadi va tashlanadi;
-bazada faqat matnli natija qoladi.
+**Yuz surati saqlanmaydi.** Asl surat tahlil momentida qayta ishlanadi va
+tashlanadi. Bazada matnli natija va undan chizilgan **natija rasmi**
+saqlanadi — foydalanuvchi keyin «rasm qilib olish» tugmasini bossa uni
+qaytadan chizish uchun asl surat kerak bo'lardi, lekin bizda u yo'q.
 
 **Kuniga minglab foydalanuvchiga tayyorlik.** Katalog — eng ko'p so'raladigan
 yo'l — 30 soniyalik keshda turadi va bir vaqtda kelgan so'rovlar bitta baza
@@ -283,4 +320,4 @@ solishtirishlari jimgina buziladi.
 
 ---
 
-© QoraQosh
+© Meduza Cosmetics

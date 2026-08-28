@@ -67,6 +67,14 @@ export function soxtaServer(port = 4444) {
         yuborilgan.push(b);
         return j({ ok: true, result: { message_id: yuborilgan.length, chat: { id: b.chat_id } } });
       }
+      // sendPhoto multipart bilan keladi — izohni ajratib olamiz, baytni tashlaymiz
+      if (yol.endsWith('/sendPhoto')) {
+        const xom = await tana(req);
+        const izoh = /name="caption"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
+        const chat = /name="chat_id"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
+        yuborilgan.push({ rasm: true, chat_id: chat?.[1], text: izoh?.[1] || '', hajm: xom.length });
+        return j({ ok: true, result: { message_id: yuborilgan.length, photo: [{ file_id: 'f1' }] } });
+      }
       if (yol.endsWith('/sendChatAction') || yol.endsWith('/deleteMessage') ||
           yol.endsWith('/editMessageReplyMarkup') || yol.endsWith('/answerCallbackQuery') ||
           yol.endsWith('/setWebhook') || yol.endsWith('/deleteWebhook')) return j({ ok: true, result: true });
