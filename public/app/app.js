@@ -458,29 +458,42 @@ function natijaniChiz() {
   ${(t.problems || []).length ? `
   <div class="karta">
     <div class="karta-bosh"><h2>🔍 Nima topdim</h2></div>
-    ${t.problems.map((m) => `
-      <div class="muammo">
-        <span class="nuqta">${NUQTA[Math.min(3, m.daraja || 1)]}</span>
-        <div style="flex:1;min-width:0">
-          <div class="nom">${esc(m.nom)}
-            <span class="yorliq ${DSINF[Math.min(3, m.daraja || 1)]}" style="margin-left:6px">${DARAJA[Math.min(3, m.daraja || 1)]}</span></div>
-          ${m.zona ? `<div class="ozgina">📍 ${esc(m.zona)}</div>` : ''}
-          ${m.izoh ? `<div class="izoh">${esc(m.izoh)}</div>` : ''}
+    ${t.problems.map((m) => {
+      const foiz = m.foiz ?? (m.daraja === 3 ? 80 : m.daraja === 2 ? 55 : 25);
+      const d = m.daraja || (foiz >= 70 ? 3 : foiz >= 40 ? 2 : 1);
+      return `
+      <div class="muammo-blok">
+        <div class="muammo-bosh">
+          <span class="nuqta">${NUQTA[Math.min(3, d)]}</span>
+          <span class="nom">${esc(m.nom)}</span>
+          <span class="yorliq ${DSINF[Math.min(3, d)]}">${DARAJA[Math.min(3, d)]}</span>
         </div>
-      </div>`).join('')}
+        <div class="olchov">
+          <div class="olchov-chiziq"><i class="d${Math.min(3, d)}" style="width:${foiz}%"></i></div>
+          <span class="olchov-foiz">${foiz}%</span>
+        </div>
+        ${m.zona   ? `<div class="satr-izoh">📍 <span>${esc(m.zona)}</span></div>` : ''}
+        ${m.izoh   ? `<div class="satr-izoh">👁 <span>${esc(m.izoh)}</span></div>` : ''}
+        ${m.sabab  ? `<div class="satr-izoh">🔎 <span><b>Sababi:</b> ${esc(m.sabab)}</span></div>` : ''}
+        ${m.yechim ? `<div class="yechim">✅ <span><b>Yechimi:</b> ${esc(m.yechim)}</span></div>` : ''}
+        ${m.ogohlantirish ? `<div class="diqqat">⚠️ <span>${esc(m.ogohlantirish)}</span></div>` : ''}
+      </div>`; }).join('')}
   </div>` : ''}
 
   ${(t.forecast || []).length ? `
   <div class="karta">
     <div class="karta-bosh"><h2>⏳ E’tibor bermasangiz</h2></div>
-    ${t.forecast.map((p) => `
-      <div class="prognoz">
-        <div class="foiz">${p.ehtimol}%</div>
-        <div style="flex:1;min-width:0">
-          <div class="nom" style="font-weight:650">${esc(p.muammo)}</div>
-          <div class="ozgina">⏱ ${esc(p.muddat || '')}</div>
-          <div class="izoh mayda" style="margin-top:3px">${esc(p.natija)}</div>
+    ${[...t.forecast].sort((a, b) => b.ehtimol - a.ehtimol).map((p) => `
+      <div class="muammo-blok">
+        <div class="muammo-bosh">
+          <span class="nom">${esc(p.muammo)}</span>
+          <span class="ozgina" style="margin-left:auto;white-space:nowrap">⏱ ${esc(p.muddat || '')}</span>
         </div>
+        <div class="olchov">
+          <div class="olchov-chiziq"><i class="prognoz-rang" style="width:${p.ehtimol}%"></i></div>
+          <span class="olchov-foiz">${p.ehtimol}%</span>
+        </div>
+        <div class="satr-izoh">→ <span>${esc(p.natija)}</span></div>
       </div>`).join('')}
     <div class="ogoh" style="margin-top:12px">
       ⚕️ Bu ehtimollik baholari, tibbiy tashxis emas. Jiddiy belgilarda dermatologga murojaat qiling.

@@ -51,14 +51,17 @@ const SXEMA = {
       items: {
         type: 'object',
         properties: {
-          kalit: { type: 'string', enum: ['akne','teshik','yoglilik','quruqlik','qizarish','dog','ajin','xiralik','sezgirlik','qora_doira','shishish'] },
-          nom:   { type: 'string' },
-          daraja:{ type: 'integer' },
-          zona:  { type: 'string' },
-          izoh:  { type: 'string' },
+          kalit:        { type: 'string', enum: ['akne','teshik','yoglilik','quruqlik','qizarish','dog','ajin','xiralik','sezgirlik','qora_doira','shishish'] },
+          nom:          { type: 'string' },
+          foiz:         { type: 'integer' },
+          zona:         { type: 'string' },
+          izoh:         { type: 'string' },
+          sabab:        { type: 'string' },
+          yechim:       { type: 'string' },
+          ogohlantirish:{ type: 'string' },
         },
-        required: ['kalit', 'nom', 'daraja', 'zona', 'izoh'],
-        propertyOrdering: ['kalit', 'nom', 'daraja', 'zona', 'izoh'],
+        required: ['kalit','nom','foiz','zona','izoh','sabab','yechim','ogohlantirish'],
+        propertyOrdering: ['kalit','nom','foiz','zona','izoh','sabab','yechim','ogohlantirish'],
       },
     },
     prognoz: {
@@ -127,11 +130,25 @@ QADAM 2 — faqat sifat yaroqli bo'lsa tahlil qil:
   umumiy.ball          — terining umumiy holati 0-100 (100 = ideal)
   umumiy.xulosa        — 1-2 jumlada umumiy holat
 
-QADAM 3 — muammolar: ko'rinib turgan 2-5 ta muammo.
-  daraja: 1 = yengil, 2 = o'rtacha, 3 = kuchli. zona: masalan "T-zona", "yonoqlar".
+QADAM 3 — muammolar: ko'rinib turgan 2-5 ta muammo. Har biri uchun:
+  nom     — muammoning o'zbekcha nomi, 2-4 so'z
+  foiz    — qanchalik ifodalangan, 0-100. Bu SHU muammoning kuchi:
+            15-35 arang sezilarli, 40-65 aniq ko'rinadi, 70-90 kuchli.
+            Aniq raqam ber, 50 yoki 70 kabi dumaloq sonlarga yopishma.
+  zona    — teridagi ANIQ joyi: "burun qanotlari va peshona (T-zona)",
+            "yonoqlarning yuqori qismi", "iyak va jag' chizig'i". Umumiy
+            "yuz" deb yozma.
+  izoh    — nima ko'rinayotgani, 1 jumla
+  sabab   — nima uchun paydo bo'lgan bo'lishi mumkin, 1 jumla, sodda tilda
+            (masalan "yog' bezlari faol ishlaydi va teshiklar tiqiladi")
+  yechim  — nima qilish kerak, 1-2 jumla, AMALIY: qanday modda yoki qanday
+            odat yordam beradi (mahsulot nomini yozma — u keyingi qadamda)
+  ogohlantirish — shu muammoda odam ko'p qiladigan XATO yoki ehtiyot chorasi,
+            1 qisqa jumla. Xato yo'q bo'lsa bo'sh satr qoldir.
 
 QADAM 4 — prognoz: har bir jiddiy muammo uchun DAVOLANMASA nima bo'lishi mumkin.
-  ehtimol: 0-100 oralig'ida foiz. muddat: masalan "6-12 oy".
+  ehtimol: 0-100 oralig'ida foiz — aniq raqam, dumaloq son emas.
+  muddat: masalan "6-12 oy". natija: nima bo'lishi, 1 jumla.
   Bu tibbiy tashxis emas — ehtiyotkor til ishlat ("ehtimoli bor", "kuchayishi mumkin").
 
 QADAM 5 — tavsiya: quyidagi katalogdan mahsulot tanla.
@@ -175,13 +192,21 @@ const BOSQICH_TARTIB = ['tozalash', 'toner', 'davolash', 'namlash', 'himoya', 'q
 function tozala(javob, products) {
   const karta = new Map(products.map((p) => [p.id, p]));
 
-  const muammolar = (javob.muammolar || []).slice(0, 6).map((m) => ({
-    kalit:  String(m.kalit || '').slice(0, 24),
-    nom:    String(m.nom || '').slice(0, 60),
-    daraja: Math.min(3, Math.max(1, Number(m.daraja) || 1)),
-    zona:   String(m.zona || '').slice(0, 40),
-    izoh:   String(m.izoh || '').slice(0, 200),
-  }));
+  const muammolar = (javob.muammolar || []).slice(0, 6).map((m) => {
+    const foiz = Math.min(95, Math.max(5, Number(m.foiz) || 30));
+    return {
+      kalit:  String(m.kalit || '').slice(0, 24),
+      nom:    String(m.nom || '').slice(0, 60),
+      foiz,
+      // Daraja foizdan kelib chiqadi — ikkalasi hech qachon qarama-qarshi bo'lmaydi
+      daraja: foiz >= 70 ? 3 : foiz >= 40 ? 2 : 1,
+      zona:   String(m.zona || '').slice(0, 80),
+      izoh:   String(m.izoh || '').slice(0, 200),
+      sabab:  String(m.sabab || '').slice(0, 220),
+      yechim: String(m.yechim || '').slice(0, 260),
+      ogohlantirish: String(m.ogohlantirish || '').slice(0, 200),
+    };
+  }).sort((a, b) => b.foiz - a.foiz);   // eng kuchlisi birinchi
 
   const prognoz = (javob.prognoz || []).slice(0, 5).map((p) => ({
     muammo:  String(p.muammo || '').slice(0, 60),

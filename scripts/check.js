@@ -16,6 +16,8 @@ const kerakliFayllar = [
   'src/api/routes.js', 'src/api/admin.js',
   'migrations/001_schema.sql', 'migrations/002_katalog.sql', 'migrations/003_media.sql',
   'src/db/migrate.js', 'src/ai/poster.js',
+  'src/bot/shablon.js', 'src/bot/shablonlar-standart.js',
+  'migrations/004_tolov_chegirma.sql', 'migrations/005_xabar_shablonlari.sql',
   'public/index.html', 'public/app/index.html', 'public/app/app.js', 'public/app/style.css',
   'public/admin/index.html', 'public/admin/admin.js', 'public/admin/style.css',
 ];
@@ -35,6 +37,31 @@ sxema.includes('place_order') ? ok('place_order() funksiyasi') : yiq('place_orde
 sxema.includes('from public;') ? ok('RPC PUBLIC dan tortilgan') : yiq('RPC PUBLIC dan tortilmagan');
 (sxema.match(/enable row level security/g) || []).length >= 8
   ? ok('RLS barcha jadvalda yoqilgan') : yiq('RLS yetishmayapti');
+
+console.log('\nXabar shablonlari:');
+const { STANDART, GURUHLAR, TAVSIF } = await import(
+  'file://' + path.join(ildiz, 'src/bot/shablonlar-standart.js'));
+const kalitlar = Object.keys(STANDART);
+kalitlar.length >= 15 ? ok(`${kalitlar.length} ta shablon`) : yiq('shablon kam');
+// Har bir shablon guruhga kirganmi va tavsifi bormi
+const guruhda = new Set(GURUHLAR.flatMap((g) => g.kalitlar));
+const yetim = kalitlar.filter((k) => !guruhda.has(k));
+yetim.length ? yiq(`guruhsiz shablon: ${yetim.join(', ')}`) : ok('hammasi guruhlangan');
+const tavsifsiz = kalitlar.filter((k) => !TAVSIF[k]);
+tavsifsiz.length ? yiq(`tavsifsiz: ${tavsifsiz.join(', ')}`) : ok('hammasida tavsif bor');
+// Guruhda bor, lekin STANDART da yo'q kalit — admin panelida bo'sh maydon chiqardi
+const yoq = [...guruhda].filter((k) => !STANDART[k]);
+yoq.length ? yiq(`guruhda bor, matni yo'q: ${yoq.join(', ')}`) : ok('guruh va matnlar mos');
+// O'rin egallovchilar tavsifda ro'yxatlanganmi
+let orinXato = 0;
+for (const [k, matn] of Object.entries(STANDART)) {
+  const ishlatilgan = [...String(matn).matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+  const elon = new Set(TAVSIF[k]?.orin || []);
+  for (const o of ishlatilgan) {
+    if (!elon.has(o)) { yiq(`${k}: {${o}} tavsifda ko'rsatilmagan`); orinXato++; }
+  }
+}
+if (!orinXato) ok("o'rin egallovchilar tavsif bilan mos");
 
 console.log('\nKatalog:');
 const katalog = fs.readFileSync(path.join(ildiz, 'migrations/002_katalog.sql'), 'utf8');

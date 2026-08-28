@@ -3,6 +3,7 @@ import { qatorlar, qiymat, sozlama } from '../../db.js';
 import { yubor } from '../tg.js';
 import { esc, narx } from '../format.js';
 import { asosiyMenyu, ortga, appTugma } from '../keyboards.js';
+import { xabar } from '../shablon.js';
 
 const HOLAT_EMOJI = {
   yangi: '🆕', tasdiqlangan: '✅', yolda: '🚚', yetkazildi: '📦', bekor: '❌',
@@ -59,18 +60,9 @@ export async function konsultatsiya(chatId) {
   const qatorlarKb = [[{ text: '💬 Menejerga yozish', url: `https://t.me/${username}` }]];
   qatorlarKb.push([{ text: '⬅️ Menyu', callback_data: 'menyu' }]);
 
-  await yubor(chatId, [
-    `💬 <b>Konsultatsiya</b>`,
-    ``,
-    `Savolingiz bormi? Menejerimiz javob beradi:`,
-    ``,
-    `🧴 qaysi mahsulot sizga mos`,
-    `🔄 mahsulotlarni birga ishlatsa bo‘ladimi`,
-    `🚚 yetkazib berish va to‘lov`,
-    `↩️ almashtirish va qaytarish`,
-    ``,
-    `<i>Odatda 1 soat ichida javob beramiz.</i>`,
-  ].join('\n'), { reply_markup: { inline_keyboard: qatorlarKb } });
+  await yubor(chatId, await xabar('xabar_konsultatsiya', {},
+    '💬 <b>Konsultatsiya</b>\n\nMenejerimizga yozing.'),
+    { reply_markup: { inline_keyboard: qatorlarKb } });
 }
 
 export async function yordamKorsat(chatId) {
@@ -79,22 +71,10 @@ export async function yordamKorsat(chatId) {
   if (oferta) kb.push([{ text: '📄 Ommaviy oferta', url: oferta.web_app.url }]);
   kb.push([{ text: '⬅️ Menyu', callback_data: 'menyu' }]);
 
-  await yubor(chatId, [
-    `ℹ️ <b>Yordam</b>`,
-    ``,
-    `🔬 <b>Yuz skaneri</b> — rasm yuboring, teri holatini tahlil qilaman`,
-    `🛍 <b>Do‘kon</b> — katalog, qidiruv va narx bo‘yicha filtr`,
-    `🛒 <b>Savat</b> — buyurtma berish`,
-    `💬 <b>Konsultatsiya</b> — menejer bilan bog‘lanish`,
-    ``,
-    `<b>Buyruqlar</b>`,
-    `/start — boshlash`,
-    `/skaner — yuz tahlili`,
-    `/qayta — ma’lumotni yangilash`,
-    `/ochir — ma’lumotimni o‘chirish`,
-    ``,
-    `<i>⚕️ AI tahlili tibbiy tashxis emas. Jiddiy teri muammosida dermatologga murojaat qiling.</i>`,
-  ].join('\n'), { reply_markup: { inline_keyboard: kb } });
+  const matn = await xabar('xabar_yordam', {}, 'ℹ️ <b>Yordam</b>');
+  const tibbiy = await xabar('ogohlantirish_tibbiy', {}, '');
+  await yubor(chatId, [matn, tibbiy].filter(Boolean).join('\n\n'),
+    { reply_markup: { inline_keyboard: kb } });
 }
 
 export const menyuniKorsat = (chatId, user) =>

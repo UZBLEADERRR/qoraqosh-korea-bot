@@ -119,3 +119,11 @@ textarea{resize:vertical;min-height:64px}
   border-radius:50%;animation:a .8s linear infinite;display:inline-block;vertical-align:middle}
 @keyframes a{to{transform:rotate(360deg)}}
 .bosh-holat{text-align:center;padding:40px;color:var(--och)}
+
+/* --- Xabar shabloni: Telegram ko'rinishi --- */
+.tg-korinish{background:var(--fon);border:1px solid var(--chiziq);border-radius:12px;
+  padding:13px 15px;margin-top:6px;font-size:14.5px;line-height:1.5;
+  white-space:normal;word-break:break-word}
+.tg-korinish:empty::before{content:'(bo‘sh — bu xabar yuborilmaydi)';color:var(--och);font-style:italic}
+.tg-korinish b{font-weight:650}
+.tg-korinish code{background:var(--chiziq);padding:1px 5px;border-radius:4px;font-size:13px}

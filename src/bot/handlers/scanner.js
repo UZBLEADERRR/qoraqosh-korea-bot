@@ -4,20 +4,12 @@ import { tahlilQil } from '../../services/analysis.js';
 import { radXabari, tahlilXabari, tavsiyaMatni } from '../render.js';
 import { natijaTugmalari, appUrl, ortga } from '../keyboards.js';
 import { bolakla } from '../format.js';
+import { xabar } from '../shablon.js';
 
 export async function skanerYordami(chatId) {
-  await yubor(chatId, [
-    `🔬 <b>Yuz skaneri</b>`,
-    ``,
-    `Yuzingiz aniq ko‘ringan surat yuboring 📸`,
-    ``,
-    `☀️ Yorug‘ joyda — deraza oldida`,
-    `🤳 Yaqindan — yuz kadrni to‘ldirsin`,
-    `👀 To‘g‘riga qarang`,
-    `🧼 Pardozsiz va filtrsiz`,
-    ``,
-    `<i>Xira, uzoq, ekrandan olingan yoki AI chizgan rasm qabul qilinmaydi.</i>`,
-  ].join('\n'), { reply_markup: ortga() });
+  await yubor(chatId, await xabar('xabar_skaner', {},
+    '🔬 <b>Yuz skaneri</b>\n\nYuzingiz aniq ko‘ringan surat yuboring 📸'),
+    { reply_markup: ortga() });
 }
 
 export async function rasmniQabulQil(msg, user) {
@@ -37,13 +29,17 @@ export async function rasmniQabulQil(msg, user) {
     const natija = await tahlilQil(user, base64, mime);
 
     if (!natija.yaroqli) {
-      await yubor(chatId, radXabari(natija.sabab, natija.izoh), { reply_markup: ortga() });
+      await yubor(chatId, await radXabari(natija.sabab, natija.izoh), { reply_markup: ortga() });
       return true;
     }
 
     const tavsiyalar = natija.tahlil.tavsiya || [];
-    await yubor(chatId, tahlilXabari(natija.tahlil, tavsiyalar.length),
-      { reply_markup: natijaTugmalari() });
+    const matn = await tahlilXabari(natija.tahlil, tavsiyalar.length);
+    const qismlar = bolakla(matn);
+    for (let i = 0; i < qismlar.length; i++) {
+      await yubor(chatId, qismlar[i],
+        i === qismlar.length - 1 ? { reply_markup: natijaTugmalari() } : {});
+    }
 
     // Mini App yo'q bo'lsa (PUBLIC_URL sozlanmagan) — tavsiyani matnda beramiz
     if (!appUrl() && tavsiyalar.length) {

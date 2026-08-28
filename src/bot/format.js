@@ -11,20 +11,7 @@ export const esc = (s) =>
 export const narx  = (n) => Number(n || 0).toLocaleString('uz-UZ').replace(/,/g, ' ') + " so'm";
 export const raqam = (n) => Number(n || 0).toLocaleString('uz-UZ').replace(/,/g, ' ');
 
-/** 0–100 → ▓▓▓▓▓▓░░░░ (proporsional shriftda ham tekis ko'rinadi) */
-export function shkala(qiymat, uzunlik = 10) {
-  const v = Math.min(100, Math.max(0, Number(qiymat) || 0));
-  const toldi = Math.round((v / 100) * uzunlik);
-  return '▓'.repeat(toldi) + '░'.repeat(uzunlik - toldi);
-}
-
-/** Muammo darajasi → rangli nuqta */
-export const daraja = (d) => ['', '🟢', '🟡', '🔴'][Math.min(3, Math.max(1, Number(d) || 1))];
-export const darajaSoz = (d) => ['', 'yengil', "o'rtacha", 'kuchli'][Math.min(3, Math.max(1, Number(d) || 1))];
-
-/** "🔹 <b>Kalit</b> — qiymat" ko'rinishidagi qator. */
-export const satr = (emoji, kalit, qiymat) =>
-  `${emoji} <b>${esc(kalit)}</b>${qiymat ? ' — ' + esc(qiymat) : ''}`;
+// Shkala va daraja belgilari shablon.js da (u yerda shablonlar bilan birga ishlatiladi).
 
 /** Uzun matnni Telegram chegarasiga (4096) sig'diradi. */
 export function bolakla(matn, max = 3900) {

@@ -6,6 +6,8 @@ import { config } from '../../config.js';
 import { yubor } from '../tg.js';
 import { esc } from '../format.js';
 import { asosiyMenyu, telefonSora, shartnomaTugmalari } from '../keyboards.js';
+import { xabar } from '../shablon.js';
+import { sozlama } from '../../db.js';
 
 export const HOLAT = {
   TELEFON:   'reg_telefon',
@@ -19,15 +21,10 @@ export const royxatdanOtganmi = (u) => Boolean(u?.phone && u?.full_name && u?.ag
 const holat = (userId, state) => sorov('update users set state = $1 where id = $2', [state, userId]);
 
 export async function boshla(chatId, user) {
-  await yubor(chatId, [
-    `👋 <b>QoraQosh</b> — Koreya kosmetikasi`,
-    ``,
-    `Yuzingizni AI bilan tekshirib, aynan sizga mos parvarishni tuzib beraman.`,
-    ``,
-    `Avval qisqa tanishamiz — <b>3 ta savol</b>, yarim daqiqa.`,
-    ``,
-    `<b>1/3</b> · Telefon raqamingizni ulashing 👇`,
-  ].join('\n'), { reply_markup: telefonSora() });
+  const dokon = String(await sozlama('dokon_nomi', 'QoraQosh')).replace(/"/g, '');
+  await yubor(chatId, await xabar('xabar_start', { dokon: esc(dokon) },
+    '👋 <b>{dokon}</b>\n\n<b>1/3</b> · Telefon raqamingizni ulashing 👇'),
+    { reply_markup: telefonSora() });
   await holat(user.id, HOLAT.TELEFON);
   await hodisa(user.id, 'start');
 }
@@ -98,15 +95,8 @@ export async function roziBol(chatId, user) {
     [config.agreementVersion, user.id]);
   await hodisa(user.id, 'register');
 
-  await yubor(chatId, [
-    `🎉 <b>Tayyor!</b>`,
-    ``,
-    `Endi <b>🔬 Yuz skaneri</b> ni bosing va yuzingiz aniq ko‘ringan surat yuboring.`,
-    ``,
-    `Men aytib beraman:`,
-    `👤 taxminiy yosh va teri turingizni`,
-    `🔍 qanday muammolar borligini`,
-    `⏳ e’tibor bermasangiz nima bo‘lishini`,
-    `💡 qaysi mahsulot, qaysi tartibda va nega kerakligini`,
-  ].join('\n'), { reply_markup: asosiyMenyu() });
+  await yubor(chatId, await xabar('xabar_royxat_tugadi',
+    { ism: esc((user.full_name || '').split(' ')[0] || '') },
+    '🎉 <b>Tayyor!</b>\n\nEndi <b>🔬 Yuz skaneri</b> ni bosing.'),
+    { reply_markup: asosiyMenyu() });
 }

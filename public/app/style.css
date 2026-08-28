@@ -177,14 +177,27 @@ textarea{resize:vertical;min-height:86px}
 .shkala i{display:block;height:100%;background:var(--urgu);border-radius:99px;transition:width .6s}
 .ball{font-size:46px;font-weight:700;letter-spacing:-.03em;line-height:1}
 .ball small{font-size:17px;color:var(--och);font-weight:400}
-.muammo{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--chiziq);align-items:flex-start}
-.muammo:last-child{border-bottom:0}
-.muammo .nuqta{font-size:15px;line-height:1.5}
-.muammo .nom{font-weight:650}
-.muammo .izoh{font-size:14.5px;color:var(--kul);margin-top:2px}
-.prognoz{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--chiziq);align-items:flex-start}
-.prognoz:last-child{border-bottom:0}
-.prognoz .foiz{flex:0 0 52px;font-weight:700;font-size:17px;color:var(--sariq);text-align:right}
+.muammo-blok{padding:15px 0;border-bottom:1px solid var(--chiziq)}
+.muammo-blok:last-of-type{border-bottom:0}
+.muammo-bosh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.muammo-bosh .nuqta{font-size:15px}
+.muammo-bosh .nom{font-weight:650;font-size:16.5px}
+.olchov{display:flex;align-items:center;gap:10px;margin:9px 0 10px}
+.olchov-chiziq{flex:1;height:9px;background:var(--chiziq);border-radius:99px;overflow:hidden}
+.olchov-chiziq i{display:block;height:100%;border-radius:99px;transition:width .6s ease}
+.olchov-chiziq i.d1{background:var(--yashil)}
+.olchov-chiziq i.d2{background:var(--sariq)}
+.olchov-chiziq i.d3{background:var(--qizil)}
+.olchov-chiziq i.prognoz-rang{background:var(--sariq)}
+.olchov-foiz{font-weight:700;font-size:15px;min-width:42px;text-align:right;
+  font-variant-numeric:tabular-nums}
+.satr-izoh{display:flex;gap:8px;font-size:14.5px;color:var(--kul);line-height:1.5;margin-top:5px}
+.satr-izoh b{color:var(--matn);font-weight:650}
+.yechim{display:flex;gap:8px;font-size:14.5px;line-height:1.5;margin-top:9px;
+  background:var(--yashil-och);color:var(--yashil);padding:11px 13px;border-radius:11px}
+.yechim b{font-weight:700}
+.diqqat{display:flex;gap:8px;font-size:14px;line-height:1.5;margin-top:7px;
+  background:var(--sariq-och);color:var(--sariq);padding:10px 13px;border-radius:11px}
 .bosqich{display:flex;gap:14px;padding:18px 0;border-bottom:1px solid var(--chiziq)}
 .bosqich:last-of-type{border-bottom:0}
 .raqam{flex:0 0 34px;height:34px;border-radius:50%;background:var(--urgu);color:#fff;

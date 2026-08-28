@@ -59,6 +59,7 @@ $$('aside button[data-b]').forEach((b) => b.onclick = () => bolimOch(b.dataset.b
 // Bo'lim kaliti -> uni chizadigan funksiya. Kalit HTML dagi #b-<kalit> va
 // yon menyudagi data-b bilan bir xil.
 const BOLIMLAR = {
+  xabarlar:  () => xabarlar(),
   qollanma:  () => qollanma(),
   boshqaruv: () => boshqaruv(),
   buyurtma:  () => buyurtmalar(),
@@ -615,7 +616,148 @@ async function sozlamalarniSaqla() {
   } catch (e) { holat.innerHTML = `<div class="xato">${esc(e.message)}</div>`; }
 }
 
-// ================= 7. QO'LLANMA =================
+// ================= 7. XABAR SHABLONLARI =================
+// Botning matnlari. Admin tahrirlaydi, deploy qilish shart emas.
+
+const SHKALA = (foiz, n = 10) => {
+  const v = Math.min(100, Math.max(0, Math.round(Number(foiz) || 0)));
+  const t = Math.round((v / 100) * n);
+  return '■'.repeat(t) + '□'.repeat(n - t);
+};
+
+// Ko'rinishni sinash uchun namunaviy qiymatlar
+const NAMUNA = {
+  dokon:'QoraQosh', ism:'Malika',
+  yosh:'24–28', teri_turi:'aralash', teri_rangi:'och bug‘doyrang, iliq ton',
+  ball:62, baho:'o‘rtacha 😌', shkala:SHKALA(62),
+  nuqta:'🔴', nom:'Kengaygan teshiklar', foiz:72,
+  zona:'Burun qanotlari va peshona (T-zona)',
+  izoh:'Teshiklar aniq ko‘rinadi, qora nuqtalar bor',
+  sabab:'Yog‘ bezlari faol ishlaydi, ortiqcha yog‘ o‘lik hujayralar bilan aralashib teshikni tiqadi',
+  yechim:'Kechqurun BHA bilan tozalang, kunduzi niatsinamid ishlating',
+  ogohlantirish:'Qora nuqtalarni barmoq bilan siqmang — iz qoladi',
+  muammo:'Kengaygan teshiklar', ehtimol:68, muddat:'6–12 oy',
+  natija:'Teshiklar doimiy kengayib, qora nuqtalar ko‘payishi mumkin',
+  tavsiya_soni:4, raqam:'QQ-260828-0001', emoji:'🤖',
+};
+
+const toldir = (matn, q) => String(matn || '')
+  .replace(/\{(\w+)\}/g, (_, n) => (q[n] === undefined ? '' : String(q[n])));
+
+/** Telegram HTML ni brauzerda ko'rsatish uchun xavfsiz tarzda o'girish. */
+function telegramKorinish(matn) {
+  const q = { ...NAMUNA };
+  if (/blok_muammo/.test(kesh.joriyKalit || '')) q.shkala = SHKALA(q.foiz);
+  if (/blok_prognoz/.test(kesh.joriyKalit || '')) q.shkala = SHKALA(q.ehtimol);
+  const toldirilgan = toldir(matn, q);
+  return esc(toldirilgan)
+    .replace(/&lt;b&gt;(.*?)&lt;\/b&gt;/gs, '<b>$1</b>')
+    .replace(/&lt;i&gt;(.*?)&lt;\/i&gt;/gs, '<i>$1</i>')
+    .replace(/&lt;u&gt;(.*?)&lt;\/u&gt;/gs, '<u>$1</u>')
+    .replace(/&lt;code&gt;(.*?)&lt;\/code&gt;/gs, '<code>$1</code>')
+    .replace(/\n/g, '<br>');
+}
+
+async function xabarlar() {
+  const el = $('#b-xabarlar');
+  yuklanmoqda(el);
+  try {
+    const j = await api('/api/admin/templates');
+    kesh.shablon = { ...j.joriy };
+    kesh.standart = j.standart;
+    kesh.tavsif = j.tavsif;
+
+    el.innerHTML = `
+    <div class="bosh"><h1>Bot xabarlari</h1>
+      <button class="tug asos" id="x-saqla">Barchasini saqlash</button></div>
+
+    <div class="karta" style="max-width:820px">
+      <p class="mayda" style="margin:0">
+        Bu yerdagi matnlar botda mijozga ko‘rinadi. O‘zgartirsangiz darhol kuchga kiradi —
+        qayta deploy qilish shart emas.<br><br>
+        <b>{figurali qavs}</b> ichidagi so‘zlar — o‘rin egallovchilar, ular avtomatik
+        to‘ldiriladi. Har maydon ostida qaysilarini ishlatish mumkinligi yozilgan.
+        Kerak bo‘lmasa olib tashlashingiz mumkin.<br><br>
+        Qalin yozuv uchun <code>&lt;b&gt;matn&lt;/b&gt;</code>, qiya uchun
+        <code>&lt;i&gt;matn&lt;/i&gt;</code>. Emoji bemalol ishlatiladi.
+      </p>
+    </div>
+
+    <div id="x-holat" style="max-width:820px"></div>
+    ${j.guruhlar.map((g) => `
+      <div class="karta" style="max-width:820px">
+        <div class="karta-bosh"><h2>${esc(g.nom)}</h2></div>
+        <p class="mayda" style="margin:-6px 0 14px">${esc(g.izoh)}</p>
+        ${g.kalitlar.map((k) => shablonMaydoni(k)).join('')}
+      </div>`).join('')}`;
+
+    $$('[data-shablon]', el).forEach((ta) => {
+      ta.oninput = () => {
+        kesh.shablon[ta.dataset.shablon] = ta.value;
+        korinishniYangila(ta.dataset.shablon);
+      };
+    });
+    $$('[data-tiklash]', el).forEach((b) => b.onclick = () => {
+      const k = b.dataset.tiklash;
+      kesh.shablon[k] = kesh.standart[k];
+      $(`[data-shablon="${k}"]`).value = kesh.standart[k];
+      korinishniYangila(k);
+    });
+    j.guruhlar.forEach((g) => g.kalitlar.forEach(korinishniYangila));
+    $('#x-saqla').onclick = xabarlarniSaqla;
+  } catch (e) { xatoChiz(el, e); }
+}
+
+function shablonMaydoni(kalit) {
+  const t = kesh.tavsif[kalit] || { nom: kalit, izoh: '', orin: [] };
+  const qiymat = kesh.shablon[kalit] ?? kesh.standart[kalit] ?? '';
+  const ozgargan = qiymat !== (kesh.standart[kalit] ?? '');
+  return `
+    <div style="margin-bottom:22px;padding-bottom:20px;border-bottom:1px solid var(--chiziq)">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <b style="font-size:15px">${esc(t.nom)}</b>
+        ${ozgargan ? '<span class="yor sariq">o‘zgartirilgan</span>' : ''}
+        <button class="tug kichik" data-tiklash="${esc(kalit)}" style="margin-left:auto">
+          ↺ Standartga qaytarish</button>
+      </div>
+      ${t.izoh ? `<p class="mayda" style="margin:5px 0 0">${esc(t.izoh)}</p>` : ''}
+      <textarea data-shablon="${esc(kalit)}" rows="${Math.min(14, qiymat.split('\n').length + 1)}"
+        style="margin-top:9px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px"
+        >${esc(qiymat)}</textarea>
+      ${t.orin.length ? `<p class="mayda" style="margin:7px 0 0">
+        <b>Ishlatsa bo‘ladi:</b> ${t.orin.map((o) => `<code>{${esc(o)}}</code>`).join(' ')}</p>` : ''}
+      <div class="mayda" style="margin-top:10px">Botda shunday ko‘rinadi:</div>
+      <div class="tg-korinish" id="kor-${esc(kalit)}"></div>
+    </div>`;
+}
+
+function korinishniYangila(kalit) {
+  const el = $(`#kor-${CSS.escape(kalit)}`);
+  if (!el) return;
+  kesh.joriyKalit = kalit;
+  el.innerHTML = telegramKorinish(kesh.shablon[kalit] ?? '');
+}
+
+async function xabarlarniSaqla() {
+  const holat = $('#x-holat');
+  const bosh = Object.entries(kesh.shablon).filter(([, v]) => !String(v || '').trim());
+  if (bosh.length) {
+    holat.innerHTML = `<div class="karta" style="max-width:820px"><div class="xato">
+      Bo‘sh qolgan shablon bor: ${bosh.map(([k]) => esc(kesh.tavsif[k]?.nom || k)).join(', ')}.
+      Bo‘sh shablon o‘rniga hech nima yuborilmaydi.</div></div>`;
+  }
+  try {
+    const j = await api('/api/admin/templates', { method: 'POST',
+      body: JSON.stringify({ templates: kesh.shablon }) });
+    holat.innerHTML = `<div class="karta" style="max-width:820px"><div class="ok">
+      ✓ ${j.yozildi} ta xabar saqlandi — botda darhol kuchga kirdi</div></div>`;
+    xabarlar();
+  } catch (e) {
+    holat.innerHTML = `<div class="karta" style="max-width:820px"><div class="xato">${esc(e.message)}</div></div>`;
+  }
+}
+
+// ================= 8. QO'LLANMA =================
 function qollanma() {
   const el = $('#b-qollanma');
   el.innerHTML = `
@@ -665,6 +807,18 @@ function qollanma() {
     <p class="mayda">Mahsulot yonidagi <b>📢</b> tugmasi:
       rasm yuklaysiz → AI 4 ta g‘oya beradi → bittasini tanlaysiz → poster chiziladi →
       «Katalogda ishlatish» bossangiz, u mahsulot rasmi bo‘lib chiqadi.</p>
+  </div>
+
+  <div class="karta" style="max-width:720px">
+    <h2>✍️ Bot matnlarini o‘zgartirish</h2>
+    <p class="mayda"><b>Xabarlar</b> bo‘limida botning har bir jumlasini o‘zingiz yozasiz.
+      Har maydon ostida «Botda shunday ko‘rinadi» degan jonli ko‘rinish bor —
+      saqlashdan oldin natijani ko‘rasiz.</p>
+    <p class="mayda"><b>{figurali qavs}</b> ichidagi so‘zlarga tegmang — ular avtomatik
+      to‘ldiriladi (masalan <code>{foiz}</code> → 72, <code>{zona}</code> → «burun va peshona»).
+      Xato qilsangiz «↺ Standartga qaytarish» tugmasi bor.</p>
+    <p class="mayda">Eng ko‘p ishlatiladigani — <b>«Bitta muammo bloki»</b>: u har bir
+      topilgan muammo uchun takrorlanadi.</p>
   </div>
 
   <div class="karta" style="max-width:720px">

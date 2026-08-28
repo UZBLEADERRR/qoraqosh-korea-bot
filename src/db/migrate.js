@@ -7,6 +7,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { pool } from '../db.js';
+import { STANDART } from '../bot/shablonlar-standart.js';
 
 const KATALOG = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'migrations');
 
@@ -60,6 +61,17 @@ export async function migratsiyalarniQoll() {
     console.log(yangi
       ? `✅ ${yangi} ta migratsiya qo'llandi (jami ${fayllar.length})`
       : `✅ Baza tayyor (${fayllar.length} ta migratsiya allaqachon qo'llangan)`);
+
+    // Xabar shablonlari: faqat YETISHMAGANI qo'yiladi.
+    // Admin tahrirlagan matnga tegilmaydi.
+    let shablon = 0;
+    for (const [kalit, matn] of Object.entries(STANDART)) {
+      const r = await mijoz.query(
+        `insert into settings (key, value) values ($1, to_jsonb($2::text))
+         on conflict (key) do nothing`, [kalit, matn]);
+      shablon += r.rowCount;
+    }
+    if (shablon) console.log(`✅ ${shablon} ta xabar shabloni qo'shildi`);
   } finally {
     await mijoz.query('select pg_advisory_unlock($1)', [887401]).catch(() => {});
     mijoz.release();

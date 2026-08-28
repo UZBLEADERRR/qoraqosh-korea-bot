@@ -7,6 +7,8 @@ import { mahsulotniTani } from '../ai/productEnrich.js';
 import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
 import { yubor } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
+import { xabar, keshniTozala } from '../bot/shablon.js';
+import { STANDART, GURUHLAR, TAVSIF } from '../bot/shablonlar-standart.js';
 
 const kunlarOldin = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString(); };
 const HOLATLAR = ['yangi', 'tasdiqlangan', 'yolda', 'yetkazildi', 'bekor'];
@@ -76,8 +78,9 @@ export async function adminRoutes(req, res, yol) {
 
     await sorov('update orders set payment_status=$1, updated_at=now() where id=$2', [holat, b.id]);
     if (holat === 'tolangan' && o.telegram_id) {
-      yubor(o.telegram_id,
-        `✅ <b>${esc(o.order_no)}</b> — to‘lovingiz tasdiqlandi. Rahmat! 🌸`).catch(() => {});
+      xabar('xabar_tolov_tasdiq', { raqam: esc(o.order_no) },
+        '✅ <b>{raqam}</b> — to‘lovingiz tasdiqlandi.')
+        .then((m) => yubor(o.telegram_id, m)).catch(() => {});
     }
     return ok(res, { ok: true });
   }
@@ -261,6 +264,31 @@ export async function adminRoutes(req, res, yol) {
   // ================= SOTUVLAR =================
   if (yol === '/api/admin/sales' && req.method === 'GET') return ok(res, await sotuvlar());
 
+  // ================= XABAR SHABLONLARI =================
+  if (yol === '/api/admin/templates' && req.method === 'GET') {
+    const r = await qatorlar(
+      `select key, value from settings
+        where key like 'xabar\\_%' or key like 'blok\\_%' or key like 'ogohlantirish\\_%'`);
+    const joriy = Object.fromEntries(r.map((x) => [x.key, String(x.value ?? '')]));
+    return ok(res, { joriy, standart: STANDART, guruhlar: GURUHLAR, tavsif: TAVSIF });
+  }
+
+  if (yol === '/api/admin/templates' && req.method === 'POST') {
+    const b = await tana(req);
+    const yozildi = [];
+    for (const [kalit, matn] of Object.entries(b.templates || {})) {
+      // Faqat ma'lum shablonlar — tasodifiy sozlama yozib qo'yilmasin
+      if (!Object.hasOwn(STANDART, kalit)) continue;
+      await sorov(
+        `insert into settings (key, value, updated_at) values ($1, to_jsonb($2::text), now())
+         on conflict (key) do update set value = excluded.value, updated_at = now()`,
+        [kalit, String(matn ?? '').slice(0, 4000)]);
+      yozildi.push(kalit);
+    }
+    keshniTozala();
+    return ok(res, { ok: true, yozildi: yozildi.length });
+  }
+
   // ================= SOZLAMALAR =================
   if (yol === '/api/admin/settings' && req.method === 'GET') {
     const r = await qatorlar('select key, value from settings');
@@ -274,6 +302,7 @@ export async function adminRoutes(req, res, yol) {
          on conflict (key) do update set value=excluded.value, updated_at=now()`,
         [key, JSON.stringify(value)]);
     }
+    keshniTozala();   // yangi matn darhol kuchga kirsin
     return ok(res, { ok: true });
   }
 
@@ -420,11 +449,10 @@ async function sotuvlar() {
 async function mijozgaXabar(buyurtma, holat, sabab) {
   const chatId = buyurtma.telegram_id;
   if (!chatId) return;
-  const matnlar = {
-    tasdiqlangan: `✅ <b>${esc(buyurtma.order_no)}</b> buyurtmangiz tasdiqlandi. Tayyorlanmoqda.`,
-    yolda:        `🚚 <b>${esc(buyurtma.order_no)}</b> buyurtmangiz yo‘lga chiqdi. Kuryer bog‘lanadi.`,
-    yetkazildi:   `📦 <b>${esc(buyurtma.order_no)}</b> yetkazildi. Xaridingiz uchun rahmat! 🌸`,
-    bekor:        `❌ <b>${esc(buyurtma.order_no)}</b> bekor qilindi.${sabab ? `\n\nSabab: ${esc(sabab)}` : ''}`,
-  };
-  if (matnlar[holat]) await yubor(chatId, matnlar[holat]);
+  const kalit = `xabar_holat_${holat}`;
+  const matn = await xabar(kalit, {
+    raqam: esc(buyurtma.order_no),
+    sabab: sabab ? `\n\nSabab: ${esc(sabab)}` : '',
+  }, '');
+  if (matn) await yubor(chatId, matn);
 }
