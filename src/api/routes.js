@@ -1,12 +1,19 @@
 // Mini App API. Har bir so'rov Telegram initData imzosi bilan tekshiriladi.
 import { qator, qatorlar, sorov, hodisa, sozlama } from '../db.js';
 import { verifyInitData } from '../lib/auth.js';
-import { ok, xato, tana, json } from '../lib/http.js';
+import { ok, xato, tana, json, ipOl } from '../lib/http.js';
 import { faolMahsulotlar, tahlilQil, oxirgiTahlil, limitHolati } from '../services/analysis.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { savatniOl, savatgaQosh, savatOzgartir, savatniTozala, buyurtmaYarat } from '../services/orders.js';
 import { yubor } from '../bot/tg.js';
 import { esc, narx } from '../bot/format.js';
+import { kesh } from '../lib/kesh.js';
+import { cheklov } from '../lib/cheklov.js';
+import { VILOYATLAR, tumanlar } from '../lib/hududlar.js';
+
+// Kuniga minglab foydalanuvchi bo'lganda katalog eng ko'p so'raladigan yo'l.
+// 30 soniyalik kesh bazaga ketadigan bir xil so'rovlarni yig'ib bitta qiladi.
+const KATALOG_KESH_MS = 30_000;
 
 /** initData ni tekshirib, bazadagi foydalanuvchini qaytaradi. */
 async function kim(req) {
@@ -22,33 +29,21 @@ async function kim(req) {
 export async function apiRoutes(req, res, yol) {
   // --- Ochiq: katalog ---
   if (yol === '/api/catalog' && req.method === 'GET') {
-    const [mahsulotlar, kategoriyalar, fee, bepul, pogonalar, karta, egasi, konsult,
-           menejerTel, ishVaqti] =
-      await Promise.all([
-        faolMahsulotlar(),
-        qatorlar('select * from categories order by sort'),
-        sozlama('delivery_fee', 25000),
-        sozlama('free_delivery_from', 500000),
-        sozlama('chegirma_pogonalari', []),
-        sozlama('karta_raqami', ''),
-        sozlama('karta_egasi', ''),
-        sozlama('konsultatsiya_user', ''),
-        sozlama('menejer_telefon', ''),
-        sozlama('menejer_ish_vaqti', ''),
-      ]);
-    return ok(res, {
-      mahsulotlar, kategoriyalar,
-      yetkazish: { narx: Number(fee), bepul_chegara: Number(bepul) },
-      chegirmalar: Array.isArray(pogonalar) ? pogonalar : [],
-      karta: { raqam: String(karta || ''), egasi: String(egasi || '') },
-      konsultatsiya: String(konsult || ''),
-      menejer: { telefon: String(menejerTel || ''), ish_vaqti: String(ishVaqti || '') },
-    });
+    // Ochiq yo'l — IP bo'yicha cheklaymiz, aks holda bitta bot bazani bosadi
+    const c = cheklov('kat:' + ipOl(req), 90, 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: 'Juda ko‘p so‘rov. Biroz kuting.' });
+
+    return ok(res, await kesh('katalog', KATALOG_KESH_MS, katalogniYig));
   }
 
   // --- Bundan keyingi hammasi imzo talab qiladi ---
   const user = await kim(req);
   if (!user) return xato(res, 401, 'Ruxsat yo‘q. Ilovani Telegram orqali oching.');
+
+  // Umumiy tinchlantirgich: normal ishlatishda hech qachon urilmaydi,
+  // lekin buzilgan klient yoki skript tizimni bosib qo'yolmaydi.
+  const umumiy = cheklov('api:' + user.id, 180, 60_000);
+  if (!umumiy.ruxsat) return json(res, 429, { error: 'Juda ko‘p so‘rov. Biroz kuting.' });
 
   if (yol === '/api/limit' && req.method === 'GET') {
     return ok(res, { limit: await limitHolati(user.id) });
@@ -60,6 +55,7 @@ export async function apiRoutes(req, res, yol) {
       user: {
         id: user.id, full_name: user.full_name, phone: user.phone,
         age: user.age, address: user.address,
+        viloyat: user.viloyat, tuman: user.tuman,
         royxatdan_otgan: Boolean(user.phone && user.full_name && user.agreed_at),
       },
       oxirgi_tahlil: await oxirgiTahlil(user.id),
@@ -88,6 +84,12 @@ export async function apiRoutes(req, res, yol) {
   }
 
   if (yol === '/api/scan' && req.method === 'POST') {
+    // Kunlik limitdan tashqari — qisqa oynadagi cheklov. Skan eng qimmat amal:
+    // AI chaqiruvi sekin, shuning uchun bitta odam navbatni band qilmasin.
+    const c = cheklov('skan:' + user.id, 6, 5 * 60_000);
+    if (!c.ruxsat) {
+      return json(res, 429, { error: `Juda tez-tez skanerlayapsiz. ${c.kutish} soniyadan keyin urinib ko‘ring.` });
+    }
     const b = await tana(req);
     const base64 = String(b.image || '').replace(/^data:image\/\w+;base64,/, '');
     if (!base64 || base64.length < 1000)      return xato(res, 400, 'Rasm yuborilmadi.');
@@ -134,14 +136,21 @@ export async function apiRoutes(req, res, yol) {
     const tel = String(b.phone ?? user.phone ?? '').replace(/[\s()-]/g, '');
     if (!/^\+?998\d{9}$/.test(tel)) return xato(res, 400, 'Telefon raqamini tekshiring.');
     try {
+      // Hududni ro'yxatga solishtiramiz. Mos kelmasa buyurtmani RAD ETMAYMIZ —
+      // shunchaki noto'g'ri qismini tashlaymiz, aks holda eng yaqin ombor
+      // xato tanlanadi (masalan "Buxoro viloyati / Chilonzor tumani").
+      const { viloyat, tuman } = hududniTekshir(b.viloyat, b.tuman);
+
       const buyurtma = await buyurtmaYarat(
         user,
         savat.map((s) => ({ product_id: s.products.id, quantity: s.quantity })),
-        { name: b.name, phone: tel, address: manzil, note: b.note,
-          payment: b.payment === 'karta' ? 'karta' : 'naqd' });
+        { name: b.name, phone: tel, address: manzil, note: b.note, viloyat, tuman });
 
       // Manzilni keyingi safar uchun eslab qolamiz
-      await sorov('update users set address = $1 where id = $2', [manzil, user.id]);
+      await sorov(
+      `update users set address = $1, viloyat = coalesce($2, viloyat), tuman = coalesce($3, tuman)
+        where id = $4`,
+      [manzil, viloyat, tuman, user.id]);
       xabarYubor(user, buyurtma).catch(() => {});
       return ok(res, { buyurtma });
     } catch (e) {
@@ -160,8 +169,10 @@ export async function apiRoutes(req, res, yol) {
       name:    String(b.name    || '').slice(0, 70),
       phone:   String(b.phone   || '').slice(0, 20),
       address: String(b.address || '').slice(0, 300),
+      kocha:   String(b.kocha   || '').slice(0, 200),
       note:    String(b.note    || '').slice(0, 200),
-      payment: b.payment === 'karta' ? 'karta' : 'naqd',
+      viloyat: String(b.viloyat || '').slice(0, 60),
+      tuman:   String(b.tuman   || '').slice(0, 60),
       qadam:   String(b.qadam   || '').slice(0, 20),
     };
     await sorov('update users set checkout_draft = $1 where id = $2', [JSON.stringify(toza), user.id]);
@@ -206,6 +217,40 @@ export async function apiRoutes(req, res, yol) {
   return xato(res, 404, 'Topilmadi');
 }
 
+/** Viloyat/tuman juftligini rasmiy ro'yxatga solishtiradi. */
+function hududniTekshir(xomViloyat, xomTuman) {
+  const viloyat = String(xomViloyat || '').trim().slice(0, 60);
+  const tuman   = String(xomTuman   || '').trim().slice(0, 60);
+  if (!VILOYATLAR.includes(viloyat)) return { viloyat: null, tuman: null };
+  return { viloyat, tuman: tumanlar(viloyat).includes(tuman) ? tuman : null };
+}
+
+/** Katalog ma'lumotini bir marta yig'adi — kesh shu funksiyani chaqiradi. */
+async function katalogniYig() {
+  const [mahsulotlar, kategoriyalar, fee, bepul, pogonalar, karta, egasi, konsult,
+         menejerTel, ishVaqti] =
+    await Promise.all([
+      faolMahsulotlar(),
+      qatorlar('select * from categories order by sort'),
+      sozlama('delivery_fee', 25000),
+      sozlama('free_delivery_from', 500000),
+      sozlama('chegirma_pogonalari', []),
+      sozlama('karta_raqami', ''),
+      sozlama('karta_egasi', ''),
+      sozlama('konsultatsiya_user', ''),
+      sozlama('menejer_telefon', ''),
+      sozlama('menejer_ish_vaqti', ''),
+    ]);
+  return {
+    mahsulotlar, kategoriyalar,
+    yetkazish: { narx: Number(fee), bepul_chegara: Number(bepul) },
+    chegirmalar: Array.isArray(pogonalar) ? pogonalar : [],
+    karta: { raqam: String(karta || ''), egasi: String(egasi || '') },
+    konsultatsiya: String(konsult || ''),
+    menejer: { telefon: String(menejerTel || ''), ish_vaqti: String(ishVaqti || '') },
+  };
+}
+
 // Gemini qo'llab-quvvatlaydigan rasm turlari. iPhone HEIC, Android WebP yuboradi.
 const MIME_RUYXAT = new Set([
   'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif',
@@ -221,9 +266,7 @@ async function xabarYubor(user, o) {
     o.discount ? `🎁 Chegirma: −${narx(o.discount)}` : '',
     `🚚 Yetkazish: ${o.delivery_fee ? narx(o.delivery_fee) : 'bepul'}`,
     `<b>💰 Jami: ${narx(o.total)}</b>`, ``,
-    o.payment_method === 'karta'
-      ? `💳 To‘lovni amalga oshirib, chek rasmini ilovada yuklang.`
-      : `💵 To‘lov yetkazib berishda naqd pulda.`,
+    `💳 To‘lovni amalga oshirib, chek rasmini ilovada yuklang.`,
     `📞 Menejer tez orada bog‘lanadi.`,
   ].filter((x) => x !== '').join('\n'));
 }

@@ -1,0 +1,22 @@
+// O'zbekiston viloyat va tumanlari.
+// Manba: github.com/MIMAXUZ/uzbekistan-regions-data (SOATO)
+// Bu fayl qo'lda tahrirlanmaydi — scripts/hududlarni-yangila.js qayta yaratadi.
+export const HUDUDLAR = [
+  { nom: "Toshkent shahri", tumanlar: ["Bektemir tumani","Chilonzor tumani","Mirobod tumani","Mirzo Ulug'bek tumani","Olmazor tumani","Shayxontohur tumani","Sirg'ali tumani","Toshkent shahrining tumanlari","Uchtepa tumani","Yakkasaroy tumani","Yangihayot tumani","Yashnobod tumani","Yunusobod tumani"] },
+  { nom: "Toshkent viloyati", tumanlar: ["Angren","Bekobod","Bekobod tumani","Bo'ka tumani","Bo'stonliq tumani","Chinoz tumani","Chirchiq","Nurafshon","O'rtachirchiq tumani","Ohangaron","Ohangaron tumani","Olmaliq","Oqqo'rg'on tumani","Parkent tumani","Piskent tumani","Qibray tumani","Quyichirchiq tumani","Toshkent tumani","Yangiyo'l","Yangiyo'l tumani","Yuqorichirchiq tumani","Zangiota tumani"] },
+  { nom: "Andijon viloyati", tumanlar: ["Andijon","Andijon tumani","Asaka tumani","Baliqchi tumani","Bo'z tumani","Buloqboshi tumani","Izboskan tumani","Jalaquduq tumani","Marxamat tumani","Oltinko'l tumani","Paxtaobod tumani","Qo'rg'ontepa tumani","Shahrixon tumani","Ulug'nor tumani","Xo'jaobod tumani","Xonobod"] },
+  { nom: "Buxoro viloyati", tumanlar: ["Buxoro","Buxoro tumani","G'ijduvon tumani","Jondor tumani","Kogon","Kogon tumani","Olot tumani","Peshku tumani","Qorako'l tumani","Qorovulbozor tumani","Romitan tumani","Shofirkon tumani","Vobkent tumani"] },
+  { nom: "Farg'ona viloyati", tumanlar: ["Beshariq tumani","Bog'dod tumani","Buvayda tumani","Dang'ara tumani","Farg'ona","Farg'ona tumani","Furqat tumani","Marg'ilon","O'zbekiston tumani","Oltiariq tumani","Qo'qon","Qo'shtepa tumani","Quva tumani","Quvasoy","Rishton tumani","So'x tumani","Toshloq tumani","Uchko'prik tumani","Yozyovon tumani"] },
+  { nom: "Jizzax viloyati", tumanlar: ["Arnasoy tumani","Baxmal tumani","Do'stlik tumani","Forish tumani","G'allaorol tumani","Jizzax","Mirzacho'l tumani","Paxtakor tumani","Sh.Rashidov tumani","Yangiobod tumani","Zafarobod tumani","Zarbdor tumani","Zomin tumani"] },
+  { nom: "Namangan viloyati", tumanlar: ["Chortoq tumani","Chust tumani","Davlatobod tumani","Kosonsoy tumani","Mingbuloq tumani","Namangan","Namangan tumani","Norin tumani","Pop tumani","To'raqo'rg'on tumani","Uchqo'rg'on tumani","Uychi tumani","Yangi Namangan tumani","Yangiqo'rg'on tumani"] },
+  { nom: "Navoiy viloyati", tumanlar: ["G‘ozg‘on tumani","Karmana tumani","Konimex tumani","Navbahor tumani","Navoiy","Nurota tumani","Qiziltepa tumani","Tomdi tumani","Uchquduq tumani","Xatirchi tumani","Zarafshon"] },
+  { nom: "Qashqadaryo viloyati", tumanlar: ["Chiroqchi tumani","Dehqonobod tumani","G'uzor tumani","Kasbi tumani","Kitob tumani","Koson tumani","Ko‘kdala tumani","Mirishkor tumani","Muborak tumani","Nishon tumani","Qamashi tumani","Qarshi","Qarshi tumani","Shahrisabz","Shahrisabz tumani","Yakkabog' tumani"] },
+  { nom: "Qoraqalpog'iston Respublikasi", tumanlar: ["Amudaryo tumani","Beruniy tumani","Bo‘zatov tumani","Chimboy tumani","Ellikqal'a tumani","Kegeyli tumani","Mo'ynoq tumani","Nukus","Nukus tumani","Qanliko'l tumani","Qo'ng'irot tumani","Qorao'zak tumani","Shumanay tumani","Taxiatosh tumani","Taxtako'pir tumani","To'rtko'l tumani","Xo'jayli tumani"] },
+  { nom: "Samarqand viloyati", tumanlar: ["Bulung'ur tumani","Ishtixon tumani","Jomboy tumani","Kattaqo'rg'on","Kattaqo'rg'on tumani","Narpay tumani","Nurobod tumani","Oqdaryo tumani","Pastdarg'om tumani","Paxtachi tumani","Payariq tumani","Qo'shrabot tumani","Samarqand","Samarqand tumani","Tayloq tumani","Urgut tumani"] },
+  { nom: "Sirdaryo viloyati", tumanlar: ["Baxt shaxar","Boyovut tumani","Guliston","Guliston tumani","Mirzaobod tumani","Oqoltin tumani","Sardoba tumani","Sayxunobod tumani","Shirin","Sirdaryo tumani","Xovos tumani","Yangiyer"] },
+  { nom: "Surxondaryo viloyati", tumanlar: ["Angor tumani","Bandixon tumani","Boysun tumani","Denov tumani","Jarqo'rg'on tumani","Muzrabot tumani","Oltinsoy tumani","Qiziriq tumani","Qumqo'rg'on tumani","Sariosiyo tumani","Sherobod tumani","Sho'rchi tumani","Termiz","Termiz tumani","Uzun tumani"] },
+  { nom: "Xorazm viloyati", tumanlar: ["Bog'ot tumani","Gurlan tumani","Qo'shko'pir tumani","Shovot tumani","Tuproqqal’a tumani","Urganch","Urganch tumani","Xazorasp tumani","Xiva","Xiva tumani","Xonqa tumani","Yangiariq tumani","Yangibozor tumani"] },
+];
+
+export const VILOYATLAR = HUDUDLAR.map((h) => h.nom);
+export const tumanlar = (viloyat) => HUDUDLAR.find((h) => h.nom === viloyat)?.tumanlar ?? [];

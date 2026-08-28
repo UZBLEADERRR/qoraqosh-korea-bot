@@ -12,16 +12,17 @@ const XATO_MATNI = (msg) => {
   return 'Buyurtmani rasmiylashtirib bo‘lmadi. Qayta urinib ko‘ring.';
 };
 
-export async function buyurtmaYarat(user, items, { name, phone, address, note, payment } = {}) {
+export async function buyurtmaYarat(user, items, { name, phone, address, note, viloyat, tuman } = {}) {
   const toza = items.map((i) => ({
     product_id: Number(i.product_id),
     quantity: Math.max(1, Number(i.quantity) || 1),
   }));
   try {
     return await qator(
-      'select * from place_order($1,$2,$3,$4,$5,$6,$7)',
+      'select * from place_order($1,$2,$3,$4,$5,$6,$7,$8,$9)',
       [user.id, JSON.stringify(toza), name || user.full_name,
-       phone || user.phone, address || user.address, note || null, payment || 'naqd'],
+       phone || user.phone, address || user.address, note || null,
+       'karta', viloyat || user.viloyat || null, tuman || user.tuman || null],
     );
   } catch (e) {
     const xato = new Error(XATO_MATNI(e.message));

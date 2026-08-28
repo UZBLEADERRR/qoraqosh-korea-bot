@@ -287,3 +287,17 @@ textarea{resize:vertical;min-height:86px}
 
 /* Uzun ro'yxatlarda chizishni tejash */
 .karta{content-visibility:auto;contain-intrinsic-size:auto 200px}
+
+/* ---------- Ro'yxatdan tanlash ---------- */
+.tanlov-tugma{display:flex;align-items:center;justify-content:space-between;width:100%;
+  padding:14px;background:var(--fon);border:1.5px solid var(--chiziq);border-radius:12px;
+  color:var(--matn);font:inherit;font-size:17px;text-align:left}
+.tanlov-tugma:disabled{opacity:.5}
+.tanlov-tugma .oq{color:var(--och);font-size:20px}
+.royxat{max-height:56vh;overflow-y:auto;margin:0 -4px}
+.royxat-qator{display:flex;align-items:center;justify-content:space-between;width:100%;
+  padding:15px 12px;background:none;border:0;border-bottom:1px solid var(--chiziq);
+  color:var(--matn);font:inherit;font-size:16.5px;text-align:left;border-radius:0}
+.royxat-qator:last-child{border-bottom:0}
+.royxat-qator.tanlangan{color:var(--urgu);font-weight:650}
+.royxat-qator .belgi-ok{color:var(--urgu);font-size:18px}

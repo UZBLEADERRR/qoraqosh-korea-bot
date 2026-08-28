@@ -2,62 +2,82 @@
 <html lang="uz">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#8a5a3d">
 <title>QoraQosh — Admin</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
 
-<!-- ---------- KIRISH ---------- -->
-<div id="kirish" class="kirish">
-  <form class="quti" id="kirish-forma">
-    <div class="brend">QoraQosh</div>
-    <h1 style="margin:4px 0 20px">Admin panel</h1>
-    <label for="k-login">Login</label>
-    <input id="k-login" autocomplete="username" required>
-    <label for="k-parol">Parol</label>
-    <input id="k-parol" type="password" autocomplete="current-password" required>
-    <div id="kirish-xato" class="xato"></div>
-    <button class="tug asos" style="width:100%;margin-top:18px">Kirish</button>
-  </form>
+<!-- ============ KIRISH ============ -->
+<div id="kirish" class="kirish yashirin">
+  <div class="quti">
+    <div class="logo">🌸</div>
+    <h1>Admin panel</h1>
+    <div class="izoh">QoraQosh boshqaruvi</div>
+
+    <div id="tg-quti" class="yashirin">
+      <button class="tug asos keng" id="t-tg-kirish">📱 Telegram orqali kirish</button>
+      <div class="ajratgich">yoki parol bilan</div>
+    </div>
+
+    <form id="kirish-forma">
+      <label for="k-login">Login</label>
+      <input id="k-login" autocomplete="username" autocapitalize="off" required>
+      <label for="k-parol">Parol</label>
+      <input id="k-parol" type="password" autocomplete="current-password" required>
+      <div id="kirish-xato" class="xato"></div>
+      <button class="tug asos keng" style="margin-top:18px">Kirish</button>
+    </form>
+  </div>
 </div>
 
-<!-- ---------- PANEL ---------- -->
+<!-- ============ PANEL ============ -->
 <div id="panel" class="karkas yashirin">
-  <aside>
-    <div class="logo">🌸 QoraQosh</div>
-    <button data-b="boshqaruv" class="faol">📊 Boshqaruv</button>
-    <button data-b="tizim">🩺 Tizim holati</button>
-    <button data-b="buyurtma">📦 Buyurtmalar</button>
-    <button data-b="mahsulot">🛍 Mahsulotlar</button>
-    <button data-b="sotuv">💰 Sotuvlar</button>
-    <button data-b="user">👥 Foydalanuvchilar</button>
-    <button data-b="sozlama">⚙️ Sozlamalar</button>
-    <button data-b="xabarlar">✍️ Xabarlar</button>
-    <button data-b="qollanma">📖 Qo‘llanma</button>
-    <button class="chiq" id="t-chiq">↩︎ Chiqish</button>
+
+  <aside class="yon">
+    <div class="brend">🌸 QoraQosh</div>
+    <button data-b="boshqaruv" class="faol"><span>📊</span> Boshqaruv</button>
+    <button data-b="buyurtma"><span>📦</span> Buyurtmalar<i id="yon-nishon" class="yor qizil yashirin" style="margin-left:auto">0</i></button>
+    <button data-b="mahsulot"><span>🛍</span> Mahsulotlar</button>
+    <button data-b="mijoz"><span>👥</span> Mijozlar</button>
+    <button data-b="sotuv"><span>💰</span> Sotuvlar</button>
+    <button data-b="ombor"><span>🏬</span> Omborlar</button>
+    <button data-b="sozlama"><span>⚙️</span> Sozlamalar</button>
+    <button data-b="xabar"><span>✍️</span> Xabarlar</button>
+    <button data-b="tizim"><span>🩺</span> Tizim holati</button>
+    <button data-b="qollanma"><span>📖</span> Qo‘llanma</button>
+    <button class="chiq" id="t-chiq-yon"><span>↩︎</span> Chiqish</button>
   </aside>
 
-  <main>
-    <section id="b-boshqaruv"></section>
-    <section id="b-tizim" class="yashirin"></section>
-    <section id="b-buyurtma" class="yashirin"></section>
-    <section id="b-mahsulot" class="yashirin"></section>
-    <section id="b-sotuv"    class="yashirin"></section>
-    <section id="b-user"     class="yashirin"></section>
-    <section id="b-sozlama"  class="yashirin"></section>
-    <section id="b-xabarlar" class="yashirin"></section>
-    <section id="b-qollanma" class="yashirin"></section>
-  </main>
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+    <header class="tepa">
+      <span class="brend">🌸 <span id="tepa-nom">Boshqaruv</span></span>
+      <span class="oraliq"></span>
+      <button id="t-yangila" aria-label="Yangilash">↻</button>
+      <button id="t-kop" aria-label="Ko‘proq">⋯</button>
+    </header>
+    <main id="tan"></main>
+  </div>
+
+  <nav class="past-menyu">
+    <button data-b="boshqaruv" class="faol"><span class="ikon">📊</span>Boshqaruv</button>
+    <button data-b="buyurtma"><span class="ikon">📦</span>Buyurtma<i id="past-nishon" class="nishon yashirin">0</i></button>
+    <button data-b="mahsulot"><span class="ikon">🛍</span>Mahsulot</button>
+    <button data-b="mijoz"><span class="ikon">👥</span>Mijozlar</button>
+    <button id="t-kop2"><span class="ikon">⋯</span>Ko‘proq</button>
+  </nav>
 </div>
 
 <div id="modal" class="modal yashirin">
   <div class="parda" data-yop></div>
-  <div class="oyna" id="modal-tan"></div>
+  <div class="oyna"><div class="dasta"></div><div id="modal-tan"></div></div>
 </div>
 
+<script src="/app/hududlar.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

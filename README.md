@@ -11,8 +11,9 @@ Google Gemini · Railway.
 ## Nima qiladi
 
 ### Mijoz uchun
-- **Ro'yxatdan o'tish** — telefon (Telegram kontakti orqali), ism, yosh, manzil,
-  so'ng ommaviy oferta va «Barchasiga roziman».
+- **Ro'yxatdan o'tish** — telefon (Telegram kontakti orqali), ism, yosh,
+  so'ng ommaviy oferta va «Barchasiga roziman». **Manzil bu yerda so'ralmaydi** —
+  u buyurtma rasmiylashtirishda olinadi.
 - **Yuz skaneri** — botda ham, Mini App ichida ham ishlaydi. Natija qat'iy
   tartibda beriladi:
   1. **Umumiy ko'rsatkichlar** — taxminiy yosh, teri rangi, teri turi, 0–100 ball
@@ -25,6 +26,14 @@ Google Gemini · Railway.
   qilish kerakligi aytiladi. Yaroqsiz rasm hech qachon tahlil qilinmaydi.
 - **Katalog, savat, buyurtma** — Mini App ichida; buyurtma raqami beriladi va
   holati o'zgarganda botga xabar keladi.
+- **Manzil tanlanadi, yozilmaydi** — 14 ta viloyat va 210 ta tuman ro'yxatdan
+  qidiruv bilan tanlanadi; qo'lda faqat ko'cha, uy va xonadon yoziladi.
+  Server viloyat/tuman juftligini rasmiy ro'yxatga solishtiradi.
+- **To'lov faqat karta orqali** — buyurtma tasdiqlangach karta raqami chiqadi,
+  mijoz to'lab chek rasmini yuklaydi. Naqd pul yo'q.
+- **Eng yaqin ombor** — mahsulot yetib kelganda mijozga aynan qaysi omborga
+  kelgani, uning manzili, mo'ljali, telefoni va ish vaqti yuboriladi.
+  Ombor avval tuman, topilmasa viloyat bo'yicha tanlanadi.
 
 ### Admin uchun (`/admin`)
 - **Boshqaruv paneli** — daromad, yalpi foyda va marja, o'rtacha chek,
@@ -46,6 +55,17 @@ Google Gemini · Railway.
   O'lchamlar: 1:1 (katalog), 4:5 (Instagram), 9:16 (story), 16:9 (banner).
 - **Sotuvlar** — har mahsulot bo'yicha dona, daromad, tannarx, foyda, marja.
 - **Foydalanuvchilar** — qidiruv, jami xarid summasi, rozilik sanasi, bloklash.
+- **Omborlar** — filiallarni qo'shish (viloyat, tuman, manzil, mo'ljal, telefon,
+  ish vaqti, tartib). Buyurtma «Omborda» holatiga o'tganda mijozga shu ma'lumot
+  avtomatik ketadi.
+- **Xabar matnlari** — botning har bir javobi admin paneldan tahrirlanadi,
+  jonli ko'rinish bilan.
+- **Tizim holati** — baza, Telegram bot va webhook, AI provayderi va haqiqiy AI
+  chaqiruvi bitta tugma bilan tekshiriladi. Xatolik bo'lsa sababi ko'rsatiladi.
+- **Mobil interfeys** — 900px dan tor ekranda pastki menyu, kengroqda yon panel.
+  Butun panel telefondan qulay ishlaydi.
+- **Telegram orqali kirish** — `ADMIN_TELEGRAM_IDS` ro'yxatidagi ID bilan
+  Mini App'dan bir bosishda kiriladi; parol bilan kirish ham qoladi.
 
 ---
 
@@ -92,6 +112,26 @@ server ishga tushmaydi (default parol bilan ochiq qolib ketmasligi uchun):
 | `PUBLIC_URL` | Railway avtomatik beradi. Bo'sh bo'lsa long-polling |
 | `WEBHOOK_SECRET` | Ixtiyoriy, lekin tavsiya etiladi |
 
+Ixtiyoriy o'zgaruvchilar:
+
+| O'zgaruvchi | Nima | Standart |
+|---|---|---|
+| `OPENROUTER_API_KEY` | Gemini'ni OpenRouter orqali chaqirish. Berilsa **asosiy** provayder shu bo'ladi, Google zaxiraga tushadi | — |
+| `OPENROUTER_MODEL` | OpenRouter'dagi model nomi | `google/gemini-2.5-flash` |
+| `GEMINI_MODEL` | To'g'ridan-to'g'ri Google modeli | `gemini-2.5-flash` |
+| `GEMINI_IMAGE_MODEL` | Poster chizadigan model (faqat Google) | `gemini-2.5-flash-image` |
+| `ADMIN_TELEGRAM_IDS` | Telegram orqali admin panelga kira oladigan ID'lar, vergul bilan: `123456,7891011` | — |
+| `DB_POOL_MAX` | Baza ulanish hovuzi hajmi. Oshirishdan oldin Supabase limitini tekshiring | `12` |
+| `DB_QUERY_TIMEOUT_MS` | Bitta so'rovning eng uzun vaqti — osilgan so'rov hovuzni band qilmasin | `15000` |
+| `SLOW_QUERY_MS` | Shundan sekin so'rovlar logga yoziladi | `1000` |
+
+**AI provayderi qanday tanlanadi.** `OPENROUTER_API_KEY` bo'lsa matn tahlili
+OpenRouter orqali ketadi, xato bo'lsa avtomatik Google'ga o'tadi.
+Poster chizish faqat Google'da ishlaydi — poster kerak bo'lsa
+`GEMINI_API_KEY` ham qo'ying. Ikkalasi ham bo'lmasa skaner zaxira rejimda
+ishlaydi. Qaysi provayder ishlayotganini admin paneldagi **Tizim holati**
+sahifasi ko'rsatadi.
+
 ### 3. Railway
 
 GitHub repozitoriyani ulang, yuqoridagi o'zgaruvchilarni **Variables** ga
@@ -105,6 +145,11 @@ qo'shing. `railway.json` qolganini o'zi qiladi.
 @BotFather da:
 - `/setmenubutton` → Mini App: `https://<domen>/app/`
 - `/setdescription`, `/setabouttext` — ixtiyoriy
+
+Admin panelga telefondan kirish uchun `ADMIN_TELEGRAM_IDS` ga o'z Telegram
+ID'ingizni yozing (ID'ni [@userinfobot](https://t.me/userinfobot) aytadi),
+so'ng `https://<domen>/admin/` ni Telegram ichida oching — parol so'ralmaydi.
+Keyingi adminlarni panelning **Sozlamalar → Adminlar** bo'limidan qo'shasiz.
 
 ### 5. Mahalliy ishlab chiqish
 
@@ -125,7 +170,9 @@ src/
   db.js                Postgres pool va SQL yordamchilari
   db/migrate.js        migratsiyalarni avtomatik qo'llash
   ai/
-    gemini.js          JSON sxema bilan majburlangan chaqiruv + rasm chizish
+    index.js           provayder tanlash: OpenRouter asosiy, Google zaxira
+    google.js          Google AI Studio: JSON sxema + rasm chizish
+    openrouter.js      OpenRouter orqali o'sha modellar
     faceAnalysis.js    sifat nazorati + tahlil + tavsiya (bitta chaqiruv)
     productEnrich.js   skrinshotdan mahsulotni tanish
     poster.js          poster g'oyalari va generatsiyasi
@@ -137,6 +184,10 @@ src/
   api/
     routes.js          Mini App API (initData imzosi bilan)
     admin.js           admin API (JWT bilan), statistika va prognoz
+  lib/
+    hududlar.js        14 viloyat, 210 tuman — manzil tekshiruvi uchun
+    kesh.js            qisqa muddatli kesh (bir vaqtdagi so'rovlarni yig'adi)
+    cheklov.js         so'rov cheklagich (sirg'aluvchi oyna)
   services/            tahlil va buyurtma mantiqi (bot ham, API ham ishlatadi)
 public/
   index.html           qo'nish sahifasi
@@ -146,6 +197,11 @@ migrations/
   001_schema.sql       jadvallar, RLS, place_order()
   002_katalog.sql      28 ta boshlang'ich mahsulot
   003_media.sql        posterlar
+  004_tolov_chegirma…  karta to'lovi, chegirma pog'onalari, qoralama
+  005_xabar_shablon…   bot matnlari settings jadvalida
+  006_limit_aloqa.sql  kunlik skan limiti, menejer aloqasi
+  007_ombor_admin.sql  omborlar, viloyat/tuman, Telegram admin
+  008_omborda_holati…  «Omborda» holati va uning xabari
 ```
 
 Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing
@@ -168,6 +224,20 @@ qo'shadi.
 
 **Yuz surati saqlanmaydi.** Tahlil momentida qayta ishlanadi va tashlanadi;
 bazada faqat matnli natija qoladi.
+
+**Kuniga minglab foydalanuvchiga tayyorlik.** Katalog — eng ko'p so'raladigan
+yo'l — 30 soniyalik keshda turadi va bir vaqtda kelgan so'rovlar bitta baza
+so'roviga yig'iladi (o'lchandi: 50 ta parallel so'rov → 2 ta tranzaksiya).
+Admin narx yoki sozlamani o'zgartirsa kesh darhol bekor qilinadi.
+Har bir foydalanuvchi uchun so'rov cheklovi bor (umumiy 180/daqiqa,
+skaner 6/5 daqiqa), ochiq katalog esa IP bo'yicha 90/daqiqa.
+Bazada `statement_timeout` bor — osilib qolgan so'rov hovuzni band qilmaydi;
+migratsiya esa alohida, cheklovsiz ulanishda bajariladi.
+
+**«Thinking» modellari va MAX_TOKENS.** `gemini-2.5-*` o'ylash tokenlarini
+`maxOutputTokens` dan yeydi — byudjet o'ylashga ketib, javob bo'sh qaytishi
+mumkin. Shuning uchun `thinkingConfig.thinkingBudget = 0` qo'yiladi va javob
+uzilib qolsa byudjet har urinishda ikki barobar oshiriladi.
 
 **Bot va Mini App bitta xizmatdan foydalanadi** (`src/services/`), shuning
 uchun ikkala kanalda natija bir xil bo'ladi.

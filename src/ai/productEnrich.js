@@ -1,7 +1,7 @@
 // Admin mahsulot skrinshotini yuklaydi -> AI mahsulotni taniydi va
 // katalog kartochkasini to'ldiradi (nomi, tarkibi, qanday foydalanish, kimga mos).
 // Natija darhol saqlanmaydi: admin panelida forma to'ldiriladi, admin tekshiradi.
-import { geminiJson, rasmPart, geminiBormi } from './gemini.js';
+import { aiJson, rasmPart, aiBormi } from './index.js';
 
 const SXEMA = {
   type: 'object',
@@ -53,13 +53,13 @@ Qoidalar:
 Butun javob o'zbek tilida (lotin alifbosida). Faqat JSON qaytar.`;
 
 export async function mahsulotniTani(base64, mime) {
-  if (!geminiBormi()) {
+  if (!aiBormi()) {
     const e = new Error('GEMINI_KALIT_YOQ');
     e.foydalanuvchiga = "AI kaliti sozlanmagan — maydonlarni qo'lda to'ldiring.";
     throw e;
   }
 
-  const j = await geminiJson([{ text: KORSATMA }, rasmPart(base64, mime)], SXEMA, {
+  const j = await aiJson([{ text: KORSATMA }, rasmPart(base64, mime)], SXEMA, {
     temperature: 0.2, maxTokens: 2048,
   });
 

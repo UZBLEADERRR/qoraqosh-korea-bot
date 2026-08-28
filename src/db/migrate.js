@@ -6,13 +6,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { pool } from '../db.js';
+import { uzunUlanish } from '../db.js';
 import { STANDART } from '../bot/shablonlar-standart.js';
 
 const KATALOG = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'migrations');
 
 export async function migratsiyalarniQoll() {
-  const mijoz = await pool.connect();
+  // Hovuz ulanishida statement_timeout/query_timeout bor — migratsiyaga to'g'ri
+  // kelmaydi: katta indeks qurish ham, advisory lock navbatida kutish ham
+  // undan uzoq bo'lishi mumkin. Shuning uchun alohida, cheklovsiz ulanish.
+  const mijoz = uzunUlanish();
+  await mijoz.connect();
   try {
     // Bir vaqtda ikkita nusxa (Railway qayta deploy paytida) urinmasin
     await mijoz.query(`
@@ -74,6 +78,6 @@ export async function migratsiyalarniQoll() {
     if (shablon) console.log(`✅ ${shablon} ta xabar shabloni qo'shildi`);
   } finally {
     await mijoz.query('select pg_advisory_unlock($1)', [887401]).catch(() => {});
-    mijoz.release();
+    await mijoz.end().catch(() => {});
   }
 }

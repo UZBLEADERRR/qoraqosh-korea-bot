@@ -38,6 +38,18 @@ const TAHLIL = {
   ],
 };
 
+/** Sxemaga qarab mos soxta javob qaytaradi. */
+function javobMatni(sxemaMatni) {
+  if (sxemaMatni.includes('muammolar')) return JSON.stringify(TAHLIL);
+  if (sxemaMatni.includes('goyalar'))   return JSON.stringify({ goyalar: [] });
+  if (sxemaMatni.includes('topildi'))   return JSON.stringify({
+    topildi: true, ishonch: 88, izoh: '', name: 'Sinov krem', brand: 'TestBrand',
+    category: 'krem', step: 'namlash', volume: '50 ml', country: 'KR',
+    description: 'Sinov', usage_text: 'Surting', ingredients: 'Aqua',
+    actives: [], concerns: [], skin_types: [], warnings: '', emoji: '🧴' });
+  return JSON.stringify({ ok: true });
+}
+
 const tana = (req) => new Promise((r) => { const c = []; req.on('data', (x) => c.push(x)); req.on('end', () => r(Buffer.concat(c).toString())); });
 
 export function soxtaServer(port = 4444) {
@@ -60,9 +72,21 @@ export function soxtaServer(port = 4444) {
           yol.endsWith('/setWebhook') || yol.endsWith('/deleteWebhook')) return j({ ok: true, result: true });
       if (yol.endsWith('/getUpdates')) return j({ ok: true, result: [] });
 
-      // ---- Gemini ----
+      // ---- Google Gemini ----
       if (yol.includes(':generateContent')) {
-        return j({ candidates: [{ content: { parts: [{ text: JSON.stringify(TAHLIL) }] }, finishReason: 'STOP' }] });
+        const b = JSON.parse(await tana(req) || '{}');
+        const kichik = (b.generationConfig?.maxOutputTokens || 0) < 512;
+        // Haqiqiy hayotdagi kabi: byudjet kichik bo'lsa o'ylash uni yeb qo'yadi
+        if (kichik) return j({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [] } }] });
+        const sxema = JSON.stringify(b.generationConfig?.responseSchema || {});
+        return j({ candidates: [{ content: { parts: [{ text: javobMatni(sxema) }] }, finishReason: 'STOP' }] });
+      }
+
+      // ---- OpenRouter ----
+      if (yol.endsWith('/chat/completions')) {
+        const b = JSON.parse(await tana(req) || '{}');
+        const sxema = JSON.stringify(b.response_format?.json_schema?.schema || {});
+        return j({ choices: [{ message: { content: javobMatni(sxema) }, finish_reason: 'stop' }] });
       }
       j({ ok: false, description: 'noma’lum: ' + yol });
     });

@@ -21,8 +21,17 @@ export const config = {
   // Supabase -> Connect -> Session pooler ulanish satri
   databaseUrl:   req('DATABASE_URL'),
   dbCaCert:      opt('DATABASE_CA_CERT'),
+  // Ulanish hovuzi. Supabase session pooler bir vaqtda cheklangan ulanish beradi,
+  // shuning uchun ko'paytirishdan oldin Supabase limitini tekshiring.
+  dbPoolMax:     Math.max(2, Number(opt('DB_POOL_MAX', '12')) || 12),
+  // Osilib qolgan so'rov butun hovuzni band qilmasin
+  dbSorovTimeout: Math.max(3000, Number(opt('DB_QUERY_TIMEOUT_MS', '15000')) || 15000),
 
   geminiKey:     opt('GEMINI_API_KEY'),
+  // OpenRouter — bitta kalit bilan Gemini va boshqa modellarga kirish
+  openrouterKey:   opt('OPENROUTER_API_KEY'),
+  openrouterApi:   opt('OPENROUTER_API', 'https://openrouter.ai/api/v1'),
+  openrouterModel: opt('OPENROUTER_MODEL', 'google/gemini-2.5-flash'),
   geminiModel:   opt('GEMINI_MODEL', 'gemini-2.5-flash'),
   // Rasm chizish modeli (poster generatsiyasi)
   geminiImageModel: opt('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image'),
@@ -30,6 +39,9 @@ export const config = {
   adminLogin:    req('ADMIN_LOGIN'),
   adminPassword: req('ADMIN_PASSWORD'),
   adminSecret:   req('ADMIN_JWT_SECRET'),
+  // Telegram orqali admin panelga kirish huquqi. Vergul bilan: "123456,7891011"
+  adminTelegramIds: opt('ADMIN_TELEGRAM_IDS')
+    .split(',').map((x) => x.trim()).filter(Boolean),
 
   publicUrl:     opt('PUBLIC_URL', process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : ''),
   port:          Number(opt('PORT', '3000')),

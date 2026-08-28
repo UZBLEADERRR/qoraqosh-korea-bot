@@ -1,7 +1,7 @@
 // Skrinshotdan reklama posteri.
 // Ikki bosqich: (1) AI bir necha g'oya taklif qiladi, (2) admin tanlaganini chizadi.
 // Admin hech qanday "prompt" yozmaydi — faqat g'oyani tanlaydi.
-import { geminiJson, geminiRasm, rasmPart, geminiBormi } from './gemini.js';
+import { aiJson, aiRasm, rasmPart, aiBormi } from './index.js';
 
 /** Joylashuvga qarab o'lchamlar. */
 export const NISBATLAR = {
@@ -77,9 +77,9 @@ Faqat JSON qaytar.`;
 
 /** Skrinshot + mahsulot ma'lumoti -> 4 ta poster g'oyasi. */
 export async function posterGoyalari(base64, mime, mahsulot) {
-  if (!geminiBormi()) throw new Error('GEMINI_KALIT_YOQ');
+  if (!aiBormi()) throw new Error('GEMINI_KALIT_YOQ');
 
-  const j = await geminiJson(
+  const j = await aiJson(
     [{ text: GOYA_KORSATMA(mahsulot || {}) }, rasmPart(base64, mime)],
     GOYA_SXEMA,
     { temperature: 0.9, maxTokens: 3000 },
@@ -123,5 +123,5 @@ Aspect ratio ${nis}.${yozuv}`;
     ? [{ text: toliq }, rasmPart(base64, mime || 'image/jpeg')]
     : [{ text: toliq }];
 
-  return await geminiRasm(parts, { nisbat: nis });
+  return await aiRasm(parts, { nisbat: nis });
 }

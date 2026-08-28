@@ -2,18 +2,23 @@
 import { qator, qatorlar, sorov, qiymat } from '../db.js';
 import { issueAdminToken, verifyAdminToken, loginBloklanganmi, loginXato, loginTozala } from '../lib/auth.js';
 import { ok, xato, tana, ipOl } from '../lib/http.js';
+import { verifyInitData } from '../lib/auth.js';
 import { mahsulotniTani } from '../ai/productEnrich.js';
 import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
-import { geminiJson, geminiBormi } from '../ai/gemini.js';
+import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi } from '../ai/index.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { config } from '../config.js';
 import { yubor, tg } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
 import { xabar, keshniTozala } from '../bot/shablon.js';
 import { STANDART, GURUHLAR, TAVSIF } from '../bot/shablonlar-standart.js';
+import { keshniTashla } from '../lib/kesh.js';
+
+// Katalog keshini bekor qilish: admin nimadir o'zgartirsa ilova darhol yangisini ko'rsin
+const katalogYangilandi = () => keshniTashla('katalog');
 
 const kunlarOldin = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString(); };
-const HOLATLAR = ['yangi', 'tasdiqlangan', 'yolda', 'yetkazildi', 'bekor'];
+const HOLATLAR = ['yangi', 'tasdiqlangan', 'omborda', 'yolda', 'yetkazildi', 'bekor'];
 
 export async function adminRoutes(req, res, yol) {
   // ---------- Kirish ----------
@@ -27,6 +32,38 @@ export async function adminRoutes(req, res, yol) {
     }
     loginXato(ip);
     return xato(res, 401, 'Login yoki parol noto‘g‘ri.');
+  }
+
+  // ---------- Telegram orqali kirish ----------
+  // Admin panel Telegram Mini App sifatida ochilganda parol so'ralmaydi:
+  // initData imzosi tekshiriladi va foydalanuvchi admin ro'yxatida bo'lishi kerak.
+  if (yol === '/api/admin/tg-login' && req.method === 'POST') {
+    const tgUser = verifyInitData(req.headers['x-init-data']);
+    if (!tgUser) return xato(res, 401, 'Telegram imzosi tekshirilmadi.');
+
+    const tid = String(tgUser.id);
+    const bootstrap = config.adminTelegramIds.includes(tid);
+
+    let u = await qator('select id, is_admin, full_name from users where telegram_id = $1', [tid]);
+    if (!u && bootstrap) {
+      u = await qator(
+        `insert into users (telegram_id, username, is_admin, source)
+         values ($1,$2,true,'admin') returning id, is_admin, full_name`,
+        [tid, tgUser.username || null]);
+    }
+    if (!u) return xato(res, 403, 'Bu hisob admin emas.');
+
+    // ENV dagi ID birinchi kirishda avtomatik admin qilinadi
+    if (bootstrap && !u.is_admin) {
+      await sorov('update users set is_admin = true where id = $1', [u.id]);
+      u.is_admin = true;
+    }
+    if (!u.is_admin) return xato(res, 403, 'Bu hisob admin emas.');
+
+    return ok(res, {
+      token: issueAdminToken(),
+      admin: { ism: u.full_name || tgUser.first_name || 'Admin', telegram_id: tid },
+    });
   }
 
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -69,7 +106,7 @@ export async function adminRoutes(req, res, yol) {
       `update orders set status=$1, cancel_reason=$2, updated_at=now() where id=$3`,
       [b.status, b.status === 'bekor' ? String(b.reason || '').slice(0, 200) : null, b.id]);
 
-    mijozgaXabar(eski, b.status, b.reason).catch(() => {});
+    mijozgaXabar(eski, b.status, b.reason).catch((e) => console.error('Xabar:', e.message));
     return ok(res, { ok: true });
   }
 
@@ -90,6 +127,67 @@ export async function adminRoutes(req, res, yol) {
         '✅ <b>{raqam}</b> — to‘lovingiz tasdiqlandi.')
         .then((m) => yubor(o.telegram_id, m)).catch(() => {});
     }
+    return ok(res, { ok: true });
+  }
+
+  // ================= OMBORLAR / FILIALLAR =================
+  if (yol === '/api/admin/omborlar' && req.method === 'GET') {
+    return ok(res, {
+      omborlar: await qatorlar(
+        `select o.*, (select count(*)::int from orders where ombor_id = o.id) as buyurtma_soni
+           from omborlar o order by o.tartib, o.nom`),
+    });
+  }
+
+  if (yol === '/api/admin/ombor' && req.method === 'POST') {
+    const b = await tana(req);
+    const m = {
+      nom:       String(b.nom || '').trim().slice(0, 80),
+      viloyat:   String(b.viloyat || '').trim().slice(0, 60),
+      tuman:     String(b.tuman || '').trim().slice(0, 60) || null,
+      manzil:    String(b.manzil || '').trim().slice(0, 200) || null,
+      telefon:   String(b.telefon || '').trim().slice(0, 30) || null,
+      ish_vaqti: String(b.ish_vaqti || '').trim().slice(0, 60) || null,
+      mo_ljal:   String(b.mo_ljal || '').trim().slice(0, 120) || null,
+      faol:      b.faol !== false,
+      tartib:    Number(b.tartib) || 100,
+    };
+    if (!m.nom)     return xato(res, 400, 'Ombor nomi kerak.');
+    if (!m.viloyat) return xato(res, 400, 'Viloyat tanlanmagan.');
+    const q = [m.nom, m.viloyat, m.tuman, m.manzil, m.telefon, m.ish_vaqti, m.mo_ljal, m.faol, m.tartib];
+    const natija = b.id
+      ? await qator(`update omborlar set nom=$1,viloyat=$2,tuman=$3,manzil=$4,telefon=$5,
+                       ish_vaqti=$6,mo_ljal=$7,faol=$8,tartib=$9 where id=$10 returning *`, [...q, b.id])
+      : await qator(`insert into omborlar (nom,viloyat,tuman,manzil,telefon,ish_vaqti,mo_ljal,faol,tartib)
+                     values ($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *`, q);
+    return ok(res, { ombor: natija });
+  }
+
+  if (yol === '/api/admin/ombor' && req.method === 'DELETE') {
+    const b = await tana(req);
+    await sorov('update omborlar set faol = false where id = $1', [b.id]);
+    return ok(res, { ok: true });
+  }
+
+  // ================= ADMINLAR =================
+  if (yol === '/api/admin/adminlar' && req.method === 'GET') {
+    return ok(res, {
+      adminlar: await qatorlar(
+        `select id, telegram_id, username, full_name, last_active
+           from users where is_admin order by created_at`),
+      env_idlar: config.adminTelegramIds,
+    });
+  }
+  if (yol === '/api/admin/admin-toggle' && req.method === 'POST') {
+    const b = await tana(req);
+    const tid = String(b.telegram_id || '').replace(/\D/g, '');
+    if (!tid) return xato(res, 400, 'Telegram ID kerak.');
+    if (b.qoshish === false && config.adminTelegramIds.includes(tid)) {
+      return xato(res, 400, 'Bu ID muhit o‘zgaruvchisida — avval ADMIN_TELEGRAM_IDS dan olib tashlang.');
+    }
+    const u = await qator('select id from users where telegram_id = $1', [tid]);
+    if (!u) return xato(res, 404, 'Bunday foydalanuvchi topilmadi. Avval botga /start yozsin.');
+    await sorov('update users set is_admin = $1 where id = $2', [b.qoshish !== false, u.id]);
     return ok(res, { ok: true });
   }
 
@@ -156,6 +254,7 @@ export async function adminRoutes(req, res, yol) {
                     warnings,emoji,ai_filled,is_active)
              values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
              returning *`, q);
+      katalogYangilandi();
       return ok(res, { mahsulot: natija });
     } catch (e) {
       if (/duplicate key|products_brend_nom_uniq/i.test(e.message)) {
@@ -169,6 +268,7 @@ export async function adminRoutes(req, res, yol) {
     const b = await tana(req);
     // O'chirmaymiz — buyurtmalar tarixi buziladi. Arxivga olamiz.
     await sorov('update products set is_active=false where id=$1', [b.id]);
+    katalogYangilandi();
     return ok(res, { ok: true });
   }
 
@@ -236,6 +336,7 @@ export async function adminRoutes(req, res, yol) {
     const b = await tana(req);
     await sorov('update products set poster_id=$1, updated_at=now() where id=$2',
                 [b.poster_id || null, Number(b.product_id)]);
+    katalogYangilandi();
     return ok(res, { ok: true });
   }
 
@@ -310,7 +411,8 @@ export async function adminRoutes(req, res, yol) {
          on conflict (key) do update set value=excluded.value, updated_at=now()`,
         [key, JSON.stringify(value)]);
     }
-    keshniTozala();   // yangi matn darhol kuchga kirsin
+    keshniTozala();        // yangi bot matni darhol kuchga kirsin
+    katalogYangilandi();   // narx/karta/menejer sozlamalari ham
     return ok(res, { ok: true });
   }
 
@@ -367,13 +469,21 @@ async function tizimTekshir() {
     return `${w.url.slice(0, 44)}… · navbatda ${w.pending_update_count || 0} ta`;
   });
 
-  await qadam('Gemini AI (matn)', 'Tahlil uchun', async () => {
-    if (!geminiBormi()) throw Object.assign(new Error('GEMINI_API_KEY yo‘q'), { turkum: 'kalit' });
-    const j = await geminiJson(
+  await qadam('AI provayderi', 'Qaysi orqali ishlaydi', async () => {
+    const p = provayder();
+    if (p.nom === 'yoq') throw Object.assign(new Error('Kalit yo‘q'), { turkum: 'kalit' });
+    const zaxira = openrouterBormi() && googleBormi() ? ' · zaxira: Google' : '';
+    return `${p.nom} · ${p.model}${zaxira}`;
+  });
+
+  await qadam('AI javob berishi', 'Haqiqiy chaqiruv', async () => {
+    if (!aiBormi()) throw Object.assign(new Error('AI kaliti yo‘q'), { turkum: 'kalit' });
+    const boshlandi = Date.now();
+    const j = await aiJson(
       [{ text: 'Javob JSON: {"ok": true}' }],
       { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'] },
-      { maxTokens: 32, timeoutMs: 20000 });
-    return `${config.geminiModel} javob berdi (${JSON.stringify(j).slice(0, 30)})`;
+      { maxTokens: 2048, timeoutMs: 30000 });
+    return `javob berdi (${Date.now() - boshlandi} ms): ${JSON.stringify(j).slice(0, 40)}`;
   });
 
   await qadam('Mini App manzili', 'PUBLIC_URL', async () => {
@@ -527,10 +637,35 @@ async function sotuvlar() {
 async function mijozgaXabar(buyurtma, holat, sabab) {
   const chatId = buyurtma.telegram_id;
   if (!chatId) return;
-  const kalit = `xabar_holat_${holat}`;
-  const matn = await xabar(kalit, {
+
+  const qiymatlar = {
     raqam: esc(buyurtma.order_no),
     sabab: sabab ? `\n\nSabab: ${esc(sabab)}` : '',
-  }, '');
+  };
+
+  // "Omborga yetib keldi" — eng yaqin ombor ma'lumotini qo'shamiz
+  if (holat === 'omborda') {
+    let ombor = buyurtma.ombor_id
+      ? await qator('select * from omborlar where id = $1', [buyurtma.ombor_id])
+      : null;
+    // Buyurtma paytida ombor topilmagan bo'lsa — hozir qidiramiz
+    if (!ombor) {
+      ombor = await qator(
+        `select * from omborlar
+          where faol and (viloyat = $1 or $1 is null)
+          order by (tuman = $2) desc nulls last, tartib limit 1`,
+        [buyurtma.viloyat || null, buyurtma.tuman || null]);
+      if (ombor) await sorov('update orders set ombor_id = $1 where id = $2', [ombor.id, buyurtma.id]);
+    }
+    Object.assign(qiymatlar, {
+      ombor:     esc(ombor?.nom || 'Markaziy ombor'),
+      manzil:    esc(ombor?.manzil || ''),
+      mo_ljal:   ombor?.mo_ljal ? `📌 ${esc(ombor.mo_ljal)}` : '',
+      telefon:   esc(ombor?.telefon || ''),
+      ish_vaqti: esc(ombor?.ish_vaqti || ''),
+    });
+  }
+
+  const matn = await xabar(`xabar_holat_${holat}`, qiymatlar, '');
   if (matn) await yubor(chatId, matn);
 }

@@ -951,19 +951,52 @@ function draftniSaqla() {
   }, 500);
 }
 
-/** Qoralamadagi manzil, bo'lmasa profilda saqlangani. */
+/**
+ * Ko'cha/uy qismi. Viloyat va tuman alohida tanlanadi, shuning uchun ko'cha
+ * qoralamada ALOHIDA saqlanadi (`kocha`). Aks holda foydalanuvchi viloyatni
+ * o'zgartirsa, eski to'liq manzil ko'cha maydonida qolib ketib,
+ * "Samarqand viloyati, Urgut tumani, Toshkent shahri, Chilonzor tumani, …"
+ * kabi ikki karra manzil yuborilardi.
+ */
 function manzilQiymati(d) {
-  return d.address || holat.user?.address || '';
+  if (typeof d.kocha === 'string') return d.kocha;
+
+  // Eski foydalanuvchi: bazada faqat to'liq manzil bor. Undan profildagi
+  // viloyat/tuman boshlanishini bir marta kesib olamiz.
+  const toliq = holat.user?.address || '';
+  if (!toliq) return '';
+  const qism = [holat.user?.viloyat, holat.user?.tuman].filter(Boolean);
+  let qolgan = toliq;
+  for (const q of qism) {
+    const boshi = qolgan.slice(0, q.length + 2).toLowerCase();
+    if (boshi.startsWith(q.toLowerCase())) qolgan = qolgan.slice(q.length).replace(/^\s*,\s*/, '');
+  }
+  return qolgan.trim();
+}
+
+/**
+ * Tanlangan viloyat va tuman.
+ * Tuman profildagi eski qiymatga faqat viloyat O'SHA-O'SHA bo'lsa qaytadi —
+ * aks holda "Buxoro viloyati / Chilonzor tumani" kabi mos kelmaydigan juftlik
+ * hosil bo'lib, eng yaqin ombor ham noto'g'ri tanlanardi.
+ */
+function hududTanlovi() {
+  const d = holat.draft || {};
+  const viloyat = d.viloyat || holat.user?.viloyat || '';
+  const oshaViloyat = !d.viloyat || d.viloyat === holat.user?.viloyat;
+  const tuman = d.tuman || (oshaViloyat ? holat.user?.tuman || '' : '');
+  // Har ehtimolga qarshi: tuman shu viloyatga tegishlimi?
+  const royxat = viloyat && window.tumanlarniOl ? window.tumanlarniOl(viloyat) : [];
+  return { viloyat, tuman: royxat.includes(tuman) ? tuman : '' };
 }
 
 function checkoutOch() {
   const d = holat.draft || {};
+  const { viloyat, tuman } = hududTanlovi();
   const oraliq   = holat.savat.reduce((s, r) => s + r.products.price * r.quantity, 0);
   const chegirma = chegirmaHisobla(oraliq);
   const yetkazish = oraliq >= holat.yetkazish.bepul_chegara ? 0 : holat.yetkazish.narx;
   const jami = oraliq - chegirma + yetkazish;
-  const usul = d.payment === 'karta' ? 'karta' : 'naqd';
-
   $('#modal-tan').innerHTML = `
     <div style="padding:16px 18px 0">
       <h2>📦 Buyurtmani rasmiylashtirish</h2>
@@ -975,21 +1008,25 @@ function checkoutOch() {
       <label for="b-tel">📱 Telefon</label>
       <input id="b-tel" type="tel" inputmode="tel" value="${esc(d.phone || holat.user?.phone || '')}">
 
-      <label for="b-manzil">📍 Yetkazib berish manzili
-        <span class="yordam">Shahar, tuman, ko‘cha, uy va xonadon</span></label>
-      <textarea id="b-manzil" placeholder="Toshkent sh., Chilonzor tumani, 5-mavze, 12-uy, 34-xonadon">${esc(manzilQiymati(d))}</textarea>
+      <label>📍 Viloyat</label>
+      <button class="tanlov-tugma" id="b-viloyat-tugma">
+        <span id="b-viloyat-matn">${esc(viloyat || 'Tanlang')}</span><span class="oq">›</span></button>
+
+      <label>🏘 Tuman</label>
+      <button class="tanlov-tugma" id="b-tuman-tugma" ${viloyat ? '' : 'disabled'}>
+        <span id="b-tuman-matn">${esc(tuman || (viloyat ? 'Tanlang' : 'Avval viloyatni tanlang'))}</span>
+        <span class="oq">›</span></button>
+
+      <label for="b-manzil">🏠 Ko‘cha, uy va xonadon
+        <span class="yordam">Kuryer topa olishi uchun aniq yozing</span></label>
+      <textarea id="b-manzil" placeholder="5-mavze, 12-uy, 34-xonadon">${esc(manzilQiymati(d))}</textarea>
 
       <label for="b-izoh">💬 Izoh <span class="yordam">Ixtiyoriy</span></label>
       <input id="b-izoh" placeholder="Masalan: kechqurun qo‘ng‘iroq qiling" value="${esc(d.note || '')}">
 
-      <label>💳 To‘lov usuli</label>
-      <div class="tanlov" id="tolov-tanlov">
-        <button data-usul="naqd" class="${usul === 'naqd' ? 'tanlangan' : ''}">
-          <span class="belgi">💵</span><span><b>Yetkazishda naqd</b>
-          <small>Kuryerga qo‘lma-qo‘l to‘laysiz</small></span></button>
-        <button data-usul="karta" class="${usul === 'karta' ? 'tanlangan' : ''}">
-          <span class="belgi">💳</span><span><b>Kartaga o‘tkazma</b>
-          <small>Karta raqami keyingi qadamda chiqadi</small></span></button>
+      <div class="ogoh" style="margin-top:18px">
+        💳 <b>To‘lov kartaga o‘tkazma orqali.</b> Buyurtmani tasdiqlagach karta raqami
+        chiqadi — to‘lab, chek rasmini yuklaysiz.
       </div>
 
       <div class="karta" style="margin:16px 0 0;padding:14px">
@@ -1009,36 +1046,81 @@ function checkoutOch() {
     el.oninput = () => { holat.draft[kalit] = el.value; draftniSaqla(); };
   };
   bogla('b-ism', 'name'); bogla('b-tel', 'phone');
-  bogla('b-manzil', 'address'); bogla('b-izoh', 'note');
+  bogla('b-manzil', 'kocha'); bogla('b-izoh', 'note');
 
-  $$('#tolov-tanlov button').forEach((b) => b.onclick = () => {
-    holat.draft.payment = b.dataset.usul;
-    $$('#tolov-tanlov button').forEach((x) => x.classList.toggle('tanlangan', x === b));
-    draftniSaqla(); titra();
-  });
+  $('#b-viloyat-tugma').onclick = () => royxatOyna(
+    '📍 Viloyatni tanlang', window.VILOYATLAR || [], viloyat,
+    (tanlangan) => {
+      holat.draft.viloyat = tanlangan;
+      holat.draft.tuman = '';       // viloyat o'zgarsa tuman bekor bo'ladi
+      draftniSaqla(); checkoutOch();
+    });
+
+  $('#b-tuman-tugma').onclick = () => {
+    const v = viloyat;
+    if (!v) return;
+    royxatOyna('🏘 Tumanni tanlang', window.tumanlarniOl(v), tuman,
+      (tanlangan) => { holat.draft.tuman = tanlangan; draftniSaqla(); checkoutOch(); });
+  };
 
   $('#t-yubor').onclick = buyurtmaYubor;
 }
 
+/**
+ * Uzun ro'yxatdan tanlash oynasi (viloyat, tuman).
+ * Qidiruv bor — 210 ta tumandan tez topish uchun.
+ */
+function royxatOyna(sarlavha, royxat, joriy, tanlandi) {
+  const chiz = (q = '') => {
+    const filtr = q
+      ? royxat.filter((x) => x.toLowerCase().includes(q.toLowerCase()))
+      : royxat;
+    return filtr.length
+      ? filtr.map((x) => `<button class="royxat-qator ${x === joriy ? 'tanlangan' : ''}"
+          data-tanla="${esc(x)}">${esc(x)}${x === joriy ? '<span class="belgi-ok">✓</span>' : ''}</button>`).join('')
+      : `<div class="bosh-holat" style="padding:32px 20px">Topilmadi</div>`;
+  };
+
+  $('#modal-tan').innerHTML = `
+    <div style="padding:14px 18px 0">
+      <div class="karta-bosh"><h2>${esc(sarlavha)}</h2></div>
+      <div class="qidiruv" style="margin-bottom:10px">
+        <span>🔍</span><input id="r-qidiruv" type="search" placeholder="Qidirish…">
+      </div>
+      <div class="royxat" id="r-royxat">${chiz()}</div>
+    </div>`;
+  kor($('#modal'), true);
+
+  const ula = () => $$('#r-royxat [data-tanla]').forEach((b) => b.onclick = () => {
+    titra(); modalYop(); tanlandi(b.dataset.tanla);
+  });
+  ula();
+  $('#r-qidiruv').oninput = (e) => { $('#r-royxat').innerHTML = chiz(e.target.value); ula(); };
+}
+
 async function buyurtmaYubor() {
   const xato = $('#checkout-xato'); xato.textContent = '';
+  const { viloyat, tuman } = hududTanlovi();
+  const kocha   = $('#b-manzil').value.trim();
   const tana = {
     name: $('#b-ism').value.trim(), phone: $('#b-tel').value.trim(),
-    address: $('#b-manzil').value.trim(), note: $('#b-izoh').value.trim(),
-    payment: holat.draft.payment === 'karta' ? 'karta' : 'naqd',
+    viloyat, tuman, note: $('#b-izoh').value.trim(),
+    // Bazaga to'liq manzil boradi, lekin ko'cha qoralamada alohida qoladi
+    address: [viloyat, tuman, kocha].filter(Boolean).join(', '),
   };
   if (tana.name.length < 3) return xato.textContent = '✍️ Ismni to‘liq yozing.';
   if (!/^\+?998\d{9}$/.test(tana.phone.replace(/[\s()-]/g, '')))
     return xato.textContent = '📱 Telefon raqamini tekshiring.';
-  if (tana.address.length < 10) return xato.textContent = '📍 Manzilni to‘liqroq yozing.';
+  if (!viloyat) return xato.textContent = '📍 Viloyatni tanlang.';
+  if (!tuman)   return xato.textContent = '🏘 Tumanni tanlang.';
+  if (kocha.length < 5) return xato.textContent = '🏠 Ko‘cha, uy va xonadonni yozing.';
 
   const t = $('#t-yubor'); t.disabled = true; t.textContent = 'Yuborilmoqda…';
   try {
     const j = await api('/api/order', { method: 'POST', body: JSON.stringify(tana) });
     holat.draft = {}; draftniSaqla();
     await savatniYangila(); titra('medium');
-    if (tana.payment === 'karta') tolovOyna(j.buyurtma);
-    else tayyorOyna(j.buyurtma);
+    tolovOyna(j.buyurtma);          // to'lov faqat karta orqali
   } catch (e) {
     xato.textContent = e.message;
     t.disabled = false; t.textContent = '✅ Buyurtmani tasdiqlash';

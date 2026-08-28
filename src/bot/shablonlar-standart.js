@@ -19,7 +19,7 @@ export const GURUHLAR = [
   {
     nom: '📦 Buyurtma holatlari',
     izoh: 'Admin panelda holatni o‘zgartirganingizda mijozga boradigan xabar.',
-    kalitlar: ['xabar_holat_tasdiqlangan', 'xabar_holat_yolda',
+    kalitlar: ['xabar_holat_tasdiqlangan', 'xabar_holat_omborda', 'xabar_holat_yolda',
                'xabar_holat_yetkazildi', 'xabar_holat_bekor', 'xabar_tolov_tasdiq'],
   },
   {
@@ -62,6 +62,9 @@ export const TAVSIF = {
   xabar_rad:            { nom: 'Rasm rad etildi', izoh: 'Rasm sifati talabga javob bermasa.', orin: ['emoji', 'sabab'] },
 
   xabar_holat_tasdiqlangan: { nom: 'Tasdiqlandi', izoh: '', orin: ['raqam'] },
+  xabar_holat_omborda:      { nom: 'Omborga yetib keldi',
+    izoh: 'Eng yaqin ombor ma’lumoti avtomatik qo‘yiladi.',
+    orin: ['raqam', 'ombor', 'manzil', 'mo_ljal', 'telefon', 'ish_vaqti'] },
   xabar_holat_yolda:        { nom: 'Yo‘lda',      izoh: '', orin: ['raqam'] },
   xabar_holat_yetkazildi:   { nom: 'Yetkazildi',  izoh: '', orin: ['raqam'] },
   xabar_holat_bekor:        { nom: 'Bekor qilindi', izoh: 'Sabab yozsangiz {sabab} ga tushadi.', orin: ['raqam', 'sabab'] },
@@ -177,6 +180,17 @@ Savolingiz bormi? Menejerimiz javob beradi:
 /ochir — ma’lumotimni o‘chirish`,
 
   xabar_holat_tasdiqlangan: `✅ <b>{raqam}</b> buyurtmangiz tasdiqlandi. Tayyorlanmoqda.`,
+  xabar_holat_omborda:
+`📦 <b>{raqam}</b> buyurtmangiz omborga yetib keldi!
+
+📍 <b>{ombor}</b>
+{manzil}
+{mo_ljal}
+
+📞 {telefon}
+🕘 {ish_vaqti}
+
+<i>Olib ketishingiz yoki kuryer yetkazishini kutishingiz mumkin.</i>`,
   xabar_holat_yolda:        `🚚 <b>{raqam}</b> buyurtmangiz yo‘lga chiqdi. Kuryer bog‘lanadi.`,
   xabar_holat_yetkazildi:   `📦 <b>{raqam}</b> yetkazildi. Xaridingiz uchun rahmat! 🌸`,
   xabar_holat_bekor:        `❌ <b>{raqam}</b> bekor qilindi.{sabab}`,

@@ -12,13 +12,16 @@ const yiq = (m) => { console.error('  ✗', m); xato++; };
 const kerakliFayllar = [
   'src/server.js', 'src/config.js', 'src/db.js',
   'src/bot/index.js', 'src/bot/render.js', 'src/bot/format.js',
-  'src/ai/faceAnalysis.js', 'src/ai/productEnrich.js', 'src/ai/gemini.js',
+  'src/ai/faceAnalysis.js', 'src/ai/productEnrich.js',
+  'src/ai/index.js', 'src/ai/google.js', 'src/ai/openrouter.js',
   'src/api/routes.js', 'src/api/admin.js',
   'migrations/001_schema.sql', 'migrations/002_katalog.sql', 'migrations/003_media.sql',
   'src/db/migrate.js', 'src/ai/poster.js',
   'src/bot/shablon.js', 'src/bot/shablonlar-standart.js', 'src/lib/xatolar.js',
+  'src/lib/kesh.js', 'src/lib/cheklov.js', 'src/lib/hududlar.js', 'public/app/hududlar.js',
   'test/soxta-server.mjs', 'test/bot-oqimi.mjs', 'migrations/006_limit_aloqa.sql',
   'migrations/004_tolov_chegirma.sql', 'migrations/005_xabar_shablonlari.sql',
+  'migrations/007_ombor_admin.sql', 'migrations/008_omborda_holati.sql',
   'public/index.html', 'public/app/index.html', 'public/app/app.js', 'public/app/style.css',
   'public/admin/index.html', 'public/admin/admin.js', 'public/admin/style.css',
 ];

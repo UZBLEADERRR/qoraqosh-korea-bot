@@ -20,26 +20,56 @@ const ssl = config.dbCaCert
 export const pool = new pg.Pool({
   connectionString: config.databaseUrl,
   ssl: config.databaseUrl.includes('localhost') || config.databaseUrl.includes('127.0.0.1') ? false : ssl,
-  max: 8,
+  max: config.dbPoolMax,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 12_000,
+  // Bitta osilib qolgan so'rov hovuzdagi ulanishni abadiy band qilmasin
+  statement_timeout: config.dbSorovTimeout,
+  query_timeout: config.dbSorovTimeout + 2000,
+  keepAlive: true,          // pooler bo'sh ulanishni uzib qo'ymasin
   application_name: 'qoraqosh',
 });
 
 pool.on('error', (e) => console.error('Baza pool xatosi:', e.message));
 
+/**
+ * Alohida ulanish — hovuzning vaqt cheklovlarisiz.
+ * Migratsiya uchun: katta indeks qurish yoki advisory lock navbatida kutish
+ * 15 soniyadan uzoq bo'lishi normal.
+ */
+export function uzunUlanish() {
+  return new pg.Client({
+    connectionString: config.databaseUrl,
+    ssl: pool.options.ssl,
+    application_name: 'qoraqosh-migratsiya',
+  });
+}
+
+// Sekin so'rovlarni ko'rib turamiz — yuk oshganda birinchi bo'lib shular biladi
+const SEKIN_MS = Number(process.env.SLOW_QUERY_MS || 1000);
+
 /** Xom so'rov. */
-export const sorov = (matn, qiymatlar = []) => pool.query(matn, qiymatlar);
+export async function sorov(matn, qiymatlar = []) {
+  const boshi = Date.now();
+  try {
+    return await pool.query(matn, qiymatlar);
+  } finally {
+    const ketdi = Date.now() - boshi;
+    if (ketdi > SEKIN_MS) {
+      console.warn(`SEKIN SO'ROV ${ketdi}ms:`, String(matn).replace(/\s+/g, ' ').slice(0, 120));
+    }
+  }
+}
 
 /** Barcha qatorlar. */
 export async function qatorlar(matn, qiymatlar = []) {
-  const { rows } = await pool.query(matn, qiymatlar);
+  const { rows } = await sorov(matn, qiymatlar);
   return rows;
 }
 
 /** Birinchi qator yoki null. */
 export async function qator(matn, qiymatlar = []) {
-  const { rows } = await pool.query(matn, qiymatlar);
+  const { rows } = await sorov(matn, qiymatlar);
   return rows[0] ?? null;
 }
 

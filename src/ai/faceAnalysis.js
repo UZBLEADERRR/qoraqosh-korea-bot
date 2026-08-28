@@ -2,7 +2,7 @@
 // Bitta Gemini chaqiruvi: modelga katalogning ixcham ro'yxati ham beriladi,
 // shuning uchun u mavjud bo'lmagan mahsulotni "o'ylab topa olmaydi".
 // Qaytgan id'lar baribir katalogga solishtirib tekshiriladi.
-import { geminiJson, rasmPart, geminiBormi } from './gemini.js';
+import { aiJson, rasmPart, aiBormi } from './index.js';
 
 export const RAD_SABABLARI = {
   yuz_yoq:      { emoji: '🙈', matn: "Rasmda yuz topilmadi." },
@@ -182,7 +182,7 @@ KATALOG (id|nom|bosqich|muammolar|teri turlari|faol moddalar):
  * @returns {{yaroqli:boolean, sabab?:string, izoh?:string, natija?:object}}
  */
 export async function yuzniTahlilQil(base64, mime, products, eskiTavsiyalar = []) {
-  if (!geminiBormi()) return { yaroqli: true, natija: oflaynTahlil(products), oflayn: true };
+  if (!aiBormi()) return { yaroqli: true, natija: oflaynTahlil(products), oflayn: true };
 
   const eski = eskiTavsiyalar.length
     ? `\n\nSHU ODAMGA AVVAL TAVSIYA QILINGAN (id): ${eskiTavsiyalar.join(', ')}
@@ -195,7 +195,7 @@ Faqat boshqa mos variant umuman bo'lmasa, eskisini qoldirishing mumkin.`
     rasmPart(base64, mime),
   ];
 
-  const javob = await geminiJson(parts, SXEMA, { temperature: 0.3, maxTokens: 3000 });
+  const javob = await aiJson(parts, SXEMA, { temperature: 0.3, maxTokens: 3000 });
 
   const sifat = javob?.sifat || {};
   if (!sifat.yaroqli) {
