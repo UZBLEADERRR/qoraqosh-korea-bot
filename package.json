@@ -16,7 +16,8 @@
     "test:bot": "node test/bot-oqimi.mjs",
     "test:ops": "node test/operatsiya.mjs",
     "test:agent": "node test/agent.mjs",
-    "test": "npm run test:bot && npm run test:ops && npm run test:agent"
+    "test": "npm run test:emu && npm run test:bot && npm run test:ops && npm run test:agent",
+    "test:emu": "node test/emu-tarif.mjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",

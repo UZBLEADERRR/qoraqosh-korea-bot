@@ -210,3 +210,10 @@ textarea{resize:vertical;min-height:80px}
 .tg-korinish:empty::before{content:'(bo‘sh — yuborilmaydi)';color:var(--och);font-style:italic}
 .tg-korinish b{font-weight:650}
 .tg-korinish code{background:var(--chiziq);padding:1px 5px;border-radius:4px;font-size:13px}
+
+/* Tarif sinovi jadvali */
+.jadval{width:100%;border-collapse:collapse;font-size:14px}
+.jadval th{text-align:left;padding:8px 10px;border-bottom:1.5px solid var(--chiziq);
+  color:var(--kul);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.3px}
+.jadval td{padding:9px 10px;border-bottom:1px solid var(--chiziq);vertical-align:top}
+.jadval tr:last-child td{border-bottom:0}

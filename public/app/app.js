@@ -978,7 +978,12 @@ async function yetkazishniHisobla(oraliq, chegirma) {
         <span class="yt-narx">${bepul ? 'bepul' : narx(t.narx)}</span>
       </button>`).join('') +
       `<p class="ozgina" style="margin:8px 0 0">📦 Jo‘natma og‘irligi: ~${(ogirlik / 1000).toFixed(1)} kg
-        <span class="yordam">(qadoqlash bilan)</span></p>`;
+        <span class="yordam">(qadoqlash bilan)</span></p>` +
+      (holat.yetkazishIzoh?.manba === 'emu'
+        ? `<p class="ozgina" style="margin:4px 0 0">🚚 EMU Express tarifi ·
+            ${esc(holat.yetkazishIzoh.zona_izoh || '')} ·
+            ${esc(holat.yetkazishIzoh.masofa_izoh || '')}</p>`
+        : '');
 
     $$('[data-yt]', quti).forEach((b) => b.onclick = () => {
       holat.draft.yetkazish_turi = b.dataset.yt;
@@ -1012,6 +1017,7 @@ async function yetkazishniHisobla(oraliq, chegirma) {
     const j = await api('/api/yetkazish', { method: 'POST',
       body: JSON.stringify({ viloyat, tuman }) });
     if (j.bosh) return;
+    holat.yetkazishIzoh = j.izoh || null;
     const tanlangan = holat.draft.yetkazish_turi || 'filial';
     holat.draft.yetkazish_turi = tanlangan;
     chiz(j.turlar, tanlangan, j.ogirlik, j.bepul);

@@ -12,6 +12,7 @@
 // mijoz buyurtmani tugata olmasdi.
 import { qatorlar, sozlama } from '../db.js';
 import { kesh } from '../lib/kesh.js';
+import { zona, masofaTuri, emuNarxi, ZONA_IZOH, MASOFA_IZOH } from '../lib/emu-tarif.js';
 
 export const TURLAR = {
   filial: { kalit: 'filial', nom: 'Pochta filialidan olib ketaman', emoji: '🏤' },
@@ -22,7 +23,8 @@ export const turTozala = (t) => (String(t) === 'uy' ? 'uy' : 'filial');
 
 /** Sozlamalarni bir marta o'qib, 60 soniya keshda saqlaymiz. */
 const sozlamalar = () => kesh('yetkazish-sozlama', 60_000, async () => {
-  const [provayder, filial1, uy1, qoshimcha, qadoq, standart, apiUrl, apiKalit, jonatuvchi] =
+  const [provayder, filial1, uy1, qoshimcha, qadoq, standart, apiUrl, apiKalit,
+         jonatuvchi, yaqin, qqs, ustama] =
     await Promise.all([
       sozlama('yetkazish_provayder', 'emu'),
       sozlama('tarif_filial_1kg', 7000),
@@ -33,6 +35,9 @@ const sozlamalar = () => kesh('yetkazish-sozlama', 60_000, async () => {
       sozlama('yetkazish_api_url', ''),
       sozlama('yetkazish_api_kalit', ''),
       sozlama('jonatuvchi_viloyat', 'Toshkent shahri'),
+      sozlama('emu_yaqin_tumanlar', {}),
+      sozlama('yetkazish_qqs_foiz', 0),
+      sozlama('yetkazish_ustama_foiz', 0),
     ]);
   const son = (v, z) => {
     const n = Number(String(v ?? '').replace(/"/g, ''));
@@ -49,6 +54,9 @@ const sozlamalar = () => kesh('yetkazish-sozlama', 60_000, async () => {
     apiUrl:    matn(apiUrl),
     apiKalit:  matn(apiKalit),
     jonatuvchi: matn(jonatuvchi) || 'Toshkent shahri',
+    yaqin:     (yaqin && typeof yaqin === 'object' && !Array.isArray(yaqin)) ? yaqin : {},
+    qqs:       son(qqs, 0),
+    ustama:    son(ustama, 0),
   };
 });
 
@@ -77,16 +85,44 @@ export async function ogirlikHisobla(items) {
 export const kg = (gramm) => Math.max(1, Math.ceil(Number(gramm || 0) / 1000));
 
 /**
- * Tarif jadvali bo'yicha narx. API bo'lmasa shu ishlaydi.
- * @param {'filial'|'uy'} turi
- * @param {number} gramm
+ * EMU rasmiy tarif kartasi bo'yicha narx.
+ * Zona (jo'natuvchi↔qabul qiluvchi viloyat), masofa (markaz / 40 km gacha /
+ * uzoq) va og'irlikdan chiqadi.
  */
+async function emuHisobi(turi, gramm, viloyat, tuman) {
+  const s = await sozlamalar();
+  const kilo = kg(gramm);
+  const z = zona(s.jonatuvchi, viloyat);
+  const masofa = masofaTuri(viloyat, tuman, s.yaqin[viloyat] || []);
+  const asos = emuNarxi({ turi: turi === 'uy' ? 'uy' : 'ofis', zona: z, masofa, kg: kilo });
+
+  // Ustama va QQS — ikkalasi ham asos narxdan hisoblanadi
+  const ustama = Math.round(asos * s.ustama / 100);
+  const qqs    = Math.round((asos + ustama) * s.qqs / 100);
+  const jami   = asos + ustama + qqs;
+
+  return {
+    narx: yuzgacha(jami),
+    izoh: {
+      manba: 'emu', zona: z, zona_izoh: ZONA_IZOH[z],
+      masofa, masofa_izoh: MASOFA_IZOH[masofa],
+      kg: kilo, asos, ustama, qqs,
+      jonatuvchi: s.jonatuvchi,
+    },
+  };
+}
+
+/** Oddiy jadval — admin EMU o'rniga o'z narxini qo'ymoqchi bo'lsa. */
 async function jadvalNarxi(turi, gramm) {
   const s = await sozlamalar();
   const kilo = kg(gramm);
   const asos = turi === 'uy' ? s.uy1 : s.filial1;
-  return asos + Math.max(0, kilo - 1) * s.qoshimcha;
+  return { narx: asos + Math.max(0, kilo - 1) * s.qoshimcha,
+           izoh: { manba: 'jadval', kg: kilo } };
 }
+
+/** Narxni 100 so'mgacha yaxlitlaymiz — "27 350" ko'rinishi g'alati. */
+const yuzgacha = (n) => Math.round(n / 100) * 100;
 
 /**
  * Provayder API sidan so'rash. Sozlanmagan yoki javob bermasa null.
@@ -135,16 +171,24 @@ async function apiNarxi(turi, gramm, viloyat, tuman) {
  * @returns {Promise<{narx:number, gramm:number, kilo:number, turi:string, manba:'api'|'jadval'}>}
  */
 export async function yetkazishNarxi({ items, turi, viloyat, tuman, gramm }) {
+  const s = await sozlamalar();
   const t = turTozala(turi);
   const og = gramm ?? await ogirlikHisobla(items || []);
+
+  // 1) API sozlangan bo'lsa — undan
   const api = await apiNarxi(t, og, viloyat, tuman);
-  return {
-    narx: api ?? await jadvalNarxi(t, og),
-    gramm: og,
-    kilo: kg(og),
-    turi: t,
-    manba: api != null ? 'api' : 'jadval',
-  };
+  if (api != null) {
+    return { narx: api, gramm: og, kilo: kg(og), turi: t, manba: 'api',
+             izoh: { manba: 'api', kg: kg(og) } };
+  }
+
+  // 2) Aks holda EMU rasmiy tarifi (yoki admin tanlagan oddiy jadval)
+  const h = s.provayder === 'jadval'
+    ? await jadvalNarxi(t, og)
+    : await emuHisobi(t, og, viloyat, tuman);
+
+  return { narx: h.narx, gramm: og, kilo: kg(og), turi: t,
+           manba: h.izoh.manba, izoh: h.izoh };
 }
 
 /** Ikkala variant uchun narx — mijoz tanlashi uchun. */

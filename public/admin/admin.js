@@ -1045,33 +1045,66 @@ async function sozlamalar() {
           Mijoz <b>filialdan olib ketish</b> yoki <b>manziligacha yetkazish</b> ni tanlaydi,
           narx og‘irlikka qarab hisoblanadi.</p>
 
-        <div class="forma-tor">
-          <div><label>Filialdan olish <span class="yordam">1 kg gacha</span></label>
-            <input id="s-t-filial" type="number" inputmode="numeric" min="0"
-              value="${Number(st.tarif_filial_1kg) || 7000}"></div>
-          <div><label>Uygacha <span class="yordam">1 kg gacha</span></label>
-            <input id="s-t-uy" type="number" inputmode="numeric" min="0"
-              value="${Number(st.tarif_uy_1kg) || 15000}"></div>
-          <div><label>Har qo‘shimcha kg</label>
-            <input id="s-t-kg" type="number" inputmode="numeric" min="0"
-              value="${Number(st.tarif_qoshimcha_kg) || 5000}"></div>
+        <label>Kim orqali <span class="yordam">narx shunga qarab hisoblanadi</span></label>
+        <select id="s-provayder">
+          <option value="emu" ${String(st.yetkazish_provayder).replace(/"/g,'') !== 'jadval' ? 'selected' : ''}>
+            EMU Express — rasmiy tarif kartasi (avtomatik)</option>
+          <option value="jadval" ${String(st.yetkazish_provayder).replace(/"/g,'') === 'jadval' ? 'selected' : ''}>
+            O‘z narxim (oddiy jadval)</option>
+        </select>
+        <p class="mayda" style="margin:6px 0 14px">
+          EMU tanlansa narx <b>zona × masofa × og‘irlik</b> bo‘yicha o‘zi
+          hisoblanadi (Avgust 2025 tarif kartasi). Zona jo‘natuvchi va
+          qabul qiluvchi viloyatdan chiqadi.</p>
+
+        <label>Jo‘natuvchi viloyati <span class="yordam">qayerdan jo‘natasiz</span></label>
+        <select id="s-jon-viloyat">
+          ${(window.VILOYATLAR || ['Toshkent shahri']).map((v) => `<option value="${esc(v)}"
+            ${matn('jonatuvchi_viloyat') === v ? 'selected' : ''}>${esc(v)}</option>`).join('')}
+        </select>
+
+        <div class="forma-tor" style="margin-top:12px">
           <div><label>Qadoqlash (gramm)</label>
             <input id="s-qadoq" type="number" inputmode="numeric" min="0"
               value="${Number(st.qadoq_ogirlik) || 200}"></div>
+          <div><label>Og‘irligi yo‘q mahsulot (g)</label>
+            <input id="s-standart-og" type="number" inputmode="numeric" min="0"
+              value="${Number(st.standart_ogirlik) || 150}"></div>
+          <div><label>Ustama (%) <span class="yordam">qadoqlash mehnati</span></label>
+            <input id="s-ustama" type="number" inputmode="numeric" min="0" max="100"
+              value="${Number(st.yetkazish_ustama_foiz) || 0}"></div>
+          <div><label>QQS (%) <span class="yordam">EMU narxi QQS siz</span></label>
+            <input id="s-qqs" type="number" inputmode="numeric" min="0" max="100"
+              value="${Number(st.yetkazish_qqs_foiz) || 0}"></div>
         </div>
-        <label>Og‘irligi kiritilmagan mahsulot uchun (gramm)</label>
-        <input id="s-standart-og" type="number" inputmode="numeric" min="0"
-          value="${Number(st.standart_ogirlik) || 150}">
 
-        <p class="mayda" style="margin:14px 0 6px"><b>Pochta xizmati API si</b> —
-          bo‘lsa narx o‘shandan olinadi, bo‘lmasa yuqoridagi tarif ishlaydi.</p>
-        <label>API manzili <span class="yordam">ixtiyoriy</span></label>
-        <input id="s-api-url" type="url" inputmode="url"
-          value="${esc(matn('yetkazish_api_url'))}" placeholder="https://api.emu.uz/calculate">
-        <label>API kaliti</label>
-        <input id="s-api-kalit" value="${esc(matn('yetkazish_api_kalit'))}" placeholder="Bearer token">
-        <label>Jo‘natuvchi viloyati</label>
-        <input id="s-jon-viloyat" value="${esc(matn('jonatuvchi_viloyat'))}" placeholder="Toshkent shahri">
+        <details style="margin-top:14px">
+          <summary class="mayda" style="cursor:pointer">O‘z narxim (EMU o‘rniga)</summary>
+          <div class="forma-tor" style="margin-top:10px">
+            <div><label>Filialdan olish (1 kg)</label>
+              <input id="s-t-filial" type="number" inputmode="numeric" min="0"
+                value="${Number(st.tarif_filial_1kg) || 7000}"></div>
+            <div><label>Uygacha (1 kg)</label>
+              <input id="s-t-uy" type="number" inputmode="numeric" min="0"
+                value="${Number(st.tarif_uy_1kg) || 15000}"></div>
+            <div><label>Har qo‘shimcha kg</label>
+              <input id="s-t-kg" type="number" inputmode="numeric" min="0"
+                value="${Number(st.tarif_qoshimcha_kg) || 5000}"></div>
+          </div>
+        </details>
+
+        <details style="margin-top:10px">
+          <summary class="mayda" style="cursor:pointer">Pochta xizmati API si (ixtiyoriy)</summary>
+          <p class="mayda" style="margin:8px 0 0">
+            Sozlansa narx o‘shandan olinadi; javob bermasa yuqoridagi tarif ishlaydi.</p>
+          <label>API manzili</label>
+          <input id="s-api-url" type="url" inputmode="url"
+            value="${esc(matn('yetkazish_api_url'))}" placeholder="https://api.emu.uz/calculate">
+          <label>API kaliti</label>
+          <input id="s-api-kalit" value="${esc(matn('yetkazish_api_kalit'))}" placeholder="token">
+        </details>
+
+        <button class="tug keng" id="t-tarif-sina" style="margin-top:14px">🧮 Narxni sinab ko‘rish</button>
       </div>
 
       <div class="karta tor">
@@ -1139,6 +1172,7 @@ async function sozlamalar() {
     $('#p-qosh').onclick = () => { holat.kesh.pogonalar.push({ dan: 0, chegirma: 0 }); pogonalarniChiz(); };
     $('#s-saqla').onclick = sozlamalarniSaqla;
     $('#t-kanal-sina').onclick = kanallarniSina;
+    $('#t-tarif-sina').onclick = tarifniSina;
     $('#t-logo').onclick = () => $('#s-logo').click();
     $('#s-logo').onchange = logoniYukla;
     const lo = $('#t-logo-och');
@@ -1224,7 +1258,10 @@ async function sozlamalarniSaqla() {
       standart_ogirlik:      Math.max(0, Number($('#s-standart-og').value) || 0),
       yetkazish_api_url:     $('#s-api-url').value.trim(),
       yetkazish_api_kalit:   $('#s-api-kalit').value.trim(),
-      jonatuvchi_viloyat:    $('#s-jon-viloyat').value.trim(),
+      jonatuvchi_viloyat:    $('#s-jon-viloyat').value,
+      yetkazish_provayder:   $('#s-provayder').value,
+      yetkazish_ustama_foiz: Math.max(0, Math.min(100, Number($('#s-ustama').value) || 0)),
+      yetkazish_qqs_foiz:    Math.max(0, Math.min(100, Number($('#s-qqs').value) || 0)),
     }})});
     holatEl.innerHTML = `<div class="xabar-quti ok" style="margin:0 0 10px">✓ Saqlandi</div>`;
     tost('Sozlamalar saqlandi');
@@ -1248,6 +1285,36 @@ async function logoniYukla(e) {
     tost(err.message || 'Yuklab bo‘lmadi');
   } finally {
     t.disabled = false; t.textContent = '📷 Logotip yuklash';
+  }
+}
+
+/** Tarif to'g'ri hisoblanayaptimi — bir necha shahar uchun ko'rsatamiz. */
+async function tarifniSina() {
+  const t = $('#t-tarif-sina');
+  t.disabled = true; t.textContent = 'Hisoblanmoqda…';
+  try {
+    await sozlamalarniSaqla();
+    const j = await api('/api/admin/tarif-sinov', { method: 'POST' });
+    modal('🧮 Yetkazish narxi', `
+      <p class="mayda" style="margin:0 0 12px">
+        Jo‘natuvchi: <b>${esc(j.jonatuvchi)}</b> · 1 kg jo‘natma uchun</p>
+      <div style="overflow-x:auto">
+      <table class="jadval">
+        <tr><th>Qayerga</th><th>Zona</th><th>Filialdan</th><th>Uygacha</th></tr>
+        ${j.qatorlar.map((r) => `<tr>
+          <td>${esc(r.viloyat)}<br><span class="mayda">${esc(r.tuman)} · ${esc(r.masofa)}</span></td>
+          <td>${r.zona}</td>
+          <td><b>${som(r.filial)}</b></td>
+          <td><b>${som(r.uy)}</b></td></tr>`).join('')}
+      </table></div>
+      <p class="mayda" style="margin:12px 0 0">
+        Og‘irlik oshsa narx ham oshadi. Manzil viloyat markazida bo‘lmasa
+        «40 km dan uzoq» tarifi qo‘llanadi — yaqin tumanlarni belgilamoqchi
+        bo‘lsangiz menejerga ayting.</p>`, { keng: true });
+  } catch (e) {
+    tost(e.message || 'Hisoblab bo‘lmadi');
+  } finally {
+    t.disabled = false; t.textContent = '🧮 Narxni sinab ko‘rish';
   }
 }
 

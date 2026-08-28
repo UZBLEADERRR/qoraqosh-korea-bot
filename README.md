@@ -119,22 +119,43 @@ Kompyuter oldiga o'tirmasdan, Telegram'dan:
 
 ### 🚚 Yetkazib berish narxi
 
-Narx **og'irlik** bo'yicha hisoblanadi. Har mahsulotning og'irligi (gramm)
-admin panelda kiritiladi; ustiga qadoqlash uchun 200 g qo'shiladi va
-to'liq kilogrammga yaxlitlanadi.
+Narx **EMU Express rasmiy tarif kartasi** (Avgust 2025) bo'yicha avtomatik
+hisoblanadi. Uch narsaga bog'liq:
 
-Sukut bo'yicha tarif (Sozlamalar → Yetkazib berish dan o'zgartiriladi):
+1. **Zona (0–4)** — jo'natuvchi va qabul qiluvchi viloyat juftligi.
+   14×14 matritsa `src/lib/emu-tarif.js` da, PDF dagi jadvaldan olingan.
+   Toshkentdan: Sirdaryo va Toshkent viloyati — 1-zona, Samarqand va
+   Farg'ona vodiysi — 2, Buxoro va Surxondaryo — 3,
+   Qoraqalpog'iston va Xorazm — 4.
+2. **Masofa** — markaziy shahar / markazdan 40 km gacha / undan uzoq.
+   Ro'yxatda belgilanmagan tuman «40 km dan uzoq» deb hisoblanadi:
+   kam olib zarar ko'rgandan ko'ra ehtiyot bo'lgan yaxshi.
+3. **Og'irlik** — mahsulotlar og'irligi + 200 g qadoqlash, to'liq kg ga
+   yaxlitlanadi. 20 kg dan keyin stavka arzonlashadi.
 
-| Turi | 1 kg gacha | Har qo'shimcha kg |
-|---|---|---|
-| 🏤 Filialdan olib ketish | 7 000 so'm | +5 000 so'm |
-| 🏠 Manzilgacha yetkazish | 15 000 so'm | +5 000 so'm |
+Misol (Toshkentdan, 1 kg):
 
-Pochta xizmatining API si bo'lsa (`yetkazish_api_url` sozlamasi) narx
-o'shandan olinadi. API javob bermasa yoki sozlanmagan bo'lsa —
-yuqoridagi tarif jadvali ishlaydi, ya'ni mijoz buyurtmani baribir
-tugata oladi. Narx **har doim serverda** hisoblanadi: mijoz yuborgan
-summa umuman ishlatilmaydi.
+| Qayerga | Zona | 🏤 Filialdan | 🏠 Uygacha |
+|---|---|---|---|
+| Toshkent shahri | 0 | 22 000 | 32 000 |
+| Nurafshon | 1 | 25 000 | 45 000 |
+| Samarqand shahri | 2 | 27 000 | 47 000 |
+| Samarqand, Urgut tumani | 2 | 37 000 | 62 000 |
+| Urganch | 4 | 33 000 | 53 000 |
+
+Sozlamalar → Yetkazib berish da: jo'natuvchi viloyat, qadoqlash og'irligi,
+**ustama %** (o'z mehnatingiz) va **QQS %** (EMU narxlari QQS siz).
+«🧮 Narxni sinab ko'rish» tugmasi bir necha shahar uchun narxni darhol
+ko'rsatadi.
+
+EMU o'rniga o'z narxingizni qo'ymoqchi bo'lsangiz — provayderni
+«O'z narxim» ga o'tkazasiz. Pochta xizmatining API si sozlansa
+(`yetkazish_api_url`) narx o'shandan olinadi; API javob bermasa
+tarifga qaytadi — mijoz buyurtmani baribir tugatadi.
+
+Narx **har doim serverda** hisoblanadi: mijoz yuborgan summa umuman
+ishlatilmaydi. Hisob tafsiloti (zona, masofa, kg, ustama) buyurtmaga
+yoziladi — keyin «nega shuncha?» degan savolga javob bera olasiz.
 
 ### 🤖 Kanal agenti
 
@@ -278,6 +299,7 @@ src/
   lib/
     brend.js           brend nomi va logotipi (bitta manba, keshlanadi)
     bosqichlar.js      buyurtma bosqichlari — bot va panel uchun bitta ro'yxat
+    emu-tarif.js       EMU rasmiy tarif kartasi: zonalar va narxlar
     docx.js            .docx yozuvchi (ZIP + WordprocessingML), kutubxonasiz
     admin.js           kim admin — bot va admin API uchun bitta javob
     hududlar.js        14 viloyat, 210 tuman — manzil tekshiruvi uchun
@@ -311,6 +333,7 @@ Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing
 (`004_...sql`) — qo'llangan faylni tahrirlamang, u qayta bajarilmaydi.
 
 `npm run check` — deploy oldidan fayllar, sxema va koddagi kalitlarni tekshiradi.
+`npm test` — barcha sinovlar (EMU tarifi, bot oqimi, operatsiya, agent).
 
 ---
 

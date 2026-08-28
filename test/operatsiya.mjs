@@ -127,14 +127,22 @@ await sorov(`update products set ogirlik = 300 where id in (1,2)`);
 const { keshniTashla: kt } = await import('../src/lib/kesh.js'); kt();
 const og = await ogirlikHisobla([{product_id:1,quantity:2},{product_id:2,quantity:1}]);
 test('og‘irlik qadoq bilan hisoblandi', og === 300*3 + 200, `${og} g`);
-const f = await yetkazishNarxi({items:[{product_id:1,quantity:1}],turi:'filial',viloyat:'Samarqand viloyati'});
-test('filialdan olish arzonroq', f.narx === 7000, `${f.narx} so‘m, ${f.kilo} kg`);
-const u = await yetkazishNarxi({items:[{product_id:1,quantity:1}],turi:'uy',viloyat:'Samarqand viloyati'});
-test('uygacha qimmatroq', u.narx === 15000, `${u.narx} so‘m`);
-const ogir = await yetkazishNarxi({turi:'filial',gramm:3500,viloyat:'Samarqand viloyati'});
-test('og‘ir jo‘natma qimmatroq', ogir.narx === 7000 + 3*5000, `4 kg -> ${ogir.narx} so‘m`);
-const v = await variantlar({items:[{product_id:1,quantity:1}],viloyat:'Buxoro viloyati'});
+// EMU tarifi: Toshkentdan Samarqand markazi = 2-zona, shahar
+const f = await yetkazishNarxi({items:[{product_id:1,quantity:1}],turi:'filial',
+  viloyat:'Samarqand viloyati',tuman:'Samarqand'});
+test('EMU: Samarqand markazi, ofisgacha', f.narx === 27000, `${f.narx} so‘m, ${f.kilo} kg, zona ${f.izoh.zona}`);
+const u = await yetkazishNarxi({items:[{product_id:1,quantity:1}],turi:'uy',
+  viloyat:'Samarqand viloyati',tuman:'Samarqand'});
+test('EMU: Samarqand markazi, uygacha', u.narx === 47000, `${u.narx} so‘m`);
+const tum = await yetkazishNarxi({items:[{product_id:1,quantity:1}],turi:'uy',
+  viloyat:'Samarqand viloyati',tuman:'Urgut tumani'});
+test('tuman markazdan qimmatroq', tum.narx === 62000, `Urgut -> ${tum.narx} so‘m (${tum.izoh.masofa})`);
+const ogir = await yetkazishNarxi({turi:'filial',gramm:3500,viloyat:'Samarqand viloyati',tuman:'Samarqand'});
+test('og‘ir jo‘natma qimmatroq', ogir.narx === 27000 + 3*7000, `4 kg -> ${ogir.narx} so‘m`);
+const v = await variantlar({items:[{product_id:1,quantity:1}],viloyat:'Buxoro viloyati',tuman:'Buxoro'});
 test('ikkala variant qaytadi', v.filial.narx < v.uy.narx, `${v.filial.narx} / ${v.uy.narx}`);
+test('hisob tafsiloti saqlanadi', f.izoh?.manba === 'emu' && f.izoh.zona === 2,
+  `zona ${f.izoh?.zona}, ${f.izoh?.masofa}`);
 
 console.log('\n── MAJBURIY KANAL ──');
 await sorov(`update settings set value='"@meduza_kanal"'::jsonb where key='majburiy_kanal'`);

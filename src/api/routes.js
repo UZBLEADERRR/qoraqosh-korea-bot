@@ -195,6 +195,7 @@ export async function apiRoutes(req, res, yol) {
 
     return ok(res, {
       ogirlik: v.gramm, kilo: v.kilo, bepul, bepul_chegara: chegara,
+      izoh: v.filial.izoh || null,
       turlar: [
         { ...TURLAR.filial, narx: bepul ? 0 : v.filial.narx },
         { ...TURLAR.uy,     narx: bepul ? 0 : v.uy.narx },

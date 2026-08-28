@@ -424,6 +424,36 @@ export async function adminRoutes(req, res, yol) {
     return ok(res, { ok: true, yozildi: yozildi.length });
   }
 
+  // Tarif sinovi — narx to'g'ri hisoblanayaptimi
+  if (yol === '/api/admin/tarif-sinov' && req.method === 'POST') {
+    const { variantlar } = await import('../services/yetkazish.js');
+    const { MASOFA_IZOH } = await import('../lib/emu-tarif.js');
+    const jonatuvchi = String(await sozlama('jonatuvchi_viloyat', 'Toshkent shahri')).replace(/"/g, '');
+
+    // Har viloyatdan bittadan namuna — markaz shahri
+    const namunalar = [
+      ['Toshkent shahri', 'Chilonzor tumani'],
+      ['Toshkent viloyati', 'Nurafshon'],
+      ['Samarqand viloyati', 'Samarqand'],
+      ['Samarqand viloyati', 'Urgut tumani'],
+      ['Farg‘ona viloyati', 'Farg‘ona'],
+      ['Buxoro viloyati', 'Buxoro'],
+      ['Xorazm viloyati', 'Urganch'],
+      ['Qoraqalpog‘iston Respublikasi', 'Nukus'],
+    ];
+    const qatorlarSinov = [];
+    for (const [viloyat, tuman] of namunalar) {
+      const v = await variantlar({ items: [], viloyat, tuman });
+      qatorlarSinov.push({
+        viloyat, tuman,
+        zona: v.filial.izoh?.zona ?? '—',
+        masofa: MASOFA_IZOH[v.filial.izoh?.masofa] || '—',
+        filial: v.filial.narx, uy: v.uy.narx,
+      });
+    }
+    return ok(res, { jonatuvchi, qatorlar: qatorlarSinov });
+  }
+
   // Brend logotipi
   if (yol === '/api/admin/logo' && req.method === 'POST') {
     const b = await tana(req);
