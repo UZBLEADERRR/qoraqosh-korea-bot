@@ -3,7 +3,7 @@
 // tarmoq xatosida cheklangan marta qayta uriniladi.
 import { config } from '../config.js';
 
-const BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+const BASE = config.geminiApi;
 
 export const geminiBormi = () => Boolean(config.geminiKey);
 
@@ -15,7 +15,7 @@ const kut = (ms) => new Promise((r) => setTimeout(r, ms));
  * @param {object} [opts]
  */
 export async function geminiJson(parts, schema, opts = {}) {
-  if (!geminiBormi()) throw new Error('GEMINI_KALIT_YOQ');
+  if (!geminiBormi()) throw Object.assign(new Error('GEMINI_KALIT_YOQ'), { turkum: 'kalit' });
 
   const model = opts.model || config.geminiModel;
   const body = {
@@ -53,26 +53,51 @@ export async function geminiJson(parts, schema, opts = {}) {
       }
       if (!res.ok) {
         const t = await res.text().catch(() => '');
-        throw new Error(`Gemini HTTP ${res.status}: ${t.slice(0, 300)}`);
+        const e = new Error(`Gemini HTTP ${res.status}: ${t.slice(0, 400)}`);
+        // Turkum — chaqiruvchi mijozga to'g'ri xabar bera olsin
+        e.turkum = res.status === 400 ? 'sorov'
+                 : res.status === 401 || res.status === 403 ? 'kalit'
+                 : res.status === 404 ? 'model'
+                 : 'nomalum';
+        e.kod = res.status;
+        throw e;
       }
 
       const data = await res.json();
       const cand = data?.candidates?.[0];
-      if (cand?.finishReason === 'SAFETY') throw new Error('GEMINI_XAVFSIZLIK');
+      if (cand?.finishReason === 'SAFETY' || cand?.finishReason === 'IMAGE_SAFETY' ||
+          data?.promptFeedback?.blockReason) {
+        const e = new Error('Gemini xavfsizlik filtri rasmni rad etdi');
+        e.turkum = 'xavfsizlik';
+        throw e;
+      }
+      if (cand?.finishReason === 'MAX_TOKENS') {
+        const e = new Error('Gemini javobi uzilib qoldi (MAX_TOKENS)');
+        e.turkum = 'uzilgan';
+        throw e;
+      }
 
       const text = cand?.content?.parts?.map((p) => p.text).filter(Boolean).join('') || '';
-      if (!text) throw new Error('GEMINI_BOSH_JAVOB');
-      return JSON.parse(text);
+      if (!text) {
+        const e = new Error(`Gemini bo'sh javob qaytardi (finishReason: ${cand?.finishReason || 'yo\'q'})`);
+        e.turkum = 'bosh';
+        throw e;
+      }
+      try {
+        return JSON.parse(text);
+      } catch {
+        const e = new Error(`Gemini JSON emas: ${text.slice(0, 200)}`);
+        e.turkum = 'json';
+        throw e;
+      }
     } catch (e) {
       oxirgiXato = e;
-      if (e.name === 'AbortError' || /HTTP 5|429/.test(e.message)) {
-        await kut(700 * (urinish + 1));
-        continue;
-      }
+      if (e.name === 'AbortError') { e.turkum = 'vaqt'; await kut(700 * (urinish + 1)); continue; }
+      if (/HTTP 5|429/.test(e.message)) { e.turkum = e.turkum || 'band'; await kut(700 * (urinish + 1)); continue; }
       throw e;
     }
   }
-  throw oxirgiXato || new Error('GEMINI_XATO');
+  throw oxirgiXato || Object.assign(new Error('Gemini javob bermadi'), { turkum: 'nomalum' });
 }
 
 /** Telegram/brauzerdan kelgan rasmni Gemini parts formatiga o'giradi. */

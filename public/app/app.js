@@ -128,22 +128,24 @@ async function boshla() {
     holat.chegirmalar = k.chegirmalar || [];
     holat.karta       = k.karta || { raqam: '', egasi: '' };
     holat.konsultatsiya = k.konsultatsiya || '';
+    holat.menejer = k.menejer || { telefon: '', ish_vaqti: '' };
   } catch (e) { console.error(e); }
 
   try {
     const me = await api('/api/me');
     holat.user = me.user;
     holat.tahlil = me.oxirgi_tahlil;
+    holat.limit = me.limit;
     if (!me.user.royxatdan_otgan) return royxatEkrani();
   } catch {
     kor($('#ilova'), true);              // Telegram tashqarisida — faqat katalog
-    kategoriyalarniChiz(); filtrlarniChiz(); mahsulotlarniChiz();
+    filtrlarniChiz(); mahsulotlarniChiz();
     return;
   }
 
   kor($('#ilova'), true);
   kor($('#skaner-chaqiriq'), true);
-  kategoriyalarniChiz(); filtrlarniChiz(); mahsulotlarniChiz();
+  filtrlarniChiz(); mahsulotlarniChiz(); limitniChiz();
   await Promise.all([savatniYangila(), draftniYukla()]);
 
   const p = new URLSearchParams(location.search);
@@ -188,30 +190,70 @@ function royxatEkrani() {
 }
 
 // ---------------- Katalog ----------------
-function kategoriyalarniChiz() {
-  const el = $('#kategoriyalar');
-  const hammasi = [{ slug:'hammasi', name:'Hammasi', emoji:'✨' }, ...holat.kategoriyalar];
-  el.innerHTML = hammasi.map((k) =>
-    `<button data-kat="${esc(k.slug)}" class="${k.slug === holat.kategoriya ? 'tanlangan' : ''}">${esc(k.emoji || '')} ${esc(k.name)}</button>`).join('');
-  $$('button', el).forEach((b) => b.onclick = () => {
-    holat.kategoriya = b.dataset.kat; kategoriyalarniChiz(); mahsulotlarniChiz(); titra();
+/** Faol filtrlar — qidiruv ostida yorliq bo'lib turadi, bosib olib tashlanadi. */
+function filtrlarniChiz() {
+  const yorliqlar = [];
+  if (holat.kategoriya !== 'hammasi') {
+    const k = holat.kategoriyalar.find((x) => x.slug === holat.kategoriya);
+    yorliqlar.push({ tur: 'kat', matn: `${k?.emoji || ''} ${k?.name || ''}`.trim() });
+  }
+  if (holat.narxFiltr !== 'hammasi') yorliqlar.push({ tur: 'narx', matn: NARX_FILTR[holat.narxFiltr].nom });
+  if (holat.saralash !== 'ommabop')  yorliqlar.push({ tur: 'sara', matn: SARALASH[holat.saralash].nom });
+
+  const el = $('#filtr-satr');
+  el.innerHTML = yorliqlar.map((y) =>
+    `<span class="filtr-yorliq">${esc(y.matn)}<button data-och="${y.tur}" aria-label="Olib tashlash">✕</button></span>`).join('');
+  $$('[data-och]', el).forEach((b) => b.onclick = () => {
+    const t = b.dataset.och;
+    if (t === 'kat')  holat.kategoriya = 'hammasi';
+    if (t === 'narx') holat.narxFiltr = 'hammasi';
+    if (t === 'sara') holat.saralash = 'ommabop';
+    filtrlarniChiz(); mahsulotlarniChiz(); titra();
   });
+
+  const faol = yorliqlar.length > 0;
+  $('#filtr-tugma').classList.toggle('faol', faol);
+  kor($('#filtr-belgi'), faol);
 }
 
-function filtrlarniChiz() {
-  const el = $('#filtrlar');
-  el.innerHTML =
-    Object.entries(NARX_FILTR).map(([k, v]) =>
-      `<button data-narx="${k}" class="${k === holat.narxFiltr ? 'tanlangan' : ''}">${esc(v.nom)}</button>`).join('') +
-    `<span style="flex:0 0 8px"></span>` +
-    Object.entries(SARALASH).map(([k, v]) =>
-      `<button data-sara="${k}" class="${k === holat.saralash ? 'tanlangan' : ''}">${esc(v.nom)}</button>`).join('');
-  $$('[data-narx]', el).forEach((b) => b.onclick = () => {
-    holat.narxFiltr = b.dataset.narx; filtrlarniChiz(); mahsulotlarniChiz(); titra();
-  });
-  $$('[data-sara]', el).forEach((b) => b.onclick = () => {
-    holat.saralash = b.dataset.sara; filtrlarniChiz(); mahsulotlarniChiz(); titra();
-  });
+/** ⋯ tugmasi — filtr oynasi. Ekranni band qilmasin. */
+function filtrOyna() {
+  const kat = [{ slug:'hammasi', name:'Hammasi', emoji:'✨' }, ...holat.kategoriyalar];
+  $('#modal-tan').innerHTML = `
+    <div style="padding:16px 18px 0">
+      <div class="karta-bosh"><h2>Filtr va tartib</h2>
+        <button class="filtr-yorliq" id="f-tozala" style="border:0;cursor:pointer">Tozalash</button></div>
+
+      <label style="margin-top:6px">🗂 Kategoriya</label>
+      <div class="lenta" style="padding:2px 0 4px;flex-wrap:wrap;overflow:visible">
+        ${kat.map((k) => `<button data-kat="${esc(k.slug)}"
+          class="${k.slug === holat.kategoriya ? 'tanlangan' : ''}">${esc(k.emoji || '')} ${esc(k.name)}</button>`).join('')}
+      </div>
+
+      <label>💰 Narx</label>
+      <div class="lenta" style="padding:2px 0 4px;flex-wrap:wrap;overflow:visible">
+        ${Object.entries(NARX_FILTR).map(([k, v]) => `<button data-narx="${k}"
+          class="${k === holat.narxFiltr ? 'tanlangan' : ''}">${esc(v.nom)}</button>`).join('')}
+      </div>
+
+      <label>↕️ Tartib</label>
+      <div class="lenta" style="padding:2px 0 4px;flex-wrap:wrap;overflow:visible">
+        ${Object.entries(SARALASH).map(([k, v]) => `<button data-sara="${k}"
+          class="${k === holat.saralash ? 'tanlangan' : ''}">${esc(v.nom)}</button>`).join('')}
+      </div>
+
+      <button class="asosiy" id="f-korish" style="margin-top:18px">Ko‘rish</button>
+    </div>`;
+  kor($('#modal'), true);
+
+  const yangila = () => { filtrOyna(); mahsulotlarniChiz(); filtrlarniChiz(); titra(); };
+  $$('#modal-tan [data-kat]').forEach((b) => b.onclick = () => { holat.kategoriya = b.dataset.kat; yangila(); });
+  $$('#modal-tan [data-narx]').forEach((b) => b.onclick = () => { holat.narxFiltr = b.dataset.narx; yangila(); });
+  $$('#modal-tan [data-sara]').forEach((b) => b.onclick = () => { holat.saralash = b.dataset.sara; yangila(); });
+  $('#f-tozala').onclick = () => {
+    holat.kategoriya = 'hammasi'; holat.narxFiltr = 'hammasi'; holat.saralash = 'ommabop'; yangila();
+  };
+  $('#f-korish').onclick = modalYop;
 }
 
 function saralangan() {
@@ -280,10 +322,12 @@ $('#qidiruv-tozala').onclick = () => {
   kor($('#qidiruv-tozala'), false); mahsulotlarniChiz();
 };
 $('#t-filtr-tozala').onclick = () => {
-  holat.qidiruv = ''; qidiruvEl.value = ''; holat.kategoriya = 'hammasi'; holat.narxFiltr = 'hammasi';
+  holat.qidiruv = ''; qidiruvEl.value = '';
+  holat.kategoriya = 'hammasi'; holat.narxFiltr = 'hammasi'; holat.saralash = 'ommabop';
   kor($('#qidiruv-tozala'), false);
-  kategoriyalarniChiz(); filtrlarniChiz(); mahsulotlarniChiz();
+  filtrlarniChiz(); mahsulotlarniChiz();
 };
+$('#filtr-tugma').onclick = () => { filtrOyna(); titra(); };
 addEventListener('scroll', () => {
   $('#qidiruv-quti')?.classList.toggle('suzuvchi', scrollY > 140);
 }, { passive: true });
@@ -327,15 +371,17 @@ $$('[data-yop]').forEach((el) => el.onclick = modalYop);
 
 // ---------------- Skaner ----------------
 let tanlanganRasm = null;
+let tanlanganMime = 'image/jpeg';
 $('#tushirish').onclick = () => $('#fayl').click();
 $('#fayl').onchange = async (e) => {
   const fayl = e.target.files?.[0];
   if (!fayl) return;
-  try {
-    tanlanganRasm = await kichiklashtir(fayl);
-    $('#oldindan-rasm').src = tanlanganRasm;
-    kor($('#skaner-boshlash'), false); kor($('#skaner-oldindan'), true);
-  } catch { ogohlantir('Rasmni o‘qib bo‘lmadi.'); }
+  if (fayl.size > 20 * 1024 * 1024) return ogohlantir('Rasm juda katta (20 MB dan ortiq).');
+  const r = await rasmniTayyorla(fayl);
+  if (!r) return ogohlantir('Rasmni o‘qib bo‘lmadi. Boshqa surat tanlang.');
+  tanlanganRasm = r.data; tanlanganMime = r.mime;
+  $('#oldindan-rasm').src = r.data;
+  kor($('#skaner-boshlash'), false); kor($('#skaner-oldindan'), true);
 };
 $('#t-boshqa').onclick = () => {
   tanlanganRasm = null; $('#fayl').value = '';
@@ -343,19 +389,61 @@ $('#t-boshqa').onclick = () => {
 };
 $('#t-tahlil').onclick = tahlilQil;
 
-function kichiklashtir(fayl, max = 1024, sifat = 0.85) {
-  return new Promise((res, rej) => {
+/** Skaner ekranida qolgan limitni ko'rsatadi. */
+function limitniChiz() {
+  const L = holat.limit;
+  let el = $('#limit-satr');
+  if (!L || !L.yoqilgan) { el?.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'limit-satr'; el.className = 'limit-satr';
+    $('#tab-skaner').insertBefore(el, $('#skaner-boshlash'));
+  }
+  el.classList.toggle('tugadi', L.qolgan === 0);
+  el.innerHTML = L.qolgan === 0
+    ? `⏳ <span>Bugungi limit tugadi. ${L.mijoz ? 'Ertaga yana ochiladi.'
+        : '<b>Xarid qilsangiz limit oshadi.</b>'}</span>`
+    : `🔬 <span>Bugun yana <b>${L.qolgan} ta</b> tahlil qilishingiz mumkin
+        <span class="ozgina">(${L.ishlatilgan}/${L.limit})</span></span>`;
+}
+
+/**
+ * Rasmni yuklashga tayyorlaydi.
+ * Brauzer formatni o'qiy olsa — kichraytirib JPEG qiladi (tez va yengil).
+ * O'qiy olmasa (masalan Android'da iPhone HEIC fayli) — faylni o'z holicha
+ * yuboramiz, AI HEIC/HEIF/WebP ni ham qabul qiladi.
+ */
+function rasmniTayyorla(fayl, max = 1024, sifat = 0.85) {
+  return new Promise((res) => {
+    const url = URL.createObjectURL(fayl);
     const o = new Image();
-    o.onload = () => {
-      const n = Math.min(1, max / Math.max(o.width, o.height));
-      const c = document.createElement('canvas');
-      c.width = Math.round(o.width * n); c.height = Math.round(o.height * n);
-      c.getContext('2d').drawImage(o, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(o.src);
-      res(c.toDataURL('image/jpeg', sifat));
+    const xom = () => {
+      URL.revokeObjectURL(url);
+      const fr = new FileReader();
+      fr.onload = () => res({ data: fr.result, mime: fayl.type || 'image/jpeg', xom: true });
+      fr.onerror = () => res(null);
+      fr.readAsDataURL(fayl);
     };
-    o.onerror = rej; o.src = URL.createObjectURL(fayl);
+    o.onload = () => {
+      try {
+        const n = Math.min(1, max / Math.max(o.width, o.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(o.width * n); c.height = Math.round(o.height * n);
+        c.getContext('2d').drawImage(o, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        res({ data: c.toDataURL('image/jpeg', sifat), mime: 'image/jpeg', xom: false });
+      } catch { xom(); }
+    };
+    o.onerror = xom;          // brauzer formatni tanimadi
+    o.src = url;
   });
+}
+
+/** Eski nom — poster/chek uchun ishlatiladi. */
+async function kichiklashtir(fayl, max = 1024, sifat = 0.85) {
+  const r = await rasmniTayyorla(fayl, max, sifat);
+  if (!r) throw new Error('Rasmni o‘qib bo‘lmadi');
+  return r.data;
 }
 
 async function tahlilQil() {
@@ -363,7 +451,7 @@ async function tahlilQil() {
   kor($('#skaner-oldindan'), false); kor($('#skaner-yuklanmoqda'), true);
   try {
     const j = await api('/api/scan', { method: 'POST',
-      body: JSON.stringify({ image: tanlanganRasm, mime: 'image/jpeg' }) });
+      body: JSON.stringify({ image: tanlanganRasm, mime: tanlanganMime }) });
     kor($('#skaner-yuklanmoqda'), false);
     if (!j.yaroqli) {
       kor($('#skaner-boshlash'), true);
@@ -376,13 +464,36 @@ async function tahlilQil() {
       problems: j.tahlil.muammolar, forecast: j.tahlil.prognoz,
       routine: j.tahlil.tavsiya, raw: { xulosa: j.tahlil.xulosa }, is_offline: j.tahlil.oflayn,
     };
+    holat.oxirgiRasm = tanlanganRasm;   // faqat shu qurilmada, ulashish uchun
+    holat.limit = j.limit || holat.limit;
     kor($('#skaner-boshlash'), true);
     tanlanganRasm = null; $('#fayl').value = '';
+    holat.natijaKesh = null;
     natijaniChiz(); tabOch('natija'); titra('medium');
+    limitniChiz();
   } catch (e) {
     kor($('#skaner-yuklanmoqda'), false); kor($('#skaner-boshlash'), true);
+    if (e.limit) { holat.limit = e.limit; limitniChiz(); limitOyna(e.limit); return; }
     ogohlantir(e.message);
   }
+}
+
+function limitOyna(L) {
+  $('#modal-tan').innerHTML = `
+    <div style="padding:28px 22px 0;text-align:center">
+      <div style="font-size:52px">⏳</div>
+      <h2 style="margin:12px 0 6px">Bugungi limit tugadi</h2>
+      <p class="mayda">Bugun ${L.ishlatilgan} ta tahlil qildingiz (kuniga ${L.limit} ta).</p>
+      ${L.mijoz ? `<div class="ogoh" style="margin-top:16px;text-align:left">
+          Ertaga yana ${L.limit} ta tahlil ochiladi.</div>`
+        : `<div class="ogoh yashil" style="margin-top:16px;text-align:left">
+          🎁 <b>Bizdan xarid qilsangiz</b> kunlik limit oshadi — tahlilni ko‘proq qilasiz.</div>`}
+      <button class="asosiy" id="t-limit-dokon" style="margin-top:18px">🛍 Do‘konga o‘tish</button>
+      <button class="ikkilamchi" id="t-limit-yop" style="margin-top:9px">Yopish</button>
+    </div>`;
+  kor($('#modal'), true);
+  $('#t-limit-dokon').onclick = () => { modalYop(); tabOch('katalog'); };
+  $('#t-limit-yop').onclick = modalYop;
 }
 
 const RAD = {
@@ -421,6 +532,7 @@ const BOSQICH = { tozalash:'🫧 Tozalash', toner:'💧 Toner', davolash:'🧪 D
 function natijaniChiz() {
   const t = holat.tahlil;
   const el = $('#natija-tan');
+  holat.natijaKesh = true;   // qayta chizmaslik uchun belgi
   if (!t) {
     el.innerHTML = `<div class="bosh-holat"><div class="belgi">🔬</div>
       <p>Hali tahlil qilinmagan</p>
@@ -509,9 +621,18 @@ function natijaniChiz() {
         <div class="raqam">${i + 1}</div>
         <div style="flex:1;min-width:0">
           <div class="qadam">${esc(BOSQICH[r.bosqich] || r.bosqich)}</div>
-          <div class="bnom">${esc(r.p.name)}</div>
-          <div class="bbrend">${esc(r.p.brand || '')}${r.p.volume ? ' · ' + esc(r.p.volume) : ''} — <b style="color:var(--matn)">${narx(r.p.price)}</b></div>
-          ${r.sabab ? `<div class="nega"><b>❓ Nega aynan shu:</b> ${esc(r.sabab)}</div>` : ''}
+          ${r.sabab ? `<div class="nega" style="margin-top:6px"><b>❓ Nega aynan shu:</b> ${esc(r.sabab)}</div>` : ''}
+          <button class="bosqich-mahsulot" data-tavsiya="${r.p.id}">
+            <span class="kichik-rasm" style="${r.p.poster_id ? '' :
+              `background:linear-gradient(135deg,${esc(r.p.gradient?.[0] || '#3a3330')},${esc(r.p.gradient?.[1] || '#6b5d55')})`}">
+              ${r.p.poster_id ? `<img src="/media/${esc(r.p.poster_id)}" alt="">` : esc(r.p.emoji || '🧴')}</span>
+            <span style="flex:1;min-width:0">
+              <span class="bnom" style="display:block">${esc(r.p.name)}</span>
+              <span class="bbrend" style="display:block">${esc(r.p.brand || '')}${r.p.volume ? ' · ' + esc(r.p.volume) : ''}
+                — <b style="color:var(--matn)">${narx(r.p.price)}</b></span>
+            </span>
+            <span class="oq">›</span>
+          </button>
           ${r.p.usage_text ? `<div class="qollash">📖 ${esc(r.p.usage_text)}</div>` : ''}
         </div>
       </div>`).join('')}
@@ -522,10 +643,24 @@ function natijaniChiz() {
   </div>` : ''}
 
   <div class="karta">
+    ${holat.oxirgiRasm ? `<button class="asosiy" id="t-ulash" style="margin-bottom:9px">
+      📸 Natijani rasm qilib saqlash</button>` : ''}
     <button class="ikkilamchi" id="t-qayta">🔄 Boshqa rasm bilan qayta tahlil</button>
     ${holat.konsultatsiya ? `<a class="tugma ikkilamchi" style="margin-top:9px;text-decoration:none"
-       href="https://t.me/${esc(holat.konsultatsiya)}" target="_blank">💬 Menejerdan maslahat so‘rash</a>` : ''}
+       href="https://t.me/${esc(holat.konsultatsiya)}" target="_blank">💬 Telegramda yozish</a>` : ''}
+    ${holat.menejer?.telefon ? `<a class="tugma ikkilamchi" style="margin-top:9px;text-decoration:none"
+       href="tel:${esc(String(holat.menejer.telefon).replace(/[^+\d]/g, ''))}">📞 ${esc(holat.menejer.telefon)}</a>
+       <p class="ozgina" style="margin:8px 0 0;text-align:center">${esc(holat.menejer.ish_vaqti || '')}</p>` : ''}
   </div>`;
+
+  // Tavsiya qilingan mahsulotni bosib ochish
+  $$('[data-tavsiya]', el).forEach((b) => b.onclick = (ev) => {
+    ev.stopPropagation();
+    mahsulotOyna(Number(b.dataset.tavsiya));
+  });
+
+  const u = $('#t-ulash');
+  if (u) u.onclick = () => ulashishRasmi(t, tavsiyalar);
 
   const h = $('#t-hammasi');
   if (h) h.onclick = async () => {
@@ -544,6 +679,167 @@ async function tavsiyaniSavatgaSol() {
       amal: 'toplam', items: t.map((x) => ({ product_id: x.product_id, quantity: 1 })) })});
     await savatniYangila();
   } catch {}
+}
+
+// ---------------- Natijani rasmga aylantirish ----------------
+// Canvas'da chiziladi: tepada foydalanuvchi surati, pastida tahlil.
+// Rasm serverga yuborilmaydi — hammasi qurilmada.
+
+const CH = {
+  eni: 1080, chetlash: 64, fon: '#faf9f7', matn: '#191716', kul: '#635e5a',
+  urgu: '#8a5a3d', yashil: '#2c7a51', sariq: '#8f6c0d', qizil: '#b0423a', chiziq: '#e9e4df',
+};
+
+function qatorlarGaBol(ctx, matn, maxEni) {
+  const sozlar = String(matn).split(' ');
+  const q = []; let joriy = '';
+  for (const w of sozlar) {
+    const sinov = joriy ? joriy + ' ' + w : w;
+    if (ctx.measureText(sinov).width > maxEni && joriy) { q.push(joriy); joriy = w; }
+    else joriy = sinov;
+  }
+  if (joriy) q.push(joriy);
+  return q;
+}
+
+async function ulashishRasmi(t, tavsiyalar) {
+  const tugma = $('#t-ulash');
+  const eskiMatn = tugma.textContent;
+  tugma.disabled = true; tugma.textContent = 'Tayyorlanmoqda…';
+  try {
+    const png = await natijaRasminiChiz(t, tavsiyalar);
+    $('#modal-tan').innerHTML = `
+      <div style="padding:16px 18px 0">
+        <h2 style="margin-bottom:10px">📸 Tahlil natijasi</h2>
+        <img class="ulashish-oldi" src="${png}" alt="Tahlil natijasi">
+        <button class="asosiy" id="t-ulash-yubor" style="margin-top:14px">📤 Ulashish</button>
+        <a class="tugma ikkilamchi" id="t-ulash-yukla" download="qoraqosh-tahlil.png"
+           href="${png}" style="margin-top:9px;text-decoration:none">⬇︎ Saqlash</a>
+        <p class="ozgina" style="margin-top:10px">
+          Tugma ishlamasa — rasmni bosib turing va «Rasmni saqlash» ni tanlang.</p>
+      </div>`;
+    kor($('#modal'), true);
+    $('#t-ulash-yubor').onclick = async () => {
+      try {
+        const blob = await (await fetch(png)).blob();
+        const fayl = new File([blob], 'qoraqosh-tahlil.png', { type: 'image/png' });
+        if (navigator.canShare?.({ files: [fayl] })) {
+          await navigator.share({ files: [fayl], title: 'Teri tahlilim' });
+        } else {
+          ogohlantir('Ulashish qo‘llab-quvvatlanmadi. Rasmni bosib turib saqlang.');
+        }
+      } catch { /* foydalanuvchi bekor qildi */ }
+    };
+  } catch (e) {
+    ogohlantir('Rasmni tayyorlab bo‘lmadi.');
+    console.error(e);
+  } finally {
+    tugma.disabled = false; tugma.textContent = eskiMatn;
+  }
+}
+
+function natijaRasminiChiz(t, tavsiyalar) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onerror = reject;
+    img.onload = () => {
+      const W = CH.eni, P = CH.chetlash;
+      const rasmH = Math.round(W * 0.72);
+      const muammolar = (t.problems || []).slice(0, 4);
+
+      // Balandlikni oldindan hisoblaymiz
+      const o = document.createElement('canvas').getContext('2d');
+      o.font = '400 30px system-ui, sans-serif';
+      let h = rasmH + 200 + 130;
+      for (const m of muammolar) {
+        h += 56 + 42;
+        h += qatorlarGaBol(o, m.yechim || '', W - P * 2 - 20).length * 40 + 16;
+      }
+      h += tavsiyalar.length ? 90 + tavsiyalar.length * 62 : 0;
+      h += 130;
+
+      const c = document.createElement('canvas');
+      c.width = W; c.height = h;
+      const x = c.getContext('2d');
+      x.fillStyle = CH.fon; x.fillRect(0, 0, W, h);
+
+      // --- Surat (markazdan kesib) ---
+      const nis = Math.max(W / img.width, rasmH / img.height);
+      const sw = img.width * nis, sh = img.height * nis;
+      x.save(); x.beginPath(); x.rect(0, 0, W, rasmH); x.clip();
+      x.drawImage(img, (W - sw) / 2, (rasmH - sh) / 2, sw, sh);
+      // pastki tomonga yumshoq qorayish — matn o'qilsin
+      const g = x.createLinearGradient(0, rasmH - 260, 0, rasmH);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.72)');
+      x.fillStyle = g; x.fillRect(0, rasmH - 260, W, 260);
+      x.restore();
+
+      // Suratdagi yozuv
+      x.fillStyle = '#fff';
+      x.font = '700 64px system-ui, sans-serif';
+      x.fillText(`${t.score ?? 0}/100`, P, rasmH - 96);
+      x.font = '400 30px system-ui, sans-serif';
+      x.fillStyle = 'rgba(255,255,255,.9)';
+      x.fillText(`${t.age_estimate || ''} · ${t.skin_type || ''} teri`, P, rasmH - 48);
+      x.textAlign = 'right';
+      x.font = '700 34px system-ui, sans-serif';
+      x.fillStyle = '#fff';
+      x.fillText('QoraQosh', W - P, rasmH - 48);
+      x.textAlign = 'left';
+
+      let y = rasmH + 76;
+      x.fillStyle = CH.matn; x.font = '700 42px system-ui, sans-serif';
+      x.fillText('Nima topildi', P, y);
+      y += 56;
+
+      for (const m of muammolar) {
+        const foiz = m.foiz ?? 40;
+        const rang = foiz >= 70 ? CH.qizil : foiz >= 40 ? CH.sariq : CH.yashil;
+        x.fillStyle = CH.matn; x.font = '600 36px system-ui, sans-serif';
+        x.fillText(m.nom || '', P, y);
+        x.fillStyle = rang; x.textAlign = 'right';
+        x.fillText(`${foiz}%`, W - P, y);
+        x.textAlign = 'left';
+        y += 26;
+        // chiziq
+        x.fillStyle = CH.chiziq; x.fillRect(P, y, W - P * 2, 14);
+        x.fillStyle = rang; x.fillRect(P, y, Math.round((W - P * 2) * foiz / 100), 14);
+        y += 46;
+        if (m.zona) {
+          x.fillStyle = CH.kul; x.font = '400 28px system-ui, sans-serif';
+          x.fillText('📍 ' + m.zona, P, y); y += 38;
+        }
+        if (m.yechim) {
+          x.fillStyle = CH.yashil; x.font = '400 30px system-ui, sans-serif';
+          for (const qat of qatorlarGaBol(x, '✅ ' + m.yechim, W - P * 2 - 20)) {
+            x.fillText(qat, P, y); y += 40;
+          }
+        }
+        y += 22;
+      }
+
+      if (tavsiyalar.length) {
+        y += 16;
+        x.fillStyle = CH.matn; x.font = '700 42px system-ui, sans-serif';
+        x.fillText('Tavsiya etilgan parvarish', P, y);
+        y += 56;
+        tavsiyalar.forEach((r, i) => {
+          x.fillStyle = CH.urgu; x.font = '700 32px system-ui, sans-serif';
+          x.fillText(`${i + 1}.`, P, y);
+          x.fillStyle = CH.matn; x.font = '500 32px system-ui, sans-serif';
+          const nom = r.p.name.length > 34 ? r.p.name.slice(0, 33) + '…' : r.p.name;
+          x.fillText(nom, P + 50, y);
+          y += 62;
+        });
+      }
+
+      x.fillStyle = CH.kul; x.font = '400 26px system-ui, sans-serif';
+      x.fillText('AI bahosi · tibbiy tashxis emas', P, h - 56);
+
+      resolve(c.toDataURL('image/png'));
+    };
+    img.src = holat.oxirgiRasm;
+  });
 }
 
 // ---------------- Savat ----------------
@@ -820,7 +1116,9 @@ function tayyorOyna(o, chekBor = false) {
       <button class="asosiy" id="t-tayyor" style="margin-top:18px">Yaxshi</button>
     </div>`;
   kor($('#modal'), true);
-  $('#t-tayyor').onclick = () => { modalYop(); tabOch('buyurtma'); buyurtmalarniChiz(); };
+  $('#t-tayyor').onclick = () => {
+    modalYop(); tabOch('buyurtma'); buyurtmalarniChiz({ majburiy: true });
+  };
 }
 
 // ---------------- Buyurtmalar ----------------
@@ -829,17 +1127,25 @@ const HOLAT_Y = {
   yetkazildi:['📦 Yetkazildi','yengil'], bekor:['❌ Bekor qilingan','kuchli'],
 };
 
-async function buyurtmalarniChiz() {
+async function buyurtmalarniChiz({ majburiy = false } = {}) {
   const el = $('#buyurtma-tan');
-  el.innerHTML = `<div class="yuklanmoqda"><div class="aylana"></div></div>`;
+  // Keshdan darhol ko'rsatamiz — tab bosilganda kutish bo'lmasin
+  if (holat.buyurtmaKesh && !majburiy) {
+    el.innerHTML = holat.buyurtmaKesh;
+    buyurtmaTugmalariniUla(el);
+    buyurtmalarniYangila();          // orqa fonda yangilaymiz
+    return;
+  }
+  if (!el.innerHTML) el.innerHTML = `<div class="yuklanmoqda"><div class="aylana"></div></div>`;
   try {
     const j = await api('/api/orders');
     if (!j.buyurtmalar.length) {
-      el.innerHTML = `<div class="bosh-holat"><div class="belgi">📋</div>
+      holat.buyurtmaKesh = `<div class="bosh-holat"><div class="belgi">📋</div>
         <p>Hozircha buyurtmangiz yo‘q</p></div>`;
+      el.innerHTML = holat.buyurtmaKesh;
       return;
     }
-    el.innerHTML = j.buyurtmalar.map((o) => {
+    holat.buyurtmaKesh = j.buyurtmalar.map((o) => {
       const [nom, sinf] = HOLAT_Y[o.status] || [o.status, ''];
       const chekKerak = o.payment_method === 'karta' && o.payment_status === 'kutilmoqda' && o.status !== 'bekor';
       return `
@@ -860,14 +1166,25 @@ async function buyurtmalarniChiz() {
             data-total="${o.total}">💳 To‘lov qilish va chek yuborish</button>` : ''}
       </div>`;
     }).join('');
-
-    $$('[data-chek]', el).forEach((b) => b.onclick = () =>
-      tolovOyna({ order_no: b.dataset.chek, total: Number(b.dataset.total),
-                  subtotal: Number(b.dataset.total), discount: 0, delivery_fee: 0,
-                  payment_method: 'karta' }));
+    el.innerHTML = holat.buyurtmaKesh;
+    buyurtmaTugmalariniUla(el);
   } catch (e) {
-    el.innerHTML = `<div class="bosh-holat"><p>${esc(e.message)}</p></div>`;
+    if (!holat.buyurtmaKesh) el.innerHTML = `<div class="bosh-holat"><p>${esc(e.message)}</p></div>`;
   }
+}
+
+function buyurtmaTugmalariniUla(el) {
+  $$('[data-chek]', el).forEach((b) => b.onclick = () =>
+    tolovOyna({ order_no: b.dataset.chek, total: Number(b.dataset.total),
+                subtotal: Number(b.dataset.total), discount: 0, delivery_fee: 0,
+                payment_method: 'karta' }));
+}
+
+/** Orqa fonda yangilash — ko'rinishni almashtirmasdan. */
+let yangilashTimer;
+function buyurtmalarniYangila() {
+  clearTimeout(yangilashTimer);
+  yangilashTimer = setTimeout(() => buyurtmalarniChiz({ majburiy: true }), 60);
 }
 
 // ---------------- Tablar ----------------
@@ -879,7 +1196,7 @@ function tabOch(nom) {
   $$('.menyu button').forEach((b) =>
     b.classList.toggle('tanlangan', b.dataset.tab === nom || (nom === 'natija' && b.dataset.tab === 'skaner')));
   if (nom === 'buyurtma') buyurtmalarniChiz();
-  if (nom === 'natija')   natijaniChiz();
+  if (nom === 'natija' && !holat.natijaKesh) natijaniChiz();
   scrollTo({ top: 0 });
 }
 $$('.menyu button').forEach((b) => b.onclick = () => { tabOch(b.dataset.tab); titra(); });

@@ -62,6 +62,7 @@ const BOLIMLAR = {
   xabarlar:  () => xabarlar(),
   qollanma:  () => qollanma(),
   boshqaruv: () => boshqaruv(),
+  tizim:     () => tizim(),
   buyurtma:  () => buyurtmalar(),
   mahsulot:  () => mahsulotlar(),
   sotuv:     () => sotuvlar(),
@@ -160,6 +161,56 @@ const voronkaQator = (nom, son, asos) => `
     <div class="chiziq"><i style="width:${asos ? Math.round((son / asos) * 100) : 0}%"></i></div>
     <div class="son">${som(son)}${asos ? ` · ${Math.round((son / asos) * 100)}%` : ''}</div>
   </div>`;
+
+// ================= TIZIM HOLATI =================
+// Nimadir ishlamay qolganda birinchi qaraydigan joy.
+async function tizim() {
+  const el = $('#b-tizim');
+  el.innerHTML = `
+    <div class="bosh"><h1>Tizim holati</h1>
+      <button class="tug asos" id="t-tekshir">Qayta tekshirish</button></div>
+    <div id="tizim-tan"><div class="bosh-holat"><div class="aylana"></div>
+      <div style="margin-top:10px">Tekshirilmoqda…</div></div></div>`;
+  $('#t-tekshir').onclick = tizim;
+  try {
+    const j = await api('/api/admin/health');
+    const xatolar = j.tekshiruvlar.filter((t) => t.holat === 'xato');
+    $('#tizim-tan').innerHTML = `
+      ${xatolar.length
+        ? `<div class="karta" style="max-width:820px;border-color:var(--qizil)">
+             <h2 style="color:var(--qizil)">⚠️ ${xatolar.length} ta muammo topildi</h2>
+             <p class="mayda" style="margin-top:8px">
+               Quyidagi qizil qatorlar botning ishlamasligiga sabab bo‘lishi mumkin.</p></div>`
+        : `<div class="karta" style="max-width:820px;border-color:var(--yashil)">
+             <h2 style="color:var(--yashil)">✅ Hammasi joyida</h2></div>`}
+      <div class="karta" style="max-width:820px"><div class="jad"><table>
+        <thead><tr><th>Nima</th><th>Holat</th><th>Natija</th><th class="ong">ms</th></tr></thead>
+        <tbody>${j.tekshiruvlar.map((t) => `
+          <tr>
+            <td><div class="kuchli">${esc(t.nom)}</div><div class="mayda">${esc(t.izoh)}</div></td>
+            <td><span class="yor ${t.holat === 'ok' ? 'yashil' : 'qizil'}">
+              ${t.holat === 'ok' ? '✓ ishlayapti' : '✕ xato'}</span></td>
+            <td style="max-width:420px;word-break:break-word"
+                class="${t.holat === 'ok' ? 'mayda' : ''}"
+               >${esc(t.xabar)}</td>
+            <td class="ong mayda">${t.ms}</td>
+          </tr>`).join('')}
+        </tbody></table></div></div>
+
+      <div class="karta" style="max-width:820px">
+        <h3>Nima qilish kerak</h3>
+        <ul style="padding-left:20px;line-height:1.9;margin-top:8px" class="mayda">
+          <li><b>Ma’lumotlar bazasi</b> qizil — Railway’dagi <code>DATABASE_URL</code> ni tekshiring
+            (parolda maxsus belgi bo‘lsa URL-kodlash kerak).</li>
+          <li><b>Telegram bot</b> qizil — <code>BOT_TOKEN</code> noto‘g‘ri yoki bekor qilingan.</li>
+          <li><b>Webhook</b> qizil — Telegram xabarni yetkaza olmayapti; xato matni o‘sha yerda yozilgan.</li>
+          <li><b>Gemini AI</b> qizil — <code>GEMINI_API_KEY</code> yoki model nomi (<code>GEMINI_MODEL</code>)
+            noto‘g‘ri, yoki kunlik kvota tugagan. Xato matnida aniq sabab bor.</li>
+          <li><b>Mini App manzili</b> qizil — <code>PUBLIC_URL</code> qo‘yilmagan, botdagi tugmalar chiqmaydi.</li>
+        </ul>
+      </div>`;
+  } catch (e) { xatoChiz($('#tizim-tan'), e); }
+}
 
 // ================= 2. BUYURTMALAR =================
 const HOLATLAR = {
@@ -532,11 +583,35 @@ async function sozlamalar() {
     </div>
 
     <div class="karta" style="max-width:560px">
-      <div class="karta-bosh"><h2>💬 Konsultatsiya</h2></div>
+      <div class="karta-bosh"><h2>💬 Konsultatsiya va menejer</h2></div>
       <label>Menejer Telegram username (@ siz)</label>
       <input id="s-konsult" value="${esc(matn('konsultatsiya_user'))}" placeholder="qoraqosh_admin">
+      <label>Menejer telefon raqami</label>
+      <input id="s-tel" value="${esc(matn('menejer_telefon'))}" placeholder="+998 90 123 45 67">
+      <label>Ish vaqti</label>
+      <input id="s-vaqt" value="${esc(matn('menejer_ish_vaqti'))}" placeholder="Har kuni 9:00 – 21:00">
       <p class="mayda" style="margin-top:8px">
-        Botdagi va ilovadagi «Konsultatsiya» tugmasi shu hisobga olib boradi.</p>
+        Botdagi va ilovadagi «Konsultatsiya» bo‘limida shu ikkalasi ham tugma bo‘lib chiqadi.</p>
+    </div>
+
+    <div class="karta" style="max-width:560px">
+      <div class="karta-bosh"><h2>🔬 Kunlik skaner limiti</h2></div>
+      <p class="mayda" style="margin:0 0 12px">
+        Bitta odam kuniga nechta yuz tahlili qila oladi. <b>Mijoz</b> — kamida bitta
+        bekor qilinmagan buyurtmasi bor foydalanuvchi: unga limit kattaroq beriladi,
+        bu xaridga undaydi.</p>
+      <label style="display:inline-flex;align-items:center;gap:8px;color:var(--matn)">
+        <input type="checkbox" id="s-limit-yoq" style="width:auto"
+          ${String(st.limit_yoqilgan) === 'true' ? 'checked' : ''}> Limit ishlasin</label>
+      <div class="forma-tor" style="margin-top:8px">
+        <div><label>Oddiy foydalanuvchi (kuniga)</label>
+          <input id="s-limit-bepul" type="number" min="0" value="${Number(st.limit_bepul) || 3}"></div>
+        <div><label>Xarid qilgan mijoz (kuniga)</label>
+          <input id="s-limit-mijoz" type="number" min="0" value="${Number(st.limit_mijoz) || 10}"></div>
+      </div>
+      <p class="mayda" style="margin-top:8px">
+        Limit tugaganda mijozga «xarid qilsangiz limit oshadi» degan xabar va
+        do‘kon tugmasi ko‘rsatiladi.</p>
     </div>
 
     <div style="max-width:560px">
@@ -611,6 +686,11 @@ async function sozlamalarniSaqla() {
       delivery_fee:       Number($('#s-fee').value) || 0,
       free_delivery_from: Number($('#s-free').value) || 0,
       konsultatsiya_user: $('#s-konsult').value.trim().replace(/^@/, ''),
+      menejer_telefon:    $('#s-tel').value.trim(),
+      menejer_ish_vaqti:  $('#s-vaqt').value.trim(),
+      limit_yoqilgan:     $('#s-limit-yoq').checked,
+      limit_bepul:        Math.max(0, Number($('#s-limit-bepul').value) || 0),
+      limit_mijoz:        Math.max(0, Number($('#s-limit-mijoz').value) || 0),
     }})});
     holat.innerHTML = `<div class="ok">✓ Saqlandi — o‘zgarish darhol kuchga kirdi</div>`;
   } catch (e) { holat.innerHTML = `<div class="xato">${esc(e.message)}</div>`; }
@@ -832,6 +912,17 @@ function qollanma() {
         yetkaziladi degan tarixiy ulushga asoslangan taxmin, kafolat emas.</li>
       <li><b>Ombor qiymati</b> — omborda turgan pulingiz (tannarx bo‘yicha).</li>
     </ul>
+  </div>
+
+  <div class="karta" style="max-width:720px">
+    <h2>🩺 Nimadir ishlamay qolsa</h2>
+    <p class="mayda">Birinchi navbatda <b>Tizim holati</b> bo‘limini oching va
+      «Qayta tekshirish» ni bosing. U bazani, Telegram botni, webhookni va AI ni
+      haqiqatan chaqirib ko‘radi va qaysi biri ishlamayotganini aniq xato matni
+      bilan ko‘rsatadi.</p>
+    <p class="mayda">Masalan bot rasmga javob bermayotgan bo‘lsa, sabab odatda
+      shu yerda chiqadi: AI kaliti noto‘g‘ri, model nomi xato, kvota tugagan yoki
+      Telegram webhookka yeta olmayapti.</p>
   </div>
 
   <div class="karta" style="max-width:720px">

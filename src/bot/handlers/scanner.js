@@ -5,11 +5,35 @@ import { radXabari, tahlilXabari, tavsiyaMatni } from '../render.js';
 import { natijaTugmalari, appUrl, ortga } from '../keyboards.js';
 import { bolakla } from '../format.js';
 import { xabar } from '../shablon.js';
+import { xatoniTushuntir } from '../../lib/xatolar.js';
+import { limitHolati } from '../../services/analysis.js';
+import { appTugma } from '../keyboards.js';
 
 export async function skanerYordami(chatId) {
   await yubor(chatId, await xabar('xabar_skaner', {},
     '🔬 <b>Yuz skaneri</b>\n\nYuzingiz aniq ko‘ringan surat yuboring 📸'),
     { reply_markup: ortga() });
+}
+
+/** Kunlik limit tugaganda — sotuvga yo'naltiruvchi xabar. */
+async function limitXabari(chatId, limit) {
+  const kb = [];
+  const dokon = appTugma('🛍 Do‘konni ochish');
+  if (dokon) kb.push([dokon]);
+  kb.push([{ text: '💬 Konsultatsiya', callback_data: 'konsultatsiya' },
+           { text: '⬅️ Menyu', callback_data: 'menyu' }]);
+
+  await yubor(chatId, [
+    `⏳ <b>Bugungi limit tugadi</b>`,
+    ``,
+    `Bugun ${limit.ishlatilgan} ta tahlil qildingiz (kuniga ${limit.limit} ta).`,
+    ``,
+    limit.mijoz
+      ? `Ertaga yana ${limit.limit} ta tahlil ochiladi.`
+      : `🎁 <b>Bizdan xarid qilsangiz</b> kunlik limit oshadi va tahlilni ko‘proq qilasiz.`,
+    ``,
+    `<i>Oxirgi tahlilingiz saqlangan — ilovadan qayta ko‘rishingiz mumkin.</i>`,
+  ].join('\n'), { reply_markup: { inline_keyboard: kb } });
 }
 
 export async function rasmniQabulQil(msg, user) {
@@ -47,10 +71,14 @@ export async function rasmniQabulQil(msg, user) {
     }
     return true;
   } catch (e) {
-    console.error('Skaner xatosi:', e.message);
-    await yubor(chatId, e.message === 'FAYL_KATTA'
-      ? '⚠️ Rasm juda katta. Kichikroq surat yuboring.'
-      : '⚠️ Xatolik yuz berdi. Bir ozdan so‘ng qayta urinib ko‘ring.', { reply_markup: ortga() });
+    if (e.message === 'LIMIT_TUGADI') {
+      await limitXabari(chatId, e.limit);
+      return true;
+    }
+    const x = xatoniTushuntir(e);
+    console.error('SKANER XATOSI', x.log);
+    if (e?.stack) console.error(e.stack.split('\n').slice(0, 4).join('\n'));
+    await yubor(chatId, x.matn, { reply_markup: ortga() });
     return true;
   } finally {
     if (kutish?.result?.message_id) {

@@ -1,8 +1,9 @@
 // Mini App API. Har bir so'rov Telegram initData imzosi bilan tekshiriladi.
 import { qator, qatorlar, sorov, hodisa, sozlama } from '../db.js';
 import { verifyInitData } from '../lib/auth.js';
-import { ok, xato, tana } from '../lib/http.js';
-import { faolMahsulotlar, tahlilQil, oxirgiTahlil } from '../services/analysis.js';
+import { ok, xato, tana, json } from '../lib/http.js';
+import { faolMahsulotlar, tahlilQil, oxirgiTahlil, limitHolati } from '../services/analysis.js';
+import { xatoniTushuntir } from '../lib/xatolar.js';
 import { savatniOl, savatgaQosh, savatOzgartir, savatniTozala, buyurtmaYarat } from '../services/orders.js';
 import { yubor } from '../bot/tg.js';
 import { esc, narx } from '../bot/format.js';
@@ -21,7 +22,8 @@ async function kim(req) {
 export async function apiRoutes(req, res, yol) {
   // --- Ochiq: katalog ---
   if (yol === '/api/catalog' && req.method === 'GET') {
-    const [mahsulotlar, kategoriyalar, fee, bepul, pogonalar, karta, egasi, konsult] =
+    const [mahsulotlar, kategoriyalar, fee, bepul, pogonalar, karta, egasi, konsult,
+           menejerTel, ishVaqti] =
       await Promise.all([
         faolMahsulotlar(),
         qatorlar('select * from categories order by sort'),
@@ -31,6 +33,8 @@ export async function apiRoutes(req, res, yol) {
         sozlama('karta_raqami', ''),
         sozlama('karta_egasi', ''),
         sozlama('konsultatsiya_user', ''),
+        sozlama('menejer_telefon', ''),
+        sozlama('menejer_ish_vaqti', ''),
       ]);
     return ok(res, {
       mahsulotlar, kategoriyalar,
@@ -38,6 +42,7 @@ export async function apiRoutes(req, res, yol) {
       chegirmalar: Array.isArray(pogonalar) ? pogonalar : [],
       karta: { raqam: String(karta || ''), egasi: String(egasi || '') },
       konsultatsiya: String(konsult || ''),
+      menejer: { telefon: String(menejerTel || ''), ish_vaqti: String(ishVaqti || '') },
     });
   }
 
@@ -45,8 +50,13 @@ export async function apiRoutes(req, res, yol) {
   const user = await kim(req);
   if (!user) return xato(res, 401, 'Ruxsat yo‘q. Ilovani Telegram orqali oching.');
 
+  if (yol === '/api/limit' && req.method === 'GET') {
+    return ok(res, { limit: await limitHolati(user.id) });
+  }
+
   if (yol === '/api/me' && req.method === 'GET') {
     return ok(res, {
+      limit: await limitHolati(user.id),
       user: {
         id: user.id, full_name: user.full_name, phone: user.phone,
         age: user.age, address: user.address,
@@ -81,12 +91,16 @@ export async function apiRoutes(req, res, yol) {
     const b = await tana(req);
     const base64 = String(b.image || '').replace(/^data:image\/\w+;base64,/, '');
     if (!base64 || base64.length < 1000)      return xato(res, 400, 'Rasm yuborilmadi.');
-    if (base64.length > 8 * 1024 * 1024)      return xato(res, 413, 'Rasm juda katta.');
+    if (base64.length > 12 * 1024 * 1024)     return xato(res, 413, 'Rasm juda katta.');
     try {
-      return ok(res, await tahlilQil(user, base64, b.mime || 'image/jpeg'));
+      return ok(res, await tahlilQil(user, base64, tozaMime(b.mime)));
     } catch (e) {
-      console.error('Skan xatosi:', e.message);
-      return xato(res, 500, 'Tahlil qilib bo‘lmadi. Qayta urinib ko‘ring.');
+      if (e.message === 'LIMIT_TUGADI') {
+        return json(res, 429, { error: 'Bugungi limit tugadi.', limit: e.limit });
+      }
+      const x = xatoniTushuntir(e);
+      console.error('SKAN XATOSI', x.log);
+      return xato(res, 502, x.matn);
     }
   }
 
@@ -191,6 +205,12 @@ export async function apiRoutes(req, res, yol) {
 
   return xato(res, 404, 'Topilmadi');
 }
+
+// Gemini qo'llab-quvvatlaydigan rasm turlari. iPhone HEIC, Android WebP yuboradi.
+const MIME_RUYXAT = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif',
+]);
+const tozaMime = (m) => (MIME_RUYXAT.has(String(m || '').toLowerCase()) ? String(m).toLowerCase() : 'image/jpeg');
 
 async function xabarYubor(user, o) {
   const qatorlarMatn = o.items.map((i) => `• ${esc(i.name)} × ${i.qty} — ${narx(i.price * i.qty)}`).join('\n');

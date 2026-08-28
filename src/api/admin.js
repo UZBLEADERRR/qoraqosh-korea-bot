@@ -1,11 +1,13 @@
 // Admin API. Kirish: login/parol -> muddati cheklangan token (8 soat).
 import { qator, qatorlar, sorov, qiymat } from '../db.js';
-import { config } from '../config.js';
 import { issueAdminToken, verifyAdminToken, loginBloklanganmi, loginXato, loginTozala } from '../lib/auth.js';
 import { ok, xato, tana, ipOl } from '../lib/http.js';
 import { mahsulotniTani } from '../ai/productEnrich.js';
 import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
-import { yubor } from '../bot/tg.js';
+import { geminiJson, geminiBormi } from '../ai/gemini.js';
+import { xatoniTushuntir } from '../lib/xatolar.js';
+import { config } from '../config.js';
+import { yubor, tg } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
 import { xabar, keshniTozala } from '../bot/shablon.js';
 import { STANDART, GURUHLAR, TAVSIF } from '../bot/shablonlar-standart.js';
@@ -29,6 +31,12 @@ export async function adminRoutes(req, res, yol) {
 
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!verifyAdminToken(token)) return xato(res, 401, 'Sessiya tugagan. Qayta kiring.');
+
+  // ================= TIZIM HOLATI =================
+  // Nimadir ishlamay qolsa, sabab shu yerda ko'rinadi.
+  if (yol === '/api/admin/health' && req.method === 'GET') {
+    return ok(res, { tekshiruvlar: await tizimTekshir() });
+  }
 
   // ================= BOSHQARUV =================
   if (yol === '/api/admin/dashboard' && req.method === 'GET') return ok(res, await boshqaruvPaneli());
@@ -317,6 +325,76 @@ function rasmniOl(qiymat) {
   if (!base64 || base64.length < 500) return null;
   if (base64.length > 12 * 1024 * 1024) return null;
   return { base64, mime: mos ? mos[1] : 'image/jpeg' };
+}
+
+// ============================================================
+// TIZIM TEKSHIRUVI
+// ============================================================
+async function tizimTekshir() {
+  const natija = [];
+  const qadam = async (nom, izoh, ish) => {
+    const boshlandi = Date.now();
+    try {
+      const j = await ish();
+      natija.push({ nom, izoh, holat: 'ok', xabar: j || 'ishlayapti', ms: Date.now() - boshlandi });
+    } catch (e) {
+      const x = xatoniTushuntir(e);
+      natija.push({ nom, izoh, holat: 'xato', xabar: x.log, ms: Date.now() - boshlandi });
+    }
+  };
+
+  await qadam('Ma’lumotlar bazasi', 'Supabase session pooler', async () => {
+    const r = await qator('select count(*)::int as n from products');
+    return `ulanish bor · ${r.n} ta mahsulot`;
+  });
+
+  await qadam('Telegram bot', 'BOT_TOKEN to‘g‘rimi', async () => {
+    const r = await tg('getMe');
+    if (!r.ok) throw new Error(r.description || 'getMe muvaffaqiyatsiz');
+    return `@${r.result.username} (${r.result.first_name})`;
+  });
+
+  await qadam('Telegram webhook', 'Xabarlar yetib kelyaptimi', async () => {
+    const r = await tg('getWebhookInfo');
+    if (!r.ok) throw new Error(r.description || 'getWebhookInfo muvaffaqiyatsiz');
+    const w = r.result || {};
+    // Telegram oxirgi xatoni shu yerda saqlaydi — bot jim qolsa sabab shu
+    if (w.last_error_message) {
+      throw new Error(`Telegram oxirgi xato: ${w.last_error_message} (${w.last_error_date
+        ? new Date(w.last_error_date * 1000).toLocaleString('uz-UZ') : '—'})`);
+    }
+    if (!w.url) return 'webhook yo‘q — long-polling rejimi';
+    return `${w.url.slice(0, 44)}… · navbatda ${w.pending_update_count || 0} ta`;
+  });
+
+  await qadam('Gemini AI (matn)', 'Tahlil uchun', async () => {
+    if (!geminiBormi()) throw Object.assign(new Error('GEMINI_API_KEY yo‘q'), { turkum: 'kalit' });
+    const j = await geminiJson(
+      [{ text: 'Javob JSON: {"ok": true}' }],
+      { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'] },
+      { maxTokens: 32, timeoutMs: 20000 });
+    return `${config.geminiModel} javob berdi (${JSON.stringify(j).slice(0, 30)})`;
+  });
+
+  await qadam('Mini App manzili', 'PUBLIC_URL', async () => {
+    if (!config.publicUrl) throw new Error('PUBLIC_URL sozlanmagan — Mini App tugmalari chiqmaydi');
+    return config.publicUrl;
+  });
+
+  await qadam('Sozlamalar', 'To‘lov va aloqa', async () => {
+    const r = await qatorlar(
+      `select key, value from settings
+        where key in ('karta_raqami','konsultatsiya_user','menejer_telefon')`);
+    const m = Object.fromEntries(r.map((x) => [x.key, String(x.value ?? '').replace(/"/g, '')]));
+    const yoq = [];
+    if (!m.karta_raqami || /^8600 0000/.test(m.karta_raqami)) yoq.push('karta raqami');
+    if (!m.konsultatsiya_user) yoq.push('menejer username');
+    if (!m.menejer_telefon)    yoq.push('menejer telefoni');
+    if (yoq.length) throw new Error(`To‘ldirilmagan: ${yoq.join(', ')}`);
+    return 'hammasi to‘ldirilgan';
+  });
+
+  return natija;
 }
 
 // ============================================================

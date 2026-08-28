@@ -102,6 +102,20 @@ function katalogMatni(products) {
   ).join('\n');
 }
 
+/**
+ * Katalogni har safar boshqa tartibda beramiz.
+ * Model ro'yxatning boshidagi mahsulotlarga moyil bo'ladi — tartib doim bir xil
+ * bo'lsa, hamma bir xil tavsiya oladi va faqat o'sha 3-4 mahsulot sotiladi.
+ */
+function aralashtir(royxat) {
+  const a = [...royxat];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 const KORSATMA = `Sen — professional kosmetolog-maslahatchi. Yuborilgan rasmni tahlil qilasan.
 
 QADAM 1 — SIFAT NAZORATI (eng muhim, avval shuni bajar):
@@ -167,11 +181,17 @@ KATALOG (id|nom|bosqich|muammolar|teri turlari|faol moddalar):
 /**
  * @returns {{yaroqli:boolean, sabab?:string, izoh?:string, natija?:object}}
  */
-export async function yuzniTahlilQil(base64, mime, products) {
+export async function yuzniTahlilQil(base64, mime, products, eskiTavsiyalar = []) {
   if (!geminiBormi()) return { yaroqli: true, natija: oflaynTahlil(products), oflayn: true };
 
+  const eski = eskiTavsiyalar.length
+    ? `\n\nSHU ODAMGA AVVAL TAVSIYA QILINGAN (id): ${eskiTavsiyalar.join(', ')}
+Iloji bo'lsa BOSHQA mahsulotni tanla — bir xil narsani qayta-qayta tavsiya qilma.
+Faqat boshqa mos variant umuman bo'lmasa, eskisini qoldirishing mumkin.`
+    : '';
+
   const parts = [
-    { text: KORSATMA + katalogMatni(products) },
+    { text: KORSATMA + katalogMatni(aralashtir(products)) + eski },
     rasmPart(base64, mime),
   ];
 
@@ -228,7 +248,9 @@ function tozala(javob, products) {
 
   // SPF tushib qolgan bo'lsa — o'zimiz qo'shamiz, bu bosqich tashlab ketilmasligi kerak
   if (!tavsiya.some((t) => t.bosqich === 'himoya')) {
-    const spf = products.find((p) => p.step === 'himoya' && p.stock > 0);
+    // Tasodifiy tanlaymiz — hammaga bir xil SPF tushmasin
+    const spflar = products.filter((p) => p.step === 'himoya' && p.stock > 0);
+    const spf = spflar[Math.floor(Math.random() * spflar.length)];
     if (spf) {
       tavsiya.push({
         bosqich: 'himoya',

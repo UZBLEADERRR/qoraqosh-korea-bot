@@ -13,6 +13,9 @@ function opt(name, fallback = '') {
 
 export const config = {
   botToken:      req('BOT_TOKEN'),
+  // Sinovda soxta serverga yo'naltirish uchun; ishlab chiqarishda tegilmaydi
+  telegramApi:   opt('TELEGRAM_API', 'https://api.telegram.org'),
+  geminiApi:     opt('GEMINI_API', 'https://generativelanguage.googleapis.com/v1beta/models'),
   webhookSecret: opt('WEBHOOK_SECRET', ''),
 
   // Supabase -> Connect -> Session pooler ulanish satri

@@ -3,6 +3,32 @@
 import { qatorlar, qator, hodisa } from '../db.js';
 import { yuzniTahlilQil } from '../ai/faceAnalysis.js';
 
+/** Foydalanuvchining bugungi skaner limiti. */
+export async function limitHolati(userId) {
+  const r = await qator('select * from skaner_limiti($1)', [userId]);
+  const h = r || { ishlatilgan: 0, limit_soni: 3, mijozmi: false, yoqilganmi: true };
+  return {
+    ishlatilgan: h.ishlatilgan,
+    limit: h.limit_soni,
+    qolgan: Math.max(0, h.limit_soni - h.ishlatilgan),
+    mijoz: h.mijozmi,
+    yoqilgan: h.yoqilganmi,
+    tugadi: h.yoqilganmi && h.ishlatilgan >= h.limit_soni,
+  };
+}
+
+/**
+ * Ilgari tavsiya qilingan mahsulotlar — bir xilini qayta-qayta bermaslik uchun.
+ * Oxirgi 5 ta tahlildan yig'iladi.
+ */
+async function avvalTavsiyaQilingan(userId) {
+  const r = await qatorlar(
+    `select routine from analyses where user_id = $1 order by created_at desc limit 5`, [userId]);
+  const idlar = new Set();
+  for (const x of r) for (const t of x.routine || []) if (t.product_id) idlar.add(Number(t.product_id));
+  return [...idlar];
+}
+
 const KATALOG_SQL = `
   select p.id, p.name, p.brand, p.step, p.price, p.volume, p.emoji, p.usage_text,
          p.warnings, p.concerns, p.skin_types, p.actives, p.stock, p.description,
@@ -19,10 +45,21 @@ export const faolMahsulotlar = () => qatorlar(KATALOG_SQL);
  *            tahlil?:object, mahsulotlar?:object[], analysisId?:number}}
  */
 export async function tahlilQil(user, base64, mime) {
-  const mahsulotlar = await faolMahsulotlar();
+  const limit = await limitHolati(user.id);
+  if (limit.tugadi) {
+    const e = new Error('LIMIT_TUGADI');
+    e.limit = limit;
+    throw e;
+  }
+
+  const [mahsulotlar, eskiTavsiyalar] = await Promise.all([
+    faolMahsulotlar(),
+    avvalTavsiyaQilingan(user.id),
+  ]);
   const omborda = mahsulotlar.filter((p) => p.stock > 0);
 
-  const natija = await yuzniTahlilQil(base64, mime, omborda.length ? omborda : mahsulotlar);
+  const natija = await yuzniTahlilQil(
+    base64, mime, omborda.length ? omborda : mahsulotlar, eskiTavsiyalar);
 
   if (!natija.yaroqli) {
     await hodisa(user.id, 'scan_rejected', { sabab: natija.sabab });
@@ -47,6 +84,7 @@ export async function tahlilQil(user, base64, mime) {
     tahlil: { ...a, oflayn: Boolean(natija.oflayn) },
     mahsulotlar,
     analysisId: saqlangan.id,
+    limit: await limitHolati(user.id),
   };
 }
 

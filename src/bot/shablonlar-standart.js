@@ -67,7 +67,7 @@ export const TAVSIF = {
   xabar_holat_bekor:        { nom: 'Bekor qilindi', izoh: 'Sabab yozsangiz {sabab} ga tushadi.', orin: ['raqam', 'sabab'] },
   xabar_tolov_tasdiq:       { nom: 'To‘lov tasdiqlandi', izoh: 'Chek qabul qilinganda.', orin: ['raqam'] },
 
-  xabar_konsultatsiya: { nom: 'Konsultatsiya', izoh: '', orin: [] },
+  xabar_konsultatsiya: { nom: 'Konsultatsiya', izoh: 'Telefon va ish vaqti sozlamalardan olinadi.', orin: ['telefon', 'ish_vaqti'] },
   xabar_yordam:        { nom: 'Yordam',        izoh: '', orin: [] },
 };
 
@@ -156,6 +156,9 @@ Savolingiz bormi? Menejerimiz javob beradi:
 🔄 mahsulotlarni birga ishlatsa bo‘ladimi
 🚚 yetkazib berish va to‘lov
 ↩️ almashtirish va qaytarish
+
+📞 {telefon}
+🕘 {ish_vaqti}
 
 <i>Odatda 1 soat ichida javob beramiz.</i>`,
 

@@ -1,7 +1,7 @@
 // Telegram Bot API ustidan yupqa qatlam.
 import { config } from '../config.js';
 
-const API = `https://api.telegram.org/bot${config.botToken}`;
+const API = `${config.telegramApi}/bot${config.botToken}`;
 
 export async function tg(method, body = {}) {
   const res = await fetch(`${API}/${method}`, {
@@ -44,7 +44,7 @@ export async function faylOl(fileId, maxBayt = 12 * 1024 * 1024) {
   if (!f.ok || !f.result?.file_path) throw new Error('FAYL_OLINMADI');
   if (f.result.file_size && f.result.file_size > maxBayt) throw new Error('FAYL_KATTA');
 
-  const res = await fetch(`https://api.telegram.org/file/bot${config.botToken}/${f.result.file_path}`);
+  const res = await fetch(`${config.telegramApi}/file/bot${config.botToken}/${f.result.file_path}`);
   if (!res.ok) throw new Error('FAYL_YUKLANMADI');
   const buf = Buffer.from(await res.arrayBuffer());
   return { base64: buf.toString('base64'), path: f.result.file_path };

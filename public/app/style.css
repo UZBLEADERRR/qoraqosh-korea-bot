@@ -77,10 +77,11 @@ a{color:var(--urgu)}
 .lenta.mayda-lenta button{padding:8px 13px;font-size:14px}
 
 /* ---------- Mahsulot to'ri (edge-to-edge) ---------- */
-.tor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;background:var(--chiziq)}
+.tor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 16px}
 @media (min-width:560px){.tor{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.mahsulot{background:var(--panel);display:flex;flex-direction:column;cursor:pointer;
-  border:0;padding:0;text-align:left;font:inherit;color:inherit}
+.mahsulot{background:var(--panel);border:1px solid var(--chiziq);border-radius:var(--r);
+  overflow:hidden;display:flex;flex-direction:column;cursor:pointer;
+  padding:0;text-align:left;font:inherit;color:inherit;box-shadow:var(--sh)}
 .rasm{aspect-ratio:1;display:grid;place-items:center;font-size:44px;overflow:hidden;position:relative}
 .rasm img{width:100%;height:100%;object-fit:cover;display:block}
 .rasm .nishonlar{position:absolute;top:8px;left:8px;display:flex;gap:5px;flex-wrap:wrap}
@@ -250,3 +251,39 @@ textarea{resize:vertical;min-height:86px}
 .ogoh{font-size:14.5px;color:var(--kul);background:var(--urgu-och);padding:14px 16px;
   border-radius:12px;line-height:1.55}
 .ogoh.yashil{background:var(--yashil-och);color:var(--yashil)}
+
+/* ---------- Filtr menyusi (3 nuqta) ---------- */
+.qidiruv-satr{display:flex;gap:9px;align-items:stretch}
+.qidiruv-satr .qidiruv{flex:1;min-width:0}
+.uch-nuqta{flex:0 0 auto;width:52px;background:var(--panel);border:1.5px solid var(--chiziq);
+  border-radius:13px;color:var(--kul);font-size:20px;display:grid;place-items:center;position:relative}
+.uch-nuqta.faol{border-color:var(--urgu);color:var(--urgu)}
+.uch-nuqta .belgi-nuqta{position:absolute;top:8px;right:9px;width:8px;height:8px;
+  border-radius:50%;background:var(--urgu)}
+.filtr-satr{display:flex;gap:7px;flex-wrap:wrap;padding:0 16px 12px}
+.filtr-yorliq{display:inline-flex;align-items:center;gap:6px;background:var(--urgu-och);
+  color:var(--urgu);padding:6px 10px 6px 12px;border-radius:99px;font-size:13.5px;font-weight:600}
+.filtr-yorliq button{background:none;border:0;color:inherit;font-size:15px;line-height:1;
+  padding:0;cursor:pointer;opacity:.7}
+
+/* ---------- Tavsiya mahsuloti bosiladigan ---------- */
+.bosqich-mahsulot{display:flex;gap:12px;align-items:center;width:100%;text-align:left;
+  background:var(--fon);border:1px solid var(--chiziq);border-radius:12px;padding:10px;
+  margin-top:9px;color:inherit;font:inherit;cursor:pointer}
+.bosqich-mahsulot .kichik-rasm{flex:0 0 52px;height:52px;border-radius:9px;overflow:hidden;
+  display:grid;place-items:center;font-size:24px}
+.bosqich-mahsulot .kichik-rasm img{width:100%;height:100%;object-fit:cover}
+.bosqich-mahsulot .oq{margin-left:auto;color:var(--och);font-size:20px;flex:0 0 auto}
+
+/* ---------- Limit ko'rsatkichi ---------- */
+.limit-satr{display:flex;align-items:center;gap:9px;background:var(--panel);
+  border:1px solid var(--chiziq);border-radius:12px;padding:11px 14px;margin:0 16px 14px;
+  font-size:14.5px;color:var(--kul)}
+.limit-satr b{color:var(--matn)}
+.limit-satr.tugadi{background:var(--sariq-och);border-color:transparent;color:var(--sariq)}
+
+/* ---------- Ulashish rasmi ---------- */
+.ulashish-oldi{width:100%;border-radius:var(--r);display:block;border:1px solid var(--chiziq)}
+
+/* Uzun ro'yxatlarda chizishni tejash */
+.karta{content-visibility:auto;contain-intrinsic-size:auto 200px}

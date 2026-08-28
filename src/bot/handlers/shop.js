@@ -56,11 +56,21 @@ export async function profilniKorsat(chatId, user) {
 }
 
 export async function konsultatsiya(chatId) {
-  const username = String(await sozlama('konsultatsiya_user', 'qoraqosh_admin')).replace(/"/g, '');
-  const qatorlarKb = [[{ text: '💬 Menejerga yozish', url: `https://t.me/${username}` }]];
+  const [username, telefon, ishVaqti] = await Promise.all([
+    sozlama('konsultatsiya_user', 'qoraqosh_admin'),
+    sozlama('menejer_telefon', ''),
+    sozlama('menejer_ish_vaqti', ''),
+  ]);
+  const user = String(username).replace(/"/g, '');
+  const tel = String(telefon || '').replace(/"/g, '');
+
+  const qatorlarKb = [];
+  if (user) qatorlarKb.push([{ text: '💬 Telegramda yozish', url: `https://t.me/${user}` }]);
+  if (tel)  qatorlarKb.push([{ text: `📞 ${tel}`, url: `tel:${tel.replace(/[^+\d]/g, '')}` }]);
   qatorlarKb.push([{ text: '⬅️ Menyu', callback_data: 'menyu' }]);
 
-  await yubor(chatId, await xabar('xabar_konsultatsiya', {},
+  await yubor(chatId, await xabar('xabar_konsultatsiya',
+    { telefon: tel, ish_vaqti: String(ishVaqti || '').replace(/"/g, '') },
     '💬 <b>Konsultatsiya</b>\n\nMenejerimizga yozing.'),
     { reply_markup: { inline_keyboard: qatorlarKb } });
 }
