@@ -1,15 +1,16 @@
-// Ro'yxatdan o'tish: telefon -> ism -> yosh -> manzil -> shartnoma roziligi.
+// Ro'yxatdan o'tish: telefon → ism → yosh → rozilik.
+// Manzil bu yerda SO'RALMAYDI — u buyurtma rasmiylashtirishda so'raladi,
+// chunki kirish paytida uzun forma odamni qaytarib yuboradi.
 import { qator, sorov, hodisa } from '../../db.js';
 import { config } from '../../config.js';
 import { yubor } from '../tg.js';
-import { esc, royxat } from '../format.js';
+import { esc } from '../format.js';
 import { asosiyMenyu, telefonSora, shartnomaTugmalari } from '../keyboards.js';
 
 export const HOLAT = {
-  TELEFON: 'reg_telefon',
-  ISM:     'reg_ism',
-  YOSH:    'reg_yosh',
-  MANZIL:  'reg_manzil',
+  TELEFON:   'reg_telefon',
+  ISM:       'reg_ism',
+  YOSH:      'reg_yosh',
   SHARTNOMA: 'reg_shartnoma',
 };
 
@@ -18,23 +19,20 @@ export const royxatdanOtganmi = (u) => Boolean(u?.phone && u?.full_name && u?.ag
 const holat = (userId, state) => sorov('update users set state = $1 where id = $2', [state, userId]);
 
 export async function boshla(chatId, user) {
-  await yubor(chatId,
-    [
-      `👋 <b>QoraQosh</b> — Koreya kosmetikasi.`,
-      ``,
-      `Men yuzingizni AI bilan tahlil qilib, aynan sizga mos parvarishni tuzib beraman.`,
-      ``,
-      `Avval qisqa ro‘yxatdan o‘tamiz — buyurtmani yetkazish uchun kerak.`,
-      `Bu 4 ta savol, 1 daqiqa.`,
-      ``,
-      `<b>1/4.</b> Telefon raqamingizni ulashing 👇`,
-    ].join('\n'),
-    { reply_markup: telefonSora() });
+  await yubor(chatId, [
+    `👋 <b>QoraQosh</b> — Koreya kosmetikasi`,
+    ``,
+    `Yuzingizni AI bilan tekshirib, aynan sizga mos parvarishni tuzib beraman.`,
+    ``,
+    `Avval qisqa tanishamiz — <b>3 ta savol</b>, yarim daqiqa.`,
+    ``,
+    `<b>1/3</b> · Telefon raqamingizni ulashing 👇`,
+  ].join('\n'), { reply_markup: telefonSora() });
   await holat(user.id, HOLAT.TELEFON);
   await hodisa(user.id, 'start');
 }
 
-/** Ro'yxatdan o'tish bosqichlarini boshqaradi. @returns {boolean} qayta ishlandimi */
+/** @returns {boolean} qayta ishlandimi */
 export async function qadam(msg, user) {
   const chatId = msg.chat.id;
   const matn = (msg.text || '').trim();
@@ -42,74 +40,50 @@ export async function qadam(msg, user) {
   switch (user.state) {
     case HOLAT.TELEFON: {
       let tel = msg.contact?.phone_number || '';
-      // Boshqa odamning kontaktini yuborishga yo'l qo'ymaymiz
       if (msg.contact && String(msg.contact.user_id) !== String(msg.from.id)) {
-        await yubor(chatId, "⚠️ Iltimos, <b>o‘zingizning</b> raqamingizni ulashing.", { reply_markup: telefonSora() });
+        await yubor(chatId, '⚠️ <b>O‘zingizning</b> raqamingizni ulashing.', { reply_markup: telefonSora() });
         return true;
       }
-      if (!tel && /^\+?998\d{9}$/.test(matn.replace(/[\s()-]/g, ''))) {
-        tel = matn.replace(/[\s()-]/g, '');
-      }
+      if (!tel && /^\+?998\d{9}$/.test(matn.replace(/[\s()-]/g, ''))) tel = matn.replace(/[\s()-]/g, '');
       if (!tel) {
         await yubor(chatId,
-          "📱 Pastdagi <b>«Telefon raqamimni ulashish»</b> tugmasini bosing yoki raqamni <code>+998901234567</code> ko‘rinishida yozing.",
+          '📱 Pastdagi tugmani bosing yoki raqamni <code>+998901234567</code> ko‘rinishida yozing.',
           { reply_markup: telefonSora() });
         return true;
       }
       if (!tel.startsWith('+')) tel = '+' + tel;
       await sorov('update users set phone=$1, state=$2 where id=$3', [tel, HOLAT.ISM, user.id]);
-      await yubor(chatId, `✅ Raqam saqlandi: <code>${esc(tel)}</code>\n\n<b>2/4.</b> Ism-familiyangizni yozing.`,
+      await yubor(chatId, `✅ <code>${esc(tel)}</code>\n\n<b>2/3</b> · Ismingizni yozing.`,
         { reply_markup: { remove_keyboard: true } });
       return true;
     }
 
     case HOLAT.ISM: {
       if (matn.length < 3 || matn.length > 70) {
-        await yubor(chatId, "Ism-familiyangizni to‘liqroq yozing (masalan: <i>Aliyeva Malika</i>).");
+        await yubor(chatId, '✍️ Ismingizni to‘liqroq yozing.');
         return true;
       }
       await sorov('update users set full_name=$1, state=$2 where id=$3', [matn, HOLAT.YOSH, user.id]);
-      await yubor(chatId, `✅ Xush kelibsiz, <b>${esc(matn.split(' ')[0])}</b>!\n\n<b>3/4.</b> Yoshingizni raqam bilan yozing (masalan: <code>24</code>).`);
+      await yubor(chatId,
+        `✅ Xush kelibsiz, <b>${esc(matn.split(' ')[0])}</b>!\n\n<b>3/3</b> · Yoshingiz nechida? (masalan <code>24</code>)`);
       return true;
     }
 
     case HOLAT.YOSH: {
       const yosh = Number(matn.replace(/\D/g, ''));
       if (!yosh || yosh < 12 || yosh > 90) {
-        await yubor(chatId, "Yoshni 12 dan 90 gacha raqam bilan yozing.");
+        await yubor(chatId, '🔢 Yoshni 12 dan 90 gacha raqam bilan yozing.');
         return true;
       }
-      await sorov('update users set age=$1, state=$2 where id=$3', [yosh, HOLAT.MANZIL, user.id]);
-      await yubor(chatId,
-        `<b>4/4.</b> Yetkazib berish manzilingizni yozing.\n\n<i>Masalan: Toshkent sh., Chilonzor tumani, 5-mavze, 12-uy, 34-xonadon</i>`);
-      return true;
-    }
-
-    case HOLAT.MANZIL: {
-      if (matn.length < 10) {
-        await yubor(chatId, "Manzilni to‘liqroq yozing — kuryer topa olishi kerak (shahar, tuman, ko‘cha, uy).");
-        return true;
-      }
-      await sorov('update users set address=$1, state=$2 where id=$3', [matn, HOLAT.SHARTNOMA, user.id]);
-
-      const yangilangan = await qator('select * from users where id = $1', [user.id]);
-      await yubor(chatId,
-        [
-          `📋 <b>Ma’lumotlaringiz</b>`,
-          royxat([
-            ['Ism',     yangilangan.full_name || '—'],
-            ['Telefon', yangilangan.phone || '—'],
-            ['Yosh',    String(yangilangan.age || '—')],
-            ['Manzil',  yangilangan.address || '—'],
-          ]),
-          ``,
-          `Oxirgi qadam — <b>ommaviy oferta</b> (foydalanish shartlari va shaxsiy`,
-          `ma’lumotlarni qayta ishlash roziligi) bilan tanishing.`,
-          ``,
-          `<i>Yuz suratingiz faqat tahlil uchun ishlatiladi va saqlanmaydi —`,
-          `bazada faqat tahlil natijasi qoladi.</i>`,
-        ].join('\n'),
-        { reply_markup: shartnomaTugmalari() });
+      await sorov('update users set age=$1, state=$2 where id=$3', [yosh, HOLAT.SHARTNOMA, user.id]);
+      await yubor(chatId, [
+        `📄 <b>Oxirgi qadam</b>`,
+        ``,
+        `Foydalanish shartlari bilan tanishing.`,
+        ``,
+        `🔒 Yuz suratingiz <b>saqlanmaydi</b> — faqat tahlil paytida ishlatiladi.`,
+        `🗑 Ma’lumotlaringizni istagan vaqtda /ochir bilan o‘chirasiz.`,
+      ].join('\n'), { reply_markup: shartnomaTugmalari() });
       return true;
     }
 
@@ -118,25 +92,21 @@ export async function qadam(msg, user) {
   }
 }
 
-/** «Barchasiga roziman» tugmasi. */
 export async function roziBol(chatId, user) {
   await sorov(
     'update users set agreed_at = now(), agreement_version = $1, state = null where id = $2',
     [config.agreementVersion, user.id]);
   await hodisa(user.id, 'register');
 
-  await yubor(chatId,
-    [
-      `✅ <b>Ro‘yxatdan o‘tdingiz!</b>`,
-      ``,
-      `Endi eng qizig‘i: <b>🔬 Yuz skaneri</b> tugmasini bosing va yuzingiz`,
-      `aniq ko‘ringan surat yuboring.`,
-      ``,
-      `Men aniqlab beraman:`,
-      `• taxminiy yosh, teri rangi va turi`,
-      `• qaysi muammolar bor va qanchalik kuchli`,
-      `• e’tibor berilmasa nima bo‘lishi mumkin`,
-      `• qaysi mahsulot, qaysi tartibda va <b>nima uchun</b> kerak`,
-    ].join('\n'),
-    { reply_markup: asosiyMenyu() });
+  await yubor(chatId, [
+    `🎉 <b>Tayyor!</b>`,
+    ``,
+    `Endi <b>🔬 Yuz skaneri</b> ni bosing va yuzingiz aniq ko‘ringan surat yuboring.`,
+    ``,
+    `Men aytib beraman:`,
+    `👤 taxminiy yosh va teri turingizni`,
+    `🔍 qanday muammolar borligini`,
+    `⏳ e’tibor bermasangiz nima bo‘lishini`,
+    `💡 qaysi mahsulot, qaysi tartibda va nega kerakligini`,
+  ].join('\n'), { reply_markup: asosiyMenyu() });
 }

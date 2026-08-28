@@ -63,6 +63,25 @@ export async function adminRoutes(req, res, yol) {
     return ok(res, { ok: true });
   }
 
+  // To'lovni tasdiqlash / rad etish
+  if (yol === '/api/admin/payment-status' && req.method === 'POST') {
+    const b = await tana(req);
+    const holat = String(b.payment_status || '');
+    if (!['kutilmoqda', 'chek_yuborilgan', 'tolangan', 'naqd'].includes(holat)) {
+      return xato(res, 400, 'Noto‘g‘ri to‘lov holati.');
+    }
+    const o = await qator(
+      `select o.*, u.telegram_id from orders o join users u on u.id=o.user_id where o.id=$1`, [b.id]);
+    if (!o) return xato(res, 404, 'Buyurtma topilmadi.');
+
+    await sorov('update orders set payment_status=$1, updated_at=now() where id=$2', [holat, b.id]);
+    if (holat === 'tolangan' && o.telegram_id) {
+      yubor(o.telegram_id,
+        `✅ <b>${esc(o.order_no)}</b> — to‘lovingiz tasdiqlandi. Rahmat! 🌸`).catch(() => {});
+    }
+    return ok(res, { ok: true });
+  }
+
   // ================= MAHSULOTLAR =================
   if (yol === '/api/admin/products' && req.method === 'GET') {
     return ok(res, {

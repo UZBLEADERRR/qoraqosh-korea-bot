@@ -5,22 +5,23 @@ import { qator, qatorlar, sorov } from '../db.js';
 const XATO_MATNI = (msg) => {
   if (msg.includes('BOSH_SAVAT'))         return 'Savat bo‘sh.';
   if (msg.includes('TELEFON_YOQ'))        return 'Telefon raqami ko‘rsatilmagan.';
+  if (msg.includes('MANZIL_YOQ'))         return 'Yetkazib berish manzilini kiriting.';
   if (msg.includes('MAHSULOT_TOPILMADI')) return 'Mahsulotlardan biri katalogdan olib tashlangan. Savatni yangilang.';
   const ombor = msg.match(/OMBORDA_YETARLI_EMAS:(.+?):(\d+)/);
   if (ombor) return `«${ombor[1]}» omborda ${ombor[2]} dona qoldi. Miqdorni kamaytiring.`;
   return 'Buyurtmani rasmiylashtirib bo‘lmadi. Qayta urinib ko‘ring.';
 };
 
-export async function buyurtmaYarat(user, items, { name, phone, address, note } = {}) {
+export async function buyurtmaYarat(user, items, { name, phone, address, note, payment } = {}) {
   const toza = items.map((i) => ({
     product_id: Number(i.product_id),
     quantity: Math.max(1, Number(i.quantity) || 1),
   }));
   try {
     return await qator(
-      'select * from place_order($1,$2,$3,$4,$5,$6)',
+      'select * from place_order($1,$2,$3,$4,$5,$6,$7)',
       [user.id, JSON.stringify(toza), name || user.full_name,
-       phone || user.phone, address || user.address, note || null],
+       phone || user.phone, address || user.address, note || null, payment || 'naqd'],
     );
   } catch (e) {
     const xato = new Error(XATO_MATNI(e.message));

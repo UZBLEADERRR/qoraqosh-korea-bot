@@ -46,7 +46,9 @@ const shubhali = /(AAG[A-Za-z0-9_-]{30,}|AIzaSy[A-Za-z0-9_-]{30,}|eyJhbGciOi[A-Z
 let topildi = 0;
 const yur = (dir) => {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (['node_modules', '.git'].includes(e.name)) continue;
+    // design/ — dizayn kanvasining yig'ilgan fayli (git'ga kirmaydi, ichida
+    // muharrir kodi bor va u kalitga o'xshash satrlarni saqlaydi)
+    if (['node_modules', '.git', 'design', 'dist'].includes(e.name)) continue;
     const p = path.join(dir, e.name);
     if (e.isDirectory()) yur(p);
     else if (/\.(js|json|sql|html|md|example)$/.test(e.name)) {

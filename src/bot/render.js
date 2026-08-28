@@ -1,133 +1,96 @@
-// Tahlil natijasini Telegram xabariga aylantirish.
-// Ketma-ketlik qat'iy: umumiy ma'lumot -> muammolar -> davolanmasa nima bo'ladi
-// -> bosqichma-bosqich tavsiya (nima uchun tushuntirish bilan).
-import { esc, narx, jadval, royxat, shkala, darajaBelgi } from './format.js';
+// Bot xabarlari. Tamoyil: BOT QISQA GAPIRADI.
+// Batafsil natija — jadval, izohlar, "nega aynan shu" — Mini App'da,
+// u yerda joy ko'p va chiroyli ko'rsatish mumkin.
+import { esc, narx, shkala, daraja, darajaSoz } from './format.js';
 import { RAD_SABABLARI } from '../ai/faceAnalysis.js';
 
-const BOSQICH_NOM = {
-  tozalash:  'Tozalash',
-  toner:     'Toner / balans',
-  davolash:  'Davolash (serum)',
-  namlash:   'Namlash',
-  himoya:    'Quyoshdan himoya',
-  qoshimcha: 'Qo‘shimcha (haftalik)',
+const RAD_EMOJI = {
+  yuz_yoq:'🙈', uzoq:'🔭', xira:'🌫', qorongi:'🌑', yopiq:'🧣',
+  bir_nechta:'👥', pardoz:'💄', sunday:'🤖', ekran:'📺', yuz_emas:'🖼',
 };
-const RAQAM = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣'];
 
-const holatSozi = (b) =>
-  b >= 80 ? 'a’lo' : b >= 65 ? 'yaxshi' : b >= 50 ? "o‘rtacha" : b >= 35 ? "e’tibor talab qiladi" : 'zaif';
-
-/** Rasm rad etilganda ko'rsatiladigan xabar. */
+/** Rasm rad etilganda — qisqa va aniq. */
 export function radXabari(sabab, izoh) {
   const s = RAD_SABABLARI[sabab] || RAD_SABABLARI.xira;
-  return [
-    `${s.emoji} <b>Bu rasmni tahlil qila olmadim</b>`,
-    ``,
-    `<b>Sabab:</b> ${esc(s.matn)}`,
-    izoh ? `<i>${esc(izoh)}</i>` : '',
-    ``,
-    `<b>Yaxshi natija uchun:</b>`,
-    `• Yuzingiz kadrning kamida yarmini egallasin`,
-    `• Kunduzgi yorug‘likda yoki oyna oldida turing`,
-    `• To‘g‘ridan-to‘g‘ri kameraga qarang`,
-    `• Pardozsiz, filtrsiz — teri o‘z holida ko‘rinsin`,
-    `• Sochingiz yuzni yopmasin, ko‘zoynakni yeching`,
-    ``,
-    `📸 Yangi rasm yuboring.`,
-  ].filter(Boolean).join('\n');
+  const q = [`${RAD_EMOJI[sabab] || '🌫'} <b>Bu rasm to‘g‘ri kelmadi</b>`, '', esc(s.matn)];
+  if (izoh) q.push(`<i>${esc(izoh)}</i>`);
+  q.push('', '☀️ Yorug‘ joyda   🤳 Yaqindan', '👀 To‘g‘riga qarang   🧼 Pardozsiz',
+         '', '📸 Yangi rasm yuboring.');
+  return q.join('\n');
 }
 
-/** 1-xabar: tahlil (umumiy -> muammolar -> prognoz). */
-export function tahlilXabari(a) {
+const holatSozi = (b) =>
+  b >= 80 ? 'a’lo 👏' : b >= 65 ? 'yaxshi 🙂' : b >= 50 ? "o‘rtacha 😌" : b >= 35 ? "e’tibor kerak 😕" : 'zaif 😟';
+
+/**
+ * Tahlil xulosasi — BITTA qisqa xabar.
+ * To'liq ro'yxat, prognoz jadvali va "nega aynan shu" Mini App'da.
+ */
+export function tahlilXabari(a, tavsiyaSoni = 0) {
   const q = [];
-  q.push(`🔬 <b>TERI TAHLILI</b>`);
-  if (a.oflayn) q.push(`<i>⚠️ AI hozir mavjud emas — bazaviy tavsiya ko‘rsatilmoqda.</i>`);
+
+  q.push(`🔬 <b>Tahlil tayyor</b>`);
+  if (a.oflayn) q.push(`<i>⚠️ AI hozir mavjud emas — bazaviy tavsiya.</i>`);
   q.push('');
 
-  // ---- 1. Umumiy ma'lumot ----
-  q.push(`<b>👤 Umumiy ma’lumot</b>`);
-  q.push(royxat([
-    ['Taxminiy yosh', a.taxminiy_yosh || '—'],
-    ['Teri rangi',    a.teri_rangi || '—'],
-    ['Teri turi',     a.teri_turi || '—'],
-    ['Umumiy holat',  `${shkala(a.ball)} ${a.ball}/100`],
-    ['Baho',          holatSozi(a.ball)],
-  ]));
-  if (a.xulosa) q.push(`<blockquote>${esc(a.xulosa)}</blockquote>`);
+  // Umumiy — uch qator, jadvalsiz
+  q.push(`👤 ${esc(a.taxminiy_yosh)} yosh · ${esc(a.teri_turi)} teri`);
+  if (a.teri_rangi && a.teri_rangi !== '—') q.push(`🎨 ${esc(a.teri_rangi)}`);
+  q.push('');
+  q.push(`✨ <b>Teri holati: ${a.ball}/100</b> — ${holatSozi(a.ball)}`);
+  q.push(shkala(a.ball));
 
-  // ---- 2. Muammolar ----
+  // Muammolar — eng ko'pi 3 ta, qolgani ilovada
   if (a.muammolar?.length) {
     q.push('');
-    q.push(`<b>📋 Aniqlangan muammolar</b>`);
-    q.push(jadval(
-      ['Muammo', 'Daraja', 'Joyi'],
-      a.muammolar.map((m) => [m.nom, darajaBelgi(m.daraja).replace(/^[▁▄█] /, ''), m.zona || '—']),
-    ));
-    for (const m of a.muammolar) {
-      if (m.izoh) q.push(`• <b>${esc(m.nom)}</b> — ${esc(m.izoh)}`);
+    q.push(`🔍 <b>Nima topdim</b>`);
+    for (const m of a.muammolar.slice(0, 3)) {
+      q.push(`${daraja(m.daraja)} ${esc(m.nom)}${m.zona ? ` · <i>${esc(m.zona)}</i>` : ''}`);
     }
+    if (a.muammolar.length > 3) q.push(`<i>…va yana ${a.muammolar.length - 3} ta</i>`);
   }
 
-  // ---- 3. E'tibor berilmasa nima bo'ladi ----
-  if (a.prognoz?.length) {
+  // Prognoz — faqat eng yuqori ehtimolli bittasi
+  const eng = (a.prognoz || []).slice().sort((x, y) => y.ehtimol - x.ehtimol)[0];
+  if (eng) {
     q.push('');
-    q.push(`<b>⏳ Agar e’tibor berilmasa</b>`);
-    q.push(jadval(
-      ['Muammo', 'Ehtimol', 'Muddat'],
-      a.prognoz.map((p) => [p.muammo, `${p.ehtimol}%`, p.muddat || '—']),
-      { ong: [false, true, false] },
-    ));
-    for (const p of a.prognoz) {
-      q.push(`• <b>${esc(p.muammo)}</b> → ${esc(p.natija)}`);
-    }
+    q.push(`⏳ <b>E’tibor bermasangiz</b>`);
+    q.push(`${esc(eng.muammo)} — ${eng.ehtimol}% ehtimol, ${esc(eng.muddat)}`);
+  }
+
+  if (tavsiyaSoni) {
     q.push('');
-    q.push(`<i>Bu ehtimollik baholari, tashxis emas. Jiddiy muammoda dermatologga murojaat qiling.</i>`);
+    q.push(`💡 Sizga <b>${tavsiyaSoni} ta mahsulot</b> tanladim.`);
+    q.push(`Nega aynan shular kerakligini ilovada o‘qing 👇`);
   }
 
   return q.join('\n');
 }
 
-/** 2-xabar: bosqichma-bosqich tavsiya + nima uchun. */
-export function tavsiyaXabari(tavsiyalar, mahsulotlar) {
+/** PUBLIC_URL bo'lmagan holat uchun zaxira: tavsiyani matnda beramiz. */
+export function tavsiyaMatni(tavsiyalar, mahsulotlar) {
   const karta = new Map(mahsulotlar.map((p) => [p.id, p]));
-  const q = [];
-
-  q.push(`💡 <b>SIZGA MOS PARVARISH</b>`);
-  q.push(`<i>Quyidagi tartibda qo‘llang — ketma-ketlik natijaga ta’sir qiladi.</i>`);
-  q.push('');
-
+  const BOSQICH = {
+    tozalash: '🫧 Tozalash', toner: '💧 Toner', davolash: '🧪 Serum',
+    namlash: '🫙 Namlash', himoya: '☀️ SPF', qoshimcha: '🎭 Qo‘shimcha',
+  };
+  const q = [`💡 <b>Sizga mos parvarish</b>`, ''];
   let jami = 0;
-  let n = 0;
   for (const t of tavsiyalar) {
     const p = karta.get(t.product_id);
     if (!p) continue;
     jami += p.price;
-
-    q.push(`<b>${RAQAM[n++] || '•'} ${BOSQICH_NOM[t.bosqich] || t.bosqich}</b>`);
-    q.push(`${p.emoji || '🧴'} <b>${esc(p.name)}</b>`);
-    q.push(`<i>${esc(p.brand || '')}${p.volume ? ' · ' + esc(p.volume) : ''}</i> — <b>${narx(p.price)}</b>`);
-    if (t.sabab) q.push(`<blockquote>❓ <b>Nega aynan shu:</b> ${esc(t.sabab)}</blockquote>`);
-    if (p.usage_text) q.push(`📖 <b>Qanday:</b> ${esc(p.usage_text)}`);
-    if (p.warnings) q.push(`⚠️ ${esc(p.warnings)}`);
+    q.push(`${BOSQICH[t.bosqich] || '•'} — <b>${esc(p.name)}</b>`);
+    q.push(`<i>${esc(p.brand || '')}</i> · ${narx(p.price)}`);
+    if (t.sabab) q.push(`<blockquote>${esc(t.sabab)}</blockquote>`);
     q.push('');
   }
-
-  if (!jami) {
-    return `💡 Hozircha omborda mos mahsulot yo‘q. Tez orada to‘ldiramiz — /katalog orqali kuzatib boring.`;
-  }
-
-  q.push(`<b>To‘liq to‘plam:</b> ${narx(jami)}`);
-  q.push(`<i>Hammasini birdan olish shart emas — tozalash, namlash va SPF dan boshlang.</i>`);
+  if (jami) q.push(`🧾 <b>To‘plam: ${narx(jami)}</b>`);
   return q.join('\n');
 }
 
-/** Tavsiya ostidagi tugmalar. */
-export function tavsiyaTugmalari(tavsiyalar, appUrl) {
-  const qatorlar = [];
-  if (appUrl) {
-    qatorlar.push([{ text: '🛒 Hammasini savatga solish', web_app: { url: `${appUrl}/app/?tavsiya=1` } }]);
-    qatorlar.push([{ text: '🛍 Katalogni ochish', web_app: { url: `${appUrl}/app/` } }]);
-  }
-  qatorlar.push([{ text: '🔄 Boshqa rasm bilan qayta tahlil', callback_data: 'skaner' }]);
-  return { inline_keyboard: qatorlar };
-}
+/** Muammo darajalarining ma'nosi — /yordam uchun. */
+export const darajaIzoh = () =>
+  ['🟢 yengil', '🟡 o‘rtacha', '🔴 kuchli'].join('   ');
+
+export { darajaSoz };

@@ -4,144 +4,152 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <title>QoraQosh — Koreya kosmetikasi</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
 
-<!-- ================= RO'YXATDAN O'TISH ================= -->
-<section id="ekran-royxat" class="yashirin">
+<!-- ============ RO'YXATDAN O'TISH ============ -->
+<section id="ekran-royxat" class="ekran yashirin">
   <div class="bosh">
-    <div class="brend">QoraQosh</div>
-    <h1>Ro‘yxatdan o‘tish</h1>
-    <div class="izoh">Buyurtmani yetkazish uchun kerak. 1 daqiqa.</div>
+    <div class="brend">🌸 QoraQosh</div>
+    <h1>Tanishib olamiz</h1>
+    <div class="izoh">Bor-yo‘g‘i 3 ta savol — yarim daqiqa</div>
   </div>
-  <div class="sahifa">
-    <div class="karta">
-      <label for="f-ism">Ismingiz
-        <span class="yordam">Buyurtmani kim qabul qilishini bilishimiz uchun</span></label>
-      <input id="f-ism" type="text" placeholder="Aliyeva Malika" autocomplete="name">
+  <div class="karta">
+    <label for="f-ism">👤 Ismingiz</label>
+    <input id="f-ism" type="text" placeholder="Aliyeva Malika" autocomplete="name">
 
-      <label for="f-tel">Telefon raqamingiz
-        <span class="yordam">Kuryer shu raqamga qo‘ng‘iroq qiladi</span></label>
-      <input id="f-tel" type="tel" placeholder="+998 90 123 45 67" inputmode="tel" autocomplete="tel">
+    <label for="f-tel">📱 Telefon raqamingiz
+      <span class="yordam">Kuryer shu raqamga qo‘ng‘iroq qiladi</span></label>
+    <input id="f-tel" type="tel" placeholder="+998 90 123 45 67" inputmode="tel" autocomplete="tel">
 
-      <label for="f-yosh">Yoshingiz
-        <span class="yordam">Tavsiyalarni aniqroq qilish uchun</span></label>
-      <input id="f-yosh" type="number" placeholder="24" inputmode="numeric" min="12" max="90">
+    <label for="f-yosh">🎂 Yoshingiz
+      <span class="yordam">Tavsiyalarni aniqroq qilish uchun</span></label>
+    <input id="f-yosh" type="number" placeholder="24" inputmode="numeric" min="12" max="90">
 
-      <label for="f-manzil">Manzilingiz
-        <span class="yordam">Shahar, tuman, ko‘cha, uy va xonadon raqami</span></label>
-      <textarea id="f-manzil" placeholder="Toshkent sh., Chilonzor tumani, 5-mavze, 12-uy, 34-xonadon"></textarea>
-
-      <div style="margin-top:18px">
-        <a class="tugma ikkilamchi" id="t-oferta" href="/oferta" target="_blank"
-           style="display:block;text-align:center;text-decoration:none">📄 Shartnomani ko‘rish</a>
-      </div>
-      <div id="royxat-xato" class="xato-matn"></div>
-      <button class="asosiy" id="t-roziman" style="margin-top:10px">✅ Barchasiga roziman</button>
-      <p class="ogoh" style="margin-top:14px">
-        Yuz suratingiz serverda saqlanmaydi — faqat tahlil momentida qayta ishlanadi.
-        Ma’lumotlaringizni istalgan vaqtda botdagi <b>/ochir</b> buyrug‘i bilan o‘chirasiz.
-      </p>
+    <div id="royxat-xato" class="xato-matn"></div>
+    <a class="tugma ikkilamchi" id="t-oferta" href="/oferta" target="_blank"
+       style="margin-top:20px;text-decoration:none">📄 Shartnomani o‘qish</a>
+    <button class="asosiy" id="t-roziman" style="margin-top:10px">✅ Roziman, boshladik</button>
+    <div class="ogoh" style="margin-top:16px">
+      🔒 Yuz suratingiz saqlanmaydi — faqat tahlil paytida ishlatiladi.<br>
+      🗑 Ma’lumotlaringizni istagan vaqtda botdagi <b>/ochir</b> bilan o‘chirasiz.
     </div>
   </div>
 </section>
 
-<!-- ================= ASOSIY ================= -->
+<!-- ============ ASOSIY ============ -->
 <div id="ilova" class="yashirin">
 
-  <!-- ---------- KATALOG ---------- -->
-  <section id="tab-katalog">
+  <!-- ---------- DO'KON ---------- -->
+  <section id="tab-katalog" class="ekran">
     <div class="bosh">
-      <div class="brend">QoraQosh</div>
-      <h1>Katalog</h1>
+      <div class="brend">🌸 QoraQosh</div>
+      <h1>Do‘kon</h1>
       <div class="izoh">Koreyadan original kosmetika</div>
     </div>
-    <div class="sahifa" style="padding-bottom:0">
-      <button class="chaqiriq yashirin" id="skaner-chaqiriq">
-        <span class="belgi">🔬</span>
-        <span><b>Yuzingizni tekshiring</b>
-          <span>Rasm yuboring — sizga nima kerakligini aytamiz</span></span>
-        <span class="oq">›</span>
-      </button>
-      <input id="qidiruv" type="search" placeholder="🔍 Mahsulot yoki brend qidirish">
-    </div>
-    <div class="lenta" id="kategoriyalar"></div>
-    <div class="sahifa" style="padding-top:0">
-      <div class="tor" id="mahsulotlar"></div>
-      <div id="katalog-bosh" class="bosh-holat yashirin">
-        <div class="belgi">🔍</div>
-        <p>Bunday mahsulot topilmadi</p>
+
+    <button class="chaqiriq" id="skaner-chaqiriq">
+      <span class="belgi">🔬</span>
+      <span style="flex:1"><b>Yuzingizni tekshiring</b>
+        <span>Rasm yuboring — sizga nima kerakligini aytamiz</span></span>
+      <span class="oq">›</span>
+    </button>
+
+    <div class="qidiruv-quti" id="qidiruv-quti">
+      <div class="qidiruv">
+        <span>🔍</span>
+        <input id="qidiruv" type="search" enterkeyhint="search"
+               placeholder="Nomi yoki muammo: «quyoshdan himoya»">
+        <button class="tozala yashirin" id="qidiruv-tozala" aria-label="Tozalash">✕</button>
       </div>
+    </div>
+
+    <div class="lenta" id="kategoriyalar"></div>
+    <div class="lenta mayda-lenta" id="filtrlar"></div>
+
+    <div class="ichki ozgina" id="natija-soni" style="padding-bottom:8px"></div>
+    <div class="tor" id="mahsulotlar"></div>
+    <div id="katalog-bosh" class="bosh-holat yashirin">
+      <div class="belgi">🔍</div>
+      <p id="bosh-matn">Bunday mahsulot topilmadi</p>
+      <button class="ikkilamchi" id="t-filtr-tozala" style="max-width:240px;margin:14px auto 0">
+        Filtrlarni tozalash</button>
     </div>
   </section>
 
   <!-- ---------- SKANER ---------- -->
-  <section id="tab-skaner" class="yashirin">
+  <section id="tab-skaner" class="ekran yashirin">
     <div class="bosh">
-      <div class="brend">AI tahlil</div>
+      <div class="brend">🤖 AI tahlil</div>
       <h1>Yuz skaneri</h1>
       <div class="izoh">Teri holatini aniqlab, parvarish tuzib beramiz</div>
     </div>
-    <div class="sahifa">
 
-      <div id="skaner-boshlash">
-        <div class="karta">
-          <div class="tushirish" id="tushirish">
-            <div class="belgi">📸</div>
-            <p><b>Rasm tanlang yoki suratga oling</b><br>Yuzingiz aniq ko‘rinsin</p>
-          </div>
-          <input id="fayl" type="file" accept="image/*" capture="user" hidden>
+    <div id="skaner-boshlash">
+      <div class="karta">
+        <div class="tushirish" id="tushirish">
+          <div class="belgi">📸</div>
+          <b>Rasm tanlang yoki suratga oling</b>
+          <p>Yuzingiz aniq ko‘rinsin</p>
         </div>
-
-        <div class="karta">
-          <h3 style="margin-bottom:10px">Yaxshi rasm qanday bo‘ladi</h3>
-          <div class="talab"><span class="b">☀️</span><div><b>Yorug‘ joyda</b> — deraza oldida turing</div></div>
-          <div class="talab"><span class="b">🤳</span><div><b>Yaqindan</b> — yuz ekranni to‘ldirsin</div></div>
-          <div class="talab"><span class="b">👀</span><div><b>To‘g‘riga qarang</b> — kamera yuz balandligida</div></div>
-          <div class="talab"><span class="b">🧼</span><div><b>Pardozsiz</b> — teri o‘z holida ko‘rinsin</div></div>
-        </div>
+        <input id="fayl" type="file" accept="image/*" capture="user" hidden>
       </div>
-
-      <div id="skaner-oldindan" class="yashirin">
-        <div class="karta">
-          <img id="oldindan-rasm" class="oldindan" alt="Tanlangan rasm">
-          <button class="asosiy" id="t-tahlil" style="margin-top:14px">🔬 Tahlil qilish</button>
-          <button class="ikkilamchi" id="t-boshqa" style="margin-top:8px">Boshqa rasm tanlash</button>
-        </div>
+      <div class="karta">
+        <h3 style="margin-bottom:8px">Yaxshi rasm qanday bo‘ladi</h3>
+        <div class="talab"><span class="b">☀️</span><div><b>Yorug‘ joyda</b> — deraza oldida turing</div></div>
+        <div class="talab"><span class="b">🤳</span><div><b>Yaqindan</b> — yuz ekranni to‘ldirsin</div></div>
+        <div class="talab"><span class="b">👀</span><div><b>To‘g‘riga qarang</b> — kamera yuz balandligida</div></div>
+        <div class="talab"><span class="b">🧼</span><div><b>Pardozsiz</b> — teri o‘z holida ko‘rinsin</div></div>
       </div>
-
-      <div id="skaner-yuklanmoqda" class="yashirin">
-        <div class="karta yuklanmoqda">
-          <div class="aylana"></div>
-          <b>Tahlil qilinmoqda…</b>
-          <p style="margin-top:6px;font-size:13px">Teri holati, muammolar va mos mahsulotlar aniqlanmoqda</p>
-        </div>
+      <div class="karta" style="background:none;border:0;box-shadow:none;padding:0 16px">
+        <div class="ogoh">⚠️ Xira, uzoqdan olingan, ekrandan suratga olingan yoki
+          sun’iy intellekt chizgan rasm qabul qilinmaydi.</div>
       </div>
+    </div>
 
-      <div id="skaner-natija" class="yashirin"></div>
+    <div id="skaner-oldindan" class="yashirin">
+      <div class="karta">
+        <img id="oldindan-rasm" class="oldindan" alt="Tanlangan rasm">
+        <button class="asosiy" id="t-tahlil" style="margin-top:14px">🔬 Tahlil qilish</button>
+        <button class="ikkilamchi" id="t-boshqa" style="margin-top:9px">Boshqa rasm tanlash</button>
+      </div>
+    </div>
+
+    <div id="skaner-yuklanmoqda" class="yashirin">
+      <div class="karta yuklanmoqda">
+        <div class="aylana"></div>
+        <b>Tahlil qilinmoqda…</b>
+        <p class="mayda" style="margin-top:6px">Teri holati, muammolar va mos mahsulotlar aniqlanmoqda</p>
+      </div>
     </div>
   </section>
 
+  <!-- ---------- TAHLIL NATIJASI ---------- -->
+  <section id="tab-natija" class="ekran yashirin">
+    <div id="natija-tan"></div>
+  </section>
+
   <!-- ---------- SAVAT ---------- -->
-  <section id="tab-savat" class="yashirin">
-    <div class="bosh"><div class="brend">Buyurtma</div><h1>Savatim</h1></div>
-    <div class="sahifa" id="savat-tan"></div>
+  <section id="tab-savat" class="ekran yashirin">
+    <div class="bosh"><div class="brend">🛒 Buyurtma</div><h1>Savatim</h1></div>
+    <div id="savat-tan"></div>
   </section>
 
   <!-- ---------- BUYURTMALAR ---------- -->
-  <section id="tab-buyurtma" class="yashirin">
-    <div class="bosh"><div class="brend">Tarix</div><h1>Buyurtmalarim</h1></div>
-    <div class="sahifa" id="buyurtma-tan"></div>
+  <section id="tab-buyurtma" class="ekran yashirin">
+    <div class="bosh"><div class="brend">📋 Tarix</div><h1>Buyurtmalarim</h1></div>
+    <div id="buyurtma-tan"></div>
   </section>
 
   <!-- ---------- PASTKI MENYU ---------- -->
   <nav class="menyu">
-    <button data-tab="katalog" class="tanlangan"><span>🛍</span>Do‘kon</button>
-    <button data-tab="skaner"><span>🔬</span>Skaner</button>
-    <button data-tab="savat"><span>🛒</span>Savat<i id="savat-nishon" class="nishon yashirin">0</i></button>
-    <button data-tab="buyurtma"><span>📋</span>Buyurtmalar</button>
+    <button data-tab="katalog" class="tanlangan"><span class="ikon">🛍</span>Do‘kon</button>
+    <button data-tab="skaner"><span class="ikon">🔬</span>Skaner</button>
+    <button data-tab="savat"><span class="ikon">🛒</span>Savat<i id="savat-nishon" class="nishon yashirin">0</i></button>
+    <button data-tab="buyurtma"><span class="ikon">📋</span>Buyurtma</button>
   </nav>
 </div>
 

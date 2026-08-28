@@ -1,193 +1,239 @@
-/* QoraQosh Mini App — sodda va aniq.
-   Tamoyillar: katta matn, katta tugma, bitta ekranda bitta asosiy ish. */
-:root {
+/* QoraQosh Mini App — edge-to-edge, sodda, katta.
+   Kontent ekran chetigacha boradi; ichki bo'shliq faqat matn atrofida. */
+:root{
   --fon:#faf9f7; --panel:#fff; --matn:#191716; --kul:#635e5a; --och:#948d88;
-  --chiziq:#e9e4df; --urgu:#8a5a3d; --urgu-och:#f4ece5;
-  --yashil:#2c7a51; --qizil:#b0423a; --sariq:#8f6c0d;
-  --r:14px; --sh:0 1px 3px rgba(25,23,22,.05);
+  --chiziq:#e9e4df; --urgu:#8a5a3d; --urgu-och:#f4ece5; --urgu-tim:#6f4830;
+  --yashil:#2c7a51; --yashil-och:#e3f0e9; --qizil:#b0423a; --qizil-och:#f8e6e4;
+  --sariq:#8f6c0d; --sariq-och:#f9f0d8;
+  --r:16px; --r-kichik:11px;
+  --sh:0 1px 2px rgba(25,23,22,.04),0 4px 16px rgba(25,23,22,.04);
+  --past:76px;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fon:#141211; --panel:#1e1b19; --matn:#f0eeec; --kul:#a8a19c; --och:#7e7773;
-    --chiziq:#2f2b28; --urgu:#d09b70; --urgu-och:#2b231e;
-    --yashil:#5cbd8a; --qizil:#e58d83; --sariq:#d4ae4a; --sh:none;
-  }
-}
+@media (prefers-color-scheme:dark){:root{
+  --fon:#131110; --panel:#1d1a18; --matn:#f2f0ee; --kul:#aaa39e; --och:#7f7873;
+  --chiziq:#2e2a27; --urgu:#d5a075; --urgu-och:#2c231d; --urgu-tim:#e8bd97;
+  --yashil:#5cbd8a; --yashil-och:#17301f; --qizil:#e58d83; --qizil-och:#2f1b19;
+  --sariq:#d4ae4a; --sariq-och:#2e2718; --sh:0 1px 2px rgba(0,0,0,.3);
+}}
 
-* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html,body { margin:0; padding:0; }
-body {
-  background:var(--fon); color:var(--matn);
-  font:17px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
-  padding-bottom:88px; overscroll-behavior-y:none;
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  background:var(--fon);color:var(--matn);
+  font:17px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  padding-bottom:calc(var(--past) + env(safe-area-inset-bottom));
+  overscroll-behavior-y:none;-webkit-font-smoothing:antialiased;
 }
-h1 { font-size:26px; line-height:1.2; margin:0; font-weight:700; letter-spacing:-.02em; }
-h2 { font-size:20px; margin:0; font-weight:650; letter-spacing:-.01em; }
-h3 { font-size:17px; margin:0; font-weight:600; }
-p  { margin:0 0 12px; }
-a  { color:var(--urgu); }
-.yashirin { display:none !important; }
+h1{font-size:27px;line-height:1.15;margin:0;font-weight:700;letter-spacing:-.025em}
+h2{font-size:20px;margin:0;font-weight:650;letter-spacing:-.01em}
+h3{font-size:16px;margin:0;font-weight:650}
+p{margin:0 0 12px}
+a{color:var(--urgu)}
+.yashirin{display:none!important}
+.mayda{font-size:14px;color:var(--kul)}
+.ozgina{font-size:13px;color:var(--och)}
 
-.sahifa { max-width:640px; margin:0 auto; padding:0 16px 10px; }
-.bosh   { max-width:640px; margin:0 auto; padding:22px 16px 14px; }
-.bosh .izoh { color:var(--kul); font-size:16px; margin-top:6px; }
+/* ---------- Tuzilma: edge-to-edge ---------- */
+.ekran{max-width:640px;margin:0 auto}
+.ichki{padding:0 16px}                 /* faqat matn uchun chekka bo'shliq */
+.bosh{padding:20px 16px 12px}
+.bosh .brend{font-size:14px;color:var(--och);font-weight:600;letter-spacing:.02em}
+.bosh h1{margin-top:2px}
+.bosh .izoh{color:var(--kul);font-size:16px;margin-top:5px}
 
 /* ---------- Karta ---------- */
-.karta {
-  background:var(--panel); border:1px solid var(--chiziq); border-radius:var(--r);
-  padding:18px; margin-bottom:14px; box-shadow:var(--sh);
-}
-.karta-sarlavha { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
+.karta{background:var(--panel);border:1px solid var(--chiziq);border-radius:var(--r);
+  padding:18px;margin:0 16px 14px;box-shadow:var(--sh)}
+.karta.tekis{margin:0 0 14px;border-radius:0;border-left:0;border-right:0}
+.karta-bosh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
 
-/* ---------- Katta chaqiruv tugmasi (skaner) ---------- */
-.chaqiriq {
-  display:flex; align-items:center; gap:14px; width:100%; text-align:left;
-  background:var(--urgu); color:#fff; border:0; border-radius:var(--r);
-  padding:18px; margin-bottom:16px; box-shadow:var(--sh);
-}
-.chaqiriq .belgi { font-size:30px; flex:0 0 auto; }
-.chaqiriq b { display:block; font-size:18px; font-weight:650; }
-.chaqiriq span { font-size:14.5px; opacity:.88; }
-.chaqiriq .oq { margin-left:auto; font-size:22px; opacity:.7; }
+/* ---------- Qidiruv ---------- */
+.qidiruv-quti{position:sticky;top:0;z-index:30;background:var(--fon);
+  padding:10px 16px 12px;border-bottom:1px solid transparent;transition:border-color .2s}
+.qidiruv-quti.suzuvchi{border-bottom-color:var(--chiziq)}
+.qidiruv{display:flex;align-items:center;gap:10px;background:var(--panel);
+  border:1.5px solid var(--chiziq);border-radius:13px;padding:0 14px}
+.qidiruv input{flex:1;border:0;background:none;color:var(--matn);font:inherit;
+  font-size:17px;padding:14px 0;outline:none;min-width:0}
+.qidiruv input::placeholder{color:var(--och)}
+.qidiruv .tozala{border:0;background:none;color:var(--och);font-size:20px;
+  cursor:pointer;padding:0 2px;line-height:1}
 
-/* ---------- Jadval ---------- */
-.jadval-orash { overflow-x:auto; -webkit-overflow-scrolling:touch; }
-table { width:100%; border-collapse:collapse; font-size:16px; }
-th,td { text-align:left; padding:12px 8px; border-bottom:1px solid var(--chiziq); vertical-align:top; }
-th { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--och); font-weight:650; }
-tr:last-child td { border-bottom:0; }
-td.ong, th.ong { text-align:right; white-space:nowrap; }
-td.kuchli { font-weight:600; }
+/* ---------- Skaner chaqirig'i (full-bleed) ---------- */
+.chaqiriq{display:flex;align-items:center;gap:14px;width:calc(100% - 32px);margin:4px 16px 16px;
+  text-align:left;background:linear-gradient(135deg,var(--urgu),var(--urgu-tim));
+  color:#fff;border:0;border-radius:var(--r);padding:18px;box-shadow:var(--sh);cursor:pointer}
+.chaqiriq .belgi{font-size:30px;flex:0 0 auto;line-height:1}
+.chaqiriq b{display:block;font-size:18px;font-weight:650;margin-bottom:2px}
+.chaqiriq span{font-size:14.5px;opacity:.9;line-height:1.35}
+.chaqiriq .oq{margin-left:auto;font-size:24px;opacity:.65}
 
-/* ---------- Kalit: qiymat ---------- */
-.qator { display:flex; justify-content:space-between; gap:16px; padding:13px 0; border-bottom:1px solid var(--chiziq); }
-.qator:last-child { border-bottom:0; }
-.qator .k { color:var(--kul); }
-.qator .v { text-align:right; font-weight:600; }
+/* ---------- Lenta (kategoriya / filtr) ---------- */
+.lenta{display:flex;gap:8px;overflow-x:auto;padding:0 16px 12px;scrollbar-width:none}
+.lenta::-webkit-scrollbar{display:none}
+.lenta button{flex:0 0 auto;background:var(--panel);border:1.5px solid var(--chiziq);
+  color:var(--kul);padding:10px 15px;border-radius:99px;font:600 15px/1 inherit;cursor:pointer}
+.lenta button.tanlangan{background:var(--matn);color:var(--fon);border-color:var(--matn)}
+.lenta.mayda-lenta button{padding:8px 13px;font-size:14px}
 
-/* ---------- Ball ---------- */
-.shkala { height:10px; background:var(--chiziq); border-radius:99px; overflow:hidden; margin-top:12px; }
-.shkala i { display:block; height:100%; background:var(--urgu); border-radius:99px; transition:width .6s ease; }
-.ball { font-size:44px; font-weight:700; letter-spacing:-.03em; line-height:1; }
-.ball small { font-size:17px; color:var(--och); font-weight:400; }
+/* ---------- Mahsulot to'ri (edge-to-edge) ---------- */
+.tor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;background:var(--chiziq)}
+@media (min-width:560px){.tor{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.mahsulot{background:var(--panel);display:flex;flex-direction:column;cursor:pointer;
+  border:0;padding:0;text-align:left;font:inherit;color:inherit}
+.rasm{aspect-ratio:1;display:grid;place-items:center;font-size:44px;overflow:hidden;position:relative}
+.rasm img{width:100%;height:100%;object-fit:cover;display:block}
+.rasm .nishonlar{position:absolute;top:8px;left:8px;display:flex;gap:5px;flex-wrap:wrap}
+.nishon-kichik{background:rgba(0,0,0,.62);color:#fff;font-size:11px;font-weight:700;
+  padding:3px 8px;border-radius:99px;backdrop-filter:blur(4px)}
+.nishon-kichik.yoq{background:var(--qizil)}
+.mtan{padding:11px 12px 14px;display:flex;flex-direction:column;gap:3px;flex:1}
+.mbrend{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--och);font-weight:700}
+.mnom{font-size:14.5px;font-weight:500;line-height:1.35;flex:1;margin:2px 0 8px}
+.mnarx{font-weight:700;font-size:16px}
+.mnarx s{color:var(--och);font-weight:400;font-size:13px;margin-left:5px}
 
-/* ---------- Yorliqlar ---------- */
-.yorliq { display:inline-block; padding:4px 11px; border-radius:99px; font-size:13px; font-weight:650;
-  background:var(--urgu-och); color:var(--urgu); }
-.yorliq.yengil  { background:color-mix(in srgb,var(--yashil) 15%,transparent); color:var(--yashil); }
-.yorliq.ortacha { background:color-mix(in srgb,var(--sariq) 18%,transparent);  color:var(--sariq); }
-.yorliq.kuchli  { background:color-mix(in srgb,var(--qizil) 15%,transparent);  color:var(--qizil); }
+/* ---------- Ro'yxat qatori (savat, buyurtma) ---------- */
+.qtr{display:flex;justify-content:space-between;gap:14px;padding:12px 0;
+  border-bottom:1px solid var(--chiziq)}
+.qtr:last-child{border-bottom:0}
+.qtr .k{color:var(--kul)}
+.qtr .v{text-align:right;font-weight:600}
+.qtr.jami{border-bottom:0;padding-top:14px;margin-top:2px;border-top:1px solid var(--chiziq)}
+.qtr.jami .k{font-weight:650;color:var(--matn)}
+.qtr.jami .v{font-size:20px;font-weight:700}
+.qtr .chegirma{color:var(--yashil)}
 
-/* ---------- Parvarish bosqichlari ---------- */
-.bosqich { display:flex; gap:14px; padding:18px 0; border-bottom:1px solid var(--chiziq); }
-.bosqich:last-of-type { border-bottom:0; }
-.bosqich .raqam {
-  flex:0 0 34px; height:34px; border-radius:50%; background:var(--urgu); color:#fff;
-  display:grid; place-items:center; font-size:16px; font-weight:700;
-}
-.bosqich .tan { flex:1; min-width:0; }
-.bosqich .qadam { font-size:13px; text-transform:uppercase; letter-spacing:.07em; color:var(--och); font-weight:650; }
-.bosqich .nom { font-weight:650; font-size:17px; margin-top:3px; }
-.bosqich .brend { color:var(--kul); font-size:15px; margin-top:2px; }
-.nega { margin-top:11px; padding:13px 15px; background:var(--urgu-och); border-radius:11px; font-size:15.5px; }
-.nega b { color:var(--urgu); }
-.qollash { margin-top:9px; font-size:15px; color:var(--kul); }
+/* ---------- Savat elementi (jadval emas!) ---------- */
+.savat-qator{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--chiziq);align-items:flex-start}
+.savat-qator:last-child{border-bottom:0}
+.savat-rasm{flex:0 0 62px;height:62px;border-radius:12px;overflow:hidden;display:grid;
+  place-items:center;font-size:26px}
+.savat-rasm img{width:100%;height:100%;object-fit:cover}
+.savat-tan{flex:1;min-width:0}
+.savat-nom{font-weight:600;font-size:15.5px;line-height:1.3}
+.savat-brend{font-size:13px;color:var(--och);margin-top:1px}
+.savat-past{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:9px}
+.soni{display:inline-flex;align-items:center;gap:2px;background:var(--fon);
+  border:1.5px solid var(--chiziq);border-radius:10px;overflow:hidden}
+.soni button{width:36px;height:34px;border:0;background:none;color:var(--matn);
+  font-size:19px;line-height:1;cursor:pointer}
+.soni span{min-width:26px;text-align:center;font-weight:650;font-size:15px}
+.savat-narx{font-weight:700;font-size:16px;white-space:nowrap}
 
 /* ---------- Tugmalar ---------- */
-button, .tugma { font:inherit; border:0; cursor:pointer; border-radius:12px; font-weight:650; }
-.asosiy, .ikkilamchi { width:100%; padding:16px; font-size:17px; min-height:54px; }
-.asosiy { background:var(--urgu); color:#fff; }
-.ikkilamchi { background:var(--panel); color:var(--matn); border:1.5px solid var(--chiziq); }
-button:active { opacity:.7; }
-button:disabled { opacity:.45; cursor:default; }
+button,.tugma{font:inherit;border:0;cursor:pointer;border-radius:13px;font-weight:650}
+.asosiy,.ikkilamchi{width:100%;padding:16px;font-size:17px;min-height:54px;
+  display:flex;align-items:center;justify-content:center;gap:8px}
+.asosiy{background:var(--urgu);color:#fff}
+.ikkilamchi{background:var(--panel);color:var(--matn);border:1.5px solid var(--chiziq)}
+button:active{transform:scale(.985);opacity:.85}
+button:disabled{opacity:.45;transform:none}
+
+/* ---------- Yopishqoq pastki panel (savat/checkout) ---------- */
+.yopishqoq{position:fixed;left:0;right:0;bottom:calc(var(--past) + env(safe-area-inset-bottom));
+  z-index:35;background:var(--panel);border-top:1px solid var(--chiziq);
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+.yopishqoq .satr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.yopishqoq .satr b{font-size:20px}
 
 /* ---------- Forma ---------- */
-label { display:block; font-size:15px; color:var(--matn); margin:18px 0 7px; font-weight:600; }
-label .yordam { display:block; font-weight:400; font-size:13.5px; color:var(--och); margin-top:2px; }
-input, textarea, select {
-  width:100%; font:inherit; font-size:17px; padding:14px; color:var(--matn);
-  background:var(--fon); border:1.5px solid var(--chiziq); border-radius:11px;
-}
-input:focus, textarea:focus { outline:2.5px solid var(--urgu); outline-offset:-1px; }
-textarea { resize:vertical; min-height:88px; }
-.xato-matn { color:var(--qizil); font-size:15px; margin-top:10px; font-weight:500; }
+label{display:block;font-size:15px;color:var(--matn);margin:18px 0 7px;font-weight:600}
+label .yordam{display:block;font-weight:400;font-size:13.5px;color:var(--och);margin-top:2px}
+input,textarea,select{width:100%;font:inherit;font-size:17px;padding:14px;color:var(--matn);
+  background:var(--fon);border:1.5px solid var(--chiziq);border-radius:12px}
+input:focus,textarea:focus{outline:2.5px solid var(--urgu);outline-offset:-1px}
+textarea{resize:vertical;min-height:86px}
+.xato-matn{color:var(--qizil);font-size:15px;margin-top:10px;font-weight:500}
 
-/* ---------- Kategoriya lentasi ---------- */
-.lenta { display:flex; gap:8px; overflow-x:auto; padding:2px 16px 14px; max-width:640px; margin:0 auto; scrollbar-width:none; }
-.lenta::-webkit-scrollbar { display:none; }
-.lenta button {
-  flex:0 0 auto; background:var(--panel); border:1.5px solid var(--chiziq); color:var(--kul);
-  padding:10px 16px; border-radius:99px; font-size:15px; font-weight:600;
-}
-.lenta button.tanlangan { background:var(--matn); color:var(--fon); border-color:var(--matn); }
+/* ---------- Tanlov (to'lov usuli) ---------- */
+.tanlov{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+.tanlov button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  padding:15px;border:1.5px solid var(--chiziq);background:var(--panel);border-radius:13px;
+  color:var(--matn);font-weight:500;font-size:16px}
+.tanlov button.tanlangan{border-color:var(--urgu);background:var(--urgu-och);border-width:2px}
+.tanlov .belgi{font-size:22px;line-height:1}
+.tanlov b{display:block;font-weight:650}
+.tanlov small{color:var(--kul);font-size:13.5px}
 
-/* ---------- Mahsulot to'ri ---------- */
-.tor { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
-@media (min-width:560px) { .tor { grid-template-columns:repeat(3,1fr); } }
-.mahsulot {
-  background:var(--panel); border:1px solid var(--chiziq); border-radius:var(--r);
-  overflow:hidden; display:flex; flex-direction:column; cursor:pointer;
-}
-/* .rasm modal ichida ham ishlatiladi — shuning uchun .mahsulot ga bog'lanmagan */
-.rasm { aspect-ratio:1; display:grid; place-items:center; font-size:40px; overflow:hidden; }
-.rasm img { width:100%; height:100%; object-fit:cover; display:block; }
-.mahsulot .tan { padding:12px 13px 14px; display:flex; flex-direction:column; flex:1; }
-.mahsulot .brend { font-size:12px; text-transform:uppercase; letter-spacing:.07em; color:var(--och); font-weight:600; }
-.mahsulot .nom { font-size:15px; font-weight:500; margin:4px 0 10px; line-height:1.35; flex:1; }
-.mahsulot .narx { font-weight:700; font-size:16px; }
-.mahsulot .yoq { color:var(--qizil); font-size:13px; font-weight:650; }
+/* ---------- Karta raqami ---------- */
+.karta-raqam{background:linear-gradient(135deg,var(--urgu),var(--urgu-tim));color:#fff;
+  border-radius:var(--r);padding:18px;margin-top:12px}
+.karta-raqam .raqam{font-size:22px;font-weight:700;letter-spacing:.06em;margin:8px 0 4px;
+  font-variant-numeric:tabular-nums}
+.karta-raqam .egasi{font-size:14px;opacity:.85}
+.karta-raqam button{margin-top:12px;width:100%;background:rgba(255,255,255,.18);color:#fff;
+  padding:11px;border-radius:10px;font-size:15px}
+
+/* ---------- Yorliqlar ---------- */
+.yorliq{display:inline-block;padding:4px 11px;border-radius:99px;font-size:13px;
+  font-weight:650;background:var(--urgu-och);color:var(--urgu)}
+.yorliq.yengil{background:var(--yashil-och);color:var(--yashil)}
+.yorliq.ortacha{background:var(--sariq-och);color:var(--sariq)}
+.yorliq.kuchli{background:var(--qizil-och);color:var(--qizil)}
+
+/* ---------- Tahlil ---------- */
+.shkala{height:10px;background:var(--chiziq);border-radius:99px;overflow:hidden;margin-top:12px}
+.shkala i{display:block;height:100%;background:var(--urgu);border-radius:99px;transition:width .6s}
+.ball{font-size:46px;font-weight:700;letter-spacing:-.03em;line-height:1}
+.ball small{font-size:17px;color:var(--och);font-weight:400}
+.muammo{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--chiziq);align-items:flex-start}
+.muammo:last-child{border-bottom:0}
+.muammo .nuqta{font-size:15px;line-height:1.5}
+.muammo .nom{font-weight:650}
+.muammo .izoh{font-size:14.5px;color:var(--kul);margin-top:2px}
+.prognoz{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--chiziq);align-items:flex-start}
+.prognoz:last-child{border-bottom:0}
+.prognoz .foiz{flex:0 0 52px;font-weight:700;font-size:17px;color:var(--sariq);text-align:right}
+.bosqich{display:flex;gap:14px;padding:18px 0;border-bottom:1px solid var(--chiziq)}
+.bosqich:last-of-type{border-bottom:0}
+.raqam{flex:0 0 34px;height:34px;border-radius:50%;background:var(--urgu);color:#fff;
+  display:grid;place-items:center;font-size:16px;font-weight:700}
+.qadam{font-size:12.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--och);font-weight:700}
+.bnom{font-weight:650;font-size:16.5px;margin-top:3px}
+.bbrend{color:var(--kul);font-size:15px;margin-top:2px}
+.nega{margin-top:11px;padding:13px 15px;background:var(--urgu-och);border-radius:12px;font-size:15.5px}
+.nega b{color:var(--urgu)}
+.qollash{margin-top:9px;font-size:14.5px;color:var(--kul)}
 
 /* ---------- Pastki menyu ---------- */
-.menyu {
-  position:fixed; left:0; right:0; bottom:0; z-index:40; display:flex;
-  background:var(--panel); border-top:1px solid var(--chiziq); padding-bottom:env(safe-area-inset-bottom);
-}
-.menyu button {
-  flex:1; background:none; border:0; padding:11px 4px 10px; border-radius:0;
-  color:var(--och); font-size:12px; font-weight:600; display:grid; gap:4px; justify-items:center;
-  position:relative; min-height:58px;
-}
-.menyu button span { font-size:23px; line-height:1; }
-.menyu button.tanlangan { color:var(--urgu); }
-.menyu .nishon {
-  position:absolute; top:6px; left:50%; margin-left:5px; background:var(--qizil); color:#fff;
-  font-size:11px; font-weight:700; min-width:19px; height:19px; border-radius:99px;
-  display:grid; place-items:center; padding:0 5px; font-style:normal;
-}
+.menyu{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:var(--panel);
+  border-top:1px solid var(--chiziq);padding-bottom:env(safe-area-inset-bottom);
+  max-width:640px;margin:0 auto}
+.menyu button{flex:1;background:none;border:0;padding:10px 4px 9px;border-radius:0;
+  color:var(--och);font-size:11.5px;font-weight:650;display:grid;gap:3px;justify-items:center;
+  position:relative;min-height:var(--past)}
+.menyu button .ikon{font-size:22px;line-height:1.1}
+.menyu button.tanlangan{color:var(--urgu)}
+.menyu .nishon{position:absolute;top:5px;left:50%;margin-left:4px;background:var(--qizil);
+  color:#fff;font-size:11px;font-weight:700;min-width:19px;height:19px;border-radius:99px;
+  display:grid;place-items:center;padding:0 5px;font-style:normal}
 
 /* ---------- Modal ---------- */
-.modal { position:fixed; inset:0; z-index:60; display:grid; align-items:end; }
-.modal .parda { position:absolute; inset:0; background:rgba(0,0,0,.5); }
-.modal .oyna {
-  position:relative; background:var(--panel); border-radius:20px 20px 0 0;
-  max-height:90vh; overflow-y:auto; padding:10px 18px 28px; max-width:640px; margin:0 auto; width:100%;
-}
-.modal .dasta { width:42px; height:5px; background:var(--chiziq); border-radius:99px; margin:6px auto 16px; }
+.modal{position:fixed;inset:0;z-index:60;display:grid;align-items:end}
+.modal .parda{position:absolute;inset:0;background:rgba(0,0,0,.5)}
+.modal .oyna{position:relative;background:var(--panel);border-radius:22px 22px 0 0;
+  max-height:92vh;overflow-y:auto;max-width:640px;margin:0 auto;width:100%;
+  padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+.modal .dasta{width:42px;height:5px;background:var(--chiziq);border-radius:99px;margin:9px auto 0}
 
 /* ---------- Skaner ---------- */
-.tushirish {
-  border:2.5px dashed var(--chiziq); border-radius:var(--r); padding:38px 20px;
-  text-align:center; cursor:pointer; background:var(--panel);
-}
-.tushirish .belgi { font-size:48px; }
-.tushirish b { display:block; font-size:18px; margin-top:10px; }
-.tushirish p { color:var(--kul); font-size:15px; margin:6px 0 0; }
-.oldindan { width:100%; border-radius:var(--r); display:block; }
-.talab { display:flex; gap:11px; padding:9px 0; font-size:16px; color:var(--kul); align-items:flex-start; }
-.talab .b { flex:0 0 auto; font-size:18px; }
-.talab b { color:var(--matn); font-weight:600; }
+.tushirish{border:2.5px dashed var(--chiziq);border-radius:var(--r);padding:36px 20px;
+  text-align:center;background:var(--panel);cursor:pointer}
+.tushirish .belgi{font-size:48px}
+.tushirish b{display:block;font-size:18px;margin-top:10px}
+.tushirish p{color:var(--kul);font-size:15px;margin:6px 0 0}
+.oldindan{width:100%;border-radius:var(--r);display:block}
+.talab{display:flex;gap:11px;padding:9px 0;font-size:16px;color:var(--kul);align-items:flex-start}
+.talab .b{flex:0 0 auto;font-size:19px;line-height:1.3}
+.talab b{color:var(--matn);font-weight:600}
 
-.yuklanmoqda { text-align:center; padding:52px 20px; color:var(--kul); }
-.aylana {
-  width:38px; height:38px; border:3px solid var(--chiziq); border-top-color:var(--urgu);
-  border-radius:50%; margin:0 auto 18px; animation:ayl .8s linear infinite;
-}
-@keyframes ayl { to { transform:rotate(360deg); } }
-
-.bosh-holat { text-align:center; padding:56px 20px; color:var(--kul); font-size:16px; }
-.bosh-holat .belgi { font-size:52px; margin-bottom:12px; }
-
-.ogoh {
-  font-size:14.5px; color:var(--kul); background:var(--urgu-och);
-  padding:14px 16px; border-radius:11px; line-height:1.55;
-}
+.yuklanmoqda{text-align:center;padding:52px 20px;color:var(--kul)}
+.aylana{width:38px;height:38px;border:3px solid var(--chiziq);border-top-color:var(--urgu);
+  border-radius:50%;margin:0 auto 18px;animation:ayl .8s linear infinite}
+@keyframes ayl{to{transform:rotate(360deg)}}
+.bosh-holat{text-align:center;padding:56px 24px;color:var(--kul);font-size:16px}
+.bosh-holat .belgi{font-size:54px;margin-bottom:12px}
+.ogoh{font-size:14.5px;color:var(--kul);background:var(--urgu-och);padding:14px 16px;
+  border-radius:12px;line-height:1.55}
+.ogoh.yashil{background:var(--yashil-och);color:var(--yashil)}

@@ -1,45 +1,60 @@
+// Barcha tugmalar inline. Yagona istisno — telefon so'rash:
+// Telegram `request_contact` ni faqat pastki (reply) klaviaturada beradi.
 import { config } from '../config.js';
 
-export const miniAppUrl = (yol = '/') =>
-  config.publicUrl ? `${config.publicUrl}${yol}` : null;
+export const appUrl = (yol = '/app/') => (config.publicUrl ? `${config.publicUrl}${yol}` : null);
 
-/** Asosiy menyu — doimiy pastki klaviatura. */
+/** Mini App tugmasi; PUBLIC_URL yo'q bo'lsa null. */
+export function appTugma(matn, yol = '/app/') {
+  const url = appUrl(yol);
+  return url ? { text: matn, web_app: { url } } : null;
+}
+
+/** Asosiy menyu — inline. */
 export function asosiyMenyu() {
-  return {
-    keyboard: [
-      [{ text: '🔬 Yuz skaneri' }],
-      [{ text: '🛍 Katalog' }, { text: '🛒 Savatim' }],
-      [{ text: '📋 Buyurtmalarim' }, { text: '👤 Profilim' }],
-      [{ text: 'ℹ️ Yordam' }],
-    ],
-    resize_keyboard: true,
-  };
+  const qatorlar = [];
+  const katalog = appTugma('🛍 Do‘kon', '/app/');
+  const savat   = appTugma('🛒 Savatim', '/app/?tab=savat');
+
+  qatorlar.push([{ text: '🔬 Yuz skaneri', callback_data: 'skaner' }]);
+  if (katalog && savat) qatorlar.push([katalog, savat]);
+  qatorlar.push([
+    { text: '📋 Buyurtmalarim', callback_data: 'buyurtmalar' },
+    { text: '💬 Konsultatsiya', callback_data: 'konsultatsiya' },
+  ]);
+  qatorlar.push([
+    { text: '👤 Profilim', callback_data: 'profil' },
+    { text: 'ℹ️ Yordam', callback_data: 'yordam' },
+  ]);
+  return { inline_keyboard: qatorlar };
 }
 
 export const telefonSora = () => ({
-  keyboard: [[{ text: "📱 Telefon raqamimni ulashish", request_contact: true }]],
+  keyboard: [[{ text: '📱 Raqamimni ulashish', request_contact: true }]],
   resize_keyboard: true,
   one_time_keyboard: true,
 });
 
-export const jinsSora = () => ({
-  inline_keyboard: [[
-    { text: '👩 Ayol', callback_data: 'jins:ayol' },
-    { text: '👨 Erkak', callback_data: 'jins:erkak' },
-  ]],
-});
-
 export function shartnomaTugmalari() {
-  const url = miniAppUrl('/oferta');
-  const qator = [];
-  if (url) qator.push([{ text: '📄 Shartnomani ko\'rish', url }]);
-  qator.push([{ text: "✅ Barchasiga roziman", callback_data: 'roziman' }]);
-  return { inline_keyboard: qator };
+  const qatorlar = [];
+  const url = config.publicUrl ? `${config.publicUrl}/oferta` : null;
+  if (url) qatorlar.push([{ text: '📄 Shartnomani o‘qish', url }]);
+  qatorlar.push([{ text: '✅ Roziman, davom etamiz', callback_data: 'roziman' }]);
+  return { inline_keyboard: qatorlar };
 }
 
-/** Mini App tugmasi — mavjud bo'lsa web_app, aks holda oddiy havola. */
-export function katalogTugmasi(matn = '🛍 Katalogni ochish', yol = '/app/') {
-  const url = miniAppUrl(yol);
-  if (!url) return null;
-  return { inline_keyboard: [[{ text: matn, web_app: { url } }]] };
+/** Tahlil natijasi ostidagi tugmalar. */
+export function natijaTugmalari() {
+  const qatorlar = [];
+  const toliq = appTugma('💡 To‘liq natija va tavsiya', '/app/?tab=natija');
+  const savatga = appTugma('🛒 Hammasini savatga', '/app/?tavsiya=1');
+  if (toliq)   qatorlar.push([toliq]);
+  if (savatga) qatorlar.push([savatga]);
+  qatorlar.push([
+    { text: '🔄 Qayta skanerlash', callback_data: 'skaner' },
+    { text: '💬 Konsultatsiya', callback_data: 'konsultatsiya' },
+  ]);
+  return { inline_keyboard: qatorlar };
 }
+
+export const ortga = () => ({ inline_keyboard: [[{ text: '⬅️ Menyu', callback_data: 'menyu' }]] });

@@ -59,6 +59,7 @@ $$('aside button[data-b]').forEach((b) => b.onclick = () => bolimOch(b.dataset.b
 // Bo'lim kaliti -> uni chizadigan funksiya. Kalit HTML dagi #b-<kalit> va
 // yon menyudagi data-b bilan bir xil.
 const BOLIMLAR = {
+  qollanma:  () => qollanma(),
   boshqaruv: () => boshqaruv(),
   buyurtma:  () => buyurtmalar(),
   mahsulot:  () => mahsulotlar(),
@@ -177,7 +178,8 @@ async function buyurtmalar(holat = '') {
         ${Object.entries(HOLATLAR).map(([k, [n]]) => `<option value="${k}" ${k === holat ? 'selected' : ''}>${n}</option>`).join('')}
       </select></div>
     <div class="karta"><div class="jad"><table>
-      <thead><tr><th>Raqam</th><th>Mijoz</th><th>Mahsulotlar</th><th class="ong">Summa</th><th>Holat</th><th></th></tr></thead>
+      <thead><tr><th>Raqam</th><th>Mijoz</th><th>Mahsulotlar</th><th class="ong">Summa</th>
+        <th>To‘lov</th><th>Holat</th><th></th></tr></thead>
       <tbody>${j.buyurtmalar.map((o) => {
         const [nom, sinf] = HOLATLAR[o.status] || [o.status, 'kul'];
         return `<tr>
@@ -187,16 +189,19 @@ async function buyurtmalar(holat = '') {
               <div class="mayda">${esc((o.customer_address || '').slice(0, 44))}</div></td>
           <td class="mayda">${o.items.map((i) => `${esc(i.name)} ×${i.qty}`).join('<br>')}</td>
           <td class="ong"><div class="kuchli">${narx(o.total)}</div>
-              <div class="mayda">foyda ${som(o.total - o.delivery_fee - o.cost_total)}</div></td>
+              ${o.discount ? `<div class="mayda">chegirma −${som(o.discount)}</div>` : ''}
+              <div class="mayda">foyda ${som(o.total - o.delivery_fee + o.discount - o.cost_total)}</div></td>
+          <td>${tolovKatak(o)}</td>
           <td><span class="yor ${sinf}">${nom}</span></td>
           <td class="ong">
             <select data-id="${o.id}" class="holat-tanla" style="width:auto;padding:4px 6px;font-size:12px">
               ${Object.entries(HOLATLAR).map(([k, [n]]) => `<option value="${k}" ${k === o.status ? 'selected' : ''}>${n}</option>`).join('')}
             </select></td>
-        </tr>`; }).join('') || `<tr><td colspan="6" class="bosh-holat">Buyurtma yo‘q</td></tr>`}
+        </tr>`; }).join('') || `<tr><td colspan="7" class="bosh-holat">Buyurtma yo‘q</td></tr>`}
       </tbody></table></div></div>`;
 
     $('#f-holat').onchange = (e) => buyurtmalar(e.target.value);
+    $$('[data-chek]', el).forEach((b) => b.onclick = () => chekOyna(b.dataset.chek, Number(b.dataset.oid)));
     $$('.holat-tanla', el).forEach((s) => s.onchange = async () => {
       const yangi = s.value;
       let sabab = null;
@@ -212,6 +217,45 @@ async function buyurtmalar(holat = '') {
       } catch (e) { alert(e.message); s.disabled = false; }
     });
   } catch (e) { xatoChiz(el, e); }
+}
+
+const TOLOV_YOR = {
+  kutilmoqda:      ['⏳ Kutilmoqda', 'sariq'],
+  chek_yuborilgan: ['📄 Chek keldi',  'kok'],
+  tolangan:        ['✅ To‘langan',   'yashil'],
+  naqd:            ['💵 Naqd',        'kul'],
+};
+
+function tolovKatak(o) {
+  const [nom, sinf] = TOLOV_YOR[o.payment_status] || ['—', 'kul'];
+  const chek = o.receipt_id
+    ? `<div style="margin-top:5px"><button class="tug kichik" data-chek="${o.receipt_id}" data-oid="${o.id}">📄 Chekni ko‘rish</button></div>`
+    : '';
+  return `<span class="yor ${sinf}">${nom}</span>${chek}`;
+}
+
+/** Chek rasmi + to'lovni tasdiqlash. */
+function chekOyna(mediaId, orderId) {
+  modal(`
+    <h2>To‘lov cheki</h2>
+    <img src="/media/${esc(mediaId)}?t=${encodeURIComponent(token)}" alt="Chek"
+         style="width:100%;border-radius:10px;margin-top:12px;background:var(--fon)">
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="tug asos" id="c-tasdiq" style="flex:1">✅ To‘lov tasdiqlandi</button>
+      <button class="tug" id="c-rad">↩︎ Qayta so‘rash</button>
+    </div>
+    <p class="mayda" style="margin-top:10px">
+      Tasdiqlasangiz mijozga botda xabar boradi. «Qayta so‘rash» — chek noto‘g‘ri bo‘lsa.</p>`);
+  $('#c-tasdiq').onclick = async () => {
+    await api('/api/admin/payment-status', { method: 'POST',
+      body: JSON.stringify({ id: orderId, payment_status: 'tolangan' }) });
+    modalYop(); buyurtmalar();
+  };
+  $('#c-rad').onclick = async () => {
+    await api('/api/admin/payment-status', { method: 'POST',
+      body: JSON.stringify({ id: orderId, payment_status: 'kutilmoqda' }) });
+    modalYop(); buyurtmalar();
+  };
 }
 
 // ================= 3. MAHSULOTLAR =================
@@ -452,217 +496,200 @@ async function sozlamalar() {
   const el = $('#b-sozlama');
   yuklanmoqda(el);
   try {
-    const j = await api('/api/admin/settings');
-    const s = j.settings;
+    const { settings: st } = await api('/api/admin/settings');
+    const matn = (k, z = '') => String(st[k] ?? z).replace(/^"|"$/g, '');
+    kesh.pogonalar = Array.isArray(st.chegirma_pogonalari) ? [...st.chegirma_pogonalari] : [];
+
     el.innerHTML = `
     <div class="bosh"><h1>Sozlamalar</h1></div>
-    <div class="karta" style="max-width:520px">
-      <label>Yetkazib berish narxi (so‘m)</label>
-      <input id="s-fee" type="number" value="${Number(s.delivery_fee) || 25000}">
-      <label>Qaysi summadan bepul yetkaziladi</label>
-      <input id="s-free" type="number" value="${Number(s.free_delivery_from) || 500000}">
-      <label>Menejer Telegram username (@ siz)</label>
-      <input id="s-man" value="${esc(String(s.manager_username || '').replace(/"/g, ''))}">
-      <div id="s-holat"></div>
-      <button class="tug asos" id="s-saqla" style="margin-top:16px">Saqlash</button>
+
+    <div class="karta" style="max-width:560px">
+      <div class="karta-bosh"><h2>🎁 Chegirma pog‘onalari</h2></div>
+      <p class="mayda" style="margin:0 0 12px">
+        Savat summasi ko‘rsatilgan chegaradan oshsa, mijoz shu chegirmani oladi.
+        Bir nechta pog‘ona mos kelsa — eng kattasi qo‘llanadi.</p>
+      <div id="pogonalar"></div>
+      <button class="tug" id="p-qosh" style="margin-top:10px">+ Pog‘ona qo‘shish</button>
+      <div id="p-namuna" class="mayda" style="margin-top:12px"></div>
     </div>
-    <div class="karta" style="max-width:520px">
-      <h3>Xavfsizlik</h3>
+
+    <div class="karta" style="max-width:560px">
+      <div class="karta-bosh"><h2>💳 To‘lov kartasi</h2></div>
+      <p class="mayda" style="margin:0 0 10px">Mijoz «Kartaga o‘tkazma» ni tanlaganda shu raqam chiqadi.</p>
+      <label>Karta raqami</label>
+      <input id="s-karta" value="${esc(matn('karta_raqami'))}" placeholder="8600 0000 0000 0000">
+      <label>Karta egasining ismi</label>
+      <input id="s-egasi" value="${esc(matn('karta_egasi'))}" placeholder="ALIYEV ALI">
+    </div>
+
+    <div class="karta" style="max-width:560px">
+      <div class="karta-bosh"><h2>🚚 Yetkazib berish</h2></div>
+      <label>Yetkazib berish narxi (so‘m)</label>
+      <input id="s-fee" type="number" value="${Number(st.delivery_fee) || 25000}">
+      <label>Qaysi summadan bepul</label>
+      <input id="s-free" type="number" value="${Number(st.free_delivery_from) || 500000}">
+    </div>
+
+    <div class="karta" style="max-width:560px">
+      <div class="karta-bosh"><h2>💬 Konsultatsiya</h2></div>
+      <label>Menejer Telegram username (@ siz)</label>
+      <input id="s-konsult" value="${esc(matn('konsultatsiya_user'))}" placeholder="qoraqosh_admin">
       <p class="mayda" style="margin-top:8px">
-        Admin login va parol muhit o‘zgaruvchilarida (Railway → Variables) saqlanadi:
-        <code>ADMIN_LOGIN</code>, <code>ADMIN_PASSWORD</code>, <code>ADMIN_JWT_SECRET</code>.
-        Ularni o‘zgartirish uchun Railway’da qiymatni yangilang va servisni qayta ishga tushiring.
-        Sessiya 8 soatdan keyin avtomatik tugaydi.
-      </p>
+        Botdagi va ilovadagi «Konsultatsiya» tugmasi shu hisobga olib boradi.</p>
+    </div>
+
+    <div style="max-width:560px">
+      <div id="s-holat"></div>
+      <button class="tug asos" id="s-saqla" style="margin-top:6px;width:100%">Barcha sozlamalarni saqlash</button>
     </div>`;
 
-    $('#s-saqla').onclick = async () => {
-      const holat = $('#s-holat');
-      try {
-        await api('/api/admin/settings', { method: 'POST', body: JSON.stringify({ settings: {
-          delivery_fee: Number($('#s-fee').value) || 0,
-          free_delivery_from: Number($('#s-free').value) || 0,
-          manager_username: $('#s-man').value.trim(),
-        }})});
-        holat.innerHTML = `<div class="ok">✓ Saqlandi</div>`;
-      } catch (e) { holat.innerHTML = `<div class="xato">${esc(e.message)}</div>`; }
-    };
+    pogonalarniChiz();
+    $('#p-qosh').onclick = () => { kesh.pogonalar.push({ dan: 0, chegirma: 0 }); pogonalarniChiz(); };
+    $('#s-saqla').onclick = sozlamalarniSaqla;
   } catch (e) { xatoChiz(el, e); }
 }
 
-// ================= POSTER USTASI =================
-// Uch qadam: rasm -> AI g'oyalari -> chizilgan poster.
-// Admin hech qanday "prompt" yozmaydi, faqat g'oyani tanlaydi.
-
-const USLUB_NOM = {
-  'muammo-yechim': 'Muammo va yechim',
-  minimalist:      'Minimalist',
-  tabiiy:          'Tabiiy',
-  klinik:          'Klinik',
-  lifestyle:       'Hayotiy',
-  aksiya:          'Aksiya',
-};
-const USLUB_RANG = {
-  'muammo-yechim': 'qizil', minimalist: 'kul', tabiiy: 'yashil',
-  klinik: 'kok', lifestyle: 'sariq', aksiya: 'qizil',
-};
-
-let poster = { mahsulot: null, rasm: null, goyalar: [], nisbatlar: {} };
-
-async function posterOyna(m) {
-  poster = { mahsulot: m, rasm: null, goyalar: [], nisbatlar: {} };
-  modal(`
-    <div class="karta-bosh"><h2>Reklama posteri</h2>
-      <span class="mayda">${esc(m.brand || '')} ${esc(m.name)}</span></div>
-    <div id="p-tan"></div>`);
-  await posterGalereya();
-}
-
-async function posterGalereya() {
-  const el = $('#p-tan');
-  el.innerHTML = `
-    <div class="tushirish" id="p-yukla">
-      <div style="font-size:26px">📷</div>
-      <div style="margin-top:6px"><b>Mahsulot rasmini yuklang</b></div>
-      <div class="mayda" style="margin-top:4px">Qadoq, etiketka yoki do'kon skrinshoti —
-        AI shu asosda bir necha poster g'oyasini taklif qiladi</div>
-    </div>
-    <input type="file" id="p-fayl" accept="image/*" hidden>
-    <div id="p-galereya" style="margin-top:16px"></div>`;
-
-  $('#p-yukla').onclick = () => $('#p-fayl').click();
-  $('#p-fayl').onchange = async (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    poster.rasm = await kichiklashtir(f, 1024);
-    goyalarniOl();
-  };
-
-  try {
-    const j = await api(`/api/admin/posters?product_id=${poster.mahsulot.id}`);
-    const g = $('#p-galereya');
-    if (!j.posterlar.length) { g.innerHTML = ''; return; }
-    g.innerHTML = `<h3 style="margin-bottom:8px">Tayyor posterlar</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">
-        ${j.posterlar.map((p) => `
-          <div style="border:2px solid ${p.tanlangan ? 'var(--urgu)' : 'var(--chiziq)'};border-radius:10px;overflow:hidden">
-            <img src="${p.url}" alt="${esc(p.goya || '')}" style="width:100%;display:block;aspect-ratio:1;object-fit:cover">
-            <div style="padding:7px">
-              <div class="mayda" style="min-height:28px">${esc(p.goya || '')}</div>
-              <div class="mayda">${p.nisbat} · ${Math.round(p.hajm / 1024)} KB</div>
-              <div style="display:flex;gap:4px;margin-top:6px">
-                <button class="tug kichik" data-ishlat="${p.id}" style="flex:1" ${p.tanlangan ? 'disabled' : ''}>
-                  ${p.tanlangan ? '✓ Faol' : 'Tanlash'}</button>
-                <button class="tug kichik" data-ochir="${p.id}">🗑</button>
-              </div>
-            </div>
-          </div>`).join('')}
-      </div>`;
-
-    $$('[data-ishlat]', g).forEach((b) => b.onclick = async () => {
-      await api('/api/admin/poster-select', { method: 'POST',
-        body: JSON.stringify({ product_id: poster.mahsulot.id, poster_id: b.dataset.ishlat }) });
-      posterGalereya();
-    });
-    $$('[data-ochir]', g).forEach((b) => b.onclick = async () => {
-      if (!confirm('Posterni o‘chirasizmi?')) return;
-      await api('/api/admin/poster', { method: 'DELETE', body: JSON.stringify({ id: b.dataset.ochir }) });
-      posterGalereya();
-    });
-  } catch { /* galereya ixtiyoriy */ }
-}
-
-async function goyalarniOl() {
-  const el = $('#p-tan');
-  el.innerHTML = `<div class="bosh-holat"><div class="aylana"></div>
-    <div style="margin-top:10px">AI mahsulotni ko‘rib, poster g‘oyalarini tayyorlamoqda…</div></div>`;
-  try {
-    const m = poster.mahsulot;
-    const j = await api('/api/admin/poster-ideas', { method: 'POST', body: JSON.stringify({
-      image: poster.rasm,
-      mahsulot: { name: m.name, brand: m.brand, description: m.description,
-                  concerns: m.concerns, skin_types: m.skin_types, actives: m.actives },
-    })});
-    poster.goyalar = j.goyalar;
-    poster.nisbatlar = j.nisbatlar;
-    goyalarniChiz();
-  } catch (e) {
-    el.innerHTML = `<div class="xato">${esc(e.message)}</div>
-      <button class="tug" id="p-qayta" style="margin-top:12px">Qayta urinish</button>`;
-    $('#p-qayta').onclick = posterGalereya;
+function pogonalarniChiz() {
+  const el = $('#pogonalar');
+  if (!kesh.pogonalar.length) {
+    el.innerHTML = `<p class="mayda">Pog‘ona yo‘q — chegirma berilmaydi.</p>`;
+  } else {
+    el.innerHTML = kesh.pogonalar.map((p, i) => `
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px">
+        <div style="flex:1"><label style="margin-top:0">Summa shundan oshsa</label>
+          <input type="number" data-dan="${i}" value="${Number(p.dan) || 0}"></div>
+        <div style="flex:1"><label style="margin-top:0">Chegirma (so‘m)</label>
+          <input type="number" data-ch="${i}" value="${Number(p.chegirma) || 0}"></div>
+        <button class="tug kichik" data-och="${i}" style="height:38px">🗑</button>
+      </div>`).join('');
   }
+  $$('[data-dan]', el).forEach((i) => i.oninput = () => {
+    kesh.pogonalar[Number(i.dataset.dan)].dan = Number(i.value) || 0; namunaChiz(); });
+  $$('[data-ch]', el).forEach((i) => i.oninput = () => {
+    kesh.pogonalar[Number(i.dataset.ch)].chegirma = Number(i.value) || 0; namunaChiz(); });
+  $$('[data-och]', el).forEach((b) => b.onclick = () => {
+    kesh.pogonalar.splice(Number(b.dataset.och), 1); pogonalarniChiz(); });
+  namunaChiz();
 }
 
-function goyalarniChiz() {
-  const el = $('#p-tan');
-  el.innerHTML = `
-    <img src="${poster.rasm}" alt="" style="width:100px;border-radius:8px;float:right;margin-left:12px">
-    <p class="mayda">AI ${poster.goyalar.length} ta g‘oya taklif qildi. Birini tanlang —
-       poster shu asosda chiziladi.</p>
-    <div style="clear:both">
-      ${poster.goyalar.map((g, i) => `
-        <div class="karta" style="cursor:pointer;margin:10px 0" data-goya="${i}">
-          <div class="karta-bosh" style="margin-bottom:6px">
-            <h3>${esc(g.sarlavha)}</h3>
-            <span class="yor ${USLUB_RANG[g.uslub] || 'kul'}">${esc(USLUB_NOM[g.uslub] || g.uslub)}</span>
-          </div>
-          <p class="mayda" style="margin:0 0 8px">${esc(g.tavsif)}</p>
-          <div style="background:var(--fon);border-radius:8px;padding:10px;margin-bottom:8px">
-            <div style="font-weight:700;font-size:15px">${esc(g.matn_bosh)}</div>
-            <div class="mayda">${esc(g.matn_qosh)}</div>
-          </div>
-          <div class="mayda">👥 ${esc(g.kimga)}</div>
-          <div class="mayda">📐 ${g.nisbat} — ${esc(poster.nisbatlar[g.nisbat]?.joy || '')}</div>
-          <button class="tug asos kichik" style="margin-top:10px;width:100%">Shu g‘oyani chizish</button>
-        </div>`).join('')}
-    </div>
-    <button class="tug" id="p-boshqa" style="width:100%">↺ Boshqa rasm yuklash</button>`;
-
-  $$('[data-goya]', el).forEach((k) => k.onclick = () => posterniChiz(poster.goyalar[Number(k.dataset.goya)]));
-  $('#p-boshqa').onclick = posterGalereya;
+/** Sozlamani odam tilida ko'rsatadi — xato qo'yishning oldini oladi. */
+function namunaChiz() {
+  const el = $('#p-namuna');
+  if (!el) return;
+  const p = [...kesh.pogonalar].filter((x) => x.dan > 0 && x.chegirma > 0).sort((a, b) => a.dan - b.dan);
+  if (!p.length) { el.innerHTML = ''; return; }
+  const sinov = [200000, 350000, 550000, 800000];
+  el.innerHTML = `<b>Qanday ishlaydi:</b><br>` + p.map((x) =>
+    `• ${som(x.dan)} so‘mdan yuqori savdoga <b>${som(x.chegirma)} so‘m</b> chegirma`).join('<br>') +
+    `<br><br><b>Misol:</b> ` + sinov.map((sum) => {
+      const ch = p.reduce((m, x) => (sum >= x.dan ? Math.max(m, x.chegirma) : m), 0);
+      return `${som(sum)} → ${ch ? `−${som(ch)}` : 'chegirmasiz'}`;
+    }).join(' · ');
 }
 
-async function posterniChiz(goya) {
-  const el = $('#p-tan');
-  el.innerHTML = `<div class="bosh-holat"><div class="aylana"></div>
-    <div style="margin-top:10px"><b>${esc(goya.sarlavha)}</b> chizilmoqda…</div>
-    <div class="mayda" style="margin-top:4px">Bu 15–40 soniya olishi mumkin</div></div>`;
-  try {
-    const j = await api('/api/admin/poster-generate', { method: 'POST', body: JSON.stringify({
-      image: poster.rasm, prompt: goya.prompt, nisbat: goya.nisbat,
-      matn_bosh: goya.matn_bosh, matn_qosh: goya.matn_qosh,
-      goya: goya.sarlavha, product_id: poster.mahsulot.id,
-    })});
-    el.innerHTML = `
-      <img src="${j.poster.url}" alt="${esc(goya.sarlavha)}"
-           style="width:100%;border-radius:12px;display:block">
-      <div class="karta" style="margin-top:12px">
-        <div style="display:flex;justify-content:space-between;padding:6px 0">
-          <span class="mayda">G‘oya</span><span>${esc(goya.sarlavha)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0">
-          <span class="mayda">O‘lcham</span><span>${j.poster.nisbat} · ${poster.nisbatlar[j.poster.nisbat]?.px || ''}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0">
-          <span class="mayda">Hajmi</span><span>${Math.round(j.poster.hajm / 1024)} KB</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0">
-          <span class="mayda">Qayerga mos</span><span>${esc(poster.nisbatlar[j.poster.nisbat]?.joy || '')}</span></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="tug asos" id="p-ishlat" style="flex:1">Katalogda ishlatish</button>
-        <a class="tug" href="${j.poster.url}" download="poster.png" style="text-decoration:none">⬇︎</a>
-      </div>
-      <button class="tug" id="p-yana" style="width:100%;margin-top:8px">← Boshqa g‘oyani sinash</button>`;
+async function sozlamalarniSaqla() {
+  const holat = $('#s-holat');
+  const pogonalar = kesh.pogonalar
+    .filter((p) => Number(p.dan) > 0 && Number(p.chegirma) > 0)
+    .map((p) => ({ dan: Number(p.dan), chegirma: Number(p.chegirma) }))
+    .sort((a, b) => a.dan - b.dan);
 
-    $('#p-ishlat').onclick = async () => {
-      await api('/api/admin/poster-select', { method: 'POST',
-        body: JSON.stringify({ product_id: poster.mahsulot.id, poster_id: j.poster.id }) });
-      modalYop(); mahsulotlar();
-    };
-    $('#p-yana').onclick = goyalarniChiz;
-  } catch (e) {
-    el.innerHTML = `<div class="xato">${esc(e.message)}</div>
-      <button class="tug" id="p-yana" style="width:100%;margin-top:12px">← G‘oyalarga qaytish</button>`;
-    $('#p-yana').onclick = goyalarniChiz;
+  // Mantiqiy xato: kattaroq savdoga kichikroq chegirma
+  for (let i = 1; i < pogonalar.length; i++) {
+    if (pogonalar[i].chegirma < pogonalar[i - 1].chegirma) {
+      holat.innerHTML = `<div class="xato">${som(pogonalar[i].dan)} so‘mlik pog‘onada chegirma
+        oldingisidan kam. Kattaroq savdoga kattaroq chegirma bo‘lishi kerak.</div>`;
+      return;
+    }
   }
+  try {
+    await api('/api/admin/settings', { method: 'POST', body: JSON.stringify({ settings: {
+      chegirma_pogonalari: pogonalar,
+      karta_raqami:       $('#s-karta').value.trim(),
+      karta_egasi:        $('#s-egasi').value.trim(),
+      delivery_fee:       Number($('#s-fee').value) || 0,
+      free_delivery_from: Number($('#s-free').value) || 0,
+      konsultatsiya_user: $('#s-konsult').value.trim().replace(/^@/, ''),
+    }})});
+    holat.innerHTML = `<div class="ok">✓ Saqlandi — o‘zgarish darhol kuchga kirdi</div>`;
+  } catch (e) { holat.innerHTML = `<div class="xato">${esc(e.message)}</div>`; }
+}
+
+// ================= 7. QO'LLANMA =================
+function qollanma() {
+  const el = $('#b-qollanma');
+  el.innerHTML = `
+  <div class="bosh"><h1>Qanday ishlataman</h1></div>
+
+  <div class="karta" style="max-width:720px">
+    <h2>🚀 Birinchi kun: nimadan boshlash</h2>
+    <ol style="padding-left:20px;line-height:1.9;margin:12px 0 0">
+      <li><b>Sozlamalar</b> → karta raqami, yetkazib berish narxi va menejer username’ini kiriting.</li>
+      <li><b>Mahsulotlar</b> → katalogdagi 28 ta mahsulotning <b>narx va tannarxini</b> o‘zingiznikiga moslang.
+        Tannarxsiz foyda hisoblanmaydi.</li>
+      <li>Har mahsulotning <b>ombor</b> sonini kiriting — 0 bo‘lsa mijoz sotib ololmaydi.</li>
+      <li><b>Sozlamalar</b> → chegirma pog‘onalarini qo‘ying (masalan 300 000 dan 15 000).</li>
+    </ol>
+  </div>
+
+  <div class="karta" style="max-width:720px">
+    <h2>📦 Har kuni: buyurtmalar</h2>
+    <p class="mayda">Yangi buyurtma kelganda <b>Buyurtmalar</b> bo‘limida <span class="yor kok">🆕 Yangi</span> bo‘lib turadi.</p>
+    <ol style="padding-left:20px;line-height:1.9">
+      <li>Mijozning telefoni va manzilini tekshiring.</li>
+      <li>Karta bilan to‘lagan bo‘lsa — <b>📄 Chekni ko‘rish</b> tugmasi chiqadi.
+        Chekni ochib, summani solishtiring va <b>✅ To‘lov tasdiqlandi</b> ni bosing
+        (mijozga botda avtomatik xabar boradi).</li>
+      <li>Holatni ketma-ket o‘zgartiring:
+        <b>Tasdiqlangan → Yo‘lda → Yetkazildi</b>. Har o‘zgarishda mijozga xabar boradi.</li>
+      <li><b>Bekor</b> qilsangiz — sabab so‘raladi va mahsulotlar omborga qaytadi.</li>
+    </ol>
+  </div>
+
+  <div class="karta" style="max-width:720px">
+    <h2>🛍 Mahsulot qo‘shish</h2>
+    <p class="mayda">Ikki yo‘l bor:</p>
+    <ul style="padding-left:20px;line-height:1.9">
+      <li><b>📷 Skrinshotdan</b> — mahsulot qadog‘i yoki do‘kon skrinshotini yuklaysiz,
+        AI nomi, tarkibi va qanday foydalanishni o‘zi to‘ldiradi. Siz faqat
+        <b>narx, tannarx va ombor</b> ni qo‘yasiz.</li>
+      <li><b>Qo‘lda</b> — barcha maydonni o‘zingiz to‘ldirasiz.</li>
+    </ul>
+    <p class="mayda"><b>Muhim:</b> «Parvarish bosqichi» ni to‘g‘ri tanlang —
+      AI tavsiya berayotganda mahsulotni shu bo‘yicha tartibga soladi.
+      «Qaysi muammoga yordam beradi» esa qidiruvda ishlaydi.</p>
+  </div>
+
+  <div class="karta" style="max-width:720px">
+    <h2>📢 Reklama posteri</h2>
+    <p class="mayda">Mahsulot yonidagi <b>📢</b> tugmasi:
+      rasm yuklaysiz → AI 4 ta g‘oya beradi → bittasini tanlaysiz → poster chiziladi →
+      «Katalogda ishlatish» bossangiz, u mahsulot rasmi bo‘lib chiqadi.</p>
+  </div>
+
+  <div class="karta" style="max-width:720px">
+    <h2>📊 Raqamlarni qanday o‘qish</h2>
+    <ul style="padding-left:20px;line-height:1.9">
+      <li><b>Yalpi foyda</b> = daromad − tannarx. Kuryer va reklama bu yerga kirmaydi.</li>
+      <li><b>Marja</b> 35% dan past bo‘lsa — narx past yoki tannarx yuqori.</li>
+      <li><b>Voronka</b> — qayerda odam yo‘qotayotganingizni ko‘rsatadi.
+        Masalan skaner ko‘p, buyurtma kam bo‘lsa — narx yoki ishonch muammosi.</li>
+      <li><b>Daromad prognozi</b> — yo‘ldagi buyurtmalarning qanchasi haqiqatda
+        yetkaziladi degan tarixiy ulushga asoslangan taxmin, kafolat emas.</li>
+      <li><b>Ombor qiymati</b> — omborda turgan pulingiz (tannarx bo‘yicha).</li>
+    </ul>
+  </div>
+
+  <div class="karta" style="max-width:720px">
+    <h2>🔐 Xavfsizlik</h2>
+    <p class="mayda">
+      Login va parol Railway → Variables ichida (<code>ADMIN_LOGIN</code>,
+      <code>ADMIN_PASSWORD</code>, <code>ADMIN_JWT_SECRET</code>). O‘zgartirish uchun
+      Railway’da qiymatni yangilang va servisni qayta ishga tushiring.
+      Sessiya 8 soatdan keyin avtomatik tugaydi. Parolni 5 marta xato kiritishga
+      urinilsa, 15 daqiqaga bloklanadi.
+    </p>
+  </div>`;
 }
 
 // ================= Modal =================

@@ -20,6 +20,7 @@ import { tg } from './bot/tg.js';
 import { ofertaSahifasi } from './lib/oferta.js';
 import { migratsiyalarniQoll } from './db/migrate.js';
 import { qator, ulanishniTekshir } from './db.js';
+import { verifyAdminToken } from './lib/auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -47,13 +48,19 @@ const server = http.createServer(async (req, res) => {
 
     if (yol === '/healthz') return ok(res, { ok: true, vaqt: new Date().toISOString() });
 
-    // ---------- Rasm (poster) ----------
-    // Bazadan beriladi; alohida saqlash xizmati kerak emas.
+    // ---------- Rasm ----------
+    // Posterlar ochiq; CHEKLAR faqat admin tokeni bilan — ular mijozning
+    // to'lov hujjati, uni havolani bilgan har kim ko'rmasligi kerak.
     if (yol.startsWith('/media/')) {
       const id = yol.slice(7);
       if (!/^[0-9a-f-]{36}$/i.test(id)) return notFound(res);
-      const m = await qator('select mime, bayt from media where id = $1', [id]);
+      const m = await qator('select mime, bayt, tur from media where id = $1', [id]);
       if (!m) return notFound(res);
+      if (m.tur === 'chek') {
+        const token = (url.searchParams.get('t') || '').trim() ||
+                      (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+        if (!verifyAdminToken(token)) return xato(res, 403, 'Ruxsat yo‘q');
+      }
       res.writeHead(200, {
         'Content-Type': m.mime,
         'Content-Length': m.bayt.length,
