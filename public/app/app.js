@@ -55,6 +55,7 @@ async function boshla() {
   }
 
   kor($('#ilova'), true);
+  kor($('#skaner-chaqiriq'), true);
   kategoriyalarniChiz();
   mahsulotlarniChiz();
   await savatniYangila();
@@ -117,12 +118,20 @@ function saralangan() {
   );
 }
 
+/** Mahsulot rasmi: admin poster yasagan bo'lsa o'sha, bo'lmasa gradient + emoji. */
+function rasmHtml(p, uslub = '') {
+  const fon = `background:linear-gradient(135deg,${esc(p.gradient?.[0] || '#333')},${esc(p.gradient?.[1] || '#666')})`;
+  return p.poster_id
+    ? `<div class="rasm" style="${uslub}"><img src="/media/${esc(p.poster_id)}" alt="${esc(p.name)}" loading="lazy"></div>`
+    : `<div class="rasm" style="${fon};${uslub}">${esc(p.emoji || '🧴')}</div>`;
+}
+
 function mahsulotlarniChiz() {
   const royxat = saralangan();
   kor($('#katalog-bosh'), royxat.length === 0);
   $('#mahsulotlar').innerHTML = royxat.map((p) => `
     <div class="mahsulot" data-id="${p.id}">
-      <div class="rasm" style="background:linear-gradient(135deg,${esc(p.gradient?.[0] || '#333')},${esc(p.gradient?.[1] || '#666')})">${esc(p.emoji || '🧴')}</div>
+      ${rasmHtml(p)}
       <div class="tan">
         <div class="brend">${esc(p.brand || '')}</div>
         <div class="nom">${esc(p.name)}</div>
@@ -141,9 +150,8 @@ function mahsulotOyna(id) {
   if (!p) return;
   titra();
   $('#modal-tan').innerHTML = `
-    <div class="rasm" style="height:120px;border-radius:12px;display:grid;place-items:center;font-size:46px;
-         background:linear-gradient(135deg,${esc(p.gradient?.[0] || '#333')},${esc(p.gradient?.[1] || '#666')})">${esc(p.emoji || '🧴')}</div>
-    <div style="margin-top:14px">
+    ${rasmHtml(p, 'aspect-ratio:16/10;border-radius:12px;font-size:52px;overflow:hidden')}
+    <div style="margin-top:16px">
       <div class="brend" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--och-kul)">${esc(p.brand || '')}</div>
       <h2 style="margin:4px 0 8px">${esc(p.name)}</h2>
       <div style="font-size:19px;font-weight:600">${narx(p.price)}</div>
@@ -151,9 +159,9 @@ function mahsulotOyna(id) {
     ${p.description ? `<p style="margin-top:12px;color:var(--kul)">${esc(p.description)}</p>` : ''}
     <div class="karta" style="margin-top:14px;box-shadow:none">
       ${p.volume ? qator('Hajm', esc(p.volume)) : ''}
-      ${p.country ? qator('Ishlab chiqarilgan', esc(p.country === 'KR' ? '🇰🇷 Koreya' : p.country)) : ''}
+      ${p.country ? qator('Ishlab chiqarilgan', esc(p.country === 'KR' ? 'Koreya 🇰🇷' : p.country)) : ''}
       ${p.skin_types?.length ? qator('Teri turi', p.skin_types.map(esc).join(', ')) : ''}
-      ${p.concerns?.length ? qator('Nimaga yordam beradi', p.concerns.map(esc).join(', ')) : ''}
+      ${p.concerns?.length ? qator('Yordam beradi', p.concerns.map(esc).join(', ')) : ''}
       ${qator('Omborda', p.stock > 0 ? `${p.stock} dona` : '<span style="color:var(--qizil)">yo‘q</span>')}
     </div>
     ${p.usage_text ? `<div class="karta" style="box-shadow:none"><h3>📖 Qanday foydalanish</h3><p style="margin:0;color:var(--kul)">${esc(p.usage_text)}</p></div>` : ''}
@@ -571,6 +579,7 @@ function tabOch(nom) {
   window.scrollTo({ top: 0 });
 }
 $$('.menyu button').forEach((b) => b.onclick = () => { tabOch(b.dataset.tab); titra(); });
+$('#skaner-chaqiriq').onclick = () => { tabOch('skaner'); titra('medium'); };
 
 boshla();
 })();

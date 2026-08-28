@@ -1,5 +1,5 @@
 // Ro'yxatdan o'tish: telefon -> ism -> yosh -> manzil -> shartnoma roziligi.
-import { db, q, logEvent } from '../../db.js';
+import { qator, sorov, hodisa } from '../../db.js';
 import { config } from '../../config.js';
 import { yubor } from '../tg.js';
 import { esc, royxat } from '../format.js';
@@ -15,12 +15,7 @@ export const HOLAT = {
 
 export const royxatdanOtganmi = (u) => Boolean(u?.phone && u?.full_name && u?.agreed_at);
 
-async function holat(userId, state, data) {
-  await q(db.from('users').update({
-    state,
-    ...(data !== undefined ? { state_data: data } : {}),
-  }).eq('id', userId), 'holatni saqlash');
-}
+const holat = (userId, state) => sorov('update users set state = $1 where id = $2', [state, userId]);
 
 export async function boshla(chatId, user) {
   await yubor(chatId,
@@ -35,8 +30,8 @@ export async function boshla(chatId, user) {
       `<b>1/4.</b> Telefon raqamingizni ulashing 👇`,
     ].join('\n'),
     { reply_markup: telefonSora() });
-  await holat(user.id, HOLAT.TELEFON, {});
-  await logEvent(user.id, 'start');
+  await holat(user.id, HOLAT.TELEFON);
+  await hodisa(user.id, 'start');
 }
 
 /** Ro'yxatdan o'tish bosqichlarini boshqaradi. @returns {boolean} qayta ishlandimi */
@@ -62,7 +57,7 @@ export async function qadam(msg, user) {
         return true;
       }
       if (!tel.startsWith('+')) tel = '+' + tel;
-      await q(db.from('users').update({ phone: tel, state: HOLAT.ISM }).eq('id', user.id), 'telefon');
+      await sorov('update users set phone=$1, state=$2 where id=$3', [tel, HOLAT.ISM, user.id]);
       await yubor(chatId, `✅ Raqam saqlandi: <code>${esc(tel)}</code>\n\n<b>2/4.</b> Ism-familiyangizni yozing.`,
         { reply_markup: { remove_keyboard: true } });
       return true;
@@ -73,7 +68,7 @@ export async function qadam(msg, user) {
         await yubor(chatId, "Ism-familiyangizni to‘liqroq yozing (masalan: <i>Aliyeva Malika</i>).");
         return true;
       }
-      await q(db.from('users').update({ full_name: matn, state: HOLAT.YOSH }).eq('id', user.id), 'ism');
+      await sorov('update users set full_name=$1, state=$2 where id=$3', [matn, HOLAT.YOSH, user.id]);
       await yubor(chatId, `✅ Xush kelibsiz, <b>${esc(matn.split(' ')[0])}</b>!\n\n<b>3/4.</b> Yoshingizni raqam bilan yozing (masalan: <code>24</code>).`);
       return true;
     }
@@ -84,7 +79,7 @@ export async function qadam(msg, user) {
         await yubor(chatId, "Yoshni 12 dan 90 gacha raqam bilan yozing.");
         return true;
       }
-      await q(db.from('users').update({ age: yosh, state: HOLAT.MANZIL }).eq('id', user.id), 'yosh');
+      await sorov('update users set age=$1, state=$2 where id=$3', [yosh, HOLAT.MANZIL, user.id]);
       await yubor(chatId,
         `<b>4/4.</b> Yetkazib berish manzilingizni yozing.\n\n<i>Masalan: Toshkent sh., Chilonzor tumani, 5-mavze, 12-uy, 34-xonadon</i>`);
       return true;
@@ -95,9 +90,9 @@ export async function qadam(msg, user) {
         await yubor(chatId, "Manzilni to‘liqroq yozing — kuryer topa olishi kerak (shahar, tuman, ko‘cha, uy).");
         return true;
       }
-      await q(db.from('users').update({ address: matn, state: HOLAT.SHARTNOMA }).eq('id', user.id), 'manzil');
+      await sorov('update users set address=$1, state=$2 where id=$3', [matn, HOLAT.SHARTNOMA, user.id]);
 
-      const yangilangan = await q(db.from('users').select('*').eq('id', user.id).single(), 'user');
+      const yangilangan = await qator('select * from users where id = $1', [user.id]);
       await yubor(chatId,
         [
           `📋 <b>Ma’lumotlaringiz</b>`,
@@ -125,12 +120,10 @@ export async function qadam(msg, user) {
 
 /** «Barchasiga roziman» tugmasi. */
 export async function roziBol(chatId, user) {
-  await q(db.from('users').update({
-    agreed_at: new Date().toISOString(),
-    agreement_version: config.agreementVersion,
-    state: null,
-  }).eq('id', user.id), 'rozilik');
-  await logEvent(user.id, 'register');
+  await sorov(
+    'update users set agreed_at = now(), agreement_version = $1, state = null where id = $2',
+    [config.agreementVersion, user.id]);
+  await hodisa(user.id, 'register');
 
   await yubor(chatId,
     [

@@ -1,15 +1,15 @@
 // Admin API. Kirish: login/parol -> muddati cheklangan token (8 soat).
-// Default parol YO'Q — config.js kalitlarsiz serverni ishga tushirmaydi.
-import { db, q, setting } from '../db.js';
+import { qator, qatorlar, sorov, qiymat } from '../db.js';
 import { config } from '../config.js';
 import { issueAdminToken, verifyAdminToken, loginBloklanganmi, loginXato, loginTozala } from '../lib/auth.js';
 import { ok, xato, tana, ipOl } from '../lib/http.js';
 import { mahsulotniTani } from '../ai/productEnrich.js';
+import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
 import { yubor } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
 
-const kun = (d) => new Date(d).toISOString().slice(0, 10);
 const kunlarOldin = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString(); };
+const HOLATLAR = ['yangi', 'tasdiqlangan', 'yolda', 'yetkazildi', 'bekor'];
 
 export async function adminRoutes(req, res, yol) {
   // ---------- Kirish ----------
@@ -25,65 +25,58 @@ export async function adminRoutes(req, res, yol) {
     return xato(res, 401, 'Login yoki parol noto‘g‘ri.');
   }
 
-  // ---------- Bundan keyingi hammasi token talab qiladi ----------
   const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!verifyAdminToken(token)) return xato(res, 401, 'Sessiya tugagan. Qayta kiring.');
 
-  // ================= BOSHQARUV PANELI =================
-  if (yol === '/api/admin/dashboard' && req.method === 'GET') {
-    return ok(res, await boshqaruvPaneli());
-  }
+  // ================= BOSHQARUV =================
+  if (yol === '/api/admin/dashboard' && req.method === 'GET') return ok(res, await boshqaruvPaneli());
 
   // ================= BUYURTMALAR =================
   if (yol === '/api/admin/orders' && req.method === 'GET') {
     const url = new URL(req.url, 'http://x');
-    let s = db.from('orders')
-      .select('*, users(telegram_id,username,full_name)')
-      .order('created_at', { ascending: false }).limit(Number(url.searchParams.get('limit')) || 100);
     const holat = url.searchParams.get('status');
-    if (holat) s = s.eq('status', holat);
-    return ok(res, { buyurtmalar: await q(s, 'buyurtmalar') });
+    const limit = Math.min(500, Number(url.searchParams.get('limit')) || 100);
+    return ok(res, {
+      buyurtmalar: await qatorlar(
+        `select o.*, u.telegram_id, u.username
+           from orders o join users u on u.id = o.user_id
+          ${holat ? 'where o.status = $2' : ''}
+          order by o.created_at desc limit $1`,
+        holat ? [limit, holat] : [limit]),
+    });
   }
 
   if (yol === '/api/admin/order-status' && req.method === 'POST') {
     const b = await tana(req);
-    const yangi = String(b.status || '');
-    if (!['yangi','tasdiqlangan','yolda','yetkazildi','bekor'].includes(yangi)) {
-      return xato(res, 400, 'Noto‘g‘ri holat.');
-    }
-    const eski = await q(db.from('orders').select('*, users(telegram_id)').eq('id', b.id).single(), 'buyurtma');
+    if (!HOLATLAR.includes(String(b.status))) return xato(res, 400, 'Noto‘g‘ri holat.');
+    const eski = await qator(
+      `select o.*, u.telegram_id from orders o join users u on u.id=o.user_id where o.id=$1`, [b.id]);
+    if (!eski) return xato(res, 404, 'Buyurtma topilmadi.');
 
-    // Bekor qilinsa ombor qaytadi (faqat bir marta)
-    if (yangi === 'bekor' && eski.status !== 'bekor') {
-      await db.rpc('restock_order', { p_order_id: Number(b.id) });
-    }
-    await q(db.from('orders').update({
-      status: yangi,
-      cancel_reason: yangi === 'bekor' ? String(b.reason || '').slice(0, 200) : null,
-      updated_at: new Date().toISOString(),
-    }).eq('id', b.id), 'holat');
+    if (b.status === 'bekor' && eski.status !== 'bekor') await sorov('select restock_order($1)', [b.id]);
 
-    mijozgaXabar(eski, yangi, b.reason).catch(() => {});
+    await sorov(
+      `update orders set status=$1, cancel_reason=$2, updated_at=now() where id=$3`,
+      [b.status, b.status === 'bekor' ? String(b.reason || '').slice(0, 200) : null, b.id]);
+
+    mijozgaXabar(eski, b.status, b.reason).catch(() => {});
     return ok(res, { ok: true });
   }
 
   // ================= MAHSULOTLAR =================
   if (yol === '/api/admin/products' && req.method === 'GET') {
-    const [mahsulotlar, kategoriyalar] = await Promise.all([
-      q(db.from('products').select('*').order('id', { ascending: false }).limit(2000), 'mahsulotlar'),
-      q(db.from('categories').select('*').order('sort'), 'kategoriyalar'),
-    ]);
-    return ok(res, { mahsulotlar, kategoriyalar });
+    return ok(res, {
+      mahsulotlar: await qatorlar('select * from products order by id desc limit 2000'),
+      kategoriyalar: await qatorlar('select * from categories order by sort'),
+    });
   }
 
-  // Skrinshotdan tanish — AI kartochkani to'ldiradi, admin tasdiqlaydi
   if (yol === '/api/admin/recognize' && req.method === 'POST') {
     const b = await tana(req);
-    const base64 = String(b.image || '').replace(/^data:image\/\w+;base64,/, '');
-    if (!base64 || base64.length < 500) return xato(res, 400, 'Rasm yuborilmadi.');
+    const rasm = rasmniOl(b.image);
+    if (!rasm) return xato(res, 400, 'Rasm yuborilmadi.');
     try {
-      const natija = await mahsulotniTani(base64, b.mime || 'image/jpeg');
-      return ok(res, natija);
+      return ok(res, await mahsulotniTani(rasm.base64, b.mime || rasm.mime));
     } catch (e) {
       return xato(res, 502, e.foydalanuvchiga || 'AI mahsulotni tanimadi. Maydonlarni qo‘lda to‘ldiring.');
     }
@@ -91,7 +84,7 @@ export async function adminRoutes(req, res, yol) {
 
   if (yol === '/api/admin/product' && req.method === 'POST') {
     const b = await tana(req);
-    const maydon = {
+    const m = {
       name: String(b.name || '').trim().slice(0, 120),
       brand: String(b.brand || '').trim().slice(0, 60) || null,
       category_id: b.category_id ? Number(b.category_id) : null,
@@ -105,22 +98,34 @@ export async function adminRoutes(req, res, yol) {
       description: String(b.description || '').slice(0, 900) || null,
       usage_text: String(b.usage_text || '').slice(0, 900) || null,
       ingredients: String(b.ingredients || '').slice(0, 1200) || null,
-      actives: Array.isArray(b.actives) ? b.actives.slice(0, 12) : [],
-      concerns: Array.isArray(b.concerns) ? b.concerns.slice(0, 10) : [],
-      skin_types: Array.isArray(b.skin_types) ? b.skin_types.slice(0, 8) : [],
+      actives: (Array.isArray(b.actives) ? b.actives : []).slice(0, 12),
+      concerns: (Array.isArray(b.concerns) ? b.concerns : []).slice(0, 10),
+      skin_types: (Array.isArray(b.skin_types) ? b.skin_types : []).slice(0, 8),
       warnings: String(b.warnings || '').slice(0, 400) || null,
       emoji: String(b.emoji || '🧴').slice(0, 4),
       ai_filled: Boolean(b.ai_filled),
       is_active: b.is_active !== false,
-      updated_at: new Date().toISOString(),
     };
-    if (!maydon.name) return xato(res, 400, 'Mahsulot nomi kerak.');
-    if (!maydon.price) return xato(res, 400, 'Narx kerak.');
+    if (!m.name)  return xato(res, 400, 'Mahsulot nomi kerak.');
+    if (!m.price) return xato(res, 400, 'Narx kerak.');
 
+    const q = [m.name, m.brand, m.category_id, m.step, m.price, m.old_price, m.cost_price,
+               m.stock, m.volume, m.country, m.description, m.usage_text, m.ingredients,
+               m.actives, m.concerns, m.skin_types, m.warnings, m.emoji, m.ai_filled, m.is_active];
     try {
       const natija = b.id
-        ? await q(db.from('products').update(maydon).eq('id', b.id).select('*').single(), 'mahsulotni yangilash')
-        : await q(db.from('products').insert(maydon).select('*').single(), 'mahsulot qo‘shish');
+        ? await qator(
+            `update products set name=$1,brand=$2,category_id=$3,step=$4,price=$5,old_price=$6,
+                    cost_price=$7,stock=$8,volume=$9,country=$10,description=$11,usage_text=$12,
+                    ingredients=$13,actives=$14,concerns=$15,skin_types=$16,warnings=$17,
+                    emoji=$18,ai_filled=$19,is_active=$20,updated_at=now()
+              where id=$21 returning *`, [...q, b.id])
+        : await qator(
+            `insert into products (name,brand,category_id,step,price,old_price,cost_price,stock,
+                    volume,country,description,usage_text,ingredients,actives,concerns,skin_types,
+                    warnings,emoji,ai_filled,is_active)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+             returning *`, q);
       return ok(res, { mahsulot: natija });
     } catch (e) {
       if (/duplicate key|products_brend_nom_uniq/i.test(e.message)) {
@@ -133,7 +138,80 @@ export async function adminRoutes(req, res, yol) {
   if (yol === '/api/admin/product' && req.method === 'DELETE') {
     const b = await tana(req);
     // O'chirmaymiz — buyurtmalar tarixi buziladi. Arxivga olamiz.
-    await q(db.from('products').update({ is_active: false }).eq('id', b.id), 'arxiv');
+    await sorov('update products set is_active=false where id=$1', [b.id]);
+    return ok(res, { ok: true });
+  }
+
+  // ================= POSTER =================
+  // 1-qadam: AI bir necha g'oya taklif qiladi
+  if (yol === '/api/admin/poster-ideas' && req.method === 'POST') {
+    const b = await tana(req);
+    const rasm = rasmniOl(b.image);
+    if (!rasm) return xato(res, 400, 'Rasm yuborilmadi.');
+    try {
+      const goyalar = await posterGoyalari(rasm.base64, b.mime || rasm.mime, b.mahsulot || {});
+      if (!goyalar.length) return xato(res, 502, 'AI g‘oya taklif qila olmadi. Qayta urinib ko‘ring.');
+      return ok(res, { goyalar, nisbatlar: NISBATLAR });
+    } catch (e) {
+      return xato(res, 502, e.message === 'GEMINI_KALIT_YOQ'
+        ? 'GEMINI_API_KEY sozlanmagan — poster generatsiyasi ishlamaydi.'
+        : 'G‘oyalarni tayyorlab bo‘lmadi. Qayta urinib ko‘ring.');
+    }
+  }
+
+  // 2-qadam: tanlangan g'oyani chizish va saqlash
+  if (yol === '/api/admin/poster-generate' && req.method === 'POST') {
+    const b = await tana(req);
+    const rasm = rasmniOl(b.image);
+    if (!b.prompt) return xato(res, 400, 'G‘oya tanlanmagan.');
+    try {
+      const chizilgan = await posterChiz({
+        base64: rasm?.base64, mime: rasm?.mime,
+        prompt: String(b.prompt).slice(0, 2000),
+        nisbat: b.nisbat, matn_bosh: b.matn_bosh, matn_qosh: b.matn_qosh,
+      });
+      const bayt = Buffer.from(chizilgan.base64, 'base64');
+      if (bayt.length > 6 * 1024 * 1024) return xato(res, 413, 'Chizilgan rasm juda katta.');
+
+      const saqlangan = await qator(
+        `insert into media (tur, mime, bayt, hajm, nisbat, product_id, prompt, goya)
+         values ('poster',$1,$2,$3,$4,$5,$6,$7) returning id, nisbat, hajm, created_at`,
+        [chizilgan.mime, bayt, bayt.length, b.nisbat || '4:5',
+         b.product_id ? Number(b.product_id) : null,
+         String(b.prompt).slice(0, 2000), String(b.goya || '').slice(0, 120)]);
+
+      return ok(res, { poster: { ...saqlangan, url: `/media/${saqlangan.id}` } });
+    } catch (e) {
+      console.error('Poster xatosi:', e.message);
+      return xato(res, 502, e.message.slice(0, 200));
+    }
+  }
+
+  // Mahsulotning posterlari
+  if (yol === '/api/admin/posters' && req.method === 'GET') {
+    const id = Number(new URL(req.url, 'http://x').searchParams.get('product_id'));
+    if (!id) return xato(res, 400, 'product_id kerak.');
+    const [posterlar, mahsulot] = await Promise.all([
+      qatorlar(`select id, nisbat, hajm, goya, created_at from media
+                 where product_id=$1 and tur='poster' order by created_at desc`, [id]),
+      qator('select poster_id from products where id=$1', [id]),
+    ]);
+    return ok(res, {
+      posterlar: posterlar.map((p) => ({ ...p, url: `/media/${p.id}`, tanlangan: p.id === mahsulot?.poster_id })),
+    });
+  }
+
+  // Qaysi poster katalogda ko'rinishi
+  if (yol === '/api/admin/poster-select' && req.method === 'POST') {
+    const b = await tana(req);
+    await sorov('update products set poster_id=$1, updated_at=now() where id=$2',
+                [b.poster_id || null, Number(b.product_id)]);
+    return ok(res, { ok: true });
+  }
+
+  if (yol === '/api/admin/poster' && req.method === 'DELETE') {
+    const b = await tana(req);
+    await sorov('delete from media where id=$1', [b.id]);
     return ok(res, { ok: true });
   }
 
@@ -141,44 +219,41 @@ export async function adminRoutes(req, res, yol) {
   if (yol === '/api/admin/users' && req.method === 'GET') {
     const url = new URL(req.url, 'http://x');
     const qidiruv = (url.searchParams.get('q') || '').trim();
-    let s = db.from('users')
-      .select('id,telegram_id,username,full_name,phone,age,address,agreed_at,is_blocked,created_at,last_active')
-      .order('created_at', { ascending: false }).limit(Number(url.searchParams.get('limit')) || 200);
-    if (qidiruv) s = s.or(`full_name.ilike.%${qidiruv}%,phone.ilike.%${qidiruv}%,username.ilike.%${qidiruv}%`);
-    const users = await q(s, 'foydalanuvchilar');
-
-    // Har bir foydalanuvchining sotib olgan summasi
-    const buyurtmalar = await q(db.from('orders').select('user_id,total,status'), 'summalar');
-    const jamiKarta = new Map();
-    for (const o of buyurtmalar) {
-      if (o.status === 'bekor') continue;
-      jamiKarta.set(o.user_id, (jamiKarta.get(o.user_id) || 0) + o.total);
-    }
+    const limit = Math.min(1000, Number(url.searchParams.get('limit')) || 200);
     return ok(res, {
-      users: users.map((u) => ({ ...u, jami_xarid: jamiKarta.get(u.id) || 0 })),
+      users: await qatorlar(
+        `select u.id, u.telegram_id, u.username, u.full_name, u.phone, u.age, u.address,
+                u.agreed_at, u.is_blocked, u.created_at, u.last_active,
+                coalesce((select sum(o.total) from orders o
+                           where o.user_id = u.id and o.status <> 'bekor'), 0)::int as jami_xarid
+           from users u
+          ${qidiruv ? `where u.full_name ilike $2 or u.phone ilike $2 or u.username ilike $2` : ''}
+          order by u.created_at desc limit $1`,
+        qidiruv ? [limit, `%${qidiruv}%`] : [limit]),
     });
   }
 
   if (yol === '/api/admin/user-block' && req.method === 'POST') {
     const b = await tana(req);
-    await q(db.from('users').update({ is_blocked: Boolean(b.blocked) }).eq('id', b.id), 'blok');
+    await sorov('update users set is_blocked=$1 where id=$2', [Boolean(b.blocked), b.id]);
     return ok(res, { ok: true });
   }
 
-  // ================= SOTUVLAR VA ANALITIKA =================
-  if (yol === '/api/admin/sales' && req.method === 'GET') {
-    return ok(res, await sotuvlar());
-  }
+  // ================= SOTUVLAR =================
+  if (yol === '/api/admin/sales' && req.method === 'GET') return ok(res, await sotuvlar());
 
   // ================= SOZLAMALAR =================
   if (yol === '/api/admin/settings' && req.method === 'GET') {
-    const data = await q(db.from('settings').select('*'), 'sozlamalar');
-    return ok(res, { settings: Object.fromEntries(data.map((s) => [s.key, s.value])) });
+    const r = await qatorlar('select key, value from settings');
+    return ok(res, { settings: Object.fromEntries(r.map((s) => [s.key, s.value])) });
   }
   if (yol === '/api/admin/settings' && req.method === 'POST') {
     const b = await tana(req);
     for (const [key, value] of Object.entries(b.settings || {})) {
-      await q(db.from('settings').upsert({ key, value, updated_at: new Date().toISOString() }), 'sozlama');
+      await sorov(
+        `insert into settings (key, value, updated_at) values ($1,$2,now())
+         on conflict (key) do update set value=excluded.value, updated_at=now()`,
+        [key, JSON.stringify(value)]);
     }
     return ok(res, { ok: true });
   }
@@ -186,134 +261,132 @@ export async function adminRoutes(req, res, yol) {
   return xato(res, 404, 'Topilmadi');
 }
 
+// ---------- Yordamchilar ----------
+function rasmniOl(qiymat) {
+  const xom = String(qiymat || '');
+  const mos = xom.match(/^data:(image\/\w+);base64,(.+)$/s);
+  const base64 = mos ? mos[2] : xom;
+  if (!base64 || base64.length < 500) return null;
+  if (base64.length > 12 * 1024 * 1024) return null;
+  return { base64, mime: mos ? mos[1] : 'image/jpeg' };
+}
+
 // ============================================================
 // BOSHQARUV PANELI: KPI + DAROMAD PROGNOZI
 // ============================================================
 async function boshqaruvPaneli() {
-  // Supabase sukut bo'yicha 1000 qator qaytaradi — chegarani ochiq ko'rsatamiz,
-  // aks holda statistika jimgina kesilib, noto'g'ri bo'lib qoladi.
-  const CHEK = 20000;
-  const [buyurtmalar, users, mahsulotlar, hodisalar] = await Promise.all([
-    q(db.from('orders').select('id,total,cost_total,status,created_at,items').limit(CHEK), 'buyurtmalar'),
-    q(db.from('users').select('id,created_at,agreed_at').limit(CHEK), 'users'),
-    q(db.from('products').select('id,name,brand,price,cost_price,stock,sold_count,is_active').limit(CHEK), 'mahsulotlar'),
-    q(db.from('events').select('type,created_at').gte('created_at', kunlarOldin(30)).limit(CHEK), 'hodisalar'),
+  // Og'ir hisoblar bazada — Node'ga faqat natija keladi
+  const [umumiy, oy, holatlar, kunlar, voronka, ombor, users] = await Promise.all([
+    qator(`select coalesce(sum(total),0)::int      as daromad,
+                  coalesce(sum(cost_total),0)::int as tannarx,
+                  count(*)::int                    as soni
+             from orders where status <> 'bekor'`),
+    qator(`select coalesce(sum(total),0)::int as daromad, count(*)::int as soni
+             from orders
+            where status <> 'bekor' and created_at >= date_trunc('month', now())`),
+    qatorlar(`select status, count(*)::int as soni, coalesce(sum(total),0)::int as summa
+                from orders group by status`),
+    qatorlar(`select to_char(d.kun,'YYYY-MM-DD') as kun,
+                     coalesce(sum(o.total),0)::int as daromad,
+                     count(o.id)::int as soni
+                from generate_series(current_date - interval '13 days', current_date, '1 day') d(kun)
+                left join orders o
+                  on o.created_at::date = d.kun and o.status <> 'bekor'
+               group by d.kun order by d.kun`),
+    qatorlar(`select type, count(*)::int as soni from events
+               where created_at >= now() - interval '30 days' group by type`),
+    qator(`select count(*) filter (where is_active)::int                          as jami,
+                  count(*) filter (where is_active and stock = 0)::int             as tugagan,
+                  count(*) filter (where is_active and stock between 1 and 5)::int as kam,
+                  coalesce(sum(stock * cost_price),0)::int                         as qiymat
+             from products`),
+    qator(`select count(*)::int as jami, count(agreed_at)::int as royxatdan_otgan from users`),
   ]);
 
-  const bekorEmas = buyurtmalar.filter((o) => o.status !== 'bekor');
-  const yetkazilgan = buyurtmalar.filter((o) => o.status === 'yetkazildi');
-  const kutilayotgan = buyurtmalar.filter((o) => ['yangi', 'tasdiqlangan', 'yolda'].includes(o.status));
+  const h = (nom) => holatlar.find((x) => x.status === nom) || { soni: 0, summa: 0 };
+  const yetkazildi = h('yetkazildi').soni;
+  const bekor = h('bekor').soni;
+  const yakunlangan = yetkazildi + bekor;
 
-  const summa = (arr, f = (o) => o.total) => arr.reduce((s, o) => s + (f(o) || 0), 0);
-
-  // ---- Tugallanish ehtimoli: tarixdan hisoblanadi ----
-  const tugallangan = yetkazilgan.length;
-  const bekorQilingan = buyurtmalar.filter((o) => o.status === 'bekor').length;
-  const yakunlangan = tugallangan + bekorQilingan;
-  // Tarix kam bo'lsa ehtiyotkor 70% dan boshlaymiz (Laplas tuzatishi bilan)
+  // Tarix kam bo'lsa ehtiyotkor bahodan boshlaymiz (Laplas tuzatishi)
   const tugallanishEhtimoli = yakunlangan < 10
-    ? (tugallangan + 7) / (yakunlangan + 10)
-    : tugallangan / yakunlangan;
+    ? (yetkazildi + 7) / (yakunlangan + 10)
+    : yetkazildi / yakunlangan;
 
-  // Holatga qarab ehtimol: yo'ldagi buyurtma yangisidan ishonchliroq
-  const HOLAT_KOEF = { yangi: 0.75, tasdiqlangan: 0.9, yolda: 0.97 };
-  const kutilayotganDaromad = kutilayotgan.reduce(
-    (s, o) => s + o.total * (HOLAT_KOEF[o.status] ?? 0.8) * tugallanishEhtimoli, 0);
+  const KOEF = { yangi: 0.75, tasdiqlangan: 0.9, yolda: 0.97 };
+  const kutilayotgan = ['yangi', 'tasdiqlangan', 'yolda'].map(h);
+  const kutilayotganSoni  = kutilayotgan.reduce((s, x) => s + x.soni, 0);
+  const kutilayotganSumma = kutilayotgan.reduce((s, x) => s + x.summa, 0);
+  const kutilma = ['yangi', 'tasdiqlangan', 'yolda']
+    .reduce((s, k) => s + h(k).summa * KOEF[k] * tugallanishEhtimoli, 0);
 
-  // ---- Oy oxirigacha prognoz (kunlik o'rtacha × qolgan kunlar) ----
   const bugun = new Date();
-  const oyBoshi = new Date(bugun.getFullYear(), bugun.getMonth(), 1);
   const oyKunlari = new Date(bugun.getFullYear(), bugun.getMonth() + 1, 0).getDate();
   const otganKunlar = bugun.getDate();
   const qolganKunlar = oyKunlari - otganKunlar;
+  const kunlikOrtacha = otganKunlar ? oy.daromad / otganKunlar : 0;
 
-  const shuOy = bekorEmas.filter((o) => new Date(o.created_at) >= oyBoshi);
-  const oyDaromadi = summa(shuOy);
-  const kunlikOrtacha = otganKunlar ? oyDaromadi / otganKunlar : 0;
-  const prognozOyOxiri = oyDaromadi + kunlikOrtacha * qolganKunlar * tugallanishEhtimoli;
-
-  // ---- Voronka (30 kun) ----
-  const soni = (t) => hodisalar.filter((e) => e.type === t).length;
-  const voronka = {
-    start: soni('start'), register: soni('register'), scan: soni('scan'),
-    scan_rejected: soni('scan_rejected'), add_cart: soni('add_cart'), order: soni('order'),
-  };
-
-  // ---- 14 kunlik daromad grafigi ----
-  const kunlar = [];
-  for (let i = 13; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const k = kun(d);
-    const shuKun = bekorEmas.filter((o) => kun(o.created_at) === k);
-    kunlar.push({ kun: k, daromad: summa(shuKun), soni: shuKun.length });
-  }
-
-  const jamiDaromad = summa(bekorEmas);
-  const jamiTannarx = summa(bekorEmas, (o) => o.cost_total);
+  const v = (t) => voronka.find((x) => x.type === t)?.soni || 0;
 
   return {
     kpi: {
-      jami_daromad:      jamiDaromad,
-      yalpi_foyda:       jamiDaromad - jamiTannarx,
-      marja_foiz:        jamiDaromad ? Math.round(((jamiDaromad - jamiTannarx) / jamiDaromad) * 100) : 0,
-      buyurtma_soni:     bekorEmas.length,
-      ortacha_chek:      bekorEmas.length ? Math.round(jamiDaromad / bekorEmas.length) : 0,
-      foydalanuvchi:     users.length,
-      royxatdan_otgan:   users.filter((u) => u.agreed_at).length,
-      oy_daromadi:       oyDaromadi,
-      yangi_buyurtma:    buyurtmalar.filter((o) => o.status === 'yangi').length,
+      jami_daromad:    umumiy.daromad,
+      yalpi_foyda:     umumiy.daromad - umumiy.tannarx,
+      marja_foiz:      umumiy.daromad ? Math.round(((umumiy.daromad - umumiy.tannarx) / umumiy.daromad) * 100) : 0,
+      buyurtma_soni:   umumiy.soni,
+      ortacha_chek:    umumiy.soni ? Math.round(umumiy.daromad / umumiy.soni) : 0,
+      foydalanuvchi:   users.jami,
+      royxatdan_otgan: users.royxatdan_otgan,
+      oy_daromadi:     oy.daromad,
+      yangi_buyurtma:  h('yangi').soni,
     },
     prognoz: {
       tugallanish_ehtimoli: Math.round(tugallanishEhtimoli * 100),
-      kutilayotgan_soni:    kutilayotgan.length,
-      kutilayotgan_summa:   summa(kutilayotgan),
-      kutilayotgan_kutilma: Math.round(kutilayotganDaromad),
+      kutilayotgan_soni:    kutilayotganSoni,
+      kutilayotgan_summa:   kutilayotganSumma,
+      kutilayotgan_kutilma: Math.round(kutilma),
       kunlik_ortacha:       Math.round(kunlikOrtacha),
       qolgan_kunlar:        qolganKunlar,
-      oy_oxiri_prognoz:     Math.round(prognozOyOxiri),
+      oy_oxiri_prognoz:     Math.round(oy.daromad + kunlikOrtacha * qolganKunlar * tugallanishEhtimoli),
       izoh: yakunlangan < 10
         ? 'Tarix kam (10 tadan kam yakunlangan buyurtma) — prognoz taxminiy.'
         : `${yakunlangan} ta yakunlangan buyurtma tarixiga asoslangan.`,
     },
-    voronka,
-    kunlar,
-    ombor: {
-      tugagan:  mahsulotlar.filter((p) => p.is_active && p.stock === 0).length,
-      kam:      mahsulotlar.filter((p) => p.is_active && p.stock > 0 && p.stock <= 5).length,
-      jami:     mahsulotlar.filter((p) => p.is_active).length,
-      qiymat:   mahsulotlar.reduce((s, p) => s + p.stock * p.cost_price, 0),
+    voronka: {
+      start: v('start'), register: v('register'), scan: v('scan'),
+      scan_rejected: v('scan_rejected'), add_cart: v('add_cart'), order: v('order'),
     },
+    kunlar,
+    ombor,
   };
 }
 
 // ============================================================
-// SOTILGAN MAHSULOTLAR RO'YXATI
-// ============================================================
 async function sotuvlar() {
-  const buyurtmalar = await q(
-    db.from('orders').select('order_no,items,total,status,created_at').neq('status', 'bekor').limit(20000),
-    'sotuvlar');
-
-  const karta = new Map();
-  for (const o of buyurtmalar) {
-    for (const i of o.items || []) {
-      const k = i.product_id;
-      const bor = karta.get(k) || {
-        product_id: k, name: i.name, brand: i.brand,
-        soni: 0, daromad: 0, tannarx: 0, buyurtmalar: 0,
-      };
-      bor.soni      += i.qty;
-      bor.daromad   += i.price * i.qty;
-      bor.tannarx   += (i.cost_price || 0) * i.qty;
-      bor.buyurtmalar += 1;
-      karta.set(k, bor);
-    }
-  }
-
-  const royxat = [...karta.values()]
-    .map((r) => ({ ...r, foyda: r.daromad - r.tannarx,
-                   marja: r.daromad ? Math.round(((r.daromad - r.tannarx) / r.daromad) * 100) : 0 }))
-    .sort((a, b) => b.daromad - a.daromad);
+  const royxat = await qatorlar(`
+    with qatorlar as (
+      select (i->>'product_id')::bigint as product_id,
+             i->>'name'  as name,
+             i->>'brand' as brand,
+             (i->>'qty')::int   as qty,
+             (i->>'price')::int as price,
+             coalesce((i->>'cost_price')::int, 0) as cost_price
+        from orders o, jsonb_array_elements(o.items) i
+       where o.status <> 'bekor'
+    )
+    select product_id,
+           max(name)  as name,
+           max(brand) as brand,
+           sum(qty)::int                       as soni,
+           sum(qty * price)::int               as daromad,
+           sum(qty * cost_price)::int          as tannarx,
+           (sum(qty * price) - sum(qty * cost_price))::int as foyda,
+           case when sum(qty * price) > 0
+                then round(((sum(qty*price) - sum(qty*cost_price))::numeric / sum(qty*price)) * 100)::int
+                else 0 end as marja
+      from qatorlar
+     group by product_id
+     order by daromad desc`);
 
   return {
     sotuvlar: royxat,
@@ -325,9 +398,8 @@ async function sotuvlar() {
   };
 }
 
-// ============================================================
 async function mijozgaXabar(buyurtma, holat, sabab) {
-  const chatId = buyurtma.users?.telegram_id;
+  const chatId = buyurtma.telegram_id;
   if (!chatId) return;
   const matnlar = {
     tasdiqlangan: `✅ <b>${esc(buyurtma.order_no)}</b> buyurtmangiz tasdiqlandi. Tayyorlanmoqda.`,

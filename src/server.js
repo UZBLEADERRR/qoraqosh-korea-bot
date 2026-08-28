@@ -18,6 +18,8 @@ import { adminRoutes } from './api/admin.js';
 import { yangilanish } from './bot/index.js';
 import { tg } from './bot/tg.js';
 import { ofertaSahifasi } from './lib/oferta.js';
+import { migratsiyalarniQoll } from './db/migrate.js';
+import { qator, ulanishniTekshir } from './db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -44,6 +46,23 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (yol === '/healthz') return ok(res, { ok: true, vaqt: new Date().toISOString() });
+
+    // ---------- Rasm (poster) ----------
+    // Bazadan beriladi; alohida saqlash xizmati kerak emas.
+    if (yol.startsWith('/media/')) {
+      const id = yol.slice(7);
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return notFound(res);
+      const m = await qator('select mime, bayt from media where id = $1', [id]);
+      if (!m) return notFound(res);
+      res.writeHead(200, {
+        'Content-Type': m.mime,
+        'Content-Length': m.bayt.length,
+        // Rasm hech qachon o'zgarmaydi (yangisi yangi id oladi) — uzoq keshlash xavfsiz
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      return res.end(m.bayt);
+    }
 
     // ---------- API ----------
     if (yol.startsWith('/api/admin/')) return await adminRoutes(req, res, yol);
@@ -118,11 +137,37 @@ async function botniUla() {
   }
 }
 
-server.listen(config.port, () => {
-  console.log(`\n🌸 QoraQosh ishga tushdi — port ${config.port}`);
-  console.log(`   Mini App : ${config.publicUrl || `http://localhost:${config.port}`}/app/`);
-  console.log(`   Admin    : ${config.publicUrl || `http://localhost:${config.port}`}/admin/`);
-  botniUla().catch((e) => console.error('Botni ulashda xato:', e.message));
+// ============================================================
+// Ishga tushish: avval baza tayyorlanadi, keyin port ochiladi.
+// Jadvallarni qo'lda yaratish shart emas — migratsiyalar o'zi qo'llanadi.
+// ============================================================
+async function boshla() {
+  console.log('\n🌸 QoraQosh');
+  try {
+    const { baza, versiya } = await ulanishniTekshir();
+    console.log(`   Baza: ${baza} (${versiya})`);
+  } catch (e) {
+    console.error('\n❌ Bazaga ulanib bo‘lmadi:', e.message);
+    console.error('   DATABASE_URL ni tekshiring (Supabase → Connect → Session pooler).');
+    console.error('   Parolda maxsus belgi bo‘lsa, uni URL-kodlash kerak (@ → %40).\n');
+    process.exit(1);
+  }
+
+  console.log('   Migratsiyalar:');
+  await migratsiyalarniQoll();
+
+  server.listen(config.port, () => {
+    const asos = config.publicUrl || `http://localhost:${config.port}`;
+    console.log(`\n   Port     : ${config.port}`);
+    console.log(`   Mini App : ${asos}/app/`);
+    console.log(`   Admin    : ${asos}/admin/\n`);
+    botniUla().catch((e) => console.error('Botni ulashda xato:', e.message));
+  });
+}
+
+boshla().catch((e) => {
+  console.error('\n❌ Ishga tushirishda xato:', e.message, '\n');
+  process.exit(1);
 });
 
 process.on('uncaughtException',  (e) => console.error('Kutilmagan xato:', e));

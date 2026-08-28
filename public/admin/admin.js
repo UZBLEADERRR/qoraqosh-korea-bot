@@ -241,7 +241,9 @@ async function mahsulotlar() {
           <td class="ong"><span class="yor ${marja >= 35 ? 'yashil' : marja >= 20 ? 'sariq' : 'qizil'}">${marja}%</span></td>
           <td class="ong">${p.stock === 0 ? '<span class="yor qizil">0</span>' : p.stock <= 5 ? `<span class="yor sariq">${p.stock}</span>` : p.stock}</td>
           <td class="ong">${p.sold_count}</td>
-          <td class="ong"><button class="tug kichik" data-tahrir="${p.id}">Tahrir</button></td>
+          <td class="ong" style="white-space:nowrap">
+            <button class="tug kichik" data-poster="${p.id}" title="Reklama posteri">📢</button>
+            <button class="tug kichik" data-tahrir="${p.id}">Tahrir</button></td>
         </tr>`; }).join('')}
       </tbody></table></div></div>`;
 
@@ -250,6 +252,8 @@ async function mahsulotlar() {
     $('#t-skrin').onclick = skrinshotOyna;
     $$('[data-tahrir]', el).forEach((b) => b.onclick = () =>
       mahsulotOyna(kesh.mahsulotlar.find((p) => p.id === Number(b.dataset.tahrir))));
+    $$('[data-poster]', el).forEach((b) => b.onclick = () =>
+      posterOyna(kesh.mahsulotlar.find((p) => p.id === Number(b.dataset.poster))));
   } catch (e) { xatoChiz(el, e); }
 }
 
@@ -484,6 +488,181 @@ async function sozlamalar() {
       } catch (e) { holat.innerHTML = `<div class="xato">${esc(e.message)}</div>`; }
     };
   } catch (e) { xatoChiz(el, e); }
+}
+
+// ================= POSTER USTASI =================
+// Uch qadam: rasm -> AI g'oyalari -> chizilgan poster.
+// Admin hech qanday "prompt" yozmaydi, faqat g'oyani tanlaydi.
+
+const USLUB_NOM = {
+  'muammo-yechim': 'Muammo va yechim',
+  minimalist:      'Minimalist',
+  tabiiy:          'Tabiiy',
+  klinik:          'Klinik',
+  lifestyle:       'Hayotiy',
+  aksiya:          'Aksiya',
+};
+const USLUB_RANG = {
+  'muammo-yechim': 'qizil', minimalist: 'kul', tabiiy: 'yashil',
+  klinik: 'kok', lifestyle: 'sariq', aksiya: 'qizil',
+};
+
+let poster = { mahsulot: null, rasm: null, goyalar: [], nisbatlar: {} };
+
+async function posterOyna(m) {
+  poster = { mahsulot: m, rasm: null, goyalar: [], nisbatlar: {} };
+  modal(`
+    <div class="karta-bosh"><h2>Reklama posteri</h2>
+      <span class="mayda">${esc(m.brand || '')} ${esc(m.name)}</span></div>
+    <div id="p-tan"></div>`);
+  await posterGalereya();
+}
+
+async function posterGalereya() {
+  const el = $('#p-tan');
+  el.innerHTML = `
+    <div class="tushirish" id="p-yukla">
+      <div style="font-size:26px">📷</div>
+      <div style="margin-top:6px"><b>Mahsulot rasmini yuklang</b></div>
+      <div class="mayda" style="margin-top:4px">Qadoq, etiketka yoki do'kon skrinshoti —
+        AI shu asosda bir necha poster g'oyasini taklif qiladi</div>
+    </div>
+    <input type="file" id="p-fayl" accept="image/*" hidden>
+    <div id="p-galereya" style="margin-top:16px"></div>`;
+
+  $('#p-yukla').onclick = () => $('#p-fayl').click();
+  $('#p-fayl').onchange = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    poster.rasm = await kichiklashtir(f, 1024);
+    goyalarniOl();
+  };
+
+  try {
+    const j = await api(`/api/admin/posters?product_id=${poster.mahsulot.id}`);
+    const g = $('#p-galereya');
+    if (!j.posterlar.length) { g.innerHTML = ''; return; }
+    g.innerHTML = `<h3 style="margin-bottom:8px">Tayyor posterlar</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">
+        ${j.posterlar.map((p) => `
+          <div style="border:2px solid ${p.tanlangan ? 'var(--urgu)' : 'var(--chiziq)'};border-radius:10px;overflow:hidden">
+            <img src="${p.url}" alt="${esc(p.goya || '')}" style="width:100%;display:block;aspect-ratio:1;object-fit:cover">
+            <div style="padding:7px">
+              <div class="mayda" style="min-height:28px">${esc(p.goya || '')}</div>
+              <div class="mayda">${p.nisbat} · ${Math.round(p.hajm / 1024)} KB</div>
+              <div style="display:flex;gap:4px;margin-top:6px">
+                <button class="tug kichik" data-ishlat="${p.id}" style="flex:1" ${p.tanlangan ? 'disabled' : ''}>
+                  ${p.tanlangan ? '✓ Faol' : 'Tanlash'}</button>
+                <button class="tug kichik" data-ochir="${p.id}">🗑</button>
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>`;
+
+    $$('[data-ishlat]', g).forEach((b) => b.onclick = async () => {
+      await api('/api/admin/poster-select', { method: 'POST',
+        body: JSON.stringify({ product_id: poster.mahsulot.id, poster_id: b.dataset.ishlat }) });
+      posterGalereya();
+    });
+    $$('[data-ochir]', g).forEach((b) => b.onclick = async () => {
+      if (!confirm('Posterni o‘chirasizmi?')) return;
+      await api('/api/admin/poster', { method: 'DELETE', body: JSON.stringify({ id: b.dataset.ochir }) });
+      posterGalereya();
+    });
+  } catch { /* galereya ixtiyoriy */ }
+}
+
+async function goyalarniOl() {
+  const el = $('#p-tan');
+  el.innerHTML = `<div class="bosh-holat"><div class="aylana"></div>
+    <div style="margin-top:10px">AI mahsulotni ko‘rib, poster g‘oyalarini tayyorlamoqda…</div></div>`;
+  try {
+    const m = poster.mahsulot;
+    const j = await api('/api/admin/poster-ideas', { method: 'POST', body: JSON.stringify({
+      image: poster.rasm,
+      mahsulot: { name: m.name, brand: m.brand, description: m.description,
+                  concerns: m.concerns, skin_types: m.skin_types, actives: m.actives },
+    })});
+    poster.goyalar = j.goyalar;
+    poster.nisbatlar = j.nisbatlar;
+    goyalarniChiz();
+  } catch (e) {
+    el.innerHTML = `<div class="xato">${esc(e.message)}</div>
+      <button class="tug" id="p-qayta" style="margin-top:12px">Qayta urinish</button>`;
+    $('#p-qayta').onclick = posterGalereya;
+  }
+}
+
+function goyalarniChiz() {
+  const el = $('#p-tan');
+  el.innerHTML = `
+    <img src="${poster.rasm}" alt="" style="width:100px;border-radius:8px;float:right;margin-left:12px">
+    <p class="mayda">AI ${poster.goyalar.length} ta g‘oya taklif qildi. Birini tanlang —
+       poster shu asosda chiziladi.</p>
+    <div style="clear:both">
+      ${poster.goyalar.map((g, i) => `
+        <div class="karta" style="cursor:pointer;margin:10px 0" data-goya="${i}">
+          <div class="karta-bosh" style="margin-bottom:6px">
+            <h3>${esc(g.sarlavha)}</h3>
+            <span class="yor ${USLUB_RANG[g.uslub] || 'kul'}">${esc(USLUB_NOM[g.uslub] || g.uslub)}</span>
+          </div>
+          <p class="mayda" style="margin:0 0 8px">${esc(g.tavsif)}</p>
+          <div style="background:var(--fon);border-radius:8px;padding:10px;margin-bottom:8px">
+            <div style="font-weight:700;font-size:15px">${esc(g.matn_bosh)}</div>
+            <div class="mayda">${esc(g.matn_qosh)}</div>
+          </div>
+          <div class="mayda">👥 ${esc(g.kimga)}</div>
+          <div class="mayda">📐 ${g.nisbat} — ${esc(poster.nisbatlar[g.nisbat]?.joy || '')}</div>
+          <button class="tug asos kichik" style="margin-top:10px;width:100%">Shu g‘oyani chizish</button>
+        </div>`).join('')}
+    </div>
+    <button class="tug" id="p-boshqa" style="width:100%">↺ Boshqa rasm yuklash</button>`;
+
+  $$('[data-goya]', el).forEach((k) => k.onclick = () => posterniChiz(poster.goyalar[Number(k.dataset.goya)]));
+  $('#p-boshqa').onclick = posterGalereya;
+}
+
+async function posterniChiz(goya) {
+  const el = $('#p-tan');
+  el.innerHTML = `<div class="bosh-holat"><div class="aylana"></div>
+    <div style="margin-top:10px"><b>${esc(goya.sarlavha)}</b> chizilmoqda…</div>
+    <div class="mayda" style="margin-top:4px">Bu 15–40 soniya olishi mumkin</div></div>`;
+  try {
+    const j = await api('/api/admin/poster-generate', { method: 'POST', body: JSON.stringify({
+      image: poster.rasm, prompt: goya.prompt, nisbat: goya.nisbat,
+      matn_bosh: goya.matn_bosh, matn_qosh: goya.matn_qosh,
+      goya: goya.sarlavha, product_id: poster.mahsulot.id,
+    })});
+    el.innerHTML = `
+      <img src="${j.poster.url}" alt="${esc(goya.sarlavha)}"
+           style="width:100%;border-radius:12px;display:block">
+      <div class="karta" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;padding:6px 0">
+          <span class="mayda">G‘oya</span><span>${esc(goya.sarlavha)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0">
+          <span class="mayda">O‘lcham</span><span>${j.poster.nisbat} · ${poster.nisbatlar[j.poster.nisbat]?.px || ''}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0">
+          <span class="mayda">Hajmi</span><span>${Math.round(j.poster.hajm / 1024)} KB</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0">
+          <span class="mayda">Qayerga mos</span><span>${esc(poster.nisbatlar[j.poster.nisbat]?.joy || '')}</span></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="tug asos" id="p-ishlat" style="flex:1">Katalogda ishlatish</button>
+        <a class="tug" href="${j.poster.url}" download="poster.png" style="text-decoration:none">⬇︎</a>
+      </div>
+      <button class="tug" id="p-yana" style="width:100%;margin-top:8px">← Boshqa g‘oyani sinash</button>`;
+
+    $('#p-ishlat').onclick = async () => {
+      await api('/api/admin/poster-select', { method: 'POST',
+        body: JSON.stringify({ product_id: poster.mahsulot.id, poster_id: j.poster.id }) });
+      modalYop(); mahsulotlar();
+    };
+    $('#p-yana').onclick = goyalarniChiz;
+  } catch (e) {
+    el.innerHTML = `<div class="xato">${esc(e.message)}</div>
+      <button class="tug" id="p-yana" style="width:100%;margin-top:12px">← G‘oyalarga qaytish</button>`;
+    $('#p-yana').onclick = goyalarniChiz;
+  }
 }
 
 // ================= Modal =================

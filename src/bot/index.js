@@ -1,5 +1,5 @@
 // Botning markaziy dispetcheri.
-import { db, q, logEvent } from '../db.js';
+import { qator, sorov, hodisa } from '../db.js';
 import { yubor, javobBer } from './tg.js';
 import { asosiyMenyu, katalogTugmasi } from './keyboards.js';
 import * as reg from './handlers/register.js';
@@ -10,17 +10,15 @@ import { esc } from './format.js';
 /** Foydalanuvchini topadi yoki yaratadi. */
 async function foydalanuvchi(from) {
   const telegramId = String(from.id);
-  const { data: bor } = await db.from('users').select('*').eq('telegram_id', telegramId).maybeSingle();
+  const bor = await qator('select * from users where telegram_id = $1', [telegramId]);
   if (bor) {
-    db.from('users').update({ last_active: new Date().toISOString(), username: from.username || null })
-      .eq('id', bor.id).then(() => {}, () => {});
+    sorov('update users set last_active = now(), username = $1 where id = $2',
+          [from.username || null, bor.id]).catch(() => {});
     return bor;
   }
-  return await q(db.from('users').insert({
-    telegram_id: telegramId,
-    username: from.username || null,
-    source: 'telegram',
-  }).select('*').single(), 'foydalanuvchi yaratish');
+  return await qator(
+    `insert into users (telegram_id, username, source) values ($1,$2,'telegram') returning *`,
+    [telegramId, from.username || null]);
 }
 
 export async function yangilanish(upd) {
@@ -44,7 +42,7 @@ export async function yangilanish(upd) {
     return reg.boshla(chatId, user);
   }
   if (matn === '/qayta') {
-    await q(db.from('users').update({ state: reg.HOLAT.TELEFON }).eq('id', user.id), 'qayta');
+    await sorov('update users set state = $1 where id = $2', [reg.HOLAT.TELEFON, user.id]);
     return reg.boshla(chatId, { ...user, state: reg.HOLAT.TELEFON });
   }
   if (matn === '/ochir') return malumotniOchir(chatId, user);
@@ -99,13 +97,13 @@ async function callback(cq) {
 
 /** Shaxsiy ma'lumotni o'chirish — oferta va qonun talabi. */
 async function malumotniOchir(chatId, user) {
-  await q(db.from('users').update({
-    full_name: null, phone: null, address: null, age: null,
-    agreed_at: null, state: null, state_data: {},
-  }).eq('id', user.id), 'ma’lumotni o‘chirish');
-  await db.from('analyses').delete().eq('user_id', user.id);
-  await db.from('cart_items').delete().eq('user_id', user.id);
-  await logEvent(user.id, 'delete_data');
+  await sorov(
+    `update users set full_name=null, phone=null, address=null, age=null,
+            agreed_at=null, state=null, state_data='{}'::jsonb
+      where id=$1`, [user.id]);
+  await sorov('delete from analyses where user_id = $1', [user.id]);
+  await sorov('delete from cart_items where user_id = $1', [user.id]);
+  await hodisa(user.id, 'delete_data');
 
   await yubor(chatId,
     ['🗑 <b>Ma’lumotlaringiz o‘chirildi.</b>',

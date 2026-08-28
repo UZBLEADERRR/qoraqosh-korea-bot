@@ -5,14 +5,16 @@
   "description": "QoraQosh — Koreya kosmetikasi: Telegram bot + Mini App + admin panel",
   "type": "module",
   "main": "src/server.js",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "seed": "node scripts/seed.js",
-    "check": "node --check src/server.js && node scripts/check.js"
+    "check": "node --check src/server.js && node scripts/check.js",
+    "migrate": "node scripts/migrate.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.0"
+    "pg": "^8.13.0"
   }
 }

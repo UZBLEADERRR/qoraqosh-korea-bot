@@ -18,16 +18,20 @@
   </div>
   <div class="sahifa">
     <div class="karta">
-      <label for="f-ism">Ism-familiya</label>
+      <label for="f-ism">Ismingiz
+        <span class="yordam">Buyurtmani kim qabul qilishini bilishimiz uchun</span></label>
       <input id="f-ism" type="text" placeholder="Aliyeva Malika" autocomplete="name">
 
-      <label for="f-tel">Telefon raqam</label>
+      <label for="f-tel">Telefon raqamingiz
+        <span class="yordam">Kuryer shu raqamga qo‘ng‘iroq qiladi</span></label>
       <input id="f-tel" type="tel" placeholder="+998 90 123 45 67" inputmode="tel" autocomplete="tel">
 
-      <label for="f-yosh">Yosh</label>
+      <label for="f-yosh">Yoshingiz
+        <span class="yordam">Tavsiyalarni aniqroq qilish uchun</span></label>
       <input id="f-yosh" type="number" placeholder="24" inputmode="numeric" min="12" max="90">
 
-      <label for="f-manzil">Yetkazib berish manzili</label>
+      <label for="f-manzil">Manzilingiz
+        <span class="yordam">Shahar, tuman, ko‘cha, uy va xonadon raqami</span></label>
       <textarea id="f-manzil" placeholder="Toshkent sh., Chilonzor tumani, 5-mavze, 12-uy, 34-xonadon"></textarea>
 
       <div style="margin-top:18px">
@@ -55,6 +59,12 @@
       <div class="izoh">Koreyadan original kosmetika</div>
     </div>
     <div class="sahifa" style="padding-bottom:0">
+      <button class="chaqiriq yashirin" id="skaner-chaqiriq">
+        <span class="belgi">🔬</span>
+        <span><b>Yuzingizni tekshiring</b>
+          <span>Rasm yuboring — sizga nima kerakligini aytamiz</span></span>
+        <span class="oq">›</span>
+      </button>
       <input id="qidiruv" type="search" placeholder="🔍 Mahsulot yoki brend qidirish">
     </div>
     <div class="lenta" id="kategoriyalar"></div>
@@ -86,12 +96,11 @@
         </div>
 
         <div class="karta">
-          <h3>Yaxshi natija uchun</h3>
-          <div class="talab">✅ <div><b>Yaqindan</b> — yuz kadrning yarmini egallasin</div></div>
-          <div class="talab">✅ <div><b>Yorug‘lik</b> — kunduzgi nur yoki deraza oldi</div></div>
-          <div class="talab">✅ <div><b>To‘g‘riga qarang</b> — kamera yuz balandligida</div></div>
-          <div class="talab">✅ <div><b>Pardozsiz</b> — filtrsiz, teri o‘z holida</div></div>
-          <div class="talab">❌ <div>Xira, uzoq, ekrandan olingan yoki AI chizgan rasm qabul qilinmaydi</div></div>
+          <h3 style="margin-bottom:10px">Yaxshi rasm qanday bo‘ladi</h3>
+          <div class="talab"><span class="b">☀️</span><div><b>Yorug‘ joyda</b> — deraza oldida turing</div></div>
+          <div class="talab"><span class="b">🤳</span><div><b>Yaqindan</b> — yuz ekranni to‘ldirsin</div></div>
+          <div class="talab"><span class="b">👀</span><div><b>To‘g‘riga qarang</b> — kamera yuz balandligida</div></div>
+          <div class="talab"><span class="b">🧼</span><div><b>Pardozsiz</b> — teri o‘z holida ko‘rinsin</div></div>
         </div>
       </div>
 
@@ -129,10 +138,10 @@
 
   <!-- ---------- PASTKI MENYU ---------- -->
   <nav class="menyu">
-    <button data-tab="katalog" class="tanlangan"><span>🛍</span>Katalog</button>
+    <button data-tab="katalog" class="tanlangan"><span>🛍</span>Do‘kon</button>
     <button data-tab="skaner"><span>🔬</span>Skaner</button>
     <button data-tab="savat"><span>🛒</span>Savat<i id="savat-nishon" class="nishon yashirin">0</i></button>
-    <button data-tab="buyurtma"><span>📋</span>Buyurtma</button>
+    <button data-tab="buyurtma"><span>📋</span>Buyurtmalar</button>
   </nav>
 </div>
 

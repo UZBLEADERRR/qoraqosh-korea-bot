@@ -1,5 +1,5 @@
 // Savat, buyurtmalar, profil va yordam — botdagi matnli bo'limlar.
-import { db } from '../../db.js';
+import { qatorlar, qiymat } from '../../db.js';
 import { yubor } from '../tg.js';
 import { esc, narx, jadval, royxat } from '../format.js';
 import { savatniOl } from '../../services/orders.js';
@@ -36,11 +36,11 @@ export async function savatniKorsat(chatId, user) {
 }
 
 export async function buyurtmalarniKorsat(chatId, user) {
-  const { data } = await db.from('orders')
-    .select('order_no,total,status,created_at,items')
-    .eq('user_id', user.id).order('created_at', { ascending: false }).limit(10);
+  const data = await qatorlar(
+    `select order_no, total, status, created_at, items from orders
+      where user_id = $1 order by created_at desc limit 10`, [user.id]);
 
-  if (!data?.length) {
+  if (!data.length) {
     await yubor(chatId, '📋 Hozircha buyurtmangiz yo‘q.');
     return;
   }
@@ -59,10 +59,10 @@ export async function buyurtmalarniKorsat(chatId, user) {
 }
 
 export async function profilniKorsat(chatId, user) {
-  const { count: tahlilSoni } = await db.from('analyses')
-    .select('id', { count: 'exact', head: true }).eq('user_id', user.id);
-  const { count: buyurtmaSoni } = await db.from('orders')
-    .select('id', { count: 'exact', head: true }).eq('user_id', user.id);
+  const [tahlilSoni, buyurtmaSoni] = await Promise.all([
+    qiymat('select count(*)::int from analyses where user_id = $1', [user.id]),
+    qiymat('select count(*)::int from orders   where user_id = $1', [user.id]),
+  ]);
 
   await yubor(chatId, [
     `👤 <b>PROFILINGIZ</b>`,

@@ -3,8 +3,8 @@
 Telegram bot + Mini App + admin panel. AI yuz tahlili asosida mahsulot tavsiya
 qiladi va buyurtmani boshidan oxirigacha olib boradi.
 
-**Stek:** Node.js 20 (tashqi kutubxonasiz, faqat `@supabase/supabase-js`) ·
-Supabase (Postgres + RLS) · Google Gemini · Railway.
+**Stek:** Node.js 20 (bitta bog'liqlik — `pg`) · Supabase Postgres (session pooler) ·
+Google Gemini · Railway.
 
 ---
 
@@ -38,6 +38,12 @@ Supabase (Postgres + RLS) · Google Gemini · Railway.
   qadoq yoki do'kon suratini yuklaysiz, AI mahsulotni tanib nomi, tarkibi,
   **qanday foydalanish**, kimga mos — hammasini to'ldiradi, siz tekshirib
   narx qo'yasiz.
+- **Reklama posteri (📢)** — mahsulot rasmini yuklaysiz, AI 4 ta poster
+  g'oyasini taklif qiladi (masalan davolovchi krem uchun «muammoli teri va
+  natija» sahnasi), har biriga uslub, auditoriya, posterdagi yozuv va mos
+  o'lchamni yozadi. Bittasini bosasiz — Gemini uni chizadi. Siz prompt
+  yozmaysiz. Tanlangan poster katalogda mahsulot rasmi bo'lib chiqadi.
+  O'lchamlar: 1:1 (katalog), 4:5 (Instagram), 9:16 (story), 16:9 (banner).
 - **Sotuvlar** — har mahsulot bo'yicha dona, daromad, tannarx, foyda, marja.
 - **Foydalanuvchilar** — qidiruv, jami xarid summasi, rozilik sanasi, bloklash.
 
@@ -45,22 +51,31 @@ Supabase (Postgres + RLS) · Google Gemini · Railway.
 
 ## Ishga tushirish
 
-### 1. Supabase
+### 1. Supabase — faqat ulanish satri
 
-Yangi loyiha yarating, so'ng **SQL Editor** da ketma-ket ishga tushiring:
+1. [supabase.com/dashboard](https://supabase.com/dashboard) → **New project**
+2. Nom, kuchli **Database Password** (saqlab qo'ying) va yaqin region tanlang
+3. Loyiha tayyor bo'lgach yuqoridagi **Connect** tugmasi →
+   **Session pooler** bo'limidagi satrni nusxa oling:
 
 ```
-supabase/migrations/001_schema.sql   -- jadvallar, RLS, place_order()
-supabase/seed/catalog.sql            -- 28 ta boshlang'ich mahsulot
+postgresql://postgres.<ref>:[PAROL]@aws-0-<region>.pooler.supabase.com:5432/postgres
 ```
 
-`Project Settings → API` dan **Project URL** va **service_role** kalitini oling.
+4. `[PAROL]` o'rniga o'z parolingizni qo'ying va uni `DATABASE_URL` ga yozing.
+
+**Jadvallarni qo'lda yaratish shart emas.** Server har ishga tushganda
+`migrations/*.sql` fayllarini tekshiradi va hali qo'llanmaganini o'zi
+bajaradi. Birinchi ishga tushishda bo'sh bazada jadvallar, `place_order()`
+funksiyasi va 28 ta boshlang'ich mahsulot avtomatik paydo bo'ladi.
+
+> Parolda `@ # ? /` kabi belgi bo'lsa, uni URL-kodlash kerak
+> (`@` → `%40`), aks holda ulanish satri buziladi.
 
 > **Xavfsizlik modeli.** Barcha jadvallarda RLS yoqilgan va bironta ham policy
 > yo'q — ya'ni `anon` kalit bilan hech kim hech narsani o'qiy olmaydi. Bazaga
-> faqat shu server `service_role` kaliti bilan kiradi va har so'rovni Telegram
-> `initData` imzosi (mijoz) yoki JWT (admin) bilan tekshiradi. `service_role`
-> kaliti hech qachon frontendga chiqmaydi.
+> faqat shu server ulanish satri bilan kiradi va har so'rovni Telegram
+> `initData` imzosi (mijoz) yoki JWT (admin) bilan tekshiradi.
 
 ### 2. Muhit o'zgaruvchilari
 
@@ -70,9 +85,8 @@ server ishga tushmaydi (default parol bilan ochiq qolib ketmasligi uchun):
 | O'zgaruvchi | Nima |
 |---|---|
 | `BOT_TOKEN` | @BotFather dan |
-| `SUPABASE_URL` | Supabase Project URL |
-| `SUPABASE_SERVICE_KEY` | Supabase `service_role` kaliti |
-| `GEMINI_API_KEY` | [AI Studio](https://aistudio.google.com/apikey) — bo'lmasa skaner zaxira rejimda ishlaydi |
+| `DATABASE_URL` | Supabase → Connect → **Session pooler** satri |
+| `GEMINI_API_KEY` | [AI Studio](https://aistudio.google.com/apikey) — bo'lmasa skaner zaxira rejimda, poster esa umuman ishlamaydi |
 | `ADMIN_LOGIN` / `ADMIN_PASSWORD` | Admin panel (parol ≥ 8 belgi) |
 | `ADMIN_JWT_SECRET` | ≥ 24 belgi: `openssl rand -hex 32` |
 | `PUBLIC_URL` | Railway avtomatik beradi. Bo'sh bo'lsa long-polling |
@@ -106,13 +120,15 @@ npm start
 
 ```
 src/
-  server.js            HTTP server, webhook, marshrutlar
+  server.js            HTTP server, webhook, marshrutlar, /media
   config.js            kalitlarni tekshiradi, yetishmasa to'xtatadi
-  db.js                Supabase mijozi (service_role)
+  db.js                Postgres pool va SQL yordamchilari
+  db/migrate.js        migratsiyalarni avtomatik qo'llash
   ai/
-    gemini.js          JSON sxema bilan majburlangan chaqiruv, qayta urinish
+    gemini.js          JSON sxema bilan majburlangan chaqiruv + rasm chizish
     faceAnalysis.js    sifat nazorati + tahlil + tavsiya (bitta chaqiruv)
     productEnrich.js   skrinshotdan mahsulotni tanish
+    poster.js          poster g'oyalari va generatsiyasi
   bot/
     index.js           dispetcher
     render.js          tahlil natijasining Telegram ko'rinishi
@@ -126,10 +142,14 @@ public/
   index.html           qo'nish sahifasi
   app/                 Mini App
   admin/               admin panel
-supabase/
-  migrations/001_schema.sql
-  seed/catalog.sql
+migrations/
+  001_schema.sql       jadvallar, RLS, place_order()
+  002_katalog.sql      28 ta boshlang'ich mahsulot
+  003_media.sql        posterlar
 ```
+
+Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing
+(`004_...sql`) — qo'llangan faylni tahrirlamang, u qayta bajarilmaydi.
 
 `npm run check` — deploy oldidan fayllar, sxema va koddagi kalitlarni tekshiradi.
 
@@ -151,6 +171,16 @@ bazada faqat matnli natija qoladi.
 
 **Bot va Mini App bitta xizmatdan foydalanadi** (`src/services/`), shuning
 uchun ikkala kanalda natija bir xil bo'ladi.
+
+**Posterlar bazada saqlanadi** (`media.bayt`) va `/media/<id>` orqali
+beriladi. Alohida saqlash xizmati sozlash shart emas. Supabase bepul tarifi
+500 MB — bitta poster ~200-400 KB, ya'ni mingga yaqin poster sig'adi.
+Undan oshsa eski posterlarni o'chiring (har mahsulotda oxirgi 12 tasi
+avtomatik saqlanadi).
+
+**bigint raqam sifatida o'qiladi.** `pg` sukut bo'yicha `int8` ni satr qilib
+qaytaradi; `db.js` da tur o'girgichi qo'yilgan, aks holda `p.id === 5`
+solishtirishlari jimgina buziladi.
 
 ---
 
@@ -175,6 +205,11 @@ uchun ikkala kanalda natija bir xil bo'ladi.
   yozilgan.
 - **To'lov integratsiyasi yo'q.** Hozircha yetkazishda naqd. Click/Payme
   keyingi qadam.
+- **Poster generatsiyasi uchun Gemini kaliti shart.** Kalitsiz g'oyalar ham,
+  rasm ham chizilmaydi — admin maydonlarni qo'lda to'ldiradi.
+- **AI chizgan posterdagi yozuv har doim ham benuqson chiqmaydi.** Chizilgan
+  posterni katalogga qo'yishdan oldin ko'zdan kechiring; yozuv xato bo'lsa
+  boshqa g'oyani tanlang yoki qayta chizdiring.
 
 ---
 

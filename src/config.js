@@ -15,11 +15,14 @@ export const config = {
   botToken:      req('BOT_TOKEN'),
   webhookSecret: opt('WEBHOOK_SECRET', ''),
 
-  supabaseUrl:   req('SUPABASE_URL'),
-  supabaseKey:   req('SUPABASE_SERVICE_KEY'),
+  // Supabase -> Connect -> Session pooler ulanish satri
+  databaseUrl:   req('DATABASE_URL'),
+  dbCaCert:      opt('DATABASE_CA_CERT'),
 
   geminiKey:     opt('GEMINI_API_KEY'),
   geminiModel:   opt('GEMINI_MODEL', 'gemini-2.5-flash'),
+  // Rasm chizish modeli (poster generatsiyasi)
+  geminiImageModel: opt('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image'),
 
   adminLogin:    req('ADMIN_LOGIN'),
   adminPassword: req('ADMIN_PASSWORD'),
@@ -46,5 +49,10 @@ if (config.adminPassword.length < 8) {
 }
 if (config.adminSecret.length < 24) {
   console.error('❌ ADMIN_JWT_SECRET kamida 24 belgi bo\'lishi kerak (openssl rand -hex 32).');
+  process.exit(1);
+}
+if (!/^postgres(ql)?:\/\//.test(config.databaseUrl)) {
+  console.error('❌ DATABASE_URL postgresql://... ko\'rinishida bo\'lishi kerak.');
+  console.error('   Supabase → Connect → Session pooler bo\'limidan nusxa oling.');
   process.exit(1);
 }

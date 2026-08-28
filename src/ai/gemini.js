@@ -79,3 +79,63 @@ export async function geminiJson(parts, schema, opts = {}) {
 export const rasmPart = (base64, mime = 'image/jpeg') => ({
   inline_data: { mime_type: mime, data: base64 },
 });
+
+// ---------------- Rasm chizish (gemini-2.5-flash-image) ----------------
+/**
+ * Matn (va ixtiyoriy tayanch rasm) asosida rasm chizadi.
+ * @returns {{base64:string, mime:string}}
+ */
+export async function geminiRasm(parts, { nisbat, model, timeoutMs = 90_000 } = {}) {
+  if (!geminiBormi()) throw new Error('GEMINI_KALIT_YOQ');
+  const m = model || config.geminiImageModel;
+
+  const yubor = async (imageConfigBilan) => {
+    const body = {
+      contents: [{ role: 'user', parts }],
+      generationConfig: {
+        responseModalities: ['IMAGE'],
+        ...(imageConfigBilan && nisbat ? { imageConfig: { aspectRatio: nisbat } } : {}),
+      },
+    };
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    const res = await fetch(`${BASE}/${m}:generateContent?key=${config.geminiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    }).finally(() => clearTimeout(timer));
+    return res;
+  };
+
+  // Ba'zi model versiyalari imageConfig ni qabul qilmaydi — u holda usiz qayta yuboramiz
+  let res = await yubor(true);
+  if (res.status === 400 && nisbat) res = await yubor(false);
+
+  if (res.status === 429 || res.status >= 500) {
+    await kut(1200);
+    res = await yubor(false);
+  }
+  if (!res.ok) {
+    const t = await res.text().catch(() => '');
+    throw new Error(`Rasm chizishda xato (HTTP ${res.status}): ${t.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const cand = data?.candidates?.[0];
+  if (cand?.finishReason === 'SAFETY' || cand?.finishReason === 'IMAGE_SAFETY') {
+    throw new Error('Model bu so‘rov bo‘yicha rasm chizishdan bosh tortdi. Boshqa g‘oyani tanlang.');
+  }
+
+  const rasm = (cand?.content?.parts || [])
+    .map((p) => p.inline_data || p.inlineData)
+    .find((d) => d?.data);
+
+  if (!rasm) {
+    const matn = (cand?.content?.parts || []).map((p) => p.text).filter(Boolean).join(' ');
+    throw new Error(matn
+      ? `Model rasm o‘rniga matn qaytardi: ${matn.slice(0, 160)}`
+      : 'Model rasm qaytarmadi. Qayta urinib ko‘ring.');
+  }
+  return { base64: rasm.data, mime: rasm.mime_type || rasm.mimeType || 'image/png' };
+}

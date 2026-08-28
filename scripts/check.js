@@ -14,7 +14,8 @@ const kerakliFayllar = [
   'src/bot/index.js', 'src/bot/render.js', 'src/bot/format.js',
   'src/ai/faceAnalysis.js', 'src/ai/productEnrich.js', 'src/ai/gemini.js',
   'src/api/routes.js', 'src/api/admin.js',
-  'supabase/migrations/001_schema.sql', 'supabase/seed/catalog.sql',
+  'migrations/001_schema.sql', 'migrations/002_katalog.sql', 'migrations/003_media.sql',
+  'src/db/migrate.js', 'src/ai/poster.js',
   'public/index.html', 'public/app/index.html', 'public/app/app.js', 'public/app/style.css',
   'public/admin/index.html', 'public/admin/admin.js', 'public/admin/style.css',
 ];
@@ -25,17 +26,18 @@ for (const f of kerakliFayllar) {
 }
 
 console.log('\nSxema:');
-const sxema = fs.readFileSync(path.join(ildiz, 'supabase/migrations/001_schema.sql'), 'utf8');
+const sxema = fs.readFileSync(path.join(ildiz, 'migrations/001_schema.sql'), 'utf8');
 for (const jadval of ['users', 'products', 'orders', 'analyses', 'cart_items', 'events', 'settings']) {
   sxema.includes(`create table if not exists public.${jadval}`)
     ? ok(`${jadval} jadvali`) : yiq(`${jadval} jadvali yo'q`);
 }
 sxema.includes('place_order') ? ok('place_order() funksiyasi') : yiq('place_order() yo\'q');
+sxema.includes('from public;') ? ok('RPC PUBLIC dan tortilgan') : yiq('RPC PUBLIC dan tortilmagan');
 (sxema.match(/enable row level security/g) || []).length >= 8
   ? ok('RLS barcha jadvalda yoqilgan') : yiq('RLS yetishmayapti');
 
 console.log('\nKatalog:');
-const katalog = fs.readFileSync(path.join(ildiz, 'supabase/seed/catalog.sql'), 'utf8');
+const katalog = fs.readFileSync(path.join(ildiz, 'migrations/002_katalog.sql'), 'utf8');
 const soni = (katalog.match(/^\('/gm) || []).length;
 soni >= 20 ? ok(`${soni} ta mahsulot`) : yiq(`katalogda faqat ${soni} ta mahsulot`);
 
