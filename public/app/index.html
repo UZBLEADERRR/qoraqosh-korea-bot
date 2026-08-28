@@ -62,7 +62,8 @@
       <div class="qidiruv-satr">
         <div class="qidiruv">
           <span>🔍</span>
-          <input id="qidiruv" type="search" enterkeyhint="search"
+          <input id="qidiruv" type="text" inputmode="search" enterkeyhint="search"
+                 autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
                  placeholder="Nomi yoki muammo: «quyoshdan himoya»">
           <button class="tozala yashirin" id="qidiruv-tozala" aria-label="Tozalash">✕</button>
         </div>
@@ -156,7 +157,13 @@
 
 <div id="modal" class="modal yashirin">
   <div class="parda" data-yop></div>
-  <div class="oyna"><div class="dasta"></div><div id="modal-tan"></div></div>
+  <div class="oyna">
+    <div class="dasta"></div>
+    <!-- Yopish tugmasi: oyna to'liq ekranni egallaganda parda ko'rinmay
+         qoladi va orqaga qaytish yo'li yo'q edi -->
+    <button class="oyna-yop" id="modal-yop" aria-label="Yopish" data-yop>✕</button>
+    <div id="modal-tan"></div>
+  </div>
 </div>
 
 <script src="hududlar.js"></script>

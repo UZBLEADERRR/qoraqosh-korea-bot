@@ -6,6 +6,7 @@ import { esc, narx } from '../format.js';
 import { adminmi } from '../../lib/admin.js';
 import { config } from '../../config.js';
 import { brendNomi } from '../../lib/brend.js';
+import { xabar } from '../shablon.js';
 import { keshniTashla } from '../../lib/kesh.js';
 import { BOSQICHLAR, bosqich, keyingi } from '../../lib/bosqichlar.js';
 import {
@@ -13,6 +14,7 @@ import {
   partiyaBuyurtmalari, partiyaniOl, oxirgiPartiyalar, partiyaHolati,
 } from '../../services/partiya.js';
 import { pochtaHujjati } from '../../services/pochta-hujjati.js';
+import { partiyaQollanmasi } from '../../services/qollanma-hujjati.js';
 import { broadcastBoshla } from '../../services/broadcast.js';
 import { agentCallback, agentHolati, rejaMenyusi } from './agent-oqim.js';
 
@@ -58,6 +60,8 @@ export async function xaridRoyxatiniYubor(chatId, user) {
   const kb = {
     inline_keyboard: [
       [{ text: `✅ Qabul qilindi (${royxat.buyurtmalar.length} ta buyurtma)`, callback_data: `pq:${p.id}` }],
+      [{ text: '📄 Pochta hujjati', callback_data: `pd:${p.id}` },
+       { text: '📘 Qo‘llanma', callback_data: `pk:${p.id}` }],
       [{ text: '🔄 Yangilash', callback_data: 'orders' }],
     ],
   };
@@ -100,6 +104,61 @@ async function qabulQilindi(cq, user) {
   for (const o of buyurtmalar) mijozgaBosqich(o, 'qadoqlanmoqda').catch(() => {});
 }
 
+// ══════════════════ Kanaldan to'lovni tasdiqlash ══════════════════
+
+/**
+ * Kanaldagi buyurtma xabari ostidagi tugma.
+ * Panelga kirmasdan, kanalning o'zidan tasdiqlash uchun.
+ */
+async function tolovTasdiq(cq, user, tasdiqmi) {
+  const id = Number(cq.data.split(':')[1]);
+  const o = await qator(
+    `select o.*, u.telegram_id from orders o join users u on u.id = o.user_id where o.id = $1`, [id]);
+  if (!o) return javobBer(cq.id, 'Buyurtma topilmadi', true);
+
+  if (!tasdiqmi) {
+    await sorov(`update orders set payment_status = 'kutilmoqda', updated_at = now() where id = $1`, [id]);
+    await javobBer(cq.id, 'To‘lov kutilmoqda deb belgilandi');
+    return tugmalarniAlmashtir(cq, `⏳ To‘lov kutilmoqda · ${o.order_no}`);
+  }
+
+  if (o.payment_status === 'tolangan') return javobBer(cq.id, 'Bu to‘lov allaqachon tasdiqlangan', true);
+
+  await sorov(`update orders set payment_status = 'tolangan', updated_at = now() where id = $1`, [id]);
+  // To'langan buyurtma darhol xarid ro'yxatiga tushishi kerak
+  await sorov(
+    `update orders set status = 'tasdiqlangan', updated_at = now()
+      where id = $1 and status = 'yangi'`, [id]);
+
+  // Chek endi kerak emas — tekshirildi
+  if (!(await sozlama('chek_saqlansin', false)) && o.receipt_id) {
+    await sorov('update orders set receipt_id = null where id = $1', [id]);
+    await sorov('delete from media where id = $1', [o.receipt_id]).catch(() => {});
+  }
+
+  await javobBer(cq.id, '✅ Tasdiqlandi');
+  await tugmalarniAlmashtir(cq, `✅ To‘lov tasdiqlandi · ${o.order_no}`);
+
+  if (o.telegram_id) {
+    const m = await xabar('xabar_tolov_tasdiq', { raqam: esc(o.order_no) },
+      '✅ <b>{raqam}</b> — to‘lovingiz tasdiqlandi.');
+    await yubor(o.telegram_id, m).catch(() => {});
+  }
+
+  // Kanalga eslatma: endi /orders da chiqadi
+  await yubor(cq.message.chat.id,
+    `✅ <b>${esc(o.order_no)}</b> to‘lovi tasdiqlandi va xarid ro‘yxatiga tushdi.\n` +
+    `<i>Ro‘yxatni ko‘rish: /orders</i>`).catch(() => {});
+}
+
+async function tugmalarniAlmashtir(cq, matn) {
+  if (!cq.message) return;
+  await tg('editMessageReplyMarkup', {
+    chat_id: cq.message.chat.id, message_id: cq.message.message_id,
+    reply_markup: { inline_keyboard: [[{ text: matn, callback_data: 'yoq' }]] },
+  }).catch(() => {});
+}
+
 // ══════════════════ /partiya — PARTIYALAR ══════════════════
 
 export async function partiyalarniKorsat(chatId) {
@@ -133,7 +192,8 @@ async function partiyaKarta(cq) {
 
   const kb = [];
   if (kel) kb.push([{ text: `➡️ Hammasini «${kel.nom}» ga o‘tkazish`, callback_data: `ph:${id}:${kel.kalit}` }]);
-  kb.push([{ text: '📄 Pochta hujjati (Word)', callback_data: `pd:${id}` }]);
+  kb.push([{ text: '📄 Pochta hujjati', callback_data: `pd:${id}` },
+           { text: '📘 Qo‘llanma', callback_data: `pk:${id}` }]);
   kb.push([{ text: '📋 Buyurtmalar ro‘yxati', callback_data: `pl:${id}` }]);
 
   return yubor(cq.message.chat.id, [
@@ -155,7 +215,8 @@ async function partiyaBosqichi(cq) {
   const kel = keyingi(holat);
   const kb = [];
   if (kel) kb.push([{ text: `➡️ Keyingisi: ${kel.nom}`, callback_data: `ph:${id}:${kel.kalit}` }]);
-  kb.push([{ text: '📄 Pochta hujjati (Word)', callback_data: `pd:${id}` }]);
+  kb.push([{ text: '📄 Pochta hujjati', callback_data: `pd:${id}` },
+           { text: '📘 Qo‘llanma', callback_data: `pk:${id}` }]);
 
   return yubor(cq.message.chat.id,
     `${b.emoji} <b>${esc(b.nom)}</b>\n\n${buyurtmalar.length} ta buyurtma o‘tkazildi va mijozlarga xabar berildi.`,
@@ -175,6 +236,24 @@ async function pochtaFayli(cq) {
     chat_id: cq.message.chat.id,
     caption: `📄 <b>${esc(p.raqam)}</b> — ${buyurtmalar.length} ta jo‘natma\n` +
              `<i>Print qilib pochtaga olib boring. Ikkinchi sahifada yorliqlar.</i>`,
+    parse_mode: 'HTML',
+  }, { document: { bayt, nom, mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' } });
+}
+
+async function qollanmaFayli(cq) {
+  const id = Number(cq.data.split(':')[1]);
+  await javobBer(cq.id, 'Tayyorlanmoqda…');
+  const p = await partiyaniOl(id);
+  const buyurtmalar = await partiyaBuyurtmalari(id);
+  if (!buyurtmalar.length) return yubor(cq.message.chat.id, 'Bu partiyada buyurtma yo‘q.');
+
+  await harakat(cq.message.chat.id, 'upload_document');
+  const { bayt, nom, soni } = await partiyaQollanmasi(p, buyurtmalar);
+  return tgFayl('sendDocument', {
+    chat_id: cq.message.chat.id,
+    caption: `📘 <b>Parvarish qo‘llanmasi</b> · ${esc(p.raqam)}\n` +
+             `${soni} ta buyurtma uchun, har biri yangi sahifadan.\n` +
+             `<i>Print qilib har birini o‘z qutisiga soling.</i>`,
     parse_mode: 'HTML',
   }, { document: { bayt, nom, mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' } });
 }
@@ -343,9 +422,12 @@ export async function adminCallback(cq, user) {
   const d = cq.data || '';
 
   if (d === 'orders')       { await javobBer(cq.id); await xaridRoyxatiniYubor(cq.message.chat.id, user); return true; }
+  if (d.startsWith('tt:'))  { await tolovTasdiq(cq, user, true); return true; }
+  if (d.startsWith('tr:'))  { await tolovTasdiq(cq, user, false); return true; }
   if (d.startsWith('pq:'))  { await qabulQilindi(cq, user); return true; }
   if (d.startsWith('ph:'))  { await partiyaBosqichi(cq); return true; }
   if (d.startsWith('pd:'))  { await pochtaFayli(cq); return true; }
+  if (d.startsWith('pk:'))  { await qollanmaFayli(cq); return true; }
   if (d.startsWith('pl:'))  { await partiyaRoyxati(cq); return true; }
   if (d.startsWith('p:'))   { await partiyaKarta(cq); return true; }
   if (d === 'rek_yubor')    { await reklamaniYubor(cq, user); return true; }

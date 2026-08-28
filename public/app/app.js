@@ -244,7 +244,7 @@ function filtrOyna() {
 
       <button class="asosiy" id="f-korish" style="margin-top:18px">Ko‘rish</button>
     </div>`;
-  kor($('#modal'), true);
+  modalOch();
 
   const yangila = () => { filtrOyna(); mahsulotlarniChiz(); filtrlarniChiz(); titra(); };
   $$('#modal-tan [data-kat]').forEach((b) => b.onclick = () => { holat.kategoriya = b.dataset.kat; yangila(); });
@@ -361,12 +361,25 @@ function mahsulotOyna(id) {
         ${p.stock > 0 ? (savatda ? `🛒 Savatda (${savatda}) · yana qo‘shish` : '🛒 Savatga qo‘shish') : '😔 Omborda yo‘q'}
       </button>
     </div>`;
-  kor($('#modal'), true);
+  modalOch();
   const t = $('#t-savatga');
   if (t && p.stock > 0) t.onclick = async () => { await savatga(p.id); modalYop(); };
 }
 const qtr = (k, v) => `<div class="qtr"><span class="k">${k}</span><span class="v">${v}</span></div>`;
-const modalYop = () => kor($('#modal'), false);
+/**
+ * Oyna ochish/yopish.
+ * Telegram'ning "orqaga" tugmasi ham oynani yopadi — Android'da odam
+ * avval o'shani bosadi, aks holda butun ilovadan chiqib ketardi.
+ */
+function modalOch() {
+  kor($('#modal'), true);
+  try { tg?.BackButton?.show?.(); } catch {}
+}
+const modalYop = () => {
+  kor($('#modal'), false);
+  try { tg?.BackButton?.hide?.(); } catch {}
+};
+try { tg?.BackButton?.onClick?.(() => modalYop()); } catch {}
 $$('[data-yop]').forEach((el) => el.onclick = modalYop);
 
 // ---------------- Skaner ----------------
@@ -491,7 +504,7 @@ function limitOyna(L) {
       <button class="asosiy" id="t-limit-dokon" style="margin-top:18px">🛍 Do‘konga o‘tish</button>
       <button class="ikkilamchi" id="t-limit-yop" style="margin-top:9px">Yopish</button>
     </div>`;
-  kor($('#modal'), true);
+  modalOch();
   $('#t-limit-dokon').onclick = () => { modalYop(); tabOch('katalog'); };
   $('#t-limit-yop').onclick = modalYop;
 }
@@ -518,7 +531,7 @@ function radOyna(j) {
       </div>
       <button class="asosiy" id="t-rad-yop" style="margin-top:18px">📸 Boshqa rasm tanlash</button>
     </div>`;
-  kor($('#modal'), true);
+  modalOch();
   $('#t-rad-yop').onclick = () => { modalYop(); $('#fayl').click(); };
 }
 
@@ -709,7 +722,7 @@ async function natijaniTelegramgaYubor(tugma) {
         <button class="asosiy" id="t-chatga">💬 Chatni ochish</button>
         <button class="ikkilamchi" id="t-chat-yop" style="margin-top:9px">Yopish</button>
       </div>`;
-    kor($('#modal'), true);
+    modalOch();
     $('#t-chatga').onclick = () => { modalYop(); tg?.close?.(); };
     $('#t-chat-yop').onclick = modalYop;
     setTimeout(() => { tugma.textContent = eski; }, 4000);
@@ -874,8 +887,6 @@ function checkoutOch() {
   const { viloyat, tuman } = hududTanlovi();
   const oraliq   = holat.savat.reduce((s, r) => s + r.products.price * r.quantity, 0);
   const chegirma = chegirmaHisobla(oraliq);
-  const yetkazish = oraliq >= holat.yetkazish.bepul_chegara ? 0 : holat.yetkazish.narx;
-  const jami = oraliq - chegirma + yetkazish;
   $('#modal-tan').innerHTML = `
     <div style="padding:16px 18px 0">
       <h2>📦 Buyurtmani rasmiylashtirish</h2>
@@ -900,6 +911,11 @@ function checkoutOch() {
         <span class="yordam">Kuryer topa olishi uchun aniq yozing</span></label>
       <textarea id="b-manzil" placeholder="5-mavze, 12-uy, 34-xonadon">${esc(manzilQiymati(d))}</textarea>
 
+      <label>🚚 Yetkazib berish</label>
+      <div id="b-yetkazish">
+        <p class="ozgina" style="margin:2px 0 0">Manzilni tanlang — narx hisoblanadi.</p>
+      </div>
+
       <label for="b-izoh">💬 Izoh <span class="yordam">Ixtiyoriy</span></label>
       <input id="b-izoh" placeholder="Masalan: kechqurun qo‘ng‘iroq qiling" value="${esc(d.note || '')}">
 
@@ -908,17 +924,12 @@ function checkoutOch() {
         chiqadi — to‘lab, chek rasmini yuklaysiz.
       </div>
 
-      <div class="karta" style="margin:16px 0 0;padding:14px">
-        ${qtr('Mahsulotlar', narx(oraliq))}
-        ${chegirma ? `<div class="qtr"><span class="k">Chegirma</span><span class="v chegirma">−${narx(chegirma)}</span></div>` : ''}
-        ${qtr('Yetkazish', yetkazish ? narx(yetkazish) : '<span style="color:var(--yashil)">bepul</span>')}
-        <div class="qtr jami"><span class="k">Jami</span><span class="v">${narx(jami)}</span></div>
-      </div>
+      <div class="karta" id="b-summa" style="margin:16px 0 0;padding:14px"></div>
 
       <div id="checkout-xato" class="xato-matn"></div>
       <button class="asosiy" id="t-yubor" style="margin-top:16px">✅ Buyurtmani tasdiqlash</button>
     </div>`;
-  kor($('#modal'), true);
+  modalOch();
 
   const bogla = (id, kalit) => {
     const el = $('#' + id);
@@ -943,6 +954,72 @@ function checkoutOch() {
   };
 
   $('#t-yubor').onclick = buyurtmaYubor;
+  yetkazishniHisobla(oraliq, chegirma);
+}
+
+/**
+ * Yetkazish variantlari va narxi — serverdan.
+ * Narx og'irlikka va manzilga bog'liq, shuning uchun har safar so'raymiz.
+ */
+async function yetkazishniHisobla(oraliq, chegirma) {
+  const quti = $('#b-yetkazish');
+  const summa = $('#b-summa');
+  if (!quti || !summa) return;
+
+  const chiz = (turlar, tanlangan, ogirlik, bepul) => {
+    quti.innerHTML = turlar.map((t) => `
+      <button class="tanlov-qator ${t.kalit === tanlangan ? 'tanlangan' : ''}" data-yt="${t.kalit}">
+        <span class="yt-chap">
+          <span class="yt-nom">${t.emoji} ${esc(t.nom)}</span>
+          <span class="yt-izoh">${t.kalit === 'filial'
+            ? 'Eng yaqin pochta filialidan olasiz'
+            : 'Pochta manzilingizgacha yetkazadi'}</span>
+        </span>
+        <span class="yt-narx">${bepul ? 'bepul' : narx(t.narx)}</span>
+      </button>`).join('') +
+      `<p class="ozgina" style="margin:8px 0 0">📦 Jo‘natma og‘irligi: ~${(ogirlik / 1000).toFixed(1)} kg
+        <span class="yordam">(qadoqlash bilan)</span></p>`;
+
+    $$('[data-yt]', quti).forEach((b) => b.onclick = () => {
+      holat.draft.yetkazish_turi = b.dataset.yt;
+      draftniSaqla();
+      const yangi = turlar.find((x) => x.kalit === b.dataset.yt);
+      chiz(turlar, b.dataset.yt, ogirlik, bepul);
+      summaChiz(bepul ? 0 : yangi.narx);
+      titra();
+    });
+  };
+
+  const summaChiz = (yetkazish) => {
+    const jami = oraliq - chegirma + yetkazish;
+    summa.innerHTML = `
+      ${qtr('Mahsulotlar', narx(oraliq))}
+      ${chegirma ? `<div class="qtr"><span class="k">Chegirma</span><span class="v chegirma">−${narx(chegirma)}</span></div>` : ''}
+      ${qtr('Yetkazish', yetkazish ? narx(yetkazish) : '<span style="color:var(--yashil)">bepul</span>')}
+      <div class="qtr jami"><span class="k">Jami</span><span class="v">${narx(jami)}</span></div>`;
+  };
+
+  summaChiz(0);
+  const { viloyat, tuman } = hududTanlovi();
+  if (!viloyat) {
+    quti.innerHTML = `<p class="ozgina" style="margin:2px 0 0">
+      📍 Avval viloyat va tumanni tanlang — narx shundan keyin hisoblanadi.</p>`;
+    return;
+  }
+
+  quti.innerHTML = `<p class="ozgina" style="margin:2px 0 0">Narx hisoblanmoqda…</p>`;
+  try {
+    const j = await api('/api/yetkazish', { method: 'POST',
+      body: JSON.stringify({ viloyat, tuman }) });
+    if (j.bosh) return;
+    const tanlangan = holat.draft.yetkazish_turi || 'filial';
+    holat.draft.yetkazish_turi = tanlangan;
+    chiz(j.turlar, tanlangan, j.ogirlik, j.bepul);
+    summaChiz(j.bepul ? 0 : (j.turlar.find((t) => t.kalit === tanlangan)?.narx || 0));
+  } catch (e) {
+    quti.innerHTML = `<p class="ozgina" style="margin:2px 0 0;color:var(--qizil)">
+      Narxni hisoblab bo‘lmadi. Menejer bog‘lanib aytadi.</p>`;
+  }
 }
 
 /**
@@ -968,7 +1045,7 @@ function royxatOyna(sarlavha, royxat, joriy, tanlandi) {
       </div>
       <div class="royxat" id="r-royxat">${chiz()}</div>
     </div>`;
-  kor($('#modal'), true);
+  modalOch();
 
   const ula = () => $$('#r-royxat [data-tanla]').forEach((b) => b.onclick = () => {
     titra(); modalYop(); tanlandi(b.dataset.tanla);
@@ -984,6 +1061,7 @@ async function buyurtmaYubor() {
   const tana = {
     name: $('#b-ism').value.trim(), phone: $('#b-tel').value.trim(),
     viloyat, tuman, note: $('#b-izoh').value.trim(),
+    yetkazish_turi: holat.draft.yetkazish_turi || 'filial',
     // Bazaga to'liq manzil boradi, lekin ko'cha qoralamada alohida qoladi
     address: [viloyat, tuman, kocha].filter(Boolean).join(', '),
   };
@@ -1031,7 +1109,7 @@ function tolovOyna(o) {
       <button class="ikkilamchi" id="t-keyin" style="margin-top:9px">Keyinroq yuboraman</button>
       <div id="chek-holat" style="margin-top:12px"></div>
     </div>`;
-  kor($('#modal'), true);
+  modalOch();
 
   $('#t-nusxa').onclick = async () => {
     const raqam = String(holat.karta.raqam || '').replace(/\s/g, '');
@@ -1076,7 +1154,7 @@ function tayyorOyna(o, chekBor = false) {
       </div>
       <button class="asosiy" id="t-tayyor" style="margin-top:18px">Yaxshi</button>
     </div>`;
-  kor($('#modal'), true);
+  modalOch();
   $('#t-tayyor').onclick = () => {
     modalYop(); tabOch('buyurtma'); buyurtmalarniChiz({ majburiy: true });
   };

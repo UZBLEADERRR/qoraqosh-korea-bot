@@ -32,6 +32,11 @@ Google Gemini · Railway.
 - **«Rasm qilib olish»** — Mini App'dagi tugma rasmni Telegram chatiga yuboradi.
   (WebView ichida brauzerning yuklab olish va ulashish oynasi ishonchli
   ishlamaydi; chatdan saqlash esa har telefonda ishlaydi.)
+- **Yetkazib berish — pochta orqali.** Biz uyigacha o'zimiz eltmaymiz.
+  Mijoz ikkitasidan birini tanlaydi:
+  **🏤 filialdan olib ketaman** (arzonroq) yoki
+  **🏠 manzilimgacha yetkazilsin**. Narx jo'natma OG'IRLIGIGA qarab
+  hisoblanadi: mahsulotlar og'irligi + qadoqlash uchun 200 g.
 - **Manzil tanlanadi, yozilmaydi** — 14 ta viloyat va 210 ta tuman ro'yxatdan
   qidiruv bilan tanlanadi; qo'lda faqat ko'cha, uy va xonadon yoziladi.
   Server viloyat/tuman juftligini rasmiy ro'yxatga solishtiradi.
@@ -102,9 +107,34 @@ Kompyuter oldiga o'tirmasdan, Telegram'dan:
 | `/brend` | Brend nomini o'zgartirish. |
 | `/panel` | Admin panelni ochish. |
 
-**Pochta hujjati** — partiyadagi hamma jo'natma bitta `.docx` faylda:
-umumiy jadval (kimga, manzil, telefon, buyurtma, summa) va har biri uchun
-qirqiladigan «KIMDAN / KIMGA» yorlig'i. Print qilib pochtaga olib borasiz.
+**Ikkita hujjat** (`/partiya` yoki `/orders` ostidagi tugmalardan):
+
+- **📄 Pochta hujjati** — partiyadagi hamma jo'natma bitta `.docx` da:
+  umumiy jadval (kimga, manzil, telefon, buyurtma, summa) va har biri uchun
+  qirqiladigan «KIMDAN / KIMGA» yorlig'i. Print qilib pochtaga olib borasiz.
+- **📘 Parvarish qo'llanmasi** — har mijoz uchun alohida sahifa: u AYNAN
+  o'zi olgan mahsulotlarni qaysi tartibda va qanday ishlatishi, faol
+  moddalari, ehtiyot choralari. Print qilib har birini o'z qutisiga solasiz.
+  Mahsulot to'g'ri ishlatilsa natija ko'rinadi — bu qayta xaridga olib keladi.
+
+### 🚚 Yetkazib berish narxi
+
+Narx **og'irlik** bo'yicha hisoblanadi. Har mahsulotning og'irligi (gramm)
+admin panelda kiritiladi; ustiga qadoqlash uchun 200 g qo'shiladi va
+to'liq kilogrammga yaxlitlanadi.
+
+Sukut bo'yicha tarif (Sozlamalar → Yetkazib berish dan o'zgartiriladi):
+
+| Turi | 1 kg gacha | Har qo'shimcha kg |
+|---|---|---|
+| 🏤 Filialdan olib ketish | 7 000 so'm | +5 000 so'm |
+| 🏠 Manzilgacha yetkazish | 15 000 so'm | +5 000 so'm |
+
+Pochta xizmatining API si bo'lsa (`yetkazish_api_url` sozlamasi) narx
+o'shandan olinadi. API javob bermasa yoki sozlanmagan bo'lsa —
+yuqoridagi tarif jadvali ishlaydi, ya'ni mijoz buyurtmani baribir
+tugata oladi. Narx **har doim serverda** hisoblanadi: mijoz yuborgan
+summa umuman ishlatilmaydi.
 
 ### 🤖 Kanal agenti
 
@@ -255,7 +285,9 @@ src/
     cheklov.js         so'rov cheklagich (sirg'aluvchi oyna)
   services/            tahlil va buyurtma mantiqi (bot ham, API ham ishlatadi)
     partiya.js         xarid partiyalari (/orders)
+    yetkazish.js       og'irlik bo'yicha narx (API yoki tarif jadvali)
     pochta-hujjati.js  pochta uchun manzillar hujjati
+    qollanma-hujjati.js mijozga qutiga qo'shiladigan parvarish qo'llanmasi
     broadcast.js       reklama yuborish (tezlik cheklovi bilan)
     majburiy-kanal.js  obuna tekshiruvi
     agent.js           kanal rejasi va post yozish
@@ -283,6 +315,11 @@ Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing
 ---
 
 ## Muhim texnik qarorlar
+
+**Yetkazish narxi ham serverda.** `place_order()` ga tayyor narx beriladi,
+lekin uni SERVER kodi (`src/services/yetkazish.js`) hisoblaydi — mijoz
+yuborgan qiymat emas. Shu sababli mijoz `delivery_fee: 0` yuborsa ham
+haqiqiy narx qo'yiladi.
 
 **Narx serverda hisoblanadi.** Buyurtma `place_order()` funksiyasi ichida
 yaratiladi: mahsulot narxi, ombor qoldig'i va yetkazish summasi bazadan

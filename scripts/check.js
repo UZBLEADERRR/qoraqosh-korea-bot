@@ -25,6 +25,8 @@ const kerakliFayllar = [
   'assets/shrift/Sans-Regular.ttf', 'assets/shrift/Sans-Bold.ttf',
   'migrations/009_kanal_natija_rasm.sql', 'migrations/010_partiya_agent.sql',
   'src/lib/bosqichlar.js', 'src/lib/docx.js',
+  'src/services/yetkazish.js', 'src/services/qollanma-hujjati.js',
+  'migrations/011_yetkazish.sql',
   'src/services/partiya.js', 'src/services/pochta-hujjati.js',
   'src/services/broadcast.js', 'src/services/majburiy-kanal.js',
   'src/services/agent.js', 'src/services/agent-jadval.js',

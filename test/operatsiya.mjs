@@ -100,6 +100,42 @@ await yoz('800001','/start');
 test('menyuda yangi brend', /Meduza Beauty/.test(hammasi()));
 await yoz('700001','/brend Meduza Cosmetics');
 
+console.log('\n── QO‘LLANMA HUJJATI ──');
+yuborilgan.length=0;
+await bos('700001', `pk:${par.id}`);
+const qol = yuborilgan.find(x=>x.hujjat);
+test('qo‘llanma fayli yuborildi', Boolean(qol), qol?`${(qol.hajm/1024).toFixed(1)} KB`:'');
+test('izohda buyurtma soni bor', /ta buyurtma/.test(qol?.text||''));
+
+console.log('\n── KANALDAN TO‘LOVNI TASDIQLASH ──');
+await sorov(`update settings set value='"-100777"'::jsonb where key='kanal_buyurtma'`);
+const yangiB = await buyurtma('QQ-900',[[1,'Cleansing Oil',1]]);
+await sorov(`update orders set status='yangi', payment_status='chek_yuborilgan' where id=$1`,[yangiB.id]);
+yuborilgan.length=0;
+await bos('700001', `tt:${yangiB.id}`);
+const ordDb = await qator(`select status, payment_status from orders where id=$1`,[yangiB.id]);
+test('to‘lov tasdiqlandi', ordDb.payment_status==='tolangan', ordDb.payment_status);
+test('buyurtma xaridga o‘tdi', ordDb.status==='tasdiqlangan', ordDb.status);
+test('mijozga xabar bordi', yuborilgan.some(x=>String(x.chat_id)==='800001'));
+yuborilgan.length=0;
+await bos('700001', `tt:${yangiB.id}`);
+test('ikkinchi marta tasdiqlanmaydi', !yuborilgan.some(x=>String(x.chat_id)==='800001'));
+
+console.log('\n── YETKAZISH NARXI ──');
+const { yetkazishNarxi, ogirlikHisobla, variantlar } = await import('../src/services/yetkazish.js');
+await sorov(`update products set ogirlik = 300 where id in (1,2)`);
+const { keshniTashla: kt } = await import('../src/lib/kesh.js'); kt();
+const og = await ogirlikHisobla([{product_id:1,quantity:2},{product_id:2,quantity:1}]);
+test('og‘irlik qadoq bilan hisoblandi', og === 300*3 + 200, `${og} g`);
+const f = await yetkazishNarxi({items:[{product_id:1,quantity:1}],turi:'filial',viloyat:'Samarqand viloyati'});
+test('filialdan olish arzonroq', f.narx === 7000, `${f.narx} so‘m, ${f.kilo} kg`);
+const u = await yetkazishNarxi({items:[{product_id:1,quantity:1}],turi:'uy',viloyat:'Samarqand viloyati'});
+test('uygacha qimmatroq', u.narx === 15000, `${u.narx} so‘m`);
+const ogir = await yetkazishNarxi({turi:'filial',gramm:3500,viloyat:'Samarqand viloyati'});
+test('og‘ir jo‘natma qimmatroq', ogir.narx === 7000 + 3*5000, `4 kg -> ${ogir.narx} so‘m`);
+const v = await variantlar({items:[{product_id:1,quantity:1}],viloyat:'Buxoro viloyati'});
+test('ikkala variant qaytadi', v.filial.narx < v.uy.narx, `${v.filial.narx} / ${v.uy.narx}`);
+
 console.log('\n── MAJBURIY KANAL ──');
 await sorov(`update settings set value='"@meduza_kanal"'::jsonb where key='majburiy_kanal'`);
 await sorov(`update settings set value='"https://t.me/meduza_kanal"'::jsonb where key='majburiy_kanal_havola'`);

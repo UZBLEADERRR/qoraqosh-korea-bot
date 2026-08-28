@@ -535,6 +535,10 @@ function mahsulotOyna(p) {
       <div><label>Narx (so‘m) *</label><input id="m-price" type="number" inputmode="numeric" value="${p?.price || ''}"></div>
       <div><label>Tannarx (so‘m)</label><input id="m-cost" type="number" inputmode="numeric" value="${p?.cost_price || ''}"></div>
       <div><label>Ombor (dona)</label><input id="m-stock" type="number" inputmode="numeric" value="${p?.stock ?? 0}"></div>
+      <div><label>Og‘irlik (gramm)
+        <span class="yordam">yetkazish narxi shunga qarab</span></label>
+        <input id="m-ogirlik" type="number" inputmode="numeric" min="0"
+          value="${p?.ogirlik || ''}" placeholder="150"></div>
       <div><label>Emoji</label><input id="m-emoji" value="${esc(p?.emoji || '🧴')}" maxlength="4"></div>
     </div>
     <label>🔗 Qayerdan olinadi <span class="yordam">Coupang yoki Daiso havolasi</span></label>
@@ -556,7 +560,26 @@ function mahsulotOyna(p) {
     <label class="belgi-qator" style="margin-top:16px">
       <input type="checkbox" id="m-faol" ${p?.is_active !== false ? 'checked' : ''}> Katalogda ko‘rinsin</label>
     <div id="m-xato" class="xato"></div>
-    <button class="tug asos keng" id="m-saqla" style="margin-top:18px">Saqlash</button>`, { keng: true });
+    <button class="tug asos keng" id="m-saqla" style="margin-top:18px">Saqlash</button>
+    ${p?.id ? `<button class="tug xavf keng" id="m-ochir" style="margin-top:9px">
+      🗑 Mahsulotni o‘chirish</button>
+      <p class="mayda" style="margin:8px 0 0">
+        Mahsulot katalogdan yo‘qoladi, lekin eski buyurtmalar tarixida qoladi —
+        shu sababli butunlay o‘chirilmaydi, arxivga olinadi.</p>` : ''}`, { keng: true });
+
+  const och = $('#m-ochir');
+  if (och) och.onclick = async () => {
+    if (!confirm(`«${p.name}» katalogdan olib tashlansinmi?`)) return;
+    och.disabled = true; och.textContent = 'O‘chirilmoqda…';
+    try {
+      await api('/api/admin/product', { method: 'DELETE', body: JSON.stringify({ id: p.id }) });
+      modalYop(); tost('Mahsulot arxivga olindi');
+      holat.kesh.mahsulotlar = null; mahsulotlar();
+    } catch (e) {
+      och.disabled = false; och.textContent = '🗑 Mahsulotni o‘chirish';
+      $('#m-xato').textContent = e.message;
+    }
+  };
 
   $('#m-saqla').onclick = async () => {
     const xato = $('#m-xato');
@@ -574,6 +597,7 @@ function mahsulotOyna(p) {
       skin_types: $$('input[name=skin]:checked').map((i) => i.value),
       is_active: $('#m-faol').checked, ai_filled: Boolean(p?.ai_filled),
       manba_url: $('#m-manba').value.trim(),
+      ogirlik: Math.max(0, Number($('#m-ogirlik').value) || 0),
     };
     if (!tana.name)  return xato.textContent = 'Nomi kerak.';
     if (!tana.price) return xato.textContent = 'Narx kerak.';
@@ -1015,6 +1039,42 @@ async function sozlamalar() {
       </div>
 
       <div class="karta tor">
+        <div class="karta-bosh"><h2>🚚 Yetkazib berish</h2></div>
+        <p class="mayda" style="margin:0 0 12px">
+          Biz uyigacha o‘zimiz eltmaymiz — jo‘natma pochta orqali ketadi.
+          Mijoz <b>filialdan olib ketish</b> yoki <b>manziligacha yetkazish</b> ni tanlaydi,
+          narx og‘irlikka qarab hisoblanadi.</p>
+
+        <div class="forma-tor">
+          <div><label>Filialdan olish <span class="yordam">1 kg gacha</span></label>
+            <input id="s-t-filial" type="number" inputmode="numeric" min="0"
+              value="${Number(st.tarif_filial_1kg) || 7000}"></div>
+          <div><label>Uygacha <span class="yordam">1 kg gacha</span></label>
+            <input id="s-t-uy" type="number" inputmode="numeric" min="0"
+              value="${Number(st.tarif_uy_1kg) || 15000}"></div>
+          <div><label>Har qo‘shimcha kg</label>
+            <input id="s-t-kg" type="number" inputmode="numeric" min="0"
+              value="${Number(st.tarif_qoshimcha_kg) || 5000}"></div>
+          <div><label>Qadoqlash (gramm)</label>
+            <input id="s-qadoq" type="number" inputmode="numeric" min="0"
+              value="${Number(st.qadoq_ogirlik) || 200}"></div>
+        </div>
+        <label>Og‘irligi kiritilmagan mahsulot uchun (gramm)</label>
+        <input id="s-standart-og" type="number" inputmode="numeric" min="0"
+          value="${Number(st.standart_ogirlik) || 150}">
+
+        <p class="mayda" style="margin:14px 0 6px"><b>Pochta xizmati API si</b> —
+          bo‘lsa narx o‘shandan olinadi, bo‘lmasa yuqoridagi tarif ishlaydi.</p>
+        <label>API manzili <span class="yordam">ixtiyoriy</span></label>
+        <input id="s-api-url" type="url" inputmode="url"
+          value="${esc(matn('yetkazish_api_url'))}" placeholder="https://api.emu.uz/calculate">
+        <label>API kaliti</label>
+        <input id="s-api-kalit" value="${esc(matn('yetkazish_api_kalit'))}" placeholder="Bearer token">
+        <label>Jo‘natuvchi viloyati</label>
+        <input id="s-jon-viloyat" value="${esc(matn('jonatuvchi_viloyat'))}" placeholder="Toshkent shahri">
+      </div>
+
+      <div class="karta tor">
         <div class="karta-bosh"><h2>🧾 Xarid va pochta</h2></div>
         <label>Xarid kanali <span class="yordam">/orders ro‘yxati shu yerga tushadi</span></label>
         <input id="s-xarid-kanal" value="${esc(matn('xarid_kanal'))}" placeholder="-1001234567890">
@@ -1157,6 +1217,14 @@ async function sozlamalarniSaqla() {
       xarid_kanal:           $('#s-xarid-kanal').value.trim(),
       jonatuvchi_manzil:     $('#s-jonatuvchi').value.trim(),
       chek_saqlansin:        $('#s-chek-saqla').checked,
+      tarif_filial_1kg:      Math.max(0, Number($('#s-t-filial').value) || 0),
+      tarif_uy_1kg:          Math.max(0, Number($('#s-t-uy').value) || 0),
+      tarif_qoshimcha_kg:    Math.max(0, Number($('#s-t-kg').value) || 0),
+      qadoq_ogirlik:         Math.max(0, Number($('#s-qadoq').value) || 0),
+      standart_ogirlik:      Math.max(0, Number($('#s-standart-og').value) || 0),
+      yetkazish_api_url:     $('#s-api-url').value.trim(),
+      yetkazish_api_kalit:   $('#s-api-kalit').value.trim(),
+      jonatuvchi_viloyat:    $('#s-jon-viloyat').value.trim(),
     }})});
     holatEl.innerHTML = `<div class="xabar-quti ok" style="margin:0 0 10px">✓ Saqlandi</div>`;
     tost('Sozlamalar saqlandi');
@@ -1405,7 +1473,8 @@ function qollanma() {
           <b>admin</b> qilib qo‘shing, ID larini kiriting va «Kanallarni sinash» ni bosing.</li>
         <li><b>Omborlar</b> → filiallaringizni qo‘shing (viloyat va tuman bilan).</li>
         <li><b>Mahsulotlar</b> → har birining <b>narx, tannarx va ombor</b> sonini kiriting.
-          Tannarxsiz foyda hisoblanmaydi.</li>
+          Tannarxsiz foyda hisoblanmaydi. <b>Og‘irlik (gramm)</b> ni ham yozing —
+          yetkazish narxi shunga qarab hisoblanadi.</li>
       </ol>
     </div>
 
@@ -1435,8 +1504,11 @@ function qollanma() {
           yangi ro‘yxatga yig‘ila boshlaydi.</li>
         <li><code>/partiya</code> → partiyani tanlab, holatini birdaniga
           suradingiz. Mijozlarga xabar o‘zi ketadi.</li>
-        <li>O‘zbekistonga yetgach — <b>📄 Pochta hujjati</b> tugmasi. Word fayl
-          keladi: jadval va qirqiladigan yorliqlar. Print qilib pochtaga berasiz.</li>
+        <li>O‘zbekistonga yetgach ikkita hujjat olasiz:
+          <b>📄 Pochta hujjati</b> (jadval + qirqiladigan yorliqlar) va
+          <b>📘 Parvarish qo‘llanmasi</b> (har mijozga o‘zi olgan mahsulotlarni
+          qanday ishlatish). Print qilib, yorliqni qutiga yopishtirasiz,
+          qo‘llanmani ichiga solasiz.</li>
       </ol>
     </div>
 

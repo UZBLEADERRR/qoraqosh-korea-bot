@@ -254,6 +254,7 @@ export async function adminRoutes(req, res, yol) {
       emoji: String(b.emoji || '🧴').slice(0, 4),
       manba_url: manbaUrl(b.manba_url),
       manba: manbaTuri(b.manba_url),
+      ogirlik: Math.max(0, Math.min(50000, Number(b.ogirlik) || 0)),
       ai_filled: Boolean(b.ai_filled),
       is_active: b.is_active !== false,
     };
@@ -263,20 +264,21 @@ export async function adminRoutes(req, res, yol) {
     const q = [m.name, m.brand, m.category_id, m.step, m.price, m.old_price, m.cost_price,
                m.stock, m.volume, m.country, m.description, m.usage_text, m.ingredients,
                m.actives, m.concerns, m.skin_types, m.warnings, m.emoji, m.ai_filled, m.is_active,
-               m.manba_url, m.manba];
+               m.manba_url, m.manba, m.ogirlik];
     try {
       const natija = b.id
         ? await qator(
             `update products set name=$1,brand=$2,category_id=$3,step=$4,price=$5,old_price=$6,
                     cost_price=$7,stock=$8,volume=$9,country=$10,description=$11,usage_text=$12,
                     ingredients=$13,actives=$14,concerns=$15,skin_types=$16,warnings=$17,
-                    emoji=$18,ai_filled=$19,is_active=$20,manba_url=$21,manba=$22,updated_at=now()
-              where id=$23 returning *`, [...q, b.id])
+                    emoji=$18,ai_filled=$19,is_active=$20,manba_url=$21,manba=$22,
+                    ogirlik=$23,updated_at=now()
+              where id=$24 returning *`, [...q, b.id])
         : await qator(
             `insert into products (name,brand,category_id,step,price,old_price,cost_price,stock,
                     volume,country,description,usage_text,ingredients,actives,concerns,skin_types,
-                    warnings,emoji,ai_filled,is_active,manba_url,manba)
-             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+                    warnings,emoji,ai_filled,is_active,manba_url,manba,ogirlik)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
              returning *`, q);
       katalogYangilandi();
       return ok(res, { mahsulot: natija });
@@ -471,7 +473,8 @@ export async function adminRoutes(req, res, yol) {
     keshniTozala();          // yangi bot matni darhol kuchga kirsin
     katalogYangilandi();     // narx/karta/menejer sozlamalari ham
     keshniTashla('brend');       // brend nomi ham
-    keshniTashla('brend-logo');  // logotip ham
+    keshniTashla('brend-logo');       // logotip ham
+    keshniTashla('yetkazish-sozlama'); // tarif ham
     return ok(res, { ok: true });
   }
 

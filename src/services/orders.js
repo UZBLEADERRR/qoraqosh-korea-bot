@@ -1,6 +1,7 @@
 // Buyurtma xizmati. Narx va ombor tekshiruvi bazadagi place_order() ichida —
 // mijoz yuborgan summa hech qachon ishonchli deb qabul qilinmaydi.
 import { qator, qatorlar, sorov } from '../db.js';
+import { yetkazishNarxi, turTozala } from './yetkazish.js';
 
 const XATO_MATNI = (msg) => {
   if (msg.includes('BOSH_SAVAT'))         return 'Savat bo‘sh.';
@@ -12,17 +13,28 @@ const XATO_MATNI = (msg) => {
   return 'Buyurtmani rasmiylashtirib bo‘lmadi. Qayta urinib ko‘ring.';
 };
 
-export async function buyurtmaYarat(user, items, { name, phone, address, note, viloyat, tuman } = {}) {
+export async function buyurtmaYarat(user, items,
+  { name, phone, address, note, viloyat, tuman, yetkazishTuri } = {}) {
   const toza = items.map((i) => ({
     product_id: Number(i.product_id),
     quantity: Math.max(1, Number(i.quantity) || 1),
   }));
+
+  // Yetkazish narxi SERVERDA hisoblanadi va place_order ga tayyor holda
+  // beriladi. Mijoz yuborgan summa umuman ishlatilmaydi.
+  const turi = turTozala(yetkazishTuri);
+  const y = await yetkazishNarxi({
+    items: toza, turi,
+    viloyat: viloyat || user.viloyat, tuman: tuman || user.tuman,
+  });
+
   try {
     return await qator(
-      'select * from place_order($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+      'select * from place_order($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
       [user.id, JSON.stringify(toza), name || user.full_name,
        phone || user.phone, address || user.address, note || null,
-       'karta', viloyat || user.viloyat || null, tuman || user.tuman || null],
+       'karta', viloyat || user.viloyat || null, tuman || user.tuman || null,
+       y.narx, y.turi, y.gramm],
     );
   } catch (e) {
     const xato = new Error(XATO_MATNI(e.message));

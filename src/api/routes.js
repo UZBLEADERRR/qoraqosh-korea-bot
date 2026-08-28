@@ -11,6 +11,7 @@ import { kesh } from '../lib/kesh.js';
 import { cheklov } from '../lib/cheklov.js';
 import { VILOYATLAR, tumanlar } from '../lib/hududlar.js';
 import { kanalgaBuyurtma, kanalgaChek } from '../services/kanal.js';
+import { variantlar, TURLAR, turTozala, bepulChegara } from '../services/yetkazish.js';
 import { natijaRasminiYarat, saqlanganRasm, kanalgaTahlil } from '../services/natija-rasm.js';
 import { rasmYubor } from '../bot/tg.js';
 
@@ -160,7 +161,8 @@ export async function apiRoutes(req, res, yol) {
       const buyurtma = await buyurtmaYarat(
         user,
         savat.map((s) => ({ product_id: s.products.id, quantity: s.quantity })),
-        { name: b.name, phone: tel, address: manzil, note: b.note, viloyat, tuman });
+        { name: b.name, phone: tel, address: manzil, note: b.note, viloyat, tuman,
+          yetkazishTuri: b.yetkazish_turi });
 
       // Manzilni keyingi safar uchun eslab qolamiz
       await sorov(
@@ -173,6 +175,31 @@ export async function apiRoutes(req, res, yol) {
     } catch (e) {
       return xato(res, 400, e.message);
     }
+  }
+
+  // --- Yetkazish narxi (savatga va manzilga qarab) ---
+  // Mijoz filialdan olish yoki uygacha yetkazishni tanlaydi — ikkalasining
+  // narxini ham ko'rsatamiz.
+  if (yol === '/api/yetkazish' && req.method === 'POST') {
+    const b = await tana(req);
+    const savat = await savatniOl(user.id);
+    if (!savat.length) return ok(res, { bosh: true });
+
+    const items = savat.map((s) => ({ product_id: s.products.id, quantity: s.quantity }));
+    const oraliq = savat.reduce((s, r) => s + r.products.price * r.quantity, 0);
+    const { viloyat, tuman } = hududniTekshir(b.viloyat, b.tuman);
+
+    const v = await variantlar({ items, viloyat, tuman });
+    const chegara = await bepulChegara();
+    const bepul = oraliq >= chegara;
+
+    return ok(res, {
+      ogirlik: v.gramm, kilo: v.kilo, bepul, bepul_chegara: chegara,
+      turlar: [
+        { ...TURLAR.filial, narx: bepul ? 0 : v.filial.narx },
+        { ...TURLAR.uy,     narx: bepul ? 0 : v.uy.narx },
+      ],
+    });
   }
 
   // --- Buyurtma qoralamasi: yarim yo'lda chiqib ketsa yo'qolmasin ---
@@ -191,6 +218,7 @@ export async function apiRoutes(req, res, yol) {
       viloyat: String(b.viloyat || '').slice(0, 60),
       tuman:   String(b.tuman   || '').slice(0, 60),
       qadam:   String(b.qadam   || '').slice(0, 20),
+      yetkazish_turi: turTozala(b.yetkazish_turi),
     };
     await sorov('update users set checkout_draft = $1 where id = $2', [JSON.stringify(toza), user.id]);
     return ok(res, { ok: true });

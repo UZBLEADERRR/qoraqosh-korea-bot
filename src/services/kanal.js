@@ -49,13 +49,21 @@ async function buyurtmaMatni(o, user, sarlavha) {
   ].filter((x) => x !== undefined && x !== null && x !== '').join('\n');
 }
 
+/** Buyurtma xabari ostidagi tugmalar — kanaldan turib boshqarish uchun. */
+const tugmalar = (o) => ({ inline_keyboard: [
+  [{ text: '✅ To‘lovni tasdiqlash', callback_data: `tt:${o.id}` }],
+  [{ text: '❌ To‘lov kelmadi', callback_data: `tr:${o.id}` }],
+] });
+
 /** Yangi buyurtma — chek hali yo'q. */
 export async function kanalgaBuyurtma(buyurtma, user) {
   const kanal = String(await sozlama('kanal_buyurtma', '') || '');
   if (!kanal) return;
   try {
     const matn = await buyurtmaMatni(buyurtma, user, `🛒 <b>YANGI BUYURTMA</b>`);
-    await yubor(kanal, matn);
+    // Tugma shu yerda ham bo'lsin: chek keldi degan xabarni kutmasdan
+    // naqd o'tkazma qilingan bo'lsa darhol tasdiqlash mumkin.
+    await yubor(kanal, matn, { reply_markup: tugmalar(buyurtma) });
   } catch (e) {
     console.error('BUYURTMA KANALI:', e.message);
   }
@@ -80,17 +88,19 @@ export async function kanalgaChek(orderId) {
 
     const matn = await buyurtmaMatni(o, o, `💳 <b>TO‘LOV CHEKI KELDI</b>`);
 
+    const kb = tugmalar(o);
     if (o.chek_bayt) {
       // Telegram izohi 1024 belgi bilan cheklangan. Uzun bo'lsa rasm izohsiz
       // ketadi va matn keyingi xabarda — hech narsa qirqilmaydi.
+      // Tugma HAR DOIM oxirgi xabarda bo'ladi.
       if (matn.length <= 1024) {
-        await rasmYubor(kanal, Buffer.from(o.chek_bayt), matn);
+        await rasmYubor(kanal, Buffer.from(o.chek_bayt), matn, { reply_markup: kb });
       } else {
         await rasmYubor(kanal, Buffer.from(o.chek_bayt), `💳 <b>To‘lov cheki</b> · ${esc(o.order_no)}`);
-        await yubor(kanal, matn);
+        await yubor(kanal, matn, { reply_markup: kb });
       }
     } else {
-      await yubor(kanal, matn);
+      await yubor(kanal, matn, { reply_markup: kb });
     }
   } catch (e) {
     console.error('CHEK KANALI:', e.message);
