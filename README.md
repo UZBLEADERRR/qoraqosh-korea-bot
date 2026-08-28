@@ -40,6 +40,11 @@ Google Gemini · Railway.
 - **Eng yaqin ombor** — mahsulot yetib kelganda mijozga aynan qaysi omborga
   kelgani, uning manzili, mo'ljali, telefoni va ish vaqti yuboriladi.
   Ombor avval tuman, topilmasa viloyat bo'yicha tanlanadi.
+- **Buyurtma yo'li ko'rinib turadi** — to'lov tasdiqlandi → Koreyada
+  qadoqlanmoqda → Koreyadan jo'natildi → yo'lda → O'zbekiston omborida →
+  pochtadan jo'natildi → yetib keldi. Har bosqichda xabar keladi.
+- **Majburiy obuna** (ixtiyoriy) — kanalga a'zo bo'lmagan foydalanuvchi
+  botdan foydalana olmaydi.
 
 ### Admin uchun (`/admin`)
 - **Boshqaruv paneli** — daromad, yalpi foyda va marja, o'rtacha chek,
@@ -80,8 +85,45 @@ Google Gemini · Railway.
   Tahlillar kanaliga mijozlarning yuz suratlari tushgani uchun u sukut
   bo'yicha **o'chiq** — admin ataylab yoqishi kerak, kanal esa yopiq bo'lsin.
   «Kanallarni sinash» tugmasi bot kanalga yoza olishini darhol tekshiradi.
-- **Brend nomi** — Sozlamalardan o'zgartiriladi va bot, Mini App hamda
-  rasmlarda birdaniga qo'llanadi.
+- **Brend nomi va logotipi** — Sozlamalardan o'zgartiriladi va bot, Mini App
+  hamda rasmlarda birdaniga qo'llanadi. Nomni botdan ham o'zgartirasiz:
+  `/brend`.
+
+### Telefondan boshqarish (bot buyruqlari)
+
+Kompyuter oldiga o'tirmasdan, Telegram'dan:
+
+| Buyruq | Nima qiladi |
+|---|---|
+| `/orders` | **Xarid ro'yxati.** To'langan buyurtmalar mahsulot bo'yicha jamlanadi: «Cleansing Oil — 5 dona». Nomni bossangiz Coupang/Daiso sahifasi ochiladi. «Qabul qilindi» ni bosgach shu buyurtmalar bitta **partiya** ga birlashadi, keyingilari yangi ro'yxatga yig'iladi. |
+| `/partiya` | Partiyani tanlab holatini birdaniga surasiz (mijozlarga xabar o'zi ketadi) va **pochta hujjatini** olasiz. |
+| `/reklama` | Hamma foydalanuvchiga xabar (matn yoki rasm). Oldindan ko'rasiz, keyin yuboriladi. |
+| `/reja` | Kanal agenti — pastga qarang. |
+| `/brend` | Brend nomini o'zgartirish. |
+| `/panel` | Admin panelni ochish. |
+
+**Pochta hujjati** — partiyadagi hamma jo'natma bitta `.docx` faylda:
+umumiy jadval (kimga, manzil, telefon, buyurtma, summa) va har biri uchun
+qirqiladigan «KIMDAN / KIMGA» yorlig'i. Print qilib pochtaga olib borasiz.
+
+### 🤖 Kanal agenti
+
+Botda `/reja` yozib topshiriq berasiz — masalan *«har kuni teri parvarishi
+haqida foydali post joyla»*. Agent:
+
+1. **30 kunlik mavzular rejasini** tuzadi
+2. Har kuni belgilangan soatda **post tayyorlaydi** (matn + rasm)
+3. Uni **sizga** yuboradi — kanalga emas
+
+**Siz tasdiqlamaguncha kanalga hech narsa chiqmaydi.** Tugmalar:
+
+- ✅ **Kanalga joylash**
+- ✏️ **O'zim yozaman** — matnni qo'lda yuborasiz
+- 🤖 **AI ga aytaman** — *«juda uzun, qisqartir»*, *«yoshlarga mos qil»* —
+  AI shu izohga qarab qayta yozadi
+- 🔄 **Boshqa variant** · ⏭ **O'tkazib yuborish**
+
+Joylangan mavzu rejadan chiqadi, qolgani navbatda turadi.
 
 ---
 
@@ -204,12 +246,20 @@ src/
     routes.js          Mini App API (initData imzosi bilan)
     admin.js           admin API (JWT bilan), statistika va prognoz
   lib/
-    brend.js           brend nomi (bitta manba, 60 s kesh)
+    brend.js           brend nomi va logotipi (bitta manba, keshlanadi)
+    bosqichlar.js      buyurtma bosqichlari — bot va panel uchun bitta ro'yxat
+    docx.js            .docx yozuvchi (ZIP + WordprocessingML), kutubxonasiz
     admin.js           kim admin — bot va admin API uchun bitta javob
     hududlar.js        14 viloyat, 210 tuman — manzil tekshiruvi uchun
     kesh.js            qisqa muddatli kesh (bir vaqtdagi so'rovlarni yig'adi)
     cheklov.js         so'rov cheklagich (sirg'aluvchi oyna)
   services/            tahlil va buyurtma mantiqi (bot ham, API ham ishlatadi)
+    partiya.js         xarid partiyalari (/orders)
+    pochta-hujjati.js  pochta uchun manzillar hujjati
+    broadcast.js       reklama yuborish (tezlik cheklovi bilan)
+    majburiy-kanal.js  obuna tekshiruvi
+    agent.js           kanal rejasi va post yozish
+    agent-jadval.js    kunlik jadval (advisory lock bilan)
 public/
   index.html           qo'nish sahifasi
   app/                 Mini App
@@ -256,6 +306,16 @@ emoji shriftini chizmaydi, o'rnida bo'sh kvadrat qoladi.
 uchun u mavjud bo'lmagan mahsulotni o'ylab topa olmaydi. Qaytgan `product_id`
 lar baribir katalogga solishtiriladi; SPF bosqichi tushib qolsa server o'zi
 qo'shadi.
+
+**Word hujjati kutubxonasiz.** `.docx` — bu ZIP ichidagi bir nechta XML.
+Word Unicode'ni o'zi biladi, shuning uchun PDF'dagi kabi shrift joylashtirish
+kerak emas: o'zbekcha `gʻoʻza` ham, kirill ham to'g'ri chiqadi.
+Jadval uchun `<w:tblGrid>` MAJBURIY — usiz Word hujjatni rad etadi.
+
+**Agent hech qachon o'zi post qilmaydi.** Tayyorlangan post avval adminga
+boradi. Jadval har 5 daqiqada tekshiradi va `pg_advisory_lock` oladi:
+deploy paytida ikkita nusxa ishlab qolsa ham admin ikkita bir xil post
+olmaydi.
 
 **Yuz surati saqlanmaydi.** Asl surat tahlil momentida qayta ishlanadi va
 tashlanadi. Bazada matnli natija va undan chizilgan **natija rasmi**

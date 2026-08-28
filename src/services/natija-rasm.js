@@ -4,7 +4,7 @@ import { qator, sorov, sozlama } from '../db.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
 import { svgdanPng } from '../rasm/chiz.js';
 import { rasmYubor } from '../bot/tg.js';
-import { brendNomi } from '../lib/brend.js';
+import { brendNomi, brendLogosi } from '../lib/brend.js';
 
 const BOSQICH_NOMI = {
   tozalash: 'Tozalash', toner: 'Toner', davolash: 'Davolash',
@@ -33,12 +33,15 @@ const OCHILADI = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/gif']);
  */
 export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime, tahlil, mahsulotlar }) {
   const mos = OCHILADI.has(String(mime || '').toLowerCase());
+  const [brend, logo] = await Promise.all([brendNomi(), brendLogosi()]);
   const svg = natijaSvg({
     rasmBase64: mos ? rasmBase64 : null,
     mime: mos ? mime : 'image/jpeg',
     tahlil,
     tavsiyalar: tavsiyaRoyxati(tahlil, mahsulotlar),
-    brend: await brendNomi(),
+    brend,
+    logoBase64: logo && OCHILADI.has(logo.mime) ? logo.base64 : null,
+    logoMime: logo?.mime || 'image/png',
   });
 
   let bayt;

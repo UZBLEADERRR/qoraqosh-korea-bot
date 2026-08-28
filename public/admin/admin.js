@@ -987,6 +987,45 @@ async function sozlamalar() {
         <div class="karta-bosh"><h2>🏷 Brend</h2></div>
         <label>Do‘kon nomi <span class="yordam">bot, ilova va rasmlarda ko‘rinadi</span></label>
         <input id="s-brend" value="${esc(matn('dokon_nomi'))}" placeholder="Meduza Cosmetics">
+        <p class="mayda" style="margin:6px 0 14px">Botdan turib ham o‘zgartirasiz: <code>/brend</code></p>
+
+        <label>Logotip <span class="yordam">tahlil rasmlarida chiqadi</span></label>
+        <div id="logo-oldi" style="margin:8px 0">${
+          matn('brend_rasm_id')
+            ? `<img src="/media/${esc(matn('brend_rasm_id'))}" alt="logo"
+                 style="width:72px;height:72px;border-radius:18px;object-fit:cover;border:1px solid var(--chiziq)">`
+            : '<span class="mayda">Yuklanmagan</span>'}</div>
+        <input type="file" id="s-logo" accept="image/png,image/jpeg" style="display:none">
+        <div style="display:flex;gap:8px">
+          <button class="tug" id="t-logo">📷 Logotip yuklash</button>
+          ${matn('brend_rasm_id') ? '<button class="tug xavf" id="t-logo-och">🗑 Olib tashlash</button>' : ''}
+        </div>
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>🔒 Majburiy obuna</h2></div>
+        <p class="mayda" style="margin:0 0 12px">
+          Kanal yozilsa, unga a'zo bo‘lmagan foydalanuvchi botdan foydalana olmaydi.
+          Botni o‘sha kanalga <b>admin</b> qilib qo‘shing. Adminlar hech qachon to‘silmaydi.</p>
+        <label>Kanal <span class="yordam">@nom yoki -100…</span></label>
+        <input id="s-majburiy" value="${esc(matn('majburiy_kanal'))}" placeholder="@meduza_kanal">
+        <label>Havola <span class="yordam">yopiq kanal bo‘lsa taklif havolasi</span></label>
+        <input id="s-majburiy-havola" value="${esc(matn('majburiy_kanal_havola'))}"
+          placeholder="https://t.me/+AbCdEf...">
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>🧾 Xarid va pochta</h2></div>
+        <label>Xarid kanali <span class="yordam">/orders ro‘yxati shu yerga tushadi</span></label>
+        <input id="s-xarid-kanal" value="${esc(matn('xarid_kanal'))}" placeholder="-1001234567890">
+        <label>Jo‘natuvchi manzili <span class="yordam">pochta hujjatida «KIMDAN»</span></label>
+        <input id="s-jonatuvchi" value="${esc(matn('jonatuvchi_manzil'))}"
+          placeholder="Toshkent shahri, Chilonzor tumani, Bunyodkor 12">
+        <label class="belgi-qator" style="margin-top:12px"><input type="checkbox" id="s-chek-saqla"
+          ${String(st.chek_saqlansin) === 'true' ? 'checked' : ''}> To‘lov cheklari saqlansin</label>
+        <p class="mayda" style="margin:6px 0 0">
+          Odatda o‘chiq: chek tekshirilgach o‘chiriladi — mijozning bank ma’lumoti
+          bazada yotishi shart emas.</p>
       </div>
 
       <div class="karta tor">
@@ -1040,6 +1079,14 @@ async function sozlamalar() {
     $('#p-qosh').onclick = () => { holat.kesh.pogonalar.push({ dan: 0, chegirma: 0 }); pogonalarniChiz(); };
     $('#s-saqla').onclick = sozlamalarniSaqla;
     $('#t-kanal-sina').onclick = kanallarniSina;
+    $('#t-logo').onclick = () => $('#s-logo').click();
+    $('#s-logo').onchange = logoniYukla;
+    const lo = $('#t-logo-och');
+    if (lo) lo.onclick = async () => {
+      await api('/api/admin/settings', { method: 'POST',
+        body: JSON.stringify({ settings: { brend_rasm_id: '' } }) });
+      tost('Logotip olib tashlandi'); sozlamalar();
+    };
     adminlarniChiz();
   } catch (e) { xatoChiz(e); }
 }
@@ -1105,10 +1152,35 @@ async function sozlamalarniSaqla() {
       kanal_buyurtma:        $('#s-kanal-buyurtma').value.trim(),
       kanal_tahlil:          $('#s-kanal-tahlil').value.trim(),
       kanal_tahlil_yoqilgan: $('#s-kanal-tahlil-yoq').checked,
+      majburiy_kanal:        $('#s-majburiy').value.trim(),
+      majburiy_kanal_havola: $('#s-majburiy-havola').value.trim(),
+      xarid_kanal:           $('#s-xarid-kanal').value.trim(),
+      jonatuvchi_manzil:     $('#s-jonatuvchi').value.trim(),
+      chek_saqlansin:        $('#s-chek-saqla').checked,
     }})});
     holatEl.innerHTML = `<div class="xabar-quti ok" style="margin:0 0 10px">✓ Saqlandi</div>`;
     tost('Sozlamalar saqlandi');
   } catch (e) { holatEl.innerHTML = `<div class="xabar-quti xato" style="margin:0 0 10px">${esc(e.message)}</div>`; }
+}
+
+async function logoniYukla(e) {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  if (f.size > 2 * 1024 * 1024) return tost('Rasm 2 MB dan katta');
+  const t = $('#t-logo');
+  t.disabled = true; t.textContent = 'Yuklanmoqda…';
+  try {
+    const base64 = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f);
+    });
+    await api('/api/admin/logo', { method: 'POST', body: JSON.stringify({ image: base64 }) });
+    tost('Logotip saqlandi'); sozlamalar();
+  } catch (err) {
+    tost(err.message || 'Yuklab bo‘lmadi');
+  } finally {
+    t.disabled = false; t.textContent = '📷 Logotip yuklash';
+  }
 }
 
 /** Kanal ID to'g'rimi va bot unga yoza oladimi — darhol tekshiramiz. */
@@ -1351,11 +1423,54 @@ function qollanma() {
     </div>
 
     <div class="karta">
+      <h2>🧾 Xarid qanday ishlaydi</h2>
+      <ol style="padding-left:18px;line-height:1.9;margin:10px 0 0" class="mayda">
+        <li>Mijoz to‘laydi va chek yuboradi → siz <b>✅ To‘lov tasdiqlandi</b> ni bosasiz.</li>
+        <li>Botda <code>/orders</code> yozasiz. Bot barcha to‘langan buyurtmalarni
+          <b>mahsulot bo‘yicha jamlab</b> beradi: «Cleansing Oil — 5 dona».</li>
+        <li>Mahsulot nomini bosasiz — Coupang yoki Daiso sahifasi ochiladi.
+          <i>(Havolani mahsulot kartochkasida yozib qo‘yasiz.)</i></li>
+        <li>Hammasini sotib olgach <b>«Qabul qilindi»</b> ni bosasiz.
+          Shu buyurtmalar bitta <b>partiya</b> ga birlashadi, keyingilari
+          yangi ro‘yxatga yig‘ila boshlaydi.</li>
+        <li><code>/partiya</code> → partiyani tanlab, holatini birdaniga
+          suradingiz. Mijozlarga xabar o‘zi ketadi.</li>
+        <li>O‘zbekistonga yetgach — <b>📄 Pochta hujjati</b> tugmasi. Word fayl
+          keladi: jadval va qirqiladigan yorliqlar. Print qilib pochtaga berasiz.</li>
+      </ol>
+    </div>
+
+    <div class="karta">
+      <h2>🤖 Kanal agenti</h2>
+      <p class="mayda" style="margin:8px 0 0;line-height:1.8">
+        Botda <code>/reja</code> yozing va topshiriq bering — masalan
+        «har kuni teri parvarishi haqida foydali post joyla».
+        Agent 30 kunlik mavzular rejasini tuzadi va har kuni belgilangan
+        soatda post (matn + rasm) tayyorlab <b>sizga</b> yuboradi.<br><br>
+        <b>Siz tasdiqlamaguncha kanalga hech narsa chiqmaydi.</b>
+        Tugmalar: kanalga joylash · o‘zim yozaman · AI ga aytaman
+        («qisqartir», «yoshlarga mos qil») · boshqa variant · o‘tkazib yuborish.
+      </p>
+    </div>
+
+    <div class="karta">
+      <h2>📢 Reklama yuborish</h2>
+      <p class="mayda" style="margin:8px 0 0;line-height:1.8">
+        Botda <code>/reklama</code> → xabar matnini yozing (yoki rasmni izoh
+        bilan yuboring) → oldindan ko‘rasiz → «Hammaga yuborish».
+        Yuborish fonda ketadi, tugagach hisobot keladi.
+        Botni bloklaganlar avtomatik belgilanadi.
+      </p>
+    </div>
+
+    <div class="karta">
       <h2>📦 Har kuni</h2>
       <ol style="padding-left:18px;line-height:1.9;margin:10px 0 0" class="mayda">
         <li>Yangi buyurtma kelsa pastdagi <b>📦</b> belgisida son chiqadi.</li>
         <li>Buyurtmani oching → chekni tekshiring → <b>✅ To‘lov tasdiqlandi</b>.</li>
-        <li>Holatni ketma-ket suring: <b>Tasdiqlangan → Omborda → Yo‘lda → Yetkazildi</b>.
+        <li>Holatni ketma-ket suring: <b>To‘lov tasdiqlandi → Koreyada qadoqlanmoqda →
+          Koreyadan jo‘natildi → Yo‘lda → O‘zbekiston omborida →
+          Pochtadan jo‘natildi → Yetib keldi</b>.
           Har o‘zgarishda mijozga xabar boradi.</li>
         <li><b>Omborda</b> bosilganda mijozga eng yaqin filial manzili avtomatik yuboriladi.</li>
       </ol>

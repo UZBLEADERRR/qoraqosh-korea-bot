@@ -50,14 +50,15 @@ const server = http.createServer(async (req, res) => {
     if (yol === '/healthz') return ok(res, { ok: true, vaqt: new Date().toISOString() });
 
     // ---------- Rasm ----------
-    // Posterlar ochiq; CHEKLAR faqat admin tokeni bilan — ular mijozning
-    // to'lov hujjati, uni havolani bilgan har kim ko'rmasligi kerak.
+    // Posterlar va logotip ochiq. CHEK va TAHLIL NATIJASI faqat admin
+    // tokeni bilan: birinchisi mijozning to'lov hujjati, ikkinchisida
+    // uning YUZI bor. Havolani bilgan har kim ko'rmasligi kerak.
     if (yol.startsWith('/media/')) {
       const id = yol.slice(7);
       if (!/^[0-9a-f-]{36}$/i.test(id)) return notFound(res);
       const m = await qator('select mime, bayt, tur from media where id = $1', [id]);
       if (!m) return notFound(res);
-      if (m.tur === 'chek') {
+      if (m.tur === 'chek' || m.tur === 'natija') {
         const token = (url.searchParams.get('t') || '').trim() ||
                       (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
         if (!verifyAdminToken(token)) return xato(res, 403, 'Ruxsat yo‘q');

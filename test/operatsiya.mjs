@@ -100,5 +100,26 @@ await yoz('800001','/start');
 test('menyuda yangi brend', /Meduza Beauty/.test(hammasi()));
 await yoz('700001','/brend Meduza Cosmetics');
 
+console.log('\n── MAJBURIY KANAL ──');
+await sorov(`update settings set value='"@meduza_kanal"'::jsonb where key='majburiy_kanal'`);
+await sorov(`update settings set value='"https://t.me/meduza_kanal"'::jsonb where key='majburiy_kanal_havola'`);
+const { keshniTashla } = await import('../src/lib/kesh.js');
+keshniTashla();
+// Soxta server getChatMember ga 'left' qaytaradi
+await yoz('800001','/start');
+test('a‘zo bo‘lmagan to‘siladi', /obuna bo‘ling/i.test(hammasi()), hammasi().split('\n')[0]);
+test('obuna havolasi bor', (oxirgi().reply_markup?.inline_keyboard||[]).flat()
+  .some(b=>b.url==='https://t.me/meduza_kanal'));
+await yoz('700001','/start');
+test('ADMIN to‘silmaydi', !/obuna bo‘ling/i.test(hammasi()));
+
+// A'zo bo'ldi
+keshniTashla();
+globalThis.AZO = true;
+await yoz('800001','/start');
+test('a‘zo bo‘lgach o‘tkaziladi', !/obuna bo‘ling/i.test(hammasi()));
+await sorov(`update settings set value='""'::jsonb where key='majburiy_kanal'`);
+keshniTashla();
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

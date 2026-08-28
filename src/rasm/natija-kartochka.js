@@ -84,9 +84,11 @@ const belgiJoy = (xx, y) => `
  * @param {object} d.tahlil           {taxminiy_yosh, teri_rangi, teri_turi, ball, xulosa, muammolar, tavsiya}
  * @param {object[]} d.tavsiyalar     [{bosqich, nom, brend}]
  * @param {string} d.brend
+ * @param {string|null} d.logoBase64  brend logotipi (ixtiyoriy)
  * @returns {string} SVG
  */
-export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar = [], brend }) {
+export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar = [],
+                            brend, logoBase64 = null, logoMime = 'image/png' }) {
   const t = tahlil || {};
   const muammolar = (t.muammolar || t.problems || []).slice(0, 4);
   const ball = Number(t.ball ?? t.score ?? 0);
@@ -95,9 +97,17 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   let y = 0;
 
   // ═══ 1. Sarlavha ═══
-  qismlar.push(matn(brend, 62, { olcham: 34, ogirlik: 700, rang: R.urgu }));
+  if (logoBase64) {
+    // Logotip bo'lsa nomdan oldin qo'yamiz, nom esa uning yonida
+    qismlar.push(`<clipPath id="logo"><rect x="${CHET}" y="28" width="52" height="52" rx="14"/></clipPath>
+      <image href="data:${logoMime};base64,${logoBase64}" x="${CHET}" y="28"
+        width="52" height="52" clip-path="url(#logo)" preserveAspectRatio="xMidYMid slice"/>`);
+    qismlar.push(matn(brend, 66, { x: CHET + 68, olcham: 34, ogirlik: 700, rang: R.urgu }));
+  } else {
+    qismlar.push(matn(brend, 62, { olcham: 34, ogirlik: 700, rang: R.urgu }));
+  }
   qismlar.push(matn('Teri tahlili', 62, { olcham: 26, rang: R.kul, x: ENI - CHET, oxiri: true }));
-  y = 96;
+  y = logoBase64 ? 104 : 96;
 
   // ═══ 2. Surat ═══
   const rasmH = 660;

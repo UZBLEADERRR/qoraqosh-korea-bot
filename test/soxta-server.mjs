@@ -99,6 +99,10 @@ export function soxtaServer(port = 4444) {
           yol.endsWith('/editMessageReplyMarkup') || yol.endsWith('/answerCallbackQuery') ||
           yol.endsWith('/setWebhook') || yol.endsWith('/deleteWebhook')) return j({ ok: true, result: true });
       if (yol.endsWith('/getUpdates')) return j({ ok: true, result: [] });
+      // Majburiy obuna sinovi: globalThis.AZO bilan boshqariladi
+      if (yol.endsWith('/getChatMember')) {
+        return j({ ok: true, result: { status: globalThis.AZO ? 'member' : 'left' } });
+      }
 
       // ---- Google Gemini ----
       if (yol.includes(':generateContent')) {

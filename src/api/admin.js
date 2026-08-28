@@ -422,6 +422,30 @@ export async function adminRoutes(req, res, yol) {
     return ok(res, { ok: true, yozildi: yozildi.length });
   }
 
+  // Brend logotipi
+  if (yol === '/api/admin/logo' && req.method === 'POST') {
+    const b = await tana(req);
+    const r = rasmniOl(b.image);
+    if (!r) return xato(res, 400, 'Rasm yuborilmadi yoki juda katta.');
+
+    const bayt = Buffer.from(r.base64, 'base64');
+    const m = await qator(
+      `insert into media (tur, mime, bayt, hajm, goya)
+       values ('logo', $1, $2, $3, 'Brend logotipi') returning id`,
+      [r.mime, bayt, bayt.length]);
+
+    // Eskisini o'chiramiz — bazada bir nechta logotip yotmasin
+    const eski = String(await sozlama('brend_rasm_id', '') || '').replace(/"/g, '');
+    await sorov(
+      `insert into settings (key, value, updated_at) values ('brend_rasm_id', $1, now())
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [JSON.stringify(m.id)]);
+    if (eski && eski !== m.id) await sorov('delete from media where id = $1', [eski]).catch(() => {});
+
+    keshniTashla('brend-logo');
+    return ok(res, { id: m.id });
+  }
+
   // Kanal ID to'g'rimi va bot unga yoza oladimi
   if (yol === '/api/admin/kanal-sinov' && req.method === 'POST') {
     const [buyurtma, tahlil] = await Promise.all([
@@ -446,7 +470,8 @@ export async function adminRoutes(req, res, yol) {
     }
     keshniTozala();          // yangi bot matni darhol kuchga kirsin
     katalogYangilandi();     // narx/karta/menejer sozlamalari ham
-    keshniTashla('brend');   // brend nomi ham
+    keshniTashla('brend');       // brend nomi ham
+    keshniTashla('brend-logo');  // logotip ham
     return ok(res, { ok: true });
   }
 
