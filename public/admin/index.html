@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>QoraQosh — Admin</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ---------- KIRISH ---------- -->
+<div id="kirish" class="kirish">
+  <form class="quti" id="kirish-forma">
+    <div class="brend">QoraQosh</div>
+    <h1 style="margin:4px 0 20px">Admin panel</h1>
+    <label for="k-login">Login</label>
+    <input id="k-login" autocomplete="username" required>
+    <label for="k-parol">Parol</label>
+    <input id="k-parol" type="password" autocomplete="current-password" required>
+    <div id="kirish-xato" class="xato"></div>
+    <button class="tug asos" style="width:100%;margin-top:18px">Kirish</button>
+  </form>
+</div>
+
+<!-- ---------- PANEL ---------- -->
+<div id="panel" class="karkas yashirin">
+  <aside>
+    <div class="logo">🌸 QoraQosh</div>
+    <button data-b="boshqaruv" class="faol">📊 Boshqaruv</button>
+    <button data-b="buyurtma">📦 Buyurtmalar</button>
+    <button data-b="mahsulot">🛍 Mahsulotlar</button>
+    <button data-b="sotuv">💰 Sotuvlar</button>
+    <button data-b="user">👥 Foydalanuvchilar</button>
+    <button data-b="sozlama">⚙️ Sozlamalar</button>
+    <button class="chiq" id="t-chiq">↩︎ Chiqish</button>
+  </aside>
+
+  <main>
+    <section id="b-boshqaruv"></section>
+    <section id="b-buyurtma" class="yashirin"></section>
+    <section id="b-mahsulot" class="yashirin"></section>
+    <section id="b-sotuv"    class="yashirin"></section>
+    <section id="b-user"     class="yashirin"></section>
+    <section id="b-sozlama"  class="yashirin"></section>
+  </main>
+</div>
+
+<div id="modal" class="modal yashirin">
+  <div class="parda" data-yop></div>
+  <div class="oyna" id="modal-tan"></div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>

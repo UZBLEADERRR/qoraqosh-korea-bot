@@ -2,21 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
 
 jobs:
-  test:
+  tekshir:
     runs-on: ubuntu-latest
     steps:
-      - name: Kodni yuklab olish
-        uses: actions/checkout@v4
-
-      - name: Node.js o'rnatish
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20
-
-      - name: Sintaksis va ma'lumotlar testi
-        run: npm test
+          node-version: '20'
+      - name: Bog'liqliklarni o'rnatish
+        run: npm ci || npm install
+      - name: Sintaksis va tuzilma tekshiruvi
+        run: |
+          for f in $(find src scripts -name '*.js'); do node --check "$f"; done
+          for f in public/app/app.js public/admin/admin.js; do node --check "$f"; done
+          node scripts/check.js

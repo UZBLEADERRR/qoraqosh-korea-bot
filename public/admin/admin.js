@@ -1,0 +1,497 @@
+/* QoraQosh admin panel */
+(() => {
+'use strict';
+
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const kor = (el, ha) => el && el.classList.toggle('yashirin', !ha);
+const som = (n) => Number(n || 0).toLocaleString('uz-UZ').replace(/,/g, ' ');
+const narx = (n) => som(n) + " so'm";
+const sana = (d) => new Date(d).toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: '2-digit' });
+const vaqt = (d) => new Date(d).toLocaleString('uz-UZ', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+
+let token = localStorage.getItem('qq_admin') || '';
+let kesh = {};
+
+// ---------------- API ----------------
+async function api(yol, opt = {}) {
+  const res = await fetch(yol, {
+    ...opt,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...(opt.headers || {}) },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { chiqish(); throw new Error(data.error || 'Sessiya tugadi'); }
+  if (!res.ok) throw new Error(data.error || 'Xatolik');
+  return data;
+}
+
+// ---------------- Kirish ----------------
+$('#kirish-forma').onsubmit = async (e) => {
+  e.preventDefault();
+  const xato = $('#kirish-xato');
+  xato.textContent = '';
+  try {
+    const j = await (await fetch('/api/admin/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: $('#k-login').value, password: $('#k-parol').value }),
+    })).json();
+    if (!j.token) throw new Error(j.error || 'Kirish rad etildi');
+    token = j.token;
+    localStorage.setItem('qq_admin', token);
+    ochil();
+  } catch (err) { xato.textContent = err.message; }
+};
+
+function chiqish() {
+  token = ''; localStorage.removeItem('qq_admin');
+  kor($('#panel'), false); kor($('#kirish'), true);
+}
+$('#t-chiq').onclick = chiqish;
+
+function ochil() {
+  kor($('#kirish'), false); kor($('#panel'), true);
+  bolimOch('boshqaruv');
+}
+
+$$('aside button[data-b]').forEach((b) => b.onclick = () => bolimOch(b.dataset.b));
+
+// Bo'lim kaliti -> uni chizadigan funksiya. Kalit HTML dagi #b-<kalit> va
+// yon menyudagi data-b bilan bir xil.
+const BOLIMLAR = {
+  boshqaruv: () => boshqaruv(),
+  buyurtma:  () => buyurtmalar(),
+  mahsulot:  () => mahsulotlar(),
+  sotuv:     () => sotuvlar(),
+  user:      () => foydalanuvchilar(),
+  sozlama:   () => sozlamalar(),
+};
+
+function bolimOch(nom) {
+  if (!BOLIMLAR[nom]) nom = 'boshqaruv';
+  $$('aside button[data-b]').forEach((b) => b.classList.toggle('faol', b.dataset.b === nom));
+  Object.keys(BOLIMLAR).forEach((k) => kor($(`#b-${k}`), k === nom));
+  BOLIMLAR[nom]();
+}
+
+const yuklanmoqda = (el) => el.innerHTML = `<div class="bosh-holat"><div class="aylana"></div></div>`;
+const xatoChiz = (el, e) => el.innerHTML = `<div class="karta"><div class="xato">${esc(e.message)}</div></div>`;
+
+// ================= 1. BOSHQARUV =================
+async function boshqaruv() {
+  const el = $('#b-boshqaruv');
+  yuklanmoqda(el);
+  try {
+    const d = await api('/api/admin/dashboard');
+    const k = d.kpi, p = d.prognoz;
+    const maxKun = Math.max(1, ...d.kunlar.map((x) => x.daromad));
+
+    el.innerHTML = `
+    <div class="bosh"><h1>Boshqaruv paneli</h1>
+      <span class="mayda">${new Date().toLocaleDateString('uz-UZ', { day:'numeric', month:'long', year:'numeric' })}</span></div>
+
+    <div class="kpi-tor">
+      ${kpi('Jami daromad', narx(k.jami_daromad), `${k.buyurtma_soni} ta buyurtma`)}
+      ${kpi('Yalpi foyda', narx(k.yalpi_foyda), `marja ${k.marja_foiz}%`)}
+      ${kpi("O‘rtacha chek", narx(k.ortacha_chek))}
+      ${kpi('Bu oy', narx(k.oy_daromadi), `kuniga ~${som(p.kunlik_ortacha)}`)}
+      ${kpi('Foydalanuvchilar', som(k.foydalanuvchi), `${som(k.royxatdan_otgan)} ro‘yxatdan o‘tgan`)}
+      ${kpi('Yangi buyurtma', som(k.yangi_buyurtma), 'ko‘rib chiqilmagan')}
+    </div>
+
+    <div class="karta">
+      <div class="karta-bosh"><h2>Daromad prognozi</h2>
+        <span class="yor kok">${p.tugallanish_ehtimoli}% tugallanish</span></div>
+      <div class="kpi-tor" style="margin:0">
+        ${kpi('Yo‘lda (kutilayotgan)', narx(p.kutilayotgan_summa), `${p.kutilayotgan_soni} ta buyurtma`)}
+        ${kpi('Shundan kutilma', narx(p.kutilayotgan_kutilma), 'ehtimolga tuzatilgan', true)}
+        ${kpi('Oy oxiri prognozi', narx(p.oy_oxiri_prognoz), `${p.qolgan_kunlar} kun qoldi`, true)}
+      </div>
+      <p class="mayda" style="margin:12px 0 0">
+        Hisob: yo‘ldagi buyurtmalar holatiga qarab (yangi 75%, tasdiqlangan 90%, yo‘lda 97%)
+        tarixiy tugallanish ulushiga ko‘paytiriladi; oy oxiri prognozi kunlik o‘rtachaga asoslanadi.
+        ${esc(p.izoh)}
+      </p>
+    </div>
+
+    <div class="karta">
+      <div class="karta-bosh"><h2>So‘nggi 14 kun</h2><span class="mayda">eng yuqori: ${narx(maxKun)}</span></div>
+      <div class="grafik">
+        ${d.kunlar.map((x) => `<div style="height:${Math.round((x.daromad / maxKun) * 100)}%"
+            title="${x.kun}: ${narx(x.daromad)} (${x.soni} ta)"></div>`).join('')}
+      </div>
+      <div class="grafik-x">${d.kunlar.map((x) => `<span>${x.kun.slice(8)}</span>`).join('')}</div>
+    </div>
+
+    <div class="karta voronka">
+      <div class="karta-bosh"><h2>Voronka (30 kun)</h2></div>
+      ${voronkaQator('Botni ochgan', d.voronka.start, d.voronka.start)}
+      ${voronkaQator('Ro‘yxatdan o‘tgan', d.voronka.register, d.voronka.start)}
+      ${voronkaQator('Skaner ishlatgan', d.voronka.scan, d.voronka.start)}
+      ${voronkaQator('Savatga qo‘shgan', d.voronka.add_cart, d.voronka.start)}
+      ${voronkaQator('Buyurtma bergan', d.voronka.order, d.voronka.start)}
+      <p class="mayda" style="margin-top:10px">
+        Rad etilgan skanerlar: ${som(d.voronka.scan_rejected)} ta
+        ${d.voronka.scan ? `(${Math.round(d.voronka.scan_rejected / (d.voronka.scan + d.voronka.scan_rejected) * 100)}%)` : ''}
+        — rasm sifati talabga javob bermagan.
+      </p>
+    </div>
+
+    <div class="karta">
+      <div class="karta-bosh"><h2>Ombor</h2></div>
+      <div class="kpi-tor" style="margin:0">
+        ${kpi('Faol mahsulot', som(d.ombor.jami))}
+        ${kpi('Tugagan', som(d.ombor.tugagan), d.ombor.tugagan ? 'to‘ldirish kerak' : '')}
+        ${kpi('Kam qolgan', som(d.ombor.kam), '5 donadan kam')}
+        ${kpi('Ombor qiymati', narx(d.ombor.qiymat), 'tannarx bo‘yicha')}
+      </div>
+    </div>`;
+  } catch (e) { xatoChiz(el, e); }
+}
+
+const kpi = (k, v, q = '', urgu = false) =>
+  `<div class="kpi${urgu ? ' urgu' : ''}"><div class="k">${esc(k)}</div><div class="v">${v}</div>${q ? `<div class="q">${esc(q)}</div>` : ''}</div>`;
+
+const voronkaQator = (nom, son, asos) => `
+  <div class="q">
+    <div class="nom">${esc(nom)}</div>
+    <div class="chiziq"><i style="width:${asos ? Math.round((son / asos) * 100) : 0}%"></i></div>
+    <div class="son">${som(son)}${asos ? ` · ${Math.round((son / asos) * 100)}%` : ''}</div>
+  </div>`;
+
+// ================= 2. BUYURTMALAR =================
+const HOLATLAR = {
+  yangi:['Yangi','kok'], tasdiqlangan:['Tasdiqlangan','sariq'], yolda:['Yo‘lda','sariq'],
+  yetkazildi:['Yetkazildi','yashil'], bekor:['Bekor','qizil'],
+};
+
+async function buyurtmalar(holat = '') {
+  const el = $('#b-buyurtma');
+  yuklanmoqda(el);
+  try {
+    const j = await api('/api/admin/orders' + (holat ? `?status=${holat}` : ''));
+    el.innerHTML = `
+    <div class="bosh"><h1>Buyurtmalar</h1>
+      <select id="f-holat" style="width:auto">
+        <option value="">Barchasi</option>
+        ${Object.entries(HOLATLAR).map(([k, [n]]) => `<option value="${k}" ${k === holat ? 'selected' : ''}>${n}</option>`).join('')}
+      </select></div>
+    <div class="karta"><div class="jad"><table>
+      <thead><tr><th>Raqam</th><th>Mijoz</th><th>Mahsulotlar</th><th class="ong">Summa</th><th>Holat</th><th></th></tr></thead>
+      <tbody>${j.buyurtmalar.map((o) => {
+        const [nom, sinf] = HOLATLAR[o.status] || [o.status, 'kul'];
+        return `<tr>
+          <td><div class="kuchli">${esc(o.order_no)}</div><div class="mayda">${vaqt(o.created_at)}</div></td>
+          <td><div>${esc(o.customer_name || '—')}</div>
+              <div class="mayda">${esc(o.customer_phone || '')}</div>
+              <div class="mayda">${esc((o.customer_address || '').slice(0, 44))}</div></td>
+          <td class="mayda">${o.items.map((i) => `${esc(i.name)} ×${i.qty}`).join('<br>')}</td>
+          <td class="ong"><div class="kuchli">${narx(o.total)}</div>
+              <div class="mayda">foyda ${som(o.total - o.delivery_fee - o.cost_total)}</div></td>
+          <td><span class="yor ${sinf}">${nom}</span></td>
+          <td class="ong">
+            <select data-id="${o.id}" class="holat-tanla" style="width:auto;padding:4px 6px;font-size:12px">
+              ${Object.entries(HOLATLAR).map(([k, [n]]) => `<option value="${k}" ${k === o.status ? 'selected' : ''}>${n}</option>`).join('')}
+            </select></td>
+        </tr>`; }).join('') || `<tr><td colspan="6" class="bosh-holat">Buyurtma yo‘q</td></tr>`}
+      </tbody></table></div></div>`;
+
+    $('#f-holat').onchange = (e) => buyurtmalar(e.target.value);
+    $$('.holat-tanla', el).forEach((s) => s.onchange = async () => {
+      const yangi = s.value;
+      let sabab = null;
+      if (yangi === 'bekor') {
+        sabab = prompt('Bekor qilish sababi (mijozga yuboriladi):');
+        if (sabab === null) return buyurtmalar(holat);
+      }
+      s.disabled = true;
+      try {
+        await api('/api/admin/order-status', { method: 'POST',
+          body: JSON.stringify({ id: Number(s.dataset.id), status: yangi, reason: sabab }) });
+        buyurtmalar(holat);
+      } catch (e) { alert(e.message); s.disabled = false; }
+    });
+  } catch (e) { xatoChiz(el, e); }
+}
+
+// ================= 3. MAHSULOTLAR =================
+async function mahsulotlar() {
+  const el = $('#b-mahsulot');
+  yuklanmoqda(el);
+  try {
+    const j = await api('/api/admin/products');
+    kesh.kategoriyalar = j.kategoriyalar;
+    el.innerHTML = `
+    <div class="bosh"><h1>Mahsulotlar</h1>
+      <div style="display:flex;gap:8px">
+        <button class="tug" id="t-yangi">+ Qo‘lda qo‘shish</button>
+        <button class="tug asos" id="t-skrin">📷 Skrinshotdan qo‘shish</button>
+      </div></div>
+    <div class="karta"><div class="jad"><table>
+      <thead><tr><th>Mahsulot</th><th class="ong">Narx</th><th class="ong">Tannarx</th>
+        <th class="ong">Marja</th><th class="ong">Ombor</th><th class="ong">Sotilgan</th><th></th></tr></thead>
+      <tbody>${j.mahsulotlar.map((p) => {
+        const marja = p.price ? Math.round(((p.price - p.cost_price) / p.price) * 100) : 0;
+        return `<tr style="${p.is_active ? '' : 'opacity:.45'}">
+          <td><div class="kuchli">${esc(p.emoji || '')} ${esc(p.name)}</div>
+              <div class="mayda">${esc(p.brand || '')} ${p.volume ? '· ' + esc(p.volume) : ''}
+              ${p.ai_filled ? '<span class="yor kok" style="margin-left:4px">AI</span>' : ''}</div></td>
+          <td class="ong kuchli">${som(p.price)}</td>
+          <td class="ong">${som(p.cost_price)}</td>
+          <td class="ong"><span class="yor ${marja >= 35 ? 'yashil' : marja >= 20 ? 'sariq' : 'qizil'}">${marja}%</span></td>
+          <td class="ong">${p.stock === 0 ? '<span class="yor qizil">0</span>' : p.stock <= 5 ? `<span class="yor sariq">${p.stock}</span>` : p.stock}</td>
+          <td class="ong">${p.sold_count}</td>
+          <td class="ong"><button class="tug kichik" data-tahrir="${p.id}">Tahrir</button></td>
+        </tr>`; }).join('')}
+      </tbody></table></div></div>`;
+
+    kesh.mahsulotlar = j.mahsulotlar;
+    $('#t-yangi').onclick = () => mahsulotOyna(null);
+    $('#t-skrin').onclick = skrinshotOyna;
+    $$('[data-tahrir]', el).forEach((b) => b.onclick = () =>
+      mahsulotOyna(kesh.mahsulotlar.find((p) => p.id === Number(b.dataset.tahrir))));
+  } catch (e) { xatoChiz(el, e); }
+}
+
+// ---------- Skrinshotdan tanish ----------
+function skrinshotOyna() {
+  modal(`
+    <h2>Skrinshotdan mahsulot qo‘shish</h2>
+    <p class="mayda" style="margin:6px 0 14px">
+      Mahsulot qadog‘i, etiketkasi yoki do‘kon skrinshotini yuklang.
+      AI mahsulotni tanib, kartochkani to‘ldiradi — siz tekshirib, narx qo‘yasiz.</p>
+    <div class="tushirish" id="t-tushir">📷 Rasm tanlang</div>
+    <input type="file" id="f-skrin" accept="image/*" hidden>
+    <div id="skrin-holat" style="margin-top:14px"></div>`);
+
+  $('#t-tushir').onclick = () => $('#f-skrin').click();
+  $('#f-skrin').onchange = async (e) => {
+    const fayl = e.target.files?.[0];
+    if (!fayl) return;
+    const holat = $('#skrin-holat');
+    holat.innerHTML = `<div class="aylana"></div> <span class="mayda">AI mahsulotni o‘rganmoqda…</span>`;
+    try {
+      const rasm = await kichiklashtir(fayl);
+      const j = await api('/api/admin/recognize', { method: 'POST', body: JSON.stringify({ image: rasm }) });
+      if (!j.topildi || j.ishonch < 35) {
+        holat.innerHTML = `<div class="xato">AI aniq tanimadi (ishonch ${j.ishonch}%).
+          ${esc(j.izoh)}<br>Quyidagi forma taxminiy to‘ldirildi — tekshirib chiqing.</div>`;
+        setTimeout(() => mahsulotOyna({ ...j, id: null, ai_filled: true }), 1400);
+      } else {
+        holat.innerHTML = `<div class="ok">✓ Tanildi: <b>${esc(j.brand)} ${esc(j.name)}</b> (ishonch ${j.ishonch}%)</div>`;
+        setTimeout(() => mahsulotOyna({ ...j, id: null, ai_filled: true }), 700);
+      }
+    } catch (err) {
+      holat.innerHTML = `<div class="xato">${esc(err.message)}</div>`;
+    }
+  };
+}
+
+function kichiklashtir(fayl, max = 1024, sifat = 0.85) {
+  return new Promise((res, rej) => {
+    const o = new Image();
+    o.onload = () => {
+      const n = Math.min(1, max / Math.max(o.width, o.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(o.width * n); c.height = Math.round(o.height * n);
+      c.getContext('2d').drawImage(o, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(o.src);
+      res(c.toDataURL('image/jpeg', sifat));
+    };
+    o.onerror = rej; o.src = URL.createObjectURL(fayl);
+  });
+}
+
+// ---------- Mahsulot formasi ----------
+const BOSQICHLAR = { tozalash:'Tozalash', toner:'Toner', davolash:'Davolash (serum)',
+                     namlash:'Namlash', himoya:'Quyoshdan himoya', qoshimcha:'Qo‘shimcha' };
+const MUAMMOLAR = ['akne','teshik','yoglilik','quruqlik','qizarish','dog','ajin','xiralik','sezgirlik','quyosh'];
+const TERILAR = ['quruq','yogli','aralash','normal','sezgir','barcha'];
+
+function mahsulotOyna(p) {
+  const yangi = !p?.id;
+  const katId = p?.category_id ?? kesh.kategoriyalar?.find((c) => c.slug === p?.category)?.id ?? '';
+  const belgi = (royxat, tanlangan, nom) => royxat.map((v) =>
+    `<label style="display:inline-flex;align-items:center;gap:5px;margin:0 12px 6px 0;font-size:13px;color:var(--matn)">
+       <input type="checkbox" name="${nom}" value="${v}" style="width:auto" ${(tanlangan || []).includes(v) ? 'checked' : ''}>${v}</label>`).join('');
+
+  modal(`
+    <h2>${yangi ? 'Yangi mahsulot' : 'Mahsulotni tahrirlash'}</h2>
+    ${p?.ai_filled && yangi ? `<div class="yor kok" style="margin-top:8px">AI to‘ldirdi — tekshiring</div>` : ''}
+    <div class="forma-tor">
+      <div><label>Nomi *</label><input id="m-name" value="${esc(p?.name || '')}"></div>
+      <div><label>Brend</label><input id="m-brand" value="${esc(p?.brand || '')}"></div>
+      <div><label>Kategoriya</label><select id="m-cat">
+        ${(kesh.kategoriyalar || []).map((c) => `<option value="${c.id}" ${c.id === katId ? 'selected' : ''}>${esc(c.emoji || '')} ${esc(c.name)}</option>`).join('')}
+      </select></div>
+      <div><label>Parvarish bosqichi</label><select id="m-step">
+        ${Object.entries(BOSQICHLAR).map(([k, n]) => `<option value="${k}" ${k === p?.step ? 'selected' : ''}>${n}</option>`).join('')}
+      </select></div>
+      <div><label>Narx (so‘m) *</label><input id="m-price" type="number" value="${p?.price || ''}"></div>
+      <div><label>Tannarx (so‘m)</label><input id="m-cost" type="number" value="${p?.cost_price || ''}"></div>
+      <div><label>Ombor (dona)</label><input id="m-stock" type="number" value="${p?.stock ?? 0}"></div>
+      <div><label>Hajm</label><input id="m-volume" value="${esc(p?.volume || '')}"></div>
+      <div><label>Davlat</label><input id="m-country" value="${esc(p?.country || 'KR')}" maxlength="4"></div>
+      <div><label>Emoji</label><input id="m-emoji" value="${esc(p?.emoji || '🧴')}" maxlength="4"></div>
+    </div>
+    <label>Tavsif — nima qiladi</label><textarea id="m-desc">${esc(p?.description || '')}</textarea>
+    <label>Qanday foydalanish</label><textarea id="m-usage">${esc(p?.usage_text || '')}</textarea>
+    <label>Tarkibi (INCI)</label><textarea id="m-ing">${esc(p?.ingredients || '')}</textarea>
+    <label>Ehtiyot choralari</label><input id="m-warn" value="${esc(p?.warnings || '')}">
+    <label>Faol moddalar (vergul bilan)</label><input id="m-act" value="${esc((p?.actives || []).join(', '))}">
+    <label>Qaysi muammoga yordam beradi</label><div>${belgi(MUAMMOLAR, p?.concerns, 'concern')}</div>
+    <label>Kimga mos (teri turi)</label><div>${belgi(TERILAR, p?.skin_types, 'skin')}</div>
+    <label style="display:inline-flex;align-items:center;gap:6px;color:var(--matn)">
+      <input type="checkbox" id="m-faol" style="width:auto" ${p?.is_active !== false ? 'checked' : ''}> Katalogda ko‘rinsin</label>
+    <div id="m-xato" class="xato"></div>
+    <div style="display:flex;gap:8px;margin-top:18px">
+      <button class="tug asos" id="m-saqla" style="flex:1">Saqlash</button>
+      <button class="tug" data-yop>Bekor</button>
+    </div>`);
+
+  $('#m-saqla').onclick = async () => {
+    const xato = $('#m-xato');
+    const tana = {
+      id: p?.id || undefined,
+      name: $('#m-name').value.trim(), brand: $('#m-brand').value.trim(),
+      category_id: Number($('#m-cat').value) || null, step: $('#m-step').value,
+      price: Number($('#m-price').value), cost_price: Number($('#m-cost').value) || 0,
+      stock: Number($('#m-stock').value) || 0, volume: $('#m-volume').value.trim(),
+      country: $('#m-country').value.trim(), emoji: $('#m-emoji').value.trim(),
+      description: $('#m-desc').value.trim(), usage_text: $('#m-usage').value.trim(),
+      ingredients: $('#m-ing').value.trim(), warnings: $('#m-warn').value.trim(),
+      actives: $('#m-act').value.split(',').map((s) => s.trim()).filter(Boolean),
+      concerns: $$('input[name=concern]:checked').map((i) => i.value),
+      skin_types: $$('input[name=skin]:checked').map((i) => i.value),
+      is_active: $('#m-faol').checked, ai_filled: Boolean(p?.ai_filled),
+    };
+    if (!tana.name)  return xato.textContent = 'Nomi kerak.';
+    if (!tana.price) return xato.textContent = 'Narx kerak.';
+    $('#m-saqla').disabled = true;
+    try { await api('/api/admin/product', { method: 'POST', body: JSON.stringify(tana) });
+          modalYop(); mahsulotlar(); }
+    catch (e) { xato.textContent = e.message; $('#m-saqla').disabled = false; }
+  };
+}
+
+// ================= 4. SOTUVLAR =================
+async function sotuvlar() {
+  const el = $('#b-sotuv');
+  yuklanmoqda(el);
+  try {
+    const j = await api('/api/admin/sales');
+    el.innerHTML = `
+    <div class="bosh"><h1>Sotilgan mahsulotlar</h1></div>
+    <div class="kpi-tor">
+      ${kpi('Sotilgan dona', som(j.jami.soni))}
+      ${kpi('Daromad', narx(j.jami.daromad))}
+      ${kpi('Yalpi foyda', narx(j.jami.foyda), j.jami.daromad ? `marja ${Math.round(j.jami.foyda / j.jami.daromad * 100)}%` : '', true)}
+    </div>
+    <div class="karta"><div class="jad"><table>
+      <thead><tr><th>#</th><th>Mahsulot</th><th class="ong">Dona</th><th class="ong">Daromad</th>
+        <th class="ong">Tannarx</th><th class="ong">Foyda</th><th class="ong">Marja</th></tr></thead>
+      <tbody>${j.sotuvlar.map((r, i) => `
+        <tr>
+          <td class="mayda">${i + 1}</td>
+          <td><div class="kuchli">${esc(r.name)}</div><div class="mayda">${esc(r.brand || '')}</div></td>
+          <td class="ong kuchli">${r.soni}</td>
+          <td class="ong">${som(r.daromad)}</td>
+          <td class="ong mayda">${som(r.tannarx)}</td>
+          <td class="ong kuchli">${som(r.foyda)}</td>
+          <td class="ong"><span class="yor ${r.marja >= 35 ? 'yashil' : r.marja >= 20 ? 'sariq' : 'qizil'}">${r.marja}%</span></td>
+        </tr>`).join('') || `<tr><td colspan="7" class="bosh-holat">Hozircha sotuv yo‘q</td></tr>`}
+      </tbody></table></div></div>`;
+  } catch (e) { xatoChiz(el, e); }
+}
+
+// ================= 5. FOYDALANUVCHILAR =================
+async function foydalanuvchilar(qidiruv = '') {
+  const el = $('#b-user');
+  yuklanmoqda(el);
+  try {
+    const j = await api('/api/admin/users' + (qidiruv ? `?q=${encodeURIComponent(qidiruv)}` : ''));
+    el.innerHTML = `
+    <div class="bosh"><h1>Foydalanuvchilar</h1>
+      <input id="f-qidir" placeholder="Ism, telefon yoki username" value="${esc(qidiruv)}" style="width:250px"></div>
+    <div class="karta"><div class="jad"><table>
+      <thead><tr><th>Foydalanuvchi</th><th>Telefon</th><th class="ong">Yosh</th><th>Manzil</th>
+        <th class="ong">Xarid</th><th>Ro‘yxat</th><th></th></tr></thead>
+      <tbody>${j.users.map((u) => `
+        <tr style="${u.is_blocked ? 'opacity:.45' : ''}">
+          <td><div class="kuchli">${esc(u.full_name || '—')}</div>
+              <div class="mayda">${u.username ? '@' + esc(u.username) : 'ID ' + esc(u.telegram_id)}</div></td>
+          <td>${esc(u.phone || '—')}</td>
+          <td class="ong">${u.age || '—'}</td>
+          <td class="mayda">${esc((u.address || '—').slice(0, 40))}</td>
+          <td class="ong kuchli">${som(u.jami_xarid)}</td>
+          <td>${u.agreed_at ? `<span class="yor yashil">✓ ${sana(u.agreed_at)}</span>` : '<span class="yor kul">yo‘q</span>'}</td>
+          <td class="ong"><button class="tug kichik" data-blok="${u.id}" data-holat="${u.is_blocked ? 1 : 0}">
+            ${u.is_blocked ? 'Ochish' : 'Bloklash'}</button></td>
+        </tr>`).join('') || `<tr><td colspan="7" class="bosh-holat">Topilmadi</td></tr>`}
+      </tbody></table></div></div>`;
+
+    let vaqtchi;
+    $('#f-qidir').oninput = (e) => {
+      clearTimeout(vaqtchi);
+      vaqtchi = setTimeout(() => foydalanuvchilar(e.target.value), 350);
+    };
+    $$('[data-blok]', el).forEach((b) => b.onclick = async () => {
+      await api('/api/admin/user-block', { method: 'POST',
+        body: JSON.stringify({ id: Number(b.dataset.blok), blocked: b.dataset.holat === '0' }) });
+      foydalanuvchilar(qidiruv);
+    });
+  } catch (e) { xatoChiz(el, e); }
+}
+
+// ================= 6. SOZLAMALAR =================
+async function sozlamalar() {
+  const el = $('#b-sozlama');
+  yuklanmoqda(el);
+  try {
+    const j = await api('/api/admin/settings');
+    const s = j.settings;
+    el.innerHTML = `
+    <div class="bosh"><h1>Sozlamalar</h1></div>
+    <div class="karta" style="max-width:520px">
+      <label>Yetkazib berish narxi (so‘m)</label>
+      <input id="s-fee" type="number" value="${Number(s.delivery_fee) || 25000}">
+      <label>Qaysi summadan bepul yetkaziladi</label>
+      <input id="s-free" type="number" value="${Number(s.free_delivery_from) || 500000}">
+      <label>Menejer Telegram username (@ siz)</label>
+      <input id="s-man" value="${esc(String(s.manager_username || '').replace(/"/g, ''))}">
+      <div id="s-holat"></div>
+      <button class="tug asos" id="s-saqla" style="margin-top:16px">Saqlash</button>
+    </div>
+    <div class="karta" style="max-width:520px">
+      <h3>Xavfsizlik</h3>
+      <p class="mayda" style="margin-top:8px">
+        Admin login va parol muhit o‘zgaruvchilarida (Railway → Variables) saqlanadi:
+        <code>ADMIN_LOGIN</code>, <code>ADMIN_PASSWORD</code>, <code>ADMIN_JWT_SECRET</code>.
+        Ularni o‘zgartirish uchun Railway’da qiymatni yangilang va servisni qayta ishga tushiring.
+        Sessiya 8 soatdan keyin avtomatik tugaydi.
+      </p>
+    </div>`;
+
+    $('#s-saqla').onclick = async () => {
+      const holat = $('#s-holat');
+      try {
+        await api('/api/admin/settings', { method: 'POST', body: JSON.stringify({ settings: {
+          delivery_fee: Number($('#s-fee').value) || 0,
+          free_delivery_from: Number($('#s-free').value) || 0,
+          manager_username: $('#s-man').value.trim(),
+        }})});
+        holat.innerHTML = `<div class="ok">✓ Saqlandi</div>`;
+      } catch (e) { holat.innerHTML = `<div class="xato">${esc(e.message)}</div>`; }
+    };
+  } catch (e) { xatoChiz(el, e); }
+}
+
+// ================= Modal =================
+function modal(html) { $('#modal-tan').innerHTML = html; kor($('#modal'), true); ulaYopish(); }
+function modalYop() { kor($('#modal'), false); }
+function ulaYopish() { $$('[data-yop]').forEach((el) => el.onclick = modalYop); }
+ulaYopish();
+
+// ================= Boshlash =================
+if (token) api('/api/admin/dashboard').then(ochil).catch(chiqish);
+})();

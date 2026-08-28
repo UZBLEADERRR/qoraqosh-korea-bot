@@ -1,14 +1,18 @@
 {
-  "name": "qoraqosh-korea-bot",
-  "version": "1.0.0",
-  "description": "QoraQosh — Telegram bot + Mini App (Koreya original kosmetikasi)",
-  "main": "server.js",
+  "name": "qoraqosh",
+  "version": "2.0.0",
+  "private": true,
+  "description": "QoraQosh — Koreya kosmetikasi: Telegram bot + Mini App + admin panel",
   "type": "module",
+  "main": "src/server.js",
+  "engines": { "node": ">=20" },
   "scripts": {
-    "start": "node server.js",
-    "test": "node --check server.js && node -e \"import('./data/products.js').then(m => { if (!Array.isArray(m.MAHSULOTLAR) || m.MAHSULOTLAR.length === 0) process.exit(1); console.log('OK: server.js sintaksisi toza, ' + m.MAHSULOTLAR.length + ' mahsulot'); })\""
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "seed": "node scripts/seed.js",
+    "check": "node --check src/server.js && node scripts/check.js"
   },
-  "keywords": ["telegram-bot", "telegram-mini-app", "korean-cosmetics", "gemini-ai"],
-  "author": "QoraQosh",
-  "license": "MIT"
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0"
+  }
 }
