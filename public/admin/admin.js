@@ -837,11 +837,52 @@ async function mijozlar(qidiruv = '') {
 }
 
 // ═══════════ 6. SOTUVLAR ═══════════
-async function sotuvlar() {
+const OY_NOM = ['yanvar','fevral','mart','aprel','may','iyun',
+  'iyul','avgust','sentabr','oktabr','noyabr','dekabr'];
+const oyMatni = (s) => {
+  const [y, o] = String(s).split('-');
+  return `${OY_NOM[Number(o) - 1] || o} ${y}`;
+};
+
+async function sotuvlar(oy = '') {
   try {
-    const j = await api('/api/admin/sales');
+    const [j, h] = await Promise.all([
+      api('/api/admin/sales' + (oy ? `?oy=${encodeURIComponent(oy)}` : '')),
+      api('/api/admin/oylik'),
+    ]);
+    holat.kesh.oylar = h.oylar;
+
     $('#tan').innerHTML = `
-      <div class="bosh"><h1>Sotuvlar</h1></div>
+      <div class="bosh"><h1>Sotuvlar</h1>
+        <button class="tug kichik xavf" id="t-sotuv-tozala">🗑 Tarixni tozalash</button></div>
+
+      ${h.oylar.length ? `
+      <div class="karta">
+        <div class="karta-bosh"><h2>📅 Oylik hisobot</h2></div>
+        <p class="mayda" style="margin:0 0 12px">
+          <b>Sof foyda</b> = mahsulot daromadi − chegirma − tannarx.
+          Yetkazish alohida: u pochtaga o‘tadi.</p>
+        <div style="overflow-x:auto">
+          <table class="jadval">
+            <tr><th>Oy</th><th>Buyurtma</th><th>Tushum</th><th>Tannarx</th><th>Sof foyda</th></tr>
+            ${h.oylar.map((o) => `<tr class="oy-qator ${o.oy === oy ? 'tanlangan' : ''}" data-oy="${esc(o.oy)}">
+              <td><b>${esc(oyMatni(o.oy))}</b><br><span class="mayda">${o.mijoz} mijoz</span></td>
+              <td>${o.buyurtma}</td>
+              <td>${som(o.jami_tushum)}<br><span class="mayda">yetk. ${som(o.yetkazish)}</span></td>
+              <td>${som(o.tannarx)}</td>
+              <td><b style="color:var(--yashil)">${som(o.sof_foyda)}</b><br>
+                  <span class="mayda">marja ${o.marja}%</span></td>
+            </tr>`).join('')}
+          </table>
+        </div>
+        ${oy ? `<button class="tug keng" id="t-oy-bekor" style="margin-top:12px">
+          ✕ ${esc(oyMatni(oy))} filtrini olib tashlash</button>` : `
+          <p class="mayda" style="margin:10px 0 0">Oy ustiga bosing — quyidagi
+          mahsulotlar ro‘yxati faqat o‘sha oy uchun chiqadi.</p>`}
+      </div>` : ''}
+
+      <div class="bosh" style="margin-top:8px">
+        <h1 style="font-size:19px">${oy ? esc(oyMatni(oy)) : 'Butun davr'} · mahsulotlar</h1></div>
       <div class="kpi-tor">
         ${kpi('Sotilgan dona', som(j.jami.soni))}
         ${kpi('Daromad', narx(j.jami.daromad))}
@@ -861,8 +902,49 @@ async function sotuvlar() {
             <div class="qator-satr"><span class="k">Foyda</span>
               <span class="v" style="color:var(--yashil)">${som(r.foyda)}</span></div>
           </div>
-        </div>`).join('') : boshHolat('💰', 'Hozircha sotuv yo‘q')}`;
+        </div>`).join('') : boshHolat('💰', 'Bu davrda sotuv yo‘q')}`;
+
+    $$('[data-oy]').forEach((el) => el.onclick = () => sotuvlar(el.dataset.oy));
+    const bekor = $('#t-oy-bekor');
+    if (bekor) bekor.onclick = () => sotuvlar('');
+    $('#t-sotuv-tozala').onclick = sotuvTarixiniTozala;
   } catch (e) { xatoChiz(e); }
+}
+
+/** Sotuvlar tarixini butunlay o'chirish — noldan boshlash uchun. */
+function sotuvTarixiniTozala() {
+  modal('🗑 Sotuvlar tarixini tozalash', `
+    <div class="xabar-quti ogoh" style="margin:0 0 14px">
+      ⚠️ <b>Bu amalni QAYTARIB BO‘LMAYDI.</b><br>
+      Barcha buyurtmalar, partiyalar va to‘lov cheklari o‘chadi.
+      Buyurtma raqamlari yana 1 dan boshlanadi.
+    </div>
+    <p class="mayda" style="margin:0 0 12px">
+      Mahsulotlar, mijozlar va sozlamalar <b>saqlanadi</b> — faqat sotuv
+      tarixi tozalanadi. Sinovdan haqiqiy ishga o‘tayotganda foydali.</p>
+    <label class="belgi-qator"><input type="checkbox" id="sr-hodisa">
+      Voronka hodisalari ham o‘chirilsin</label>
+    <label style="margin-top:14px">Tasdiqlash uchun <b>TOZALASH</b> deb yozing</label>
+    <input id="sr-tasdiq" placeholder="TOZALASH" autocapitalize="characters">
+    <div id="sr-xato" class="xato"></div>
+    <button class="tug xavf keng" id="sr-ha" style="margin-top:14px">O‘chirish</button>
+    <button class="tug keng" id="sr-yoq" style="margin-top:9px">Bekor</button>`);
+
+  $('#sr-yoq').onclick = modalYop;
+  $('#sr-ha').onclick = async () => {
+    const t = $('#sr-ha');
+    t.disabled = true; t.textContent = 'O‘chirilmoqda…';
+    try {
+      const j = await api('/api/admin/sales-reset', { method: 'POST', body: JSON.stringify({
+        tasdiq: $('#sr-tasdiq').value, hodisalar: $('#sr-hodisa').checked }) });
+      modalYop();
+      tost(`${j.ochirildi} ta buyurtma o‘chirildi`);
+      holat.kesh = {}; sotuvlar('');
+    } catch (e) {
+      $('#sr-xato').textContent = e.message;
+      t.disabled = false; t.textContent = 'O‘chirish';
+    }
+  };
 }
 
 // ═══════════ 7. OMBORLAR ═══════════
@@ -1599,6 +1681,20 @@ function qollanma() {
         bilan yuboring) → oldindan ko‘rasiz → «Hammaga yuborish».
         Yuborish fonda ketadi, tugagach hisobot keladi.
         Botni bloklaganlar avtomatik belgilanadi.
+      </p>
+    </div>
+
+    <div class="karta">
+      <h2>📊 Hisobotlar</h2>
+      <p class="mayda" style="margin:8px 0 0;line-height:1.8">
+        <b>Sotuvlar</b> bo‘limida oylik jadval bor: har oy uchun tushum,
+        tannarx va <b>sof foyda</b>. Oy ustiga bossangiz quyidagi mahsulotlar
+        ro‘yxati faqat o‘sha oy uchun chiqadi.<br><br>
+        <b>Sof foyda</b> = mahsulot daromadi − chegirma − tannarx.
+        Yetkazish alohida ko‘rsatiladi: u pochtaga o‘tadi, sizning
+        daromadingiz emas.<br><br>
+        Sinovdan haqiqiy ishga o‘tayotganda <b>🗑 Tarixni tozalash</b> bilan
+        buyurtmalar tarixini nolga qaytarasiz — mahsulot va mijozlar qoladi.
       </p>
     </div>
 

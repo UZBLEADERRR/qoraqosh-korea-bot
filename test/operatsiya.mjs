@@ -144,6 +144,29 @@ test('ikkala variant qaytadi', v.filial.narx < v.uy.narx, `${v.filial.narx} / ${
 test('hisob tafsiloti saqlanadi', f.izoh?.manba === 'emu' && f.izoh.zona === 2,
   `zona ${f.izoh?.zona}, ${f.izoh?.masofa}`);
 
+console.log('\n── OYLIK HISOBOT ──');
+const { qatorlar: qq } = await import('../src/db.js');
+const oylar = await qq(`
+  select to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as oy,
+         count(*)::int as buyurtma,
+         coalesce(sum(subtotal),0)::bigint as mahsulot_daromadi,
+         coalesce(sum(discount),0)::bigint as chegirma,
+         coalesce(sum(delivery_fee),0)::bigint as yetkazish,
+         coalesce(sum(cost_total),0)::bigint as tannarx,
+         (coalesce(sum(subtotal),0)-coalesce(sum(discount),0)-coalesce(sum(cost_total),0))::bigint as sof_foyda
+    from orders where status <> 'bekor' group by 1 order by 1 desc`);
+test('oylik hisobot chiqadi', oylar.length > 0, `${oylar.length} oy`);
+if (oylar.length) {
+  const o = oylar[0];
+  test('sof foyda = daromad − chegirma − tannarx',
+    Number(o.sof_foyda) === Number(o.mahsulot_daromadi) - Number(o.chegirma) - Number(o.tannarx),
+    `${o.sof_foyda}`);
+  test('yetkazish alohida', o.yetkazish !== undefined);
+}
+// bigint: int4 chegarasidan oshsa ham sinmasin
+const katta = await qq(`select (2200000000::bigint * 3)::bigint as x`);
+test('katta summa bigint bilan sinmaydi', Number(katta[0].x) === 6600000000, `${katta[0].x}`);
+
 console.log('\n── MAJBURIY KANAL ──');
 await sorov(`update settings set value='"@meduza_kanal"'::jsonb where key='majburiy_kanal'`);
 await sorov(`update settings set value='"https://t.me/meduza_kanal"'::jsonb where key='majburiy_kanal_havola'`);
@@ -152,8 +175,10 @@ keshniTashla();
 // Soxta server getChatMember ga 'left' qaytaradi
 await yoz('800001','/start');
 test('a‘zo bo‘lmagan to‘siladi', /obuna bo‘ling/i.test(hammasi()), hammasi().split('\n')[0]);
-test('obuna havolasi bor', (oxirgi().reply_markup?.inline_keyboard||[]).flat()
+test('obuna havolasi TUGMADA bor', (oxirgi().reply_markup?.inline_keyboard||[]).flat()
   .some(b=>b.url==='https://t.me/meduza_kanal'));
+test('obuna havolasi MATNDA ham bor', /https:\/\/t\.me\/meduza_kanal/.test(oxirgi().text||''),
+  'tugma ishlamasa ham odam qayerga borishni biladi');
 await yoz('700001','/start');
 test('ADMIN to‘silmaydi', !/obuna bo‘ling/i.test(hammasi()));
 

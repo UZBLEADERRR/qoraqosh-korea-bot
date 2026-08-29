@@ -329,3 +329,36 @@ textarea{resize:vertical;min-height:86px}
 .tanlov-qator .yt-izoh{font-size:13px;color:var(--och)}
 .tanlov-qator .yt-narx{font-weight:700;font-size:15.5px;white-space:nowrap}
 .tanlov-qator.tanlangan .yt-narx{color:var(--urgu)}
+
+/* ---------- Savat sarlavhasi ---------- */
+.satr-bosh{display:flex;align-items:center;justify-content:space-between;
+  padding:0 4px 10px;gap:12px}
+.matn-tugma{border:0;background:none;color:var(--qizil);font:inherit;font-size:14px;
+  cursor:pointer;padding:6px 2px;font-weight:500}
+.matn-tugma:active{opacity:.55}
+
+/* ---------- Bosishga darhol javob ---------- */
+/* Tarmoq javobini kutmasdan, bosgan zahoti ko'rinadigan reaksiya. */
+button,.mahsulot,.savat-qator .soni button,.tanlov-tugma,.tanlov-qator{
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .09s ease, opacity .09s ease, background-color .15s ease}
+button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
+.mahsulot:active{transform:scale(.985)}
+.soni button:active{transform:scale(.88)}
+
+/* Savat soni o'zgarganda nishon sakraydi */
+@keyframes nishon-sakra{0%{transform:scale(1)}45%{transform:scale(1.35)}100%{transform:scale(1)}}
+.menyu .nishon{animation:nishon-sakra .28s ease}
+
+/* Ekran almashganda yumshoq paydo bo'lish */
+@keyframes ekran-kir{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ekran:not(.yashirin){animation:ekran-kir .18s ease}
+
+@media (prefers-reduced-motion: reduce){
+  button,.mahsulot,.tanlov-tugma,.tanlov-qator{transition:none}
+  .menyu .nishon,.ekran:not(.yashirin){animation:none}
+}
+
+/* ---------- Bosqichma-bosqich yuklash ---------- */
+.yana-nishon{grid-column:1/-1;display:grid;place-items:center;padding:22px 0}
+.aylana.kichik{width:24px;height:24px;border-width:2.5px}

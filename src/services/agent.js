@@ -173,7 +173,10 @@ export async function bugungiBandlar() {
           select 1 from reja_bandlari x
            where x.reja_id = b.reja_id
              and x.holat in ('tasdiq_kutilmoqda', 'joylandi')
-             and x.created_at::date = (now() at time zone 'Asia/Tashkent')::date
+             -- IKKALASI ham Toshkent vaqtida: aks holda UTC sanasi Toshkent
+             -- sanasi bilan solishtirilib, kuniga 5 soat noto'g'ri ishlardi
+             and (x.created_at at time zone 'Asia/Tashkent')::date
+                 = (now() at time zone 'Asia/Tashkent')::date
         )
       order by b.reja_id, b.tartib`, [soat]);
 }

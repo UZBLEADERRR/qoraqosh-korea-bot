@@ -276,6 +276,12 @@ function rasmHtml(p, uslub = '', nishonlar = '') {
   return `<div class="rasm" style="${p.poster_id ? '' : fon};${uslub}">${ich}${nishonlar}</div>`;
 }
 
+// Bir martada nechta mahsulot chiziladi. Hammasini birdan qo'yish
+// (2000 ta karta) telefonda 1,5–3 soniya qotishga olib kelardi —
+// pastga tushgan sari qo'shib boramiz.
+const SAHIFA = 24;
+let kuzatuvchi = null;
+
 function mahsulotlarniChiz() {
   const royxat = saralangan();
   const bosh = royxat.length === 0;
@@ -288,24 +294,64 @@ function mahsulotlarniChiz() {
       : 'Bu bo‘limda mahsulot yo‘q';
   }
 
-  $('#mahsulotlar').innerHTML = royxat.map((p) => {
-    const nishonlar = [];
-    if (p.stock === 0) nishonlar.push('<span class="nishon-kichik yoq">Tugagan</span>');
-    else if (p.stock <= 3) nishonlar.push(`<span class="nishon-kichik">Oxirgi ${p.stock} ta</span>`);
-    if (p.old_price && p.old_price > p.price) nishonlar.push('<span class="nishon-kichik">Chegirma</span>');
-    return `
-    <button class="mahsulot" data-id="${p.id}">
-      ${rasmHtml(p, '', nishonlar.length ? `<span class="nishonlar">${nishonlar.join('')}</span>` : '')}
-      <div class="mtan">
-        <div class="mbrend">${esc(p.brand || '')}</div>
-        <div class="mnom">${esc(p.name)}</div>
-        <div class="mnarx">${qisqaNarx(p.price)} so'm${
-          p.old_price && p.old_price > p.price ? `<s>${qisqaNarx(p.old_price)}</s>` : ''}</div>
-      </div>
-    </button>`;
-  }).join('');
-  $$('.mahsulot', $('#mahsulotlar')).forEach((el) =>
-    el.onclick = () => mahsulotOyna(Number(el.dataset.id)));
+  const quti = $('#mahsulotlar');
+  quti.innerHTML = '';
+  kuzatuvchi?.disconnect();
+  holat.korsatilgan = 0;
+  holat.royxat = royxat;
+  yanaChiz();
+}
+
+function kartaHtml(p) {
+  const nishonlar = [];
+  if (p.stock === 0) nishonlar.push('<span class="nishon-kichik yoq">Tugagan</span>');
+  else if (p.stock <= 3) nishonlar.push(`<span class="nishon-kichik">Oxirgi ${p.stock} ta</span>`);
+  if (p.old_price && p.old_price > p.price) nishonlar.push('<span class="nishon-kichik">Chegirma</span>');
+  return `
+  <button class="mahsulot" data-id="${p.id}">
+    ${rasmHtml(p, '', nishonlar.length ? `<span class="nishonlar">${nishonlar.join('')}</span>` : '')}
+    <div class="mtan">
+      <div class="mbrend">${esc(p.brand || '')}</div>
+      <div class="mnom">${esc(p.name)}</div>
+      <div class="mnarx">${qisqaNarx(p.price)} so'm${
+        p.old_price && p.old_price > p.price ? `<s>${qisqaNarx(p.old_price)}</s>` : ''}</div>
+    </div>
+  </button>`;
+}
+
+/** Keyingi bo'lakni qo'shadi va oxiriga "kuzatgich" qo'yadi. */
+function yanaChiz() {
+  const quti = $('#mahsulotlar');
+  const royxat = holat.royxat || [];
+  const bolak = royxat.slice(holat.korsatilgan, holat.korsatilgan + SAHIFA);
+  if (!bolak.length) return;
+
+  const vaqtinchalik = document.createElement('div');
+  vaqtinchalik.innerHTML = bolak.map(kartaHtml).join('');
+  const yangilar = [...vaqtinchalik.children];
+  yangilar.forEach((el) => {
+    el.onclick = () => mahsulotOyna(Number(el.dataset.id));
+    quti.appendChild(el);
+  });
+  holat.korsatilgan += bolak.length;
+
+  // Eski kuzatgichni olib tashlaymiz
+  $('#yana-nishon')?.remove();
+  kuzatuvchi?.disconnect();
+
+  if (holat.korsatilgan < royxat.length) {
+    const nishon = document.createElement('div');
+    nishon.id = 'yana-nishon';
+    nishon.className = 'yana-nishon';
+    nishon.innerHTML = '<div class="aylana kichik"></div>';
+    quti.appendChild(nishon);
+
+    // Ekranga yaqinlashganda keyingi bo'lakni qo'shamiz
+    kuzatuvchi = new IntersectionObserver((yozuvlar) => {
+      if (yozuvlar.some((y) => y.isIntersecting)) yanaChiz();
+    }, { rootMargin: '600px' });
+    kuzatuvchi.observe(nishon);
+  }
 }
 
 // Qidiruv
@@ -737,17 +783,49 @@ async function natijaniTelegramgaYubor(tugma) {
 // ---------------- Savat ----------------
 async function savatniYangila() {
   try { holat.savat = (await api('/api/cart')).savat || []; } catch { holat.savat = []; }
+  savatniKorsat();
+}
+
+// ═══════════ OPTIMISTIK SAVAT ═══════════
+// Tugma bosilganda serverni KUTMAYMIZ: ekranni darhol yangilaymiz,
+// so'rovni fonda yuboramiz. Sekin internetda ilova "qotib qolgandek"
+// tuyulmaydi. Server rad etsa — orqaga qaytaramiz va sababni aytamiz.
+
+/** Savat nishonini va ro'yxatni darhol qayta chizadi. */
+function savatniKorsat() {
   const soni = holat.savat.reduce((s, r) => s + r.quantity, 0);
   const n = $('#savat-nishon');
   n.textContent = soni; kor(n, soni > 0);
   savatniChiz();
 }
 
+/** Serverdan haqiqiy holatni olib, ekranni moslashtiradi. */
+async function savatniSinxronla() {
+  try {
+    holat.savat = (await api('/api/cart')).savat || [];
+    savatniKorsat();
+  } catch { /* keyingi safar */ }
+}
+
 async function savatga(id, soni = 1) {
+  const p = holat.mahsulotlar.find((x) => x.id === id);
+  if (!p) return;
+
+  // 1) Darhol ko'rsatamiz
+  const eski = holat.savat.map((r) => ({ ...r }));
+  const bor = holat.savat.find((r) => r.products.id === id);
+  if (bor) bor.quantity += soni;
+  else holat.savat.push({ quantity: soni, products: p });
+  savatniKorsat(); titra();
+
+  // 2) Keyin serverga
   try {
     await api('/api/cart', { method: 'POST', body: JSON.stringify({ product_id: id, quantity: soni }) });
-    await savatniYangila(); titra();
-  } catch (e) { ogohlantir(e.message); }
+    savatniSinxronla();
+  } catch (e) {
+    holat.savat = eski; savatniKorsat();
+    ogohlantir(e.message);
+  }
 }
 
 const chegirmaHisobla = (oraliq) =>
@@ -777,6 +855,10 @@ function savatniChiz() {
     .filter((p) => oraliq < p.dan).sort((a, b) => a.dan - b.dan)[0];
 
   el.innerHTML = `
+  <div class="satr-bosh">
+    <span class="mayda">${holat.savat.length} xil mahsulot</span>
+    <button class="matn-tugma" id="t-savat-tozala">🗑 Savatni tozalash</button>
+  </div>
   <div class="karta">
     ${holat.savat.map(({ products: p, quantity }) => `
       <div class="savat-qator">
@@ -821,14 +903,54 @@ function savatniChiz() {
   $$('[data-kam]', el).forEach((b) => b.onclick = () => ozgartir(Number(b.dataset.kam), -1));
   $$('[data-kop]', el).forEach((b) => b.onclick = () => ozgartir(Number(b.dataset.kop), +1));
   $('#t-rasmiylashtir').onclick = () => checkoutOch();
+
+  const tz = $('#t-savat-tozala');
+  if (tz) tz.onclick = () => {
+    $('#modal-tan').innerHTML = `
+      <div style="padding:18px 18px 0">
+        <h2 style="margin-bottom:10px">🗑 Savatni tozalash</h2>
+        <p style="margin:0 0 18px">Savatdagi barcha mahsulotlar olib tashlanadi.</p>
+        <button class="asosiy" id="t-tozala-ha">Ha, tozalansin</button>
+        <button class="ikkilamchi" id="t-tozala-yoq" style="margin-top:9px">Bekor</button>
+      </div>`;
+    modalOch();
+    $('#t-tozala-ha').onclick = () => { modalYop(); savatniTozala(); };
+    $('#t-tozala-yoq').onclick = modalYop;
+  };
 }
 
 async function ozgartir(id, delta) {
   const q = holat.savat.find((r) => r.products.id === id);
   if (!q) return;
-  await api('/api/cart', { method: 'POST',
-    body: JSON.stringify({ amal: 'ozgartir', product_id: id, quantity: q.quantity + delta }) });
-  await savatniYangila(); titra();
+  const yangi = q.quantity + delta;
+
+  const eski = holat.savat.map((r) => ({ ...r }));
+  if (yangi <= 0) holat.savat = holat.savat.filter((r) => r.products.id !== id);
+  else q.quantity = yangi;
+  savatniKorsat(); titra();
+
+  try {
+    await api('/api/cart', { method: 'POST',
+      body: JSON.stringify({ amal: 'ozgartir', product_id: id, quantity: yangi }) });
+    savatniSinxronla();
+  } catch (e) {
+    holat.savat = eski; savatniKorsat();
+    ogohlantir(e.message);
+  }
+}
+
+/** Savatni butunlay bo'shatish. */
+async function savatniTozala() {
+  if (!holat.savat.length) return;
+  const eski = holat.savat.map((r) => ({ ...r }));
+  holat.savat = [];
+  savatniKorsat(); titra('medium');
+  try {
+    await api('/api/cart', { method: 'POST', body: JSON.stringify({ amal: 'tozala' }) });
+  } catch (e) {
+    holat.savat = eski; savatniKorsat();
+    ogohlantir(e.message);
+  }
 }
 
 // ---------------- Buyurtma rasmiylashtirish ----------------

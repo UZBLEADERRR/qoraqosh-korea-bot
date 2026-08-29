@@ -38,7 +38,7 @@ export async function yangilanish(upd) {
   // ---- Majburiy obuna ----
   const obuna = await obunaHolati(user.telegram_id, user);
   if (obuna.kerak) {
-    const x = obunaXabari(obuna.havola, await brendNomi());
+    const x = obunaXabari(obuna.havola, await brendNomi(), obuna.kanal);
     return yubor(chatId, x.matn, { reply_markup: x.reply_markup });
   }
 

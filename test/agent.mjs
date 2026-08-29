@@ -83,6 +83,10 @@ test('joylangan post rasmi o‘chirildi', rasmQoldi.n === 0, `${rasmQoldi.n} ta 
 console.log('\n── AGENT: JADVAL ──');
 await sorov(`update rejalar set soat = 0`);
 await sorov(`update reja_bandlari set holat='rejada' where holat<>'joylandi'`);
+// Bugun joylangan postni KECHAGI kunga suramiz: aks holda agent
+// "bugun allaqachon post bor" deb to'g'ri ravishda yangisini tayyorlamaydi
+await sorov(`update reja_bandlari set created_at = now() - interval '1 day'
+              where holat = 'joylandi'`);
 yuborilgan.length=0;
 await agentBirMarta(); await kut(600);
 test('jadval postni o‘zi tayyorladi', yuborilgan.some(x=>x.rasm));

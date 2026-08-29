@@ -69,7 +69,14 @@ Google Gemini · Railway.
   o'lchamni yozadi. Bittasini bosasiz — Gemini uni chizadi. Siz prompt
   yozmaysiz. Tanlangan poster katalogda mahsulot rasmi bo'lib chiqadi.
   O'lchamlar: 1:1 (katalog), 4:5 (Instagram), 9:16 (story), 16:9 (banner).
-- **Sotuvlar** — har mahsulot bo'yicha dona, daromad, tannarx, foyda, marja.
+- **Sotuvlar va oylik hisobot** — har oy uchun buyurtma soni, mijozlar,
+  to'liq tushum, yetkazish, tannarx va **sof foyda** (daromad − chegirma −
+  tannarx) hamda marja. Oy ustiga bosib faqat o'sha oyning mahsulotlarini
+  ko'rasiz. Har mahsulot bo'yicha dona, daromad, tannarx, foyda, marja.
+- **Sotuvlar tarixini tozalash** — sinovdan haqiqiy ishga o'tayotganda:
+  buyurtmalar, partiyalar va cheklar o'chadi, raqamlash 1 dan boshlanadi.
+  Mahsulotlar, mijozlar va sozlamalar saqlanadi. Tasdiqlash so'zi talab
+  qilinadi — tasodifan bosilmaydi.
 - **Foydalanuvchilar** — qidiruv, jami xarid summasi, rozilik sanasi, bloklash.
 - **Omborlar** — filiallarni qo'shish (viloyat, tuman, manzil, mo'ljal, telefon,
   ish vaqti, tartib). Buyurtma «Omborda» holatiga o'tganda mijozga shu ma'lumot
@@ -381,6 +388,25 @@ olmaydi.
 tashlanadi. Bazada matnli natija va undan chizilgan **natija rasmi**
 saqlanadi — foydalanuvchi keyin «rasm qilib olish» tugmasini bossa uni
 qaytadan chizish uchun asl surat kerak bo'lardi, lekin bizda u yo'q.
+
+**Javoblar siqiladi.** 2000 mahsulotli katalog xom holda 640 KB — mobil
+internetda bir necha soniya. Brotli/gzip bilan **10 KB** (60 barobar).
+Statik js/css/html ham siqiladi. 1 KB dan kichik javob siqilmaydi —
+u yerda foyda yo'q.
+
+**Ro'yxat bo'lakma-bo'lak chiziladi.** Hamma mahsulotni birdan DOM ga
+qo'yish (2000 karta) telefonda 1,5–3 soniya qotishga olib kelardi.
+Endi 24 tadan chiziladi, pastga tushgan sari qo'shiladi
+(`IntersectionObserver`). Katalogga qaytish 1620 ms dan **138 ms** ga tushdi.
+
+**Savat optimistik.** Tugma bosilganda server KUTILMAYDI: ekran darhol
+yangilanadi, so'rov fonda ketadi. Server rad etsa — o'zgarish orqaga
+qaytariladi va sabab aytiladi. Sekin internetda ilova "qotib qolgandek"
+tuyulmaydi.
+
+**Pul summalari bigint.** `int4` chegarasi 2,1 mlrd so'm — bu ~6500
+buyurtmada tugaydi va boshqaruv paneli "integer out of range" bilan
+butunlay yiqilardi. 60 000 buyurtma bilan sinaldi.
 
 **Kuniga minglab foydalanuvchiga tayyorlik.** Katalog — eng ko'p so'raladigan
 yo'l — 30 soniyalik keshda turadi va bir vaqtda kelgan so'rovlar bitta baza

@@ -1,5 +1,5 @@
 // Admin API. Kirish: login/parol -> muddati cheklangan token (8 soat).
-import { qator, qatorlar, sorov, qiymat, sozlama } from '../db.js';
+import { qator, qatorlar, sorov, qiymat, sozlama, tranzaksiya } from '../db.js';
 import { issueAdminToken, verifyAdminToken, loginBloklanganmi, loginXato, loginTozala } from '../lib/auth.js';
 import { ok, xato, tana, ipOl } from '../lib/http.js';
 import { verifyInitData } from '../lib/auth.js';
@@ -382,7 +382,7 @@ export async function adminRoutes(req, res, yol) {
         `select u.id, u.telegram_id, u.username, u.full_name, u.phone, u.age, u.address,
                 u.agreed_at, u.is_blocked, u.created_at, u.last_active,
                 coalesce((select sum(o.total) from orders o
-                           where o.user_id = u.id and o.status <> 'bekor'), 0)::int as jami_xarid
+                           where o.user_id = u.id and o.status <> 'bekor'), 0)::bigint as jami_xarid
            from users u
           ${qidiruv ? `where u.full_name ilike $2 or u.phone ilike $2 or u.username ilike $2` : ''}
           order by u.created_at desc limit $1`,
@@ -397,7 +397,41 @@ export async function adminRoutes(req, res, yol) {
   }
 
   // ================= SOTUVLAR =================
-  if (yol === '/api/admin/sales' && req.method === 'GET') return ok(res, await sotuvlar());
+  if (yol === '/api/admin/sales' && req.method === 'GET') {
+    const oy = (new URL(req.url, 'http://x').searchParams.get('oy') || '').trim();  // 2026-08
+    return ok(res, await sotuvlar(/^\d{4}-\d{2}$/.test(oy) ? oy : ''));
+  }
+
+  // Oylik hisobot: to'liq daromad, tannarx, yetkazish, sof foyda
+  if (yol === '/api/admin/oylik' && req.method === 'GET') {
+    return ok(res, { oylar: await oylikHisobot() });
+  }
+
+  // Sotuvlar tarixini tozalash — noldan boshlash
+  if (yol === '/api/admin/sales-reset' && req.method === 'POST') {
+    const b = await tana(req);
+    // Tasodifan bosilmasin: aniq so'z yozilishi kerak
+    if (String(b.tasdiq || '').trim().toUpperCase() !== 'TOZALASH') {
+      return xato(res, 400, 'Tasdiqlash so‘zi noto‘g‘ri.');
+    }
+    const oldin = await qator(
+      `select count(*)::int as soni, coalesce(sum(total),0)::bigint as summa from orders`);
+
+    await tranzaksiya(async (mijoz) => {
+      // Bog'liq yozuvlar avval — tashqi kalitlar buzilmasin
+      await mijoz.query(`update orders set partiya_id = null, receipt_id = null`);
+      await mijoz.query(`delete from media where tur = 'chek'`);
+      await mijoz.query(`delete from orders`);
+      await mijoz.query(`delete from partiyalar`);
+      if (b.hodisalar) await mijoz.query(`delete from events where type in ('order','add_cart')`);
+      // Raqamlash ham noldan
+      await mijoz.query(`alter sequence order_no_seq restart with 1`).catch(() => {});
+      await mijoz.query(`alter sequence partiya_seq  restart with 1`).catch(() => {});
+    });
+
+    keshniTashla();
+    return ok(res, { ochirildi: oldin.soni, summa: Number(oldin.summa) });
+  }
 
   // ================= XABAR SHABLONLARI =================
   if (yol === '/api/admin/templates' && req.method === 'GET') {
@@ -637,17 +671,17 @@ async function tizimTekshir() {
 async function boshqaruvPaneli() {
   // Og'ir hisoblar bazada — Node'ga faqat natija keladi
   const [umumiy, oy, holatlar, kunlar, voronka, ombor, users] = await Promise.all([
-    qator(`select coalesce(sum(total),0)::int      as daromad,
-                  coalesce(sum(cost_total),0)::int as tannarx,
+    qator(`select coalesce(sum(total),0)::bigint      as daromad,
+                  coalesce(sum(cost_total),0)::bigint as tannarx,
                   count(*)::int                    as soni
              from orders where status <> 'bekor'`),
-    qator(`select coalesce(sum(total),0)::int as daromad, count(*)::int as soni
+    qator(`select coalesce(sum(total),0)::bigint as daromad, count(*)::int as soni
              from orders
             where status <> 'bekor' and created_at >= date_trunc('month', now())`),
-    qatorlar(`select status, count(*)::int as soni, coalesce(sum(total),0)::int as summa
+    qatorlar(`select status, count(*)::int as soni, coalesce(sum(total),0)::bigint as summa
                 from orders group by status`),
     qatorlar(`select to_char(d.kun,'YYYY-MM-DD') as kun,
-                     coalesce(sum(o.total),0)::int as daromad,
+                     coalesce(sum(o.total),0)::bigint as daromad,
                      count(o.id)::int as soni
                 from generate_series(current_date - interval '13 days', current_date, '1 day') d(kun)
                 left join orders o
@@ -658,7 +692,7 @@ async function boshqaruvPaneli() {
     qator(`select count(*) filter (where is_active)::int                          as jami,
                   count(*) filter (where is_active and stock = 0)::int             as tugagan,
                   count(*) filter (where is_active and stock between 1 and 5)::int as kam,
-                  coalesce(sum(stock * cost_price),0)::int                         as qiymat
+                  coalesce(sum(stock * cost_price),0)::bigint                      as qiymat
              from products`),
     qator(`select count(*)::int as jami, count(agreed_at)::int as royxatdan_otgan from users`),
   ]);
@@ -722,7 +756,39 @@ async function boshqaruvPaneli() {
 }
 
 // ============================================================
-async function sotuvlar() {
+/**
+ * Oylik hisobot: har oy uchun to'liq daromad, tannarx, yetkazish va SOF FOYDA.
+ *
+ * Sof foyda = mahsulot daromadi − tannarx − chegirma.
+ * Yetkazish alohida ko'rsatiladi: u bizning daromadimiz emas, pochtaga
+ * o'tadi (ustama qo'ygan bo'lsangiz farqi foydaga kiradi).
+ */
+async function oylikHisobot() {
+  return qatorlar(`
+    select to_char(created_at at time zone 'Asia/Tashkent', 'YYYY-MM') as oy,
+           count(*)::int                                    as buyurtma,
+           count(distinct user_id)::int                     as mijoz,
+           coalesce(sum(subtotal), 0)::bigint               as mahsulot_daromadi,
+           coalesce(sum(discount), 0)::bigint               as chegirma,
+           coalesce(sum(delivery_fee), 0)::bigint           as yetkazish,
+           coalesce(sum(total), 0)::bigint                  as jami_tushum,
+           coalesce(sum(cost_total), 0)::bigint             as tannarx,
+           (coalesce(sum(subtotal), 0) - coalesce(sum(discount), 0)
+            - coalesce(sum(cost_total), 0))::bigint         as sof_foyda,
+           case when coalesce(sum(subtotal), 0) > 0
+                then round(((coalesce(sum(subtotal),0) - coalesce(sum(discount),0)
+                             - coalesce(sum(cost_total),0))::numeric
+                            / coalesce(sum(subtotal),0)) * 100)::int
+                else 0 end                                  as marja
+      from orders
+     where status <> 'bekor'
+     group by 1
+     order by 1 desc
+     limit 24`);
+}
+
+/** @param {string} oy  'YYYY-MM' yoki bo'sh (hammasi) */
+async function sotuvlar(oy = '') {
   const royxat = await qatorlar(`
     with qatorlar as (
       select (i->>'product_id')::bigint as product_id,
@@ -733,20 +799,21 @@ async function sotuvlar() {
              coalesce((i->>'cost_price')::int, 0) as cost_price
         from orders o, jsonb_array_elements(o.items) i
        where o.status <> 'bekor'
+         and ($1 = '' or to_char(o.created_at at time zone 'Asia/Tashkent', 'YYYY-MM') = $1)
     )
     select product_id,
            max(name)  as name,
            max(brand) as brand,
-           sum(qty)::int                       as soni,
-           sum(qty * price)::int               as daromad,
-           sum(qty * cost_price)::int          as tannarx,
-           (sum(qty * price) - sum(qty * cost_price))::int as foyda,
+           sum(qty)::bigint                    as soni,
+           sum(qty * price)::bigint            as daromad,
+           sum(qty * cost_price)::bigint       as tannarx,
+           (sum(qty * price) - sum(qty * cost_price))::bigint as foyda,
            case when sum(qty * price) > 0
                 then round(((sum(qty*price) - sum(qty*cost_price))::numeric / sum(qty*price)) * 100)::int
                 else 0 end as marja
       from qatorlar
      group by product_id
-     order by daromad desc`);
+     order by daromad desc`, [oy]);
 
   return {
     sotuvlar: royxat,

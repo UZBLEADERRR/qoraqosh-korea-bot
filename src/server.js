@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 
 import { config } from './config.js';
-import { statik, ok, xato, tana } from './lib/http.js';
+import { statik, ok, xato, tana, sorovniEsla } from './lib/http.js';
 import { apiRoutes } from './api/routes.js';
 import { adminRoutes } from './api/admin.js';
 import { yangilanish } from './bot/index.js';
@@ -33,6 +33,7 @@ const WEBHOOK_YOL = '/tg/' + crypto.createHash('sha256')
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const yol = decodeURIComponent(url.pathname);
+  sorovniEsla(req);        // javob siqilishi uchun Accept-Encoding kerak
 
   try {
     // ---------- Telegram webhook ----------

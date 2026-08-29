@@ -47,20 +47,25 @@ export async function obunaHolati(telegramId, user) {
 }
 
 /** A'zo bo'lmaganga ko'rsatiladigan xabar. */
-export function obunaXabari(havola, brend) {
+export function obunaXabari(havola, brend, kanal = '') {
   const kb = [];
   if (havola) kb.push([{ text: '📢 Kanalga obuna bo‘lish', url: havola }]);
   kb.push([{ text: '✅ Obuna bo‘ldim', callback_data: 'obuna_tekshir' }]);
-  return {
-    matn: [
-      `🔒 <b>Avval kanalimizga obuna bo‘ling</b>`, ``,
-      `${brend} botidan foydalanish uchun kanalimizga a'zo bo‘lishingiz kerak.`,
-      `U yerda chegirmalar, yangi mahsulotlar va teri parvarishi bo‘yicha`,
-      `foydali maslahatlar chiqadi.`, ``,
-      `Obuna bo‘lgach «✅ Obuna bo‘ldim» tugmasini bosing.`,
-    ].join('\n'),
-    reply_markup: { inline_keyboard: kb },
-  };
+
+  const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const qatorlar = [
+    `🔒 <b>Avval kanalimizga obuna bo‘ling</b>`, ``,
+    `${esc(brend)} botidan foydalanish uchun kanalimizga a'zo bo‘lishingiz kerak.`,
+    `U yerda chegirmalar, yangi mahsulotlar va teri parvarishi bo‘yicha`,
+    `foydali maslahatlar chiqadi.`, ``,
+  ];
+  // Havolani MATNDA ham beramiz: tugma ba'zi klientlarda ochilmaydi va
+  // odam qayerga borishni bilmay qoladi.
+  if (havola) qatorlar.push(`👉 ${esc(havola)}`, ``);
+  else if (kanal.startsWith('@')) qatorlar.push(`👉 ${esc(kanal)}`, ``);
+  qatorlar.push(`Obuna bo‘lgach «✅ Obuna bo‘ldim» tugmasini bosing.`);
+
+  return { matn: qatorlar.join('\n'), reply_markup: { inline_keyboard: kb } };
 }
 
 /** «Obuna bo'ldim» bosilganda keshni tashlab qayta tekshiramiz. */

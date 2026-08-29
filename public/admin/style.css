@@ -217,3 +217,6 @@ textarea{resize:vertical;min-height:80px}
   color:var(--kul);font-weight:600;font-size:12.5px;text-transform:uppercase;letter-spacing:.3px}
 .jadval td{padding:9px 10px;border-bottom:1px solid var(--chiziq);vertical-align:top}
 .jadval tr:last-child td{border-bottom:0}
+.jadval .oy-qator{cursor:pointer}
+.jadval .oy-qator:active{background:var(--urgu-och)}
+.jadval .oy-qator.tanlangan{background:var(--urgu-och)}
