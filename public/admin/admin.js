@@ -1115,9 +1115,20 @@ async function sozlamalar() {
           Botni o‘sha kanalga <b>admin</b> qilib qo‘shing. Adminlar hech qachon to‘silmaydi.</p>
         <label>Kanal <span class="yordam">@nom yoki -100…</span></label>
         <input id="s-majburiy" value="${esc(matn('majburiy_kanal'))}" placeholder="@meduza_kanal">
-        <label>Havola <span class="yordam">yopiq kanal bo‘lsa taklif havolasi</span></label>
+        <label>Havola <span class="yordam">bo‘sh qoldirsangiz bot o‘zi topadi</span></label>
         <input id="s-majburiy-havola" value="${esc(matn('majburiy_kanal_havola'))}"
           placeholder="https://t.me/+AbCdEf...">
+        <p class="mayda" style="margin:6px 0 0">
+          Kanal <code>@nom</code> bilan yozilsa havola o‘zi yasaladi.
+          <code>-100…</code> ID bo‘lsa bot Telegram’dan so‘rab oladi —
+          buning uchun u kanalda <b>admin</b> bo‘lishi kerak.</p>
+        <div class="xabar-quti ogoh" style="margin:10px 0 0">
+          ⚠️ Havola topilmasa majburiy obuna <b>vaqtincha o‘chadi</b>:
+          foydalanuvchi qayerga borishni bilmay botdan umuman
+          foydalana olmay qolmasligi uchun.
+        </div>
+        <button class="tug keng" id="t-obuna-sina" style="margin-top:12px">
+          🔍 Kanalni tekshirish</button>
       </div>
 
       <div class="karta tor">
@@ -1255,6 +1266,7 @@ async function sozlamalar() {
     $('#s-saqla').onclick = sozlamalarniSaqla;
     $('#t-kanal-sina').onclick = kanallarniSina;
     $('#t-tarif-sina').onclick = tarifniSina;
+    $('#t-obuna-sina').onclick = obunaniSina;
     $('#t-logo').onclick = () => $('#s-logo').click();
     $('#s-logo').onchange = logoniYukla;
     const lo = $('#t-logo-och');
@@ -1367,6 +1379,37 @@ async function logoniYukla(e) {
     tost(err.message || 'Yuklab bo‘lmadi');
   } finally {
     t.disabled = false; t.textContent = '📷 Logotip yuklash';
+  }
+}
+
+/** Majburiy kanal to'g'ri sozlanganmi — bot admin bo'lganmi, havola bormi. */
+async function obunaniSina() {
+  const t = $('#t-obuna-sina');
+  t.disabled = true; t.textContent = 'Tekshirilmoqda…';
+  try {
+    await sozlamalarniSaqla();
+    const j = await api('/api/admin/obuna-sinov', { method: 'POST' });
+    const belgi = j.holat === 'ok' ? '✅' : j.holat === 'yoq' ? '➖' : '❌';
+    modal(`${belgi} Majburiy obuna`, `
+      <div class="qator-satr"><span class="k">Kanal</span>
+        <span class="v">${esc(j.nom || j.kanal || '—')}</span></div>
+      <div class="qator-satr"><span class="k">Bot admin</span>
+        <span class="v">${j.bot_admin ? '✅ ha' : '❌ yo‘q'}</span></div>
+      <div class="qator-satr"><span class="k">Havola</span>
+        <span class="v">${j.havola ? '✅ bor' : '❌ yo‘q'}</span></div>
+      ${j.havola ? `<p class="mayda" style="margin:12px 0 0;word-break:break-all">
+        <b>${esc(j.havola)}</b><br><span class="ozgina">${esc(j.manba)}</span></p>` : ''}
+      <div class="xabar-quti ${j.holat === 'ok' ? 'ok' : 'xato'}" style="margin:14px 0 0">
+        ${esc(j.xabar)}</div>
+      ${j.holat !== 'ok' ? `<ol class="mayda" style="padding-left:18px;line-height:1.9;margin:12px 0 0">
+        <li>Kanalni oching → <b>Administratorlar</b> → botni qo‘shing</li>
+        <li>Botga <b>«Taklif havolalarini boshqarish»</b> huquqini bering</li>
+        <li>Shu tugmani qayta bosing</li>
+      </ol>` : ''}`);
+  } catch (e) {
+    tost(e.message || 'Tekshirib bo‘lmadi');
+  } finally {
+    t.disabled = false; t.textContent = '🔍 Kanalni tekshirish';
   }
 }
 

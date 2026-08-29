@@ -103,6 +103,20 @@ export function soxtaServer(port = 4444) {
       if (yol.endsWith('/getChatMember')) {
         return j({ ok: true, result: { status: globalThis.AZO ? 'member' : 'left' } });
       }
+      if (yol.endsWith('/getMe')) return j({ ok: true, result: { id: 1, username: 'sinov_bot' } });
+      // globalThis.KANAL bilan turli holatlarni sinaymiz
+      if (yol.endsWith('/getChat')) {
+        const k = globalThis.KANAL;
+        if (k === 'yoq') return j({ ok: false, description: 'chat not found' });
+        if (k === 'ochiq') return j({ ok: true, result: { id: -100, title: 'Meduza', username: 'meduza_kanal' } });
+        if (k === 'yopiq_havolali') return j({ ok: true, result: { id: -100, title: 'Meduza',
+          invite_link: 'https://t.me/+eskiHavola' } });
+        return j({ ok: true, result: { id: -100, title: 'Meduza' } });   // yopiq, havolasiz
+      }
+      if (yol.endsWith('/createChatInviteLink')) {
+        if (globalThis.HAVOLA_YARATILMAYDI) return j({ ok: false, description: 'not enough rights' });
+        return j({ ok: true, result: { invite_link: 'https://t.me/+yangiHavola' } });
+      }
 
       // ---- Google Gemini ----
       if (yol.includes(':generateContent')) {

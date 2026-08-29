@@ -172,6 +172,7 @@ await sorov(`update settings set value='"@meduza_kanal"'::jsonb where key='majbu
 await sorov(`update settings set value='"https://t.me/meduza_kanal"'::jsonb where key='majburiy_kanal_havola'`);
 const { keshniTashla } = await import('../src/lib/kesh.js');
 keshniTashla();
+globalThis.KANAL = 'ochiq';
 // Soxta server getChatMember ga 'left' qaytaradi
 await yoz('800001','/start');
 test('a‘zo bo‘lmagan to‘siladi', /obuna bo‘ling/i.test(hammasi()), hammasi().split('\n')[0]);
@@ -187,6 +188,39 @@ keshniTashla();
 globalThis.AZO = true;
 await yoz('800001','/start');
 test('a‘zo bo‘lgach o‘tkaziladi', !/obuna bo‘ling/i.test(hammasi()));
+globalThis.AZO = false;
+
+// ── Havola qayerdan topiladi ──
+console.log('  · havola manbalari:');
+const havolaSinovi = async (nom, kanal, qoldaHavola, kutilgan) => {
+  await sorov(`update settings set value=$1::jsonb where key='majburiy_kanal'`, [JSON.stringify(kanal)]);
+  await sorov(`update settings set value=$1::jsonb where key='majburiy_kanal_havola'`,
+    [JSON.stringify(qoldaHavola)]);
+  keshniTashla();
+  await yoz('800001','/start');
+  const tugma = (oxirgi().reply_markup?.inline_keyboard||[]).flat().find(b=>b.url);
+  const tosildi = /obuna bo‘ling/i.test(hammasi());
+  if (kutilgan === null) {
+    test(`    ${nom}: to‘smaydi`, !tosildi,
+      tosildi ? 'TO‘SDI — foydalanuvchi qamalib qolardi!' : 'obuna vaqtincha o‘chdi');
+  } else {
+    test(`    ${nom}`, tugma?.url === kutilgan, tugma?.url || 'TUGMA YO‘Q');
+  }
+};
+globalThis.KANAL = 'ochiq';
+await havolaSinovi('@nom dan', '@meduza_kanal', '', 'https://t.me/meduza_kanal');
+await havolaSinovi('qo‘lda yozilgan', '-1001234567890', 'https://t.me/+qolda', 'https://t.me/+qolda');
+await havolaSinovi('kanal nomidan (getChat)', '-1001234567890', '', 'https://t.me/meduza_kanal');
+globalThis.KANAL = 'yopiq_havolali';
+await havolaSinovi('kanalning taklif havolasi', '-1001234567890', '', 'https://t.me/+eskiHavola');
+globalThis.KANAL = 'yopiq';
+await havolaSinovi('bot o‘zi yaratadi', '-1001234567890', '', 'https://t.me/+yangiHavola');
+globalThis.HAVOLA_YARATILMAYDI = true;
+await havolaSinovi('havola umuman yo‘q', '-1001234567890', '', null);
+globalThis.HAVOLA_YARATILMAYDI = false;
+globalThis.KANAL = 'yoq';
+await havolaSinovi('kanal topilmadi', '-1001234567890', '', null);
+
 await sorov(`update settings set value='""'::jsonb where key='majburiy_kanal'`);
 keshniTashla();
 

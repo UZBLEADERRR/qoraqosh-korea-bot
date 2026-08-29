@@ -29,8 +29,18 @@ export async function obunaHolati(telegramId, user) {
   // sozlanganda o'z botiga kira olmay qolishardi.
   if (adminmi(user)) return { kerak: false, azo: true, kanal: k, havola: '' };
 
-  const h = String(havola || '').replace(/"/g, '').trim()
-    || (k.startsWith('@') ? `https://t.me/${k.slice(1)}` : '');
+  const h = await havolaniTop(k, havola);
+
+  // HAVOLA YO'Q — to'smaymiz.
+  // Admin kanal ID sini yozib, havolani unutgan bo'lsa foydalanuvchi
+  // "obuna bo'ling" xabarini ko'radi, lekin qayerga borishni bilmaydi va
+  // botdan UMUMAN foydalana olmay qoladi. Bunday sozlama biznesni
+  // to'xtatgandan ko'ra, obunani vaqtincha talab qilmagan yaxshi.
+  if (!h) {
+    console.error('MAJBURIY KANAL: havola topilmadi —', k,
+      '· botni kanalga admin qiling yoki havolani sozlamalarga yozing');
+    return { kerak: false, azo: true, kanal: k, havola: '' };
+  }
 
   const azo = await kesh(`obuna:${telegramId}`, KESH_MS, async () => {
     const r = await tg('getChatMember', { chat_id: k, user_id: Number(telegramId) });
@@ -45,6 +55,48 @@ export async function obunaHolati(telegramId, user) {
 
   return { kerak: !azo, azo, kanal: k, havola: h };
 }
+
+/**
+ * Kanalga kirish havolasi.
+ *
+ * Tartib:
+ *   1. Admin qo'lda yozgan havola
+ *   2. @nom bo'lsa — t.me/nom
+ *   3. Telegram'dan so'raymiz: kanalning ochiq nomi yoki taklif havolasi
+ *   4. Yopiq kanalda taklif havolasi yo'q bo'lsa — o'zimiz yaratamiz
+ *
+ * Natija keshlanadi: har xabarda Telegram'ga so'rov yubormaymiz.
+ */
+async function havolaniTop(kanal, qoldaYozilgan) {
+  const qolda = String(qoldaYozilgan || '').replace(/"/g, '').trim();
+  if (qolda) return qolda;
+  if (kanal.startsWith('@')) return `https://t.me/${kanal.slice(1)}`;
+
+  return kesh(`obuna-havola:${kanal}`, 30 * 60_000, async () => {
+    const r = await tg('getChat', { chat_id: kanal });
+    if (!r?.ok) {
+      console.error('MAJBURIY KANAL getChat:', r?.description);
+      return '';
+    }
+    const c = r.result || {};
+    if (c.username) return `https://t.me/${c.username}`;
+    if (c.invite_link) return c.invite_link;
+
+    // Yopiq kanal va asosiy taklif havolasi hali yaratilmagan
+    const y = await tg('createChatInviteLink', {
+      chat_id: kanal, name: 'Bot orqali obuna', creates_join_request: false,
+    });
+    if (y?.ok && y.result?.invite_link) return y.result.invite_link;
+
+    console.error('MAJBURIY KANAL: taklif havolasi yaratilmadi —', y?.description);
+    return '';
+  });
+}
+
+/** Havola keshini tashlash — admin sozlamani o'zgartirganda. */
+export const havolaKeshiniTashla = (kanal) =>
+  import('../lib/kesh.js').then(({ keshniTashla }) =>
+    keshniTashla(kanal ? `obuna-havola:${kanal}` : undefined));
 
 /** A'zo bo'lmaganga ko'rsatiladigan xabar. */
 export function obunaXabari(havola, brend, kanal = '') {

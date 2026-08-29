@@ -49,7 +49,8 @@ Google Gemini · Railway.
   qadoqlanmoqda → Koreyadan jo'natildi → yo'lda → O'zbekiston omborida →
   pochtadan jo'natildi → yetib keldi. Har bosqichda xabar keladi.
 - **Majburiy obuna** (ixtiyoriy) — kanalga a'zo bo'lmagan foydalanuvchi
-  botdan foydalana olmaydi.
+  botdan foydalana olmaydi. Kanal havolasi tugmada ham, matnda ham
+  ko'rinadi va bot uni o'zi topadi (pastga qarang).
 
 ### Admin uchun (`/admin`)
 - **Boshqaruv paneli** — daromad, yalpi foyda va marja, o'rtacha chek,
@@ -378,6 +379,15 @@ qo'shadi.
 Word Unicode'ni o'zi biladi, shuning uchun PDF'dagi kabi shrift joylashtirish
 kerak emas: o'zbekcha `gʻoʻza` ham, kirill ham to'g'ri chiqadi.
 Jadval uchun `<w:tblGrid>` MAJBURIY — usiz Word hujjatni rad etadi.
+
+**Majburiy obuna hech kimni qamab qo'ymaydi.** Kanal havolasi to'rt
+manbadan qidiriladi: admin yozgani → `@nom` dan → Telegram'dan
+(`getChat`: kanal nomi yoki taklif havolasi) → bot o'zi yaratadi
+(`createChatInviteLink`). Havola baribir topilmasa **obuna vaqtincha
+o'chadi**: aks holda foydalanuvchi «obuna bo'ling» xabarini ko'rib,
+qayerga borishni bilmay botdan umuman foydalana olmay qolardi.
+Sozlamalardagi «🔍 Kanalni tekshirish» tugmasi bot admin ekanini va
+havola borligini darhol ko'rsatadi.
 
 **Agent hech qachon o'zi post qilmaydi.** Tayyorlangan post avval adminga
 boradi. Jadval har 5 daqiqada tekshiradi va `pg_advisory_lock` oladi:

@@ -458,6 +458,54 @@ export async function adminRoutes(req, res, yol) {
     return ok(res, { ok: true, yozildi: yozildi.length });
   }
 
+  // Majburiy kanal to'g'ri sozlanganmi: bot admin bo'lganmi, havola bormi
+  if (yol === '/api/admin/obuna-sinov' && req.method === 'POST') {
+    const kanal = String(await sozlama('majburiy_kanal', '') || '').replace(/"/g, '').trim();
+    if (!kanal) return ok(res, { holat: 'yoq', xabar: 'Majburiy obuna o‘chiq' });
+
+    const chat = await tg('getChat', { chat_id: kanal });
+    if (!chat?.ok) {
+      return ok(res, { holat: 'xato', kanal,
+        xabar: `Kanal topilmadi: ${chat?.description || 'nomaʼlum'}. ` +
+               'Botni kanalga ADMIN qilib qo‘shing.' });
+    }
+
+    // Bot a'zolikni tekshira olishi uchun admin bo'lishi shart
+    const men = await tg('getMe');
+    const azolik = men?.ok
+      ? await tg('getChatMember', { chat_id: kanal, user_id: men.result.id })
+      : null;
+    const botAdmin = ['administrator', 'creator'].includes(azolik?.result?.status);
+
+    const { havolaKeshiniTashla } = await import('../services/majburiy-kanal.js');
+    await havolaKeshiniTashla(kanal);
+    const qolda = String(await sozlama('majburiy_kanal_havola', '') || '').replace(/"/g, '').trim();
+
+    let havola = qolda;
+    let manba = 'qo‘lda yozilgan';
+    if (!havola && chat.result.username) {
+      havola = `https://t.me/${chat.result.username}`; manba = 'kanal nomidan';
+    }
+    if (!havola && chat.result.invite_link) {
+      havola = chat.result.invite_link; manba = 'kanalning taklif havolasi';
+    }
+    if (!havola && botAdmin) {
+      const y = await tg('createChatInviteLink', { chat_id: kanal, name: 'Bot orqali obuna' });
+      if (y?.ok) { havola = y.result.invite_link; manba = 'bot yaratdi'; }
+    }
+
+    return ok(res, {
+      holat: havola && botAdmin ? 'ok' : 'xato',
+      kanal, nom: chat.result.title || '', bot_admin: botAdmin, havola, manba,
+      xabar: !botAdmin
+        ? 'Bot kanalda ADMIN emas — a’zolikni tekshira olmaydi.'
+        : havola
+          ? `Tayyor: ${chat.result.title || kanal}`
+          : 'Havola topilmadi. Kanal sozlamalarida taklif havolasini yarating ' +
+            'yoki uni qo‘lda yozing.',
+    });
+  }
+
   // Tarif sinovi — narx to'g'ri hisoblanayaptimi
   if (yol === '/api/admin/tarif-sinov' && req.method === 'POST') {
     const { variantlar } = await import('../services/yetkazish.js');
