@@ -27,7 +27,7 @@ body {
 }
 
 header {
-  padding: 20px 16px;
+  padding: 14px 16px;
   background: var(--bg);
   display: flex;
   justify-content: center;
@@ -35,29 +35,30 @@ header {
   position: sticky;
   top: 0;
   z-index: 100;
+  border-bottom: 1px solid #1c1c1e;
 }
 
 .logo {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 900;
-  letter-spacing: 3px;
+  letter-spacing: 4px;
   color: var(--accent);
   text-transform: uppercase;
-  text-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+  text-shadow: 0 0 12px rgba(212, 175, 55, 0.35);
 }
 
 .tabs {
   display: flex;
   background: #1c1c1e;
   padding: 4px;
-  margin: 0 16px 16px;
+  margin: 12px 16px 12px;
   border-radius: 12px;
   gap: 4px;
 }
 
 .tab {
   flex: 1;
-  padding: 8px;
+  padding: 10px 4px;
   text-align: center;
   border-radius: 10px;
   font-weight: 600;
@@ -89,11 +90,12 @@ header {
 
 .cart-badge[hidden] { display: none !important; }
 
-.search-wrap { padding: 0 16px 12px; }
+.search-wrap { padding: 0 16px 10px; }
 
 #search-input {
   width: 100%;
-  padding: 12px 16px;
+  box-sizing: border-box;
+  padding: 11px 16px;
   background: #1c1c1e;
   border: 1px solid #2c2c2e;
   border-radius: 12px;
@@ -108,22 +110,23 @@ header {
 .categories {
   display: flex;
   overflow-x: auto;
-  padding: 0 16px 16px;
-  gap: 10px;
+  padding: 0 16px 12px;
+  gap: 8px;
   scrollbar-width: none;
 }
 .categories::-webkit-scrollbar { display: none; }
 
 .cat-btn {
   white-space: nowrap;
-  padding: 8px 18px;
+  padding: 7px 14px;
   background: #1c1c1e;
   border: 1px solid #2c2c2e;
-  border-radius: 20px;
+  border-radius: 18px;
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   transition: 0.2s;
+  cursor: pointer;
 }
 
 .cat-btn.active {
@@ -136,44 +139,47 @@ header {
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 12px;
   padding: 0 16px 100px;
 }
 
 .card {
   background: var(--card);
-  border-radius: var(--radius);
+  border-radius: 14px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   border: 1px solid #2c2c2e;
   transition: transform 0.2s;
+  min-height: 0;
 }
 
 .card:active { transform: scale(0.97); }
 
 .card-img {
-  aspect-ratio: 1;
+  height: 96px;
   display: grid;
   place-items: center;
-  font-size: 48px;
+  font-size: 38px;
   position: relative;
   border-bottom: 1px solid #2c2c2e;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.4);
 }
 
 .card-info {
-  padding: 12px;
+  padding: 10px;
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 6px;
 }
 
 .card-title {
   font-weight: 600;
-  font-size: 13px;
-  margin-bottom: 6px;
-  height: 38px;
-  line-height: 1.2;
+  font-size: 12px;
+  line-height: 1.25;
+  height: 30px;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -184,20 +190,20 @@ header {
 .card-price {
   font-weight: 800;
   color: var(--accent);
+  font-size: 13px;
   margin-top: auto;
-  font-size: 14px;
 }
 
 .add-btn {
   width: 100%;
-  padding: 10px;
+  box-sizing: border-box;
+  padding: 8px;
   background: #2c2c2e;
   border: none;
-  border-radius: 10px;
+  border-radius: 9px;
   color: #fff;
-  margin-top: 10px;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   transition: 0.2s;
 }
