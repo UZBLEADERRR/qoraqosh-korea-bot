@@ -7,7 +7,6 @@ if (tg) {
   tg.ready();
 }
 
-// Fallback ma'lumotlar — data/products.js bilan 100% sinxron
 const FALLBACK = window.FALLBACK_DATA || { kategoriya: [], mahsulotlar: [] };
 
 let MAHSULOTLAR = [...FALLBACK.mahsulotlar];
@@ -18,14 +17,12 @@ let joriyKat = 'hammasi';
 let joriyTab = 'katalog';
 let qidiruv = '';
 
-// ---------- Yordamchilar ----------
 const esc = (str) => String(str ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;')
   .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 const narxFmt = (n) => Number(n).toLocaleString('uz-UZ') + " so'm";
 
-// Gradient massivini CSS ga xavfsiz aylantirish
 function gradCss(p) {
   if (Array.isArray(p.grad) && p.grad.length >= 2 && p.grad.every(c => /^#[0-9a-fA-F]{3,8}$/.test(c))) {
     return `linear-gradient(135deg, ${p.grad[0]}, ${p.grad[1]})`;
@@ -38,7 +35,6 @@ function savatSaqlash() {
   badgeYangila();
 }
 
-// Savatni katalogda yo'q qolgan mahsulotlardan tozalash
 function savatniTozala() {
   let ozgardi = false;
   for (const id of Object.keys(savat)) {
@@ -55,7 +51,6 @@ function badgeYangila() {
   b.hidden = n === 0;
 }
 
-// ---------- Ma'lumot olish ----------
 async function katalogniOlish() {
   try {
     const res = await fetch('/api/products');
@@ -78,7 +73,6 @@ async function tahlilniOlish() {
     tahlil = await res.json();
     tahlilChiz();
 
-    // Bot xabaridan "tahlil" bilan kelgan bo'lsa — tavsiyalarni savatga qo'shamiz
     const params = new URLSearchParams(window.location.search);
     if (params.get('start') === 'tahlil') tavsiyalarniSavatgaQoshish();
   } catch (e) { console.warn('Tahlil olishda xato:', e.message); }
@@ -86,7 +80,6 @@ async function tahlilniOlish() {
 
 function tavsiyalarniSavatgaQoshish() {
   if (!tahlil) return;
-  // Bir xil tahlil uchun takror qo'shmaslik (tahlil vaqti bo'yicha kalit)
   const kalit = String(tahlil.vaqt || '');
   if (!kalit || localStorage.getItem('oxirgi_tavsiya') === kalit) return;
 
@@ -104,7 +97,6 @@ function tavsiyalarniSavatgaQoshish() {
   if (tg?.showAlert) tg.showAlert("Sizga mos mahsulotlar savatga qo'shildi! ✨");
 }
 
-// ---------- UI chizish ----------
 function katChiz() {
   const box = document.getElementById('categories');
   if (!box) return;
@@ -276,7 +268,6 @@ function tahlilChiz() {
   `;
 }
 
-// ---------- Buyurtma ----------
 function buyurtmaBer() {
   const ids = Object.keys(savat);
   if (ids.length === 0) return;
@@ -293,7 +284,6 @@ function buyurtmaBer() {
     });
     matn += `\nJami: ${narxFmt(jami)}`;
 
-    // Savatni darhol tozalash (takror yuborilishini oldini oladi)
     savat = {};
     savatSaqlash();
     savatChiz();
@@ -314,7 +304,6 @@ function buyurtmaBer() {
   }
 }
 
-// ---------- Tab va kategoriya ----------
 function tabOzgardi(tab) {
   joriyTab = tab;
   document.querySelectorAll('.tab').forEach(t =>
@@ -333,9 +322,7 @@ function katOzgardi(kat) {
   gridChiz();
 }
 
-// ---------- Boshlash ----------
 async function start() {
-  // Bog'lashlar
   document.querySelectorAll('.tab').forEach(t =>
     t.addEventListener('click', () => tabOzgardi(t.dataset.tab)));
   const si = document.getElementById('search-input');
@@ -347,13 +334,11 @@ async function start() {
   document.querySelectorAll('[data-close-modal]').forEach(b =>
     b.addEventListener('click', modalYop));
 
-  // Avval fallback bilan darhol chizamiz (kutishsiz ko'rinish)
   savatniTozala();
   katChiz();
   badgeYangila();
   gridChiz();
 
-  // So'ng serverdan yangi katalogni yuklab, qayta chizamiz
   await katalogniOlish();
   savatniTozala();
   badgeYangila();

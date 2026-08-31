@@ -54,7 +54,6 @@ function verifyInitData(initData) {
       .join('\n');
     const secret = crypto.createHmac('sha256', 'WebAppData').update(TOKEN).digest();
     const hmac = crypto.createHmac('sha256', secret).update(dataCheckString).digest('hex');
-    // Doimiy vaqt taqqoslash (timing attack himoyasi)
     return hmac.length === hash.length && crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(hash));
   } catch { return false; }
 }
@@ -94,7 +93,6 @@ async function tahlilQil(base64Image, mime = 'image/jpeg') {
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const clean = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
-    // Har bir maydonni himoyalash
     return {
       yosh: parsed.yosh ?? "noma'lum",
       teri_turi: parsed.teri_turi ?? "noma'lum",
@@ -120,7 +118,6 @@ function fallbackAnaliz() {
   };
 }
 
-// Tahlil asosida katalogdan mos mahsulotlarni tanlash
 function tavsiyaTop(teglar, limit = 5) {
   return MAHSULOTLAR
     .map(p => ({ ...p, b: (p.teg || []).filter(t => teglar.includes(t)).length }))
@@ -154,7 +151,7 @@ async function handleUpdate(upd) {
 
     const file = await tg('getFile', { file_id: fileId });
     if (!file.ok || !file.result?.file_path) {
-      await tg('sendMessage', { chat_id: chatId, text: '⚠️ Rasmni yuklab bo\'lmadi. Qayta yuborib ko\'ring.' });
+      await tg('sendMessage', { chat_id: chatId, text: "⚠️ Rasmni yuklab bo'lmadi. Qayta yuborib ko'ring." });
       return;
     }
 
@@ -208,17 +205,16 @@ async function startBot() {
         for (const upd of data.result) {
           try { await handleUpdate(upd); }
           catch (e) { console.error('handleUpdate xatosi:', e.message); }
-          // Offsetni HAR BIR xabardan keyin saqlaymiz (qayta ishlash oldini oladi)
           db.offset = upd.update_id + 1;
           saveDb();
         }
       } else if (!data.ok) {
         console.error('Telegram xatosi:', data.description || JSON.stringify(data));
-        await sleep(5000); // busy-loop himoyasi
+        await sleep(5000);
       }
     } catch (e) {
       console.error('Polling xatosi:', e.message);
-      await sleep(5000); // tarmoq xatosida kutish
+      await sleep(5000);
     }
   }
 }
@@ -242,13 +238,11 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const pathname = decodeURIComponent(url.pathname);
 
-    // API: Mahsulotlar katalogi
     if (pathname === '/api/products') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify(MAHSULOTLAR));
     }
 
-    // API: Tahlil natijasi (initData HMAC bilan himoyalangan)
     if (pathname.startsWith('/api/analysis/')) {
       const initData = req.headers['x-tg-init-data'];
       if (!verifyInitData(initData)) {
@@ -264,11 +258,9 @@ const server = http.createServer(async (req, res) => {
       return res.end(JSON.stringify(db.analyses[chatId]));
     }
 
-    // Statik fayllar (Mini App)
     const rel = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
     const filePath = path.resolve(WEBAPP_PATH, rel);
 
-    // Path traversal himoyasi
     if (!filePath.startsWith(WEBAPP_PATH + path.sep)) {
       res.writeHead(403);
       return res.end('Taqiqlangan');

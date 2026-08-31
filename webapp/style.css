@@ -3,7 +3,7 @@
   --card: #161616;
   --text: #ffffff;
   --text-dim: #999999;
-  --accent: #d4af37; /* Premium Gold */
+  --accent: #d4af37;
   --accent-light: #f1d592;
   --danger: #ff3b30;
   --radius: 16px;
@@ -26,7 +26,6 @@ body {
   overflow-x: hidden;
 }
 
-/* Header */
 header {
   padding: 20px 16px;
   background: var(--bg);
@@ -47,7 +46,6 @@ header {
   text-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
 }
 
-/* Tabs */
 .tabs {
   display: flex;
   background: #1c1c1e;
@@ -91,7 +89,6 @@ header {
 
 .cart-badge[hidden] { display: none !important; }
 
-/* Search */
 .search-wrap { padding: 0 16px 12px; }
 
 #search-input {
@@ -108,7 +105,6 @@ header {
 
 #search-input:focus { border-color: var(--accent); }
 
-/* Categories */
 .categories {
   display: flex;
   overflow-x: auto;
@@ -137,7 +133,6 @@ header {
   font-weight: 700;
 }
 
-/* Grid */
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -209,7 +204,6 @@ header {
 
 .add-btn:active { background: #3a3a3c; }
 
-/* Modal */
 .modal {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -271,7 +265,6 @@ header {
 
 .detail-value { color: #ccc; line-height: 1.6; font-size: 13px; }
 
-/* Cart */
 .cart-item {
   display: flex;
   gap: 14px;
@@ -313,7 +306,6 @@ header {
   font-size: 18px;
 }
 
-/* Profil / Tahlil */
 .profile-card {
   margin: 0 16px 12px;
   padding: 20px;
@@ -342,7 +334,6 @@ header {
   color: #aaa;
 }
 
-/* Footer Button */
 .footer-btn {
   position: fixed;
   bottom: 20px; left: 16px; right: 16px;

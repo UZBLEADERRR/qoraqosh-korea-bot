@@ -1,31 +1,31 @@
-name: Code check
+name: Telegram bot
 
 on:
+  schedule:
+    - cron: '*/5 * * * *'   # har 5 daqiqada yangi xabarlarni oladi
   workflow_dispatch:
-  push:
-    branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  check:
+  poll:
     runs-on: ubuntu-latest
     steps:
-      - name: Repository checkout
-        uses: actions/checkout@v4
-
-      - name: Node.js 20 o‘rnatish
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Sintaksis va katalog testini bajarish
-        run: |
-          npm test
-          node --check bot.js
+      - name: Xabarlarni qayta ishlash
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        run: node bot.js
 
-      - name: Railway konfiguratsiyasi haqida eslatma
+      - name: Holatni saqlash
         run: |
-          echo "Bot Railway'da ishlaydi. BOT_TOKEN va GEMINI_API_KEY Railway Variables ichida saqlanadi."
-          echo "GitHub Actions bu yerda botni polling qilmaydi."
+          git config user.name "daho-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add state.json
+          git diff --staged --quiet || git commit -m "bot holati"
+          git push

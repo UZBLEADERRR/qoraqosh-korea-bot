@@ -45,4 +45,5 @@ Loyiha Railway uchun tayyorlangan. GitHub repozitoriyangizni ulasangiz kifoya.
 - **Rasm tahlili**: Gemini AI uchun yuz aniq ko'ringan rasm yuborish tavsiya etiladi.
 
 ---
+
 © 2024 QoraQosh Korea. Barcha huquqlar himoyalangan.
