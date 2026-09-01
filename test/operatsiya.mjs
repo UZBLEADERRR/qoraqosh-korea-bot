@@ -613,6 +613,85 @@ console.log('\n── MARKETPLACE ──');
   test('agent API orqali yig‘di', api_royxat.hisob.kutilmoqda === 5,
     JSON.stringify(api_royxat.hisob));
 
+  // ── Qidiruv API si: javobda mahsulot to'liq keladi ──
+  // Daiso qidiruvining aynan shakli: har mahsulot uchun alohida sahifa
+  // ochilmaydi, chunki nom, narx, brend va rasm ro'yxatda bor.
+  {
+    const da = await import('../src/services/dokon-api.js');
+    const QIDIRUV = [{
+      manba: 'daiso', nom: 'Soxta Daiso qidiruv', host: '127.0.0.1',
+      royxat_url: `http://127.0.0.1:${PORT}/ssn/search/FindStoreGoods`
+                + '?searchTerm={q}&cntPerPage=30&pageNum={sahifa}',
+      royxat_yoli: 'resultSet.result.0.resultDocuments',
+      element_id: 'PD_NO',
+      sahifa_url: `http://127.0.0.1:${PORT}/dokon/product/pd?pdNo={id}`,
+      id_qolip: 'pdNo=([0-9A-Za-z_-]+)',
+      id_kalit: 'PD_NO',
+      rasm_almashtir: { 'img.daisomall.co.kr': 'cdn.daisomall.co.kr' },
+    }];
+    await mp.apiSaqla(QIDIRUV);
+    const q = (await mp.sozlamalar()).api[0];
+
+    // Koddagi sukut qoidasi Daiso ning haqiqiy manziliga qarashi kerak
+    test('sukut qoidasi Daiso qidiruviga qaraydi',
+      da.API_STANDART[0].royxat_url.includes('prdm.daisomall.co.kr/ssn/search/FindStoreGoods'),
+      da.API_STANDART[0].royxat_url);
+    test('sukut qoidasi mahsulot sahifasini biladi',
+      da.API_STANDART[0].sahifa_url.includes('/pd/pdr/SCR_PDR_0001?pdNo='));
+
+    const url = da.royxatHavolasi(q, '크림', 2);
+    test('qidiruv manzili yasaldi',
+      url.includes('searchTerm=%ED%81%AC%EB%A6%BC') && url.endsWith('pageNum=2'), url);
+
+    // Daiso eski rasm hostini beradi — CDN ga o'girilishi kerak
+    test('rasm hosti CDN ga o‘giriladi',
+      da.jsonRasm({ ATCH_FILE_URL: 'https://img.daisomall.co.kr/goods/1.jpg' },
+        'https://prdm.daisomall.co.kr', q) === 'https://cdn.daisomall.co.kr/goods/1.jpg',
+      da.jsonRasm({ ATCH_FILE_URL: 'https://img.daisomall.co.kr/goods/1.jpg' },
+        'https://prdm.daisomall.co.kr', q));
+
+    const { json } = await mp.sahifaniOl(url);
+    const elementlar = da.jsonElementlar(json, q);
+    test('javobdan mahsulotlar ajratildi', elementlar.length === 4, String(elementlar.length));
+    test('mahsulotda nom va narx bor',
+      Boolean(elementlar[0].PDNM && elementlar[0].PD_PRC), JSON.stringify(elementlar[0]));
+
+    await sorov('delete from marketplace_topilgan');
+    const el = await mp.elementdanOl(elementlar[0], q);
+    test('ro‘yxatdagi elementdan mahsulot yasaldi', el.holat === 'kutilmoqda',
+      `${el.holat} · ${el.sabab || ''}`);
+    test('sahifasiz olingani belgilangan', el.malumot?.usul === 'royxat', el.malumot?.usul);
+    test('elementdan narx hisoblandi', el.narx_izoh?.narx > 0, String(el.narx_izoh?.narx));
+    test('mahsulot havolasi odam ochadigan sahifaga qaraydi',
+      el.manba_url.includes('pdNo='), el.manba_url);
+    test('ro‘yxatdagi rasm saqlandi', Boolean(el.rasm_id));
+
+    const takror2 = await mp.elementdanOl(elementlar[0], q);
+    test('element takrori qayta olinmaydi', takror2.takror === true);
+
+    // Import: havola emas, QIDIRUV SO'ZI beriladi
+    await sorov('delete from marketplace_topilgan');
+    await sorov('delete from marketplace_vazifa');
+    const mpv0 = await import('../src/services/marketplace-vazifa.js');
+    const kut0 = (ms) => new Promise((r) => setTimeout(r, ms));
+    const vq = await mpv0.vazifaBoshla({
+      havolalar: ['크림'], sahifagacha: 3, maqsad: 6, kechikish: 300 });
+    for (let i = 0; i < 200; i++) {
+      const v = await qator('select holat from marketplace_vazifa where id = $1', [vq.id]);
+      if (v.holat !== 'ishlamoqda') break;
+      await kut0(150);
+    }
+    const tq = await qator('select * from marketplace_vazifa where id = $1', [vq.id]);
+    test('qidiruv so‘zi bilan import ishladi', tq.qoshilgan === 6,
+      `${tq.holat} · qoshilgan ${tq.qoshilgan} · ${tq.sabab || ''}`);
+    test('import sahifasiz, ro‘yxatdan oldi',
+      (await qiymat(`select count(*)::int from marketplace_topilgan
+                      where malumot->>'usul' = 'royxat'`)) === 6);
+
+    // Keyingi sinovlar uchun oldingi qoidani qaytaramiz
+    await mp.apiSaqla(QOIDA);
+  }
+
   // ── Ommaviy import: yuzlab mahsulot bitta buyruq bilan ──
   // Admin havola qo'yib chiqmaydi: bo'lim havolasi va son beriladi,
   // qolganini server fonda qiladi.

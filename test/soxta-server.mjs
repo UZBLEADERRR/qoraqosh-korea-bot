@@ -170,6 +170,23 @@ export function soxtaServer(port = 4444) {
           pdDesc: '알로에 성분이 피부를 진정시켜 줍니다. 100ml',
         } });
       }
+      // Daiso qidiruvining shakli: javobda mahsulot to'liq keladi
+      // (nom, narx, brend, rasm) — alohida sahifa ochish shart emas.
+      if (yol.startsWith('/ssn/search/FindStoreGoods')) {
+        const sahifa = Number(u.searchParams.get('pageNum') || 1);
+        const soz = u.searchParams.get('searchTerm') || '';
+        const soni = Number(u.searchParams.get('cntPerPage') || 30);
+        const hujjatlar = sahifa > 2 ? [] : Array.from({ length: Math.min(4, soni) }, (_, i) => ({
+          PD_NO: `${soz}-${sahifa}-${i + 1}`,
+          PDNM: `수분 크림 ${sahifa}${i + 1} 100ml`,
+          PD_PRC: '5000',
+          BRND_NM: 'Daiso',
+          ATCH_FILE_URL: `http://127.0.0.1:${port}/rasm/qidiruv.png`,
+          SOLD_OUT_YN: 'N',
+        }));
+        return j({ resultSet: { result: [{ totalSize: 8, resultDocuments: hujjatlar }] } });
+      }
+
       // Bo'lim (kategoriya) API si — sahifalanadigan ro'yxat
       if (yol.startsWith('/api/list')) {
         const sahifa = Number(u.searchParams.get('page') || 1);

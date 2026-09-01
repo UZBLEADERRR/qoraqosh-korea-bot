@@ -10,9 +10,11 @@
 // bot deb bloklaydi va AI hisobi ham ikki barobar yonadi.
 import { qator, qatorlar, sorov } from '../db.js';
 import {
-  sahifaniOl, mahsulotHavolalari, havoladanOl, tasdiqla, sozlamalar,
+  sahifaniOl, mahsulotHavolalari, havoladanOl, elementdanOl, tasdiqla, sozlamalar,
 } from './marketplace.js';
-import { qoidaTop, jsonHavolalar, JSON_SARLAVHALAR } from './dokon-api.js';
+import {
+  qoidaTop, jsonHavolalar, jsonElementlar, royxatHavolasi, JSON_SARLAVHALAR,
+} from './dokon-api.js';
 
 const MAX_MAQSAD = 1000;
 const MIN_KECHIKISH = 300;
@@ -134,12 +136,15 @@ export async function ishlat(id) {
       navbat = yangilar;
     }
 
-    // Navbatdan bittasini olamiz
-    const havola = navbat[0];
+    // Navbatdan bittasini olamiz. Navbatda ikki xil narsa turishi mumkin:
+    // oddiy havola (satr) yoki ro'yxat javobidagi tayyor mahsulot obyekti.
+    const band = navbat[0];
     const qolgan = navbat.slice(1);
     let natija = null;
     try {
-      natija = await havoladanOl(havola);
+      natija = typeof band === 'string'
+        ? await havoladanOl(band)
+        : await elementdanOl(band.element, band.qoida);
     } catch (e) {
       natija = { holat: 'xato', sabab: e.message };
     }
@@ -176,37 +181,78 @@ const yakunla = (id, holat, sabab = null) => qator(
           navbat = '[]'::jsonb, updated_at = now()
     where id = $1 returning *`, [id, holat, sabab]);
 
-/** Bazada bor havolalarni tashlaydi (xato bo'lganini qayta uriladi). */
-async function filtrlaBorlarni(havolalar) {
-  if (!havolalar.length) return [];
+/**
+ * Bazada bor bo'lganlarini tashlaydi (xato bo'lganini qayta uriladi).
+ * Navbat elementi satr (havola) yoki `{element, qoida, url}` bo'lishi mumkin.
+ */
+async function filtrlaBorlarni(bandlar) {
+  if (!bandlar.length) return [];
+  const url = (b) => (typeof b === 'string' ? b : b.url);
   const bor = await qatorlar(
     `select manba_url from marketplace_topilgan
-      where manba_url = any($1) and holat <> 'xato'`, [havolalar]);
+      where manba_url = any($1) and holat <> 'xato'`, [bandlar.map(url)]);
   const bors = new Set(bor.map((r) => r.manba_url));
-  return havolalar.filter((h) => !bors.has(h));
+  return bandlar.filter((b) => !bors.has(url(b)));
 }
 
 /**
- * Bir sahifadagi mahsulot havolalari.
+ * Bir sahifadagi mahsulotlar.
  *
- * `{sahifa}` qolipi bo'lsa raqam qo'yiladi. Javob JSON bo'lsa (do'kon
- * API si) havolalar id lardan yasaladi — SPA katalog sahifasining HTML
- * ida havola bo'lmaydi.
+ * Kirish uch xil bo'lishi mumkin va admin farqini bilishi shart emas:
+ *   1. QIDIRUV SO'ZI («크림») — do'kon qoidasidagi qidiruv manzili
+ *      ishlatiladi. Eng qulayi: admin havola bilan ovora bo'lmaydi.
+ *   2. Ro'yxat API havolasi — javobdagi mahsulotlar olinadi.
+ *   3. Oddiy katalog sahifasi — HTML dagi havolalar yig'iladi.
+ *
+ * Javobda mahsulot ma'lumoti to'liq bo'lsa (Daiso qidiruvi kabi) navbatga
+ * TAYYOR OBYEKT qo'yiladi va har mahsulot uchun alohida so'rov ketmaydi.
+ *
+ * @returns {Promise<Array<string|{element:object, qoida:object, url:string}>>}
  */
 export async function havolalarniYig(qoliplar, sahifa, maxSoni = 100) {
   const s = await sozlamalar();
   const topildi = [];
-  for (const qolip of (qoliplar || [])) {
-    const url = String(qolip).replace(/\{sahifa\}/g, String(sahifa));
-    // Qolipsiz havola faqat birinchi sahifada o'qiladi
-    if (!/\{sahifa\}/.test(String(qolip)) && sahifa > 1) continue;
+  const url_ = (b) => (typeof b === 'string' ? b : b.url);
 
-    const qoida = qoidaTop(url, s.api);
+  for (const xom of (qoliplar || [])) {
+    const qolip = String(xom).trim();
+    const havolami = /^https?:\/\//i.test(qolip);
+
+    // Qidiruv so'zi: qaysi do'konda qidirishni qoidalar aytadi
+    let url;
+    let qoida;
+    if (havolami) {
+      // Qolipsiz havola faqat birinchi sahifada o'qiladi
+      if (!/\{sahifa\}/.test(qolip) && sahifa > 1) continue;
+      url = qolip.replace(/\{sahifa\}/g, String(sahifa));
+      qoida = qoidaTop(url, s.api);
+    } else {
+      qoida = s.api.find((q) => q.royxat_url);
+      if (!qoida) continue;
+      url = royxatHavolasi(qoida, qolip, sahifa);
+    }
+
     const { html, json, url: oxirgi } = await sahifaniOl(url, qoida ? JSON_SARLAVHALAR : {});
+
+    // 1) Javobda tayyor mahsulotlar bormi
+    const elementlar = json ? jsonElementlar(json, qoida, maxSoni) : [];
+    if (elementlar.length) {
+      for (const e of elementlar) {
+        const id = e[qoida.element_id || qoida.id_kalit];
+        const sahifaUrl = qoida.sahifa_url
+          ? qoida.sahifa_url.replace(/\{id\}/g, encodeURIComponent(String(id)))
+          : `https://${qoida.host}#${id}`;
+        const band = { element: e, qoida, url: sahifaUrl };
+        if (!topildi.some((t) => url_(t) === sahifaUrl)) topildi.push(band);
+      }
+      continue;
+    }
+
+    // 2) Bo'lmasa — havolalar (JSON id lari yoki HTML dagi <a>)
     const havolalar = json
       ? jsonHavolalar(json, qoida, maxSoni)
       : mahsulotHavolalari(html, oxirgi, maxSoni);
-    for (const h of havolalar) if (!topildi.includes(h)) topildi.push(h);
+    for (const h of havolalar) if (!topildi.some((t) => url_(t) === h)) topildi.push(h);
   }
   return topildi.slice(0, maxSoni);
 }

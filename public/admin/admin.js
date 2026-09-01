@@ -1305,6 +1305,10 @@ async function marketplace() {
   } catch (e) { xatoChiz(e); }
 }
 
+// Mahsulot qaysi yo'l bilan olingani — API ishlamay qolganini admin
+// darhol ko'rishi uchun
+const MARKET_USUL = { api: '🔌 API', royxat: '🔎 ro‘yxatdan', html: '📄 sahifa' };
+
 function marketKarta(t) {
   const m = t.malumot || {};
   const n = t.narx_izoh || {};
@@ -1318,7 +1322,7 @@ function marketKarta(t) {
         <div style="min-width:0">
           <div class="nom">${esc(m.name || '(nomsiz)')}</div>
           <div class="ozgina">${esc(m.brand || '')} · ${esc(t.manba)}${
-            m.usul ? ` · ${m.usul === 'api' ? '🔌 API' : '📄 sahifa'}` : ''}</div>
+            m.usul ? ` · ${MARKET_USUL[m.usul] || m.usul}` : ''}</div>
         </div>
       </div>
       <span class="yor ${sinf}">${nom}</span>
@@ -1533,14 +1537,18 @@ async function importChiz() {
         sahifani yopsangiz ham davom etadi.</p>
       <button class="tug keng xavf" id="mk-import-toxtat">■ To‘xtatish</button>`
     : `
-      <p class="mayda" style="margin:0 0 10px">Bo‘lim havolasini bering va nechta
-        mahsulot kerakligini yozing — qolganini server o‘zi qiladi: sahifama-sahifa
-        yuradi, har mahsulotni o‘qiydi, qoidaga solib ko‘radi va navbatga qo‘yadi.
-        <b>Sahifalash uchun havolada <code>{sahifa}</code> yozing</b>, masalan
-        <code>...?ctgr=krem&amp;page={sahifa}</code>.</p>
-      <label>Bo‘lim havolalari (har qatorga bittadan)</label>
-      <textarea id="mk-im-havola" rows="3" spellcheck="false"
-        placeholder="https://www.daisomall.co.kr/api/...?ctgr=beauty&page={sahifa}"></textarea>
+      <p class="mayda" style="margin:0 0 10px">Har qatorga <b>qidiruv so‘zi</b>
+        yozing (koreyscha yaxshiroq: <code>크림</code>, <code>토너</code>) —
+        server Daiso qidiruvidan o‘zi topadi. Havola qo‘yish shart emas.
+        Boshqa do‘konda bo‘lim havolasini qo‘ysangiz ham bo‘ladi;
+        sahifalash uchun havolada <code>{sahifa}</code> yozing.</p>
+      <label>Qidiruv so‘zlari yoki bo‘lim havolalari (har qatorga bittadan)</label>
+      <textarea id="mk-im-havola" rows="4" spellcheck="false"
+        placeholder="크림&#10;토너&#10;세럼"></textarea>
+      <div class="segment-lenta" style="margin-top:8px">
+        <button class="tug kichik" data-im-namuna="kosmetika">🧴 Kosmetika to‘plami</button>
+        <button class="tug kichik" data-im-namuna="ichki">💊 Ichki qabul</button>
+      </div>
       <div class="forma-tor" style="margin-top:8px">
         <div><label>Nechta mahsulot</label>
           <input id="mk-im-maqsad" type="number" min="1" max="1000" value="100"></div>
@@ -1563,8 +1571,18 @@ async function importChiz() {
   } else {
     clearInterval(importTaymer); importTaymer = null;
     $('#mk-import-boshla').onclick = importBoshla;
+    $$('[data-im-namuna]').forEach((b) => b.onclick = () => {
+      $('#mk-im-havola').value = IMPORT_NAMUNA[b.dataset.imNamuna].join('\n');
+    });
   }
 }
+
+// Tayyor qidiruv to'plamlari — admin koreyscha yozib o'tirmasin.
+// Koreyscha so'z ataylab: do'kon qidiruvi o'z tilida ancha yaxshi topadi.
+const IMPORT_NAMUNA = {
+  kosmetika: ['크림', '토너', '세럼', '클렌징', '마스크팩', '선크림', '립밤', '수분크림'],
+  ichki: ['콜라겐', '비타민', '홍삼', '유산균', '비오틴'],
+};
 
 async function importBoshla() {
   const havolalar = $('#mk-im-havola').value.trim();

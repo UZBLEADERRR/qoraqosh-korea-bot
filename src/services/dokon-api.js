@@ -24,12 +24,21 @@
 export const API_STANDART = [
   {
     manba: 'daiso',
-    nom: 'Daiso Mall',
-    host: 'daisomall.co.kr',
-    id_qolip: '(?:pdNo|goodsNo|productNo)=([0-9A-Za-z_-]+)',
-    mahsulot_url: 'https://www.daisomall.co.kr/api/pd/pdd/pdDetail?pdNo={id}',
-    sahifa_url: 'https://www.daisomall.co.kr/pd/pdd/pdDetail?pdNo={id}',
-    id_kalit: 'pdNo',
+    nom: 'Daiso Mall — qidiruv',
+    host: 'prdm.daisomall.co.kr',
+    // Do'konning o'z qidiruv manzili. Javobda mahsulot NOMI, NARXI, BRENDI
+    // va RASMI bor — shuning uchun har mahsulot uchun alohida sahifa
+    // ochilmaydi: yuztasini olish yuzta so'rov emas, uch-to'rt so'rov.
+    royxat_url: 'https://prdm.daisomall.co.kr/ssn/search/FindStoreGoods'
+              + '?searchTerm={q}&cntPerPage=30&pageNum={sahifa}',
+    royxat_yoli: 'resultSet.result.0.resultDocuments',
+    element_id: 'PD_NO',
+    // Odam ko'radigan sahifa — kartochkadagi «Sahifa» tugmasi shunga olib boradi
+    sahifa_url: 'https://www.daisomall.co.kr/pd/pdr/SCR_PDR_0001?pdNo={id}',
+    id_qolip: 'pdNo=([0-9A-Za-z_-]+)',
+    id_kalit: 'PD_NO',
+    // Eski rasm hosti CDN ga o'giriladi
+    rasm_almashtir: { 'img.daisomall.co.kr': 'cdn.daisomall.co.kr' },
     yoq: false,
   },
 ];
@@ -51,9 +60,14 @@ export function qoidalarniTozala(xom) {
     mahsulot_url: String(q.mahsulot_url || '').slice(0, 400),
     sahifa_url: String(q.sahifa_url || '').slice(0, 400),
     id_kalit: String(q.id_kalit || '').slice(0, 40),
+    royxat_url: String(q.royxat_url || '').slice(0, 500),
+    royxat_yoli: String(q.royxat_yoli || '').slice(0, 200),
+    element_id: String(q.element_id || '').slice(0, 40),
+    rasm_almashtir: (q.rasm_almashtir && typeof q.rasm_almashtir === 'object')
+      ? q.rasm_almashtir : {},
     sarlavhalar: (q.sarlavhalar && typeof q.sarlavhalar === 'object') ? q.sarlavhalar : {},
     yoq: Boolean(q.yoq),
-  })).filter((q) => q.host && q.mahsulot_url);
+  })).filter((q) => q.host && (q.mahsulot_url || q.royxat_url));
 }
 
 /** Havolaga mos qoida (o'chirilganlari hisobga olinmaydi). */
@@ -100,7 +114,7 @@ const RASM_QOLIP = /\.(?:jpe?g|png|webp|gif|avif)(?:\?|$)/i;
 const RASM_KALIT = /(image|img|thumb|photo|pic|rasm)/i;
 
 /** JSON ichidan mahsulot rasmini topadi. */
-export function jsonRasm(json, asosUrl) {
+export function jsonRasm(json, asosUrl, qoida = null) {
   const nomzodlar = [];
   for (const [kalit, qiymat] of yur(json)) {
     if (typeof qiymat !== 'string' || qiymat.length > 500) continue;
@@ -110,8 +124,14 @@ export function jsonRasm(json, asosUrl) {
     nomzodlar.push([RASM_KALIT.test(kalit) ? 0 : 1, qiymat]);
   }
   nomzodlar.sort((a, b) => a[0] - b[0]);
+  const almashtir = qoida?.rasm_almashtir || {};
   for (const [, v] of nomzodlar) {
-    try { return new URL(v, asosUrl).toString(); } catch { /* keyingisi */ }
+    try {
+      const u = new URL(v, asosUrl);
+      // Do'kon eski rasm hostini bersa, CDN ga o'giramiz
+      if (almashtir[u.hostname]) u.hostname = almashtir[u.hostname];
+      return u.toString();
+    } catch { /* keyingisi */ }
   }
   return null;
 }
@@ -130,6 +150,43 @@ export function jsonHavolalar(json, qoida, maxSoni = 40) {
   }
   return idlar.map((id) => qolipniToldir(qoida.sahifa_url, id));
 }
+
+/** "a.b.0.c" ko'rinishidagi yo'l bo'yicha qiymat oladi. */
+export function yol(obj, yoli) {
+  return String(yoli || '').split('.').filter(Boolean)
+    .reduce((o, k) => (o == null ? o : o[k]), obj);
+}
+
+/**
+ * Ro'yxat javobidan MAHSULOT OBYEKTLARINI oladi.
+ *
+ * Daiso qidiruvi kabi javoblarda kartochka uchun kerak bo'ladigan hamma
+ * narsa — nomi, narxi, brendi, rasmi — allaqachon bor. Shunda har
+ * mahsulot uchun alohida sahifa ochish shart emas: yuzta mahsulot yuzta
+ * so'rov emas, bir necha so'rovda olinadi va do'kon bizni bloklamaydi.
+ */
+export function jsonElementlar(json, qoida, maxSoni = 100) {
+  if (!qoida?.royxat_yoli) return [];
+  const xom = yol(json, qoida.royxat_yoli);
+  if (!Array.isArray(xom)) return [];
+  const kalit = qoida.element_id || qoida.id_kalit;
+  return xom
+    .filter((x) => x && typeof x === 'object' && (!kalit || x[kalit] != null))
+    .slice(0, maxSoni);
+}
+
+/** Element ichidagi mahsulot id si. */
+export const elementId = (element, qoida) => {
+  const kalit = qoida?.element_id || qoida?.id_kalit;
+  const v = kalit ? element?.[kalit] : null;
+  return (v == null || v === '') ? null : String(v);
+};
+
+/** Ro'yxat manzilini yasaydi: {q} — qidiruv so'zi, {sahifa} — sahifa raqami. */
+export const royxatHavolasi = (qoida, soz, sahifa) =>
+  String(qoida?.royxat_url || '')
+    .replace(/\{q\}/g, encodeURIComponent(String(soz || '')))
+    .replace(/\{sahifa\}/g, String(sahifa || 1));
 
 const MAX_BELGI = 6000;
 

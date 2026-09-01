@@ -217,11 +217,14 @@ ko'ra hisoblanadi va mahsulot **tasdiq navbatiga** tushadi.
 
 #### 🚀 Ommaviy import — yuzlab mahsulot bitta buyruq bilan
 
-Asosiy yo'l shu: **havola qo'yib chiqilmaydi.** Bo'lim havolasini berasiz
-(sahifalash uchun ichida `{sahifa}` yozasiz), nechta mahsulot kerakligini
-aytasiz — va **«Importni boshlash»**. Qolganini server o'zi qiladi:
+Asosiy yo'l shu: **havola qo'yib chiqilmaydi.** Har qatorga **qidiruv
+so'zi** yozasiz (koreyscha yaxshiroq topadi: `크림`, `토너`, `세럼`) yoki
+bitta bosishda tayyor to'plamni qo'yasiz — **🧴 Kosmetika to'plami**,
+**💊 Ichki qabul**. Nechta mahsulot kerakligini aytasiz va
+**«Importni boshlash»**. Qolganini server o'zi qiladi: Daiso qidiruvidan
 sahifama-sahifa yuradi, har mahsulotni o'qiydi, qoidaga solib ko'radi va
-navbatga qo'yadi.
+navbatga qo'yadi. Boshqa do'kon uchun bo'lim havolasini qo'ysangiz ham
+bo'ladi (sahifalash uchun ichida `{sahifa}`).
 
 - Ish **fonda** ketadi: yuzta mahsulot yarim soatdan ko'p oladi, shuning
   uchun panelni yopsangiz ham to'xtamaydi. Vazifa bazada turadi, **server
@@ -231,7 +234,12 @@ navbatga qo'yadi.
   paytda — topilganlari saqlanib qoladi.
 - **Tanaffus** (sukut bo'yicha 1.5 soniya) — do'kon bizni bot deb
   bloklamasligi uchun. Bir vaqtda **bitta** import yuradi.
-- Avval olingan havola qayta o'qilmaydi — AI hisobi bekorga yonmaydi.
+- Avval olingan mahsulot qayta o'qilmaydi — AI hisobi bekorga yonmaydi.
+- **Har mahsulot uchun alohida so'rov ketmaydi.** Daiso qidiruvi javobida
+  nomi, narxi, brendi va rasmi allaqachon bor — yuzta mahsulot yuzta
+  so'rov emas, bir necha so'rovda olinadi. Shuning uchun tez va do'kon
+  bizni bot deb bloklamaydi. Kartochkada qaysi yo'l ishlagani ko'rinadi:
+  **🔎 ro'yxatdan**, **🔌 API** yoki **📄 sahifa**.
 - **«Tasdiqni kutmasdan katalogga»** belgisini qo'ysangiz, filtrdan o'tgani
   to'g'ridan-to'g'ri sotuvga tushadi. Qo'ymasangiz navbatda to'planadi va
   **«Navbatdagi N tasini katalogga qo'shish»** tugmasi bilan bir bosishda
@@ -252,8 +260,22 @@ manzili** so'raladi, u javob bermasa jim sahifaga qaytiladi. Kartochkada
 qaysi yo'l ishlagani ko'rinadi: **🔌 API** yoki **📄 sahifa**.
 
 Daiso **rasmiy, hujjatlashtirilgan API bermaydi** — ishlatilayotgani
-saytning o'z ichki manzili va u o'zgarishi mumkin. Shuning uchun manzil
-kodda emas, **Sozlamalar → Do'kon API si** da turadi:
+saytning o'z ichki manzili. Sukut bo'yicha qo'yilgani:
+
+```
+GET https://prdm.daisomall.co.kr/ssn/search/FindStoreGoods
+    ?searchTerm=<so'z>&cntPerPage=30&pageNum=<sahifa>
+```
+
+Javob: `resultSet.result[0].resultDocuments[]`, har elementda `PD_NO`
+(raqami), `PDNM` (nomi), `PD_PRC` (narxi), `BRND_NM` (brendi),
+`ATCH_FILE_URL` (rasmi). Mahsulot sahifasi:
+`https://www.daisomall.co.kr/pd/pdr/SCR_PDR_0001?pdNo=<raqam>`.
+Eski rasm hosti `img.daisomall.co.kr` avtomatik `cdn.daisomall.co.kr` ga
+o'giriladi.
+
+Bu manzil o'zgarishi mumkin, shuning uchun kodda emas,
+**Sozlamalar → Do'kon API si** da turadi:
 
 - brauzerda mahsulotni ochib **F12 → Network → Fetch/XHR** da haqiqiy
   manzilni ko'rasiz va qoidaga qo'yasiz — deploy shart emas;

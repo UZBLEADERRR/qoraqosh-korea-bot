@@ -18,7 +18,7 @@ import { aiJson, aiBormi } from '../ai/index.js';
 import { narxHisobla, qoidaniTozala } from '../lib/narx.js';
 import {
   API_STANDART, JSON_SARLAVHALAR, qoidalarniTozala, qoidaTop, apiHavolasi,
-  jsonRasm, jsonHavolalar, jsonSiqish,
+  jsonRasm, jsonHavolalar, jsonSiqish, jsonElementlar, elementId, qolipniToldir,
 } from './dokon-api.js';
 
 // Sahifani brauzerdek so'raymiz: ko'p do'kon oddiy so'rovni rad etadi
@@ -321,7 +321,7 @@ export async function manbadanOl(url, apiQoidalari = []) {
       const j = await sahifaniOl(apiUrl, JSON_SARLAVHALAR);
       if (j.json) {
         return {
-          usul: 'api', siqilgan: jsonSiqish(j.json), rasm: jsonRasm(j.json, apiUrl),
+          usul: 'api', siqilgan: jsonSiqish(j.json), rasm: jsonRasm(j.json, apiUrl, qoida),
           url, api_url: apiUrl, ogoh: null,
         };
       }
@@ -533,6 +533,67 @@ function yigindi(natijalar) {
     else if (h[n.holat] != null) h[n.holat] += 1;
   }
   return h;
+}
+
+/**
+ * RO'YXAT javobidagi bitta elementdan mahsulot yasaydi.
+ *
+ * Daiso qidiruvi javobida nom, narx, brend va rasm allaqachon bor.
+ * Shuning uchun har mahsulot uchun alohida sahifa OCHILMAYDI: yuzta
+ * mahsulot uchun yuzta so'rov o'rniga bir necha so'rov ketadi — ancha
+ * tez va do'kon bizni bot deb bloklamaydi.
+ *
+ * @param {object} element  ro'yxat javobidagi mahsulot obyekti
+ * @param {object} qoida    API qoidasi (sahifa_url, element_id...)
+ */
+export async function elementdanOl(element, qoida, { adminId = null } = {}) {
+  const id = elementId(element, qoida);
+  if (!id) throw Object.assign(new Error('Mahsulot id si topilmadi'), { turi: 'havola' });
+
+  // Odam ko'radigan sahifa havolasi — kartochkadagi «Sahifa» tugmasi uchun
+  // va takrorni aniqlash uchun kalit sifatida
+  const url = qoida.sahifa_url ? qolipniToldir(qoida.sahifa_url, id) : `${qoida.host}#${id}`;
+
+  const bor = await qator('select * from marketplace_topilgan where manba_url = $1', [url]);
+  if (bor && bor.holat !== 'xato') return { ...bor, takror: true };
+
+  const s = await sozlamalar();
+  let holat = 'kutilmoqda';
+  let sabab = null;
+  let malumot = {};
+  let narx = {};
+  let rasmId = null;
+
+  try {
+    malumot = await sahifaniOqi(jsonSiqish(element));
+    malumot.usul = 'royxat';
+
+    narx = narxHisobla(
+      malumot.narx_valyuta === 'KRW'
+        ? { krw: malumot.narx_qiymat, gramm: malumot.ogirlik_g }
+        : { tannarx: 0, gramm: malumot.ogirlik_g },
+      s.qoida);
+
+    sabab = filtrdanOtdimi(malumot, narx, s);
+    if (sabab) holat = 'rad_etildi';
+
+    rasmId = await rasmniSaqla(jsonRasm(element, `https://${qoida.host}`, qoida), malumot.name);
+  } catch (e) {
+    holat = 'xato';
+    sabab = e.message;
+  }
+
+  return qator(
+    `insert into marketplace_topilgan (manba, manba_url, malumot, narx_izoh, rasm_id,
+            holat, sabab, created_by)
+     values ($1,$2,$3,$4,$5,$6,$7,$8)
+     on conflict (manba_url) do update set
+       malumot = excluded.malumot, narx_izoh = excluded.narx_izoh,
+       rasm_id = coalesce(excluded.rasm_id, marketplace_topilgan.rasm_id),
+       holat = excluded.holat, sabab = excluded.sabab, updated_at = now()
+     returning *`,
+    [qoida.manba || manbaTuri(url), url, JSON.stringify(malumot), JSON.stringify(narx),
+     rasmId, holat, sabab, adminId]);
 }
 
 /** Mahsulot rasmini yuklab, media ga saqlaydi. */
