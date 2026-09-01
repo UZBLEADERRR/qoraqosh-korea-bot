@@ -13,6 +13,7 @@ import { yubor, tg } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
 import { xabar, keshniTozala } from '../bot/shablon.js';
 import { STANDART, GURUHLAR, TAVSIF } from '../bot/shablonlar-standart.js';
+import { palitra, rangTozala, MAVZU_STANDART, TOPLAMLAR } from '../lib/mavzu.js';
 import { keshniTashla } from '../lib/kesh.js';
 import { kanalniSina, kanalgaHolat } from '../services/kanal.js';
 import { rasmChizaOlamizmi, svgdanPng } from '../rasm/chiz.js';
@@ -792,8 +793,32 @@ export async function adminRoutes(req, res, yol) {
   // ================= SOZLAMALAR =================
   if (yol === '/api/admin/settings' && req.method === 'GET') {
     const r = await qatorlar('select key, value from settings');
-    return ok(res, { settings: Object.fromEntries(r.map((s) => [s.key, s.value])) });
+    const settings = Object.fromEntries(r.map((s) => [s.key, s.value]));
+    return ok(res, {
+      settings,
+      // Mavzu tanlash uchun: tayyor to'plamlar va hozirgi palitra
+      mavzu_toplamlar: TOPLAMLAR,
+      mavzu: palitra(settings.mavzu && typeof settings.mavzu === 'object' ? settings.mavzu : {}),
+    });
   }
+  // Mavzu — ranglar tekshiriladi va palitra qaytariladi.
+  // Alohida yo'l: sozlamalar bilan birga yuborilsa ham noto'g'ri rang
+  // bazaga tushib, ilova o'qib bo'lmaydigan holga kelmasligi kerak.
+  if (yol === '/api/admin/mavzu' && req.method === 'POST') {
+    const b = await tana(req);
+    const toza = {
+      asosiy: rangTozala(b.asosiy, MAVZU_STANDART.asosiy),
+      fon:    rangTozala(b.fon,    MAVZU_STANDART.fon),
+      urgu:   rangTozala(b.urgu,   b.asosiy || MAVZU_STANDART.urgu),
+    };
+    await sorov(
+      `insert into settings (key, value, updated_at) values ('mavzu', $1, now())
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [JSON.stringify(toza)]);
+    katalogYangilandi();
+    return ok(res, { mavzu: toza, palitra: palitra(toza) });
+  }
+
   if (yol === '/api/admin/settings' && req.method === 'POST') {
     const b = await tana(req);
     for (const [key, value] of Object.entries(b.settings || {})) {

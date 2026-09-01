@@ -2,7 +2,7 @@
 // Bot ham, Mini App ham shu yerdan foydalanadi — natija ikkalasida bir xil.
 import { qator, qatorlar, sorov, sozlama } from '../db.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
-import { svgdanPng, rasmOlchami } from '../rasm/chiz.js';
+import { svgdanPng } from '../rasm/chiz.js';
 import { rasmYubor } from '../bot/tg.js';
 import { brendNomi, brendLogosi } from '../lib/brend.js';
 
@@ -56,26 +56,21 @@ const OCHILADI = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/gif']);
  */
 export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime, tahlil, mahsulotlar }) {
   const mos = OCHILADI.has(String(mime || '').toLowerCase());
-  const [brend, logo, tavsiyalar] = await Promise.all([
+  const [brend, logo, tavsiyalar, mavzu] = await Promise.all([
     brendNomi(), brendLogosi(),
     tavsiyaRasmlari(tavsiyaRoyxati(tahlil, mahsulotlar)),
+    sozlama('mavzu', {}),
   ]);
-
-  // Muammo doiralarini yuzning to'g'ri joyiga qo'yish uchun asl surat
-  // o'lchami kerak: surat kvadrat ramkaga qirqib joylanadi.
-  const olcham = mos && rasmBase64
-    ? rasmOlchami(Buffer.from(rasmBase64, 'base64').subarray(0, 65536))
-    : null;
 
   const svg = natijaSvg({
     rasmBase64: mos ? rasmBase64 : null,
     mime: mos ? mime : 'image/jpeg',
-    rasmOlchami: olcham,
     tahlil,
     tavsiyalar,
     brend,
     logoBase64: logo && OCHILADI.has(logo.mime) ? logo.base64 : null,
     logoMime: logo?.mime || 'image/png',
+    mavzu: (mavzu && typeof mavzu === 'object') ? mavzu : {},
   });
 
   let bayt;

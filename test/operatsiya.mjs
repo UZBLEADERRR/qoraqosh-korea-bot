@@ -13,6 +13,32 @@ await migratsiyalarniQoll();
 const { sorov, qator, qatorlar, qiymat, pool } = await import('../src/db.js');
 const { yangilanish } = await import('../src/bot/index.js');
 
+// Admin API sini to'g'ridan-to'g'ri chaqirish — server ko'tarmasdan.
+// HTTP so'rovi va javobi taqlid qilinadi, marshrutlash haqiqiy kod bilan.
+const { adminRoutes } = await import('../src/api/admin.js');
+const { issueAdminToken } = await import('../src/lib/auth.js');
+const { Readable } = await import('node:stream');
+const adminToken = issueAdminToken({ rol: 'admin' });
+
+const chaqirAdmin = (yol, usul, tana) => new Promise((res) => {
+  const bayt = Buffer.from(JSON.stringify(tana));
+  const req = Object.assign(new Readable({ read() { this.push(bayt); this.push(null); } }), {
+    url: yol, method: usul,
+    headers: { authorization: `Bearer ${adminToken}`, 'content-type': 'application/json',
+               'content-length': String(bayt.length) },
+    socket: { remoteAddress: '127.0.0.1' },
+  });
+  const bolaklar = [];
+  const javob = {
+    statusCode: 200, headersSent: false,
+    writeHead(k) { this.statusCode = k; return this; },
+    setHeader() {},
+    end(x) { if (x) bolaklar.push(x); res({ kod: this.statusCode,
+      tana: JSON.parse(Buffer.concat(bolaklar.map(Buffer.from)).toString() || '{}') }); },
+  };
+  adminRoutes(req, javob, yol).catch((e) => res({ kod: 500, tana: { error: e.message } }));
+});
+
 let ok=0,xato=0;
 const test=(n,c,i='')=>{c?(console.log(`  ✓ ${n}${i?' — '+i:''}`),ok++):(console.log(`  ✗ ${n}${i?' — '+i:''}`),xato++)};
 const oxirgi=()=>yuborilgan[yuborilgan.length-1]||{};
@@ -329,10 +355,6 @@ console.log('\n── MAHSULOTNI TO‘LIQ O‘CHIRISH ──');
 // ═══════════ KO'P MAHSULOTNI BIRDAN QO'SHISH ═══════════
 console.log('\n── KO‘P MAHSULOT QO‘SHISH ──');
 {
-  const { adminRoutes } = await import('../src/api/admin.js');
-  const { issueAdminToken } = await import('../src/lib/auth.js');
-  const token = issueAdminToken({ rol: 'admin' });
-
   // Kichkina haqiqiy PNG — rasmniOl uni qabul qilishi kerak
   const { Resvg } = await import('@resvg/resvg-js');
   // Rasm yetarlicha katta bo'lsin: rasmniOl 500 belgidan qisqa base64 ni
@@ -346,26 +368,7 @@ console.log('\n── KO‘P MAHSULOT QO‘SHISH ──');
      </svg>`, {}).render().asPng();
   const rasm = `data:image/png;base64,${png.toString('base64')}`;
 
-  const { Readable } = await import('node:stream');
-  const chaqir = (yol, usul, tana) => new Promise((res) => {
-    const bayt = Buffer.from(JSON.stringify(tana));
-    const req = Object.assign(new Readable({
-      read() { this.push(bayt); this.push(null); } }), {
-      url: yol, method: usul,
-      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json',
-                 'content-length': String(bayt.length) },
-      socket: { remoteAddress: '127.0.0.1' },
-    });
-    const bolaklar = [];
-    const r = {
-      statusCode: 200, headersSent: false,
-      writeHead(k) { this.statusCode = k; return this; },
-      setHeader() {},
-      end(x) { if (x) bolaklar.push(x); res({ kod: this.statusCode,
-        tana: JSON.parse(Buffer.concat(bolaklar.map(Buffer.from)).toString() || '{}') }); },
-    };
-    adminRoutes(req, r, yol).catch((e) => res({ kod: 500, tana: { error: e.message } }));
-  });
+  const chaqir = chaqirAdmin;
 
   const tanish = await chaqir('/api/admin/recognize-toplam', 'POST', { images: [rasm, rasm, rasm] });
   test('3 ta rasm tanildi', tanish.tana.natijalar?.length === 3,
@@ -431,6 +434,57 @@ console.log('\n── MAHSULOT REKLAMASI ──');
   test('reklama bandi mahsulotga bog‘langan', Boolean(band?.mahsulot_id));
   test('reja turi «reklama»', band?.turi === 'reklama', band?.turi);
   test('matn bazaga yozildi', (band?.matn || '').length > 20);
+}
+
+
+// ═══════════ ILOVA MAVZUSI ═══════════
+console.log('\n── MAVZU ──');
+{
+  const { palitra, kontrastMatn, rangTozala } = await import('../src/lib/mavzu.js');
+  const { natijaSvg } = await import('../src/rasm/natija-kartochka.js');
+
+  const qizil = palitra({ asosiy: '#B3161C', fon: '#EAF3D9' });
+  test('to‘q fon ustida OQ matn', qizil.asosiyMatn === '#FFFFFF', qizil.asosiyMatn);
+  test('och fon ustida QORA matn', kontrastMatn('#EAF3D9') === '#141414');
+  test('och fonda kartochka oq', qizil.karta === '#FFFFFF');
+
+  const qora = palitra({ asosiy: '#1A1A1A', fon: '#101010' });
+  test('qorong‘i fonda matn oqaradi', qora.matn.toLowerCase() !== '#1f1d1b', qora.matn);
+  test('qorong‘i fonda kartochka oq EMAS', qora.karta !== '#FFFFFF', qora.karta);
+
+  // Noto'g'ri rang standartga tushadi — ilova hech qachon buzilmaydi
+  test('noto‘g‘ri rang rad etiladi', rangTozala('salom', '#B3161C') === '#b3161c');
+  test('noto‘g‘ri rang palitrani buzmaydi',
+    palitra({ asosiy: 'yashil', fon: '###' }).asosiy === '#b3161c');
+
+  // Rasm mavzu rangi bilan chiziladi
+  const svgQizil = natijaSvg({ rasmBase64: null, brend: 'KiOVO',
+    tahlil: { ball: 65, muammolar: [{ nom: 'Sinov', foiz: 70, zona: 'T-zona' }] },
+    tavsiyalar: [], mavzu: { asosiy: '#B3161C', fon: '#EAF3D9' } });
+  test('rasmda mavzu foni ishlatilgan', svgQizil.includes('#eaf3d9'));
+
+  const svgKok = natijaSvg({ rasmBase64: null, brend: 'KiOVO',
+    tahlil: { ball: 65, muammolar: [{ nom: 'Sinov', foiz: 70, zona: 'T-zona' }] },
+    tavsiyalar: [], mavzu: { asosiy: '#123A63', fon: '#E7F0F7' } });
+  test('mavzu o‘zgarsa rasm ham o‘zgaradi',
+    svgKok.includes('#e7f0f7') && !svgKok.includes('#eaf3d9'));
+
+  // Muammo ranglari MAVZUGA BOG'LIQ EMAS — qizil «yomon» degani hamma joyda bir xil
+  test('muammo rangi mavzudan qat’i nazar bir xil',
+    svgQizil.includes('#D92B2B') && svgKok.includes('#D92B2B'));
+
+  // Admin yo'li orqali saqlash
+  const saqlash = await chaqirAdmin('/api/admin/mavzu', 'POST',
+    { asosiy: '#123A63', fon: '#E7F0F7', urgu: '#1D6FA5' });
+  test('mavzu saqlandi', saqlash.tana.mavzu?.asosiy === '#123a63', saqlash.tana.mavzu?.asosiy);
+  test('javobda palitra keladi', Boolean(saqlash.tana.palitra?.karta));
+
+  const yomon = await chaqirAdmin('/api/admin/mavzu', 'POST', { asosiy: 'ololo', fon: '' });
+  test('noto‘g‘ri rang standartga tushadi', yomon.tana.mavzu?.asosiy === '#b3161c',
+    yomon.tana.mavzu?.asosiy);
+
+  await sorov(`update settings set value = '{"asosiy":"#B3161C","fon":"#EAF3D9","urgu":"#C0392B"}'::jsonb
+                where key = 'mavzu'`);
 }
 
 

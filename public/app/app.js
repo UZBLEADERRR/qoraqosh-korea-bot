@@ -133,6 +133,7 @@ async function boshla() {
     holat.konsultatsiya = k.konsultatsiya || '';
     holat.menejer = k.menejer || { telefon: '', ish_vaqti: '' };
     holat.namuna = k.skaner_namuna || '';
+    mavzuniQoll(k.mavzu);
   } catch (e) { console.error(e); }
 
   try {
@@ -194,6 +195,39 @@ function royxatEkrani() {
       location.reload();
     } catch (e) { xato.textContent = e.message; $('#t-roziman').disabled = false; }
   };
+}
+
+/**
+ * Admin tanlagan ranglarni CSS o'zgaruvchilariga yozadi.
+ *
+ * Faqat YORUG' rejimda fon almashtiriladi: qorong'i rejimda och yashil fon
+ * ko'zni qamashtiradi va matn o'qilmay qoladi — u yerda faqat urg'u rangi
+ * o'zgaradi. Ranglar serverda hisoblanadi (src/lib/mavzu.js), shu sababli
+ * ilova, natija rasmi va admin ko'rinishi bir xil chiqadi.
+ */
+function mavzuniQoll(m) {
+  if (!m || typeof m !== 'object') return;
+  const r = document.documentElement.style;
+  const qorongi = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches;
+
+  if (m.urgu) {
+    r.setProperty('--urgu', m.urgu);
+    if (m.urguTim) r.setProperty('--urgu-tim', m.urguTim);
+    if (m.urguOch && !qorongi) r.setProperty('--urgu-och', m.urguOch);
+  }
+  if (!qorongi) {
+    if (m.fon)    r.setProperty('--fon', m.fon);
+    if (m.karta)  r.setProperty('--panel', m.karta);
+    if (m.chiziq) r.setProperty('--chiziq', m.chiziq);
+    if (m.matn)   r.setProperty('--matn', m.matn);
+    if (m.kul)    r.setProperty('--kul', m.kul);
+    if (m.och)    r.setProperty('--och', m.och);
+  }
+  // Telegram sarlavhasi ham mos tushsin
+  try {
+    tg?.setHeaderColor?.(qorongi ? '#131110' : (m.asosiy || m.fon));
+    tg?.setBackgroundColor?.(qorongi ? '#131110' : (m.fon || '#faf9f7'));
+  } catch {}
 }
 
 /** Skaner ekranidagi namuna surat — admin yuklagan bo'lsa ko'rsatiladi. */
@@ -626,12 +660,6 @@ function natijaniChiz() {
   const tavsiyalar = (t.routine || []).map((r) => ({ ...r, p: karta.get(r.product_id) })).filter((r) => r.p);
   const jami = tavsiyalar.reduce((s, r) => s + r.p.price, 0);
 
-  // Foydalanuvchi surati — muammolar aynan ko'ringan joyida belgilanadi.
-  // Odam «qayerda ekan?» deb izlamaydi: raqamlar quyidagi ro'yxat bilan bir xil.
-  const belgilar = (t.problems || [])
-    .map((m, i) => ({ ...m, raqam: i + 1 }))
-    .filter((m) => m.joy && m.joy.r > 0);
-
   el.innerHTML = `
   <div class="bosh"><div class="brend">🔬 Tahlil natijasi</div><h1>Sizning teringiz</h1></div>
 
@@ -639,19 +667,7 @@ function natijaniChiz() {
 
   ${t.yuz_rasm_id ? `
   <div class="karta">
-    <div class="yuz-quti">
-      <img src="/media/${esc(t.yuz_rasm_id)}" alt="Tahlil qilingan surat">
-      ${belgilar.map((m) => {
-        const d = m.daraja || ((m.foiz ?? 0) >= 70 ? 3 : (m.foiz ?? 0) >= 40 ? 2 : 1);
-        return `<span class="yuz-belgi d${d}" title="${esc(m.nom)}"
-          style="left:${m.joy.x}%;top:${m.joy.y}%;width:${m.joy.r * 2}%;
-                 aspect-ratio:1;margin-left:${-m.joy.r}%">
-          <i>${m.raqam}</i></span>`;
-      }).join('')}
-    </div>
-    ${belgilar.length
-      ? `<p class="ozgina" style="margin:12px 0 0">Raqamlar quyidagi ro‘yxat bilan bir xil.</p>`
-      : `<p class="ozgina" style="margin:12px 0 0">Suratda alohida belgilanadigan joy topilmadi.</p>`}
+    <div class="yuz-quti"><img src="/media/${esc(t.yuz_rasm_id)}" alt="Tahlil qilingan surat"></div>
   </div>` : ''}
 
   <div class="karta">

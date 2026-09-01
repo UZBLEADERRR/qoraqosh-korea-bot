@@ -10,6 +10,7 @@ import { esc, narx } from '../bot/format.js';
 import { kesh } from '../lib/kesh.js';
 import { cheklov } from '../lib/cheklov.js';
 import { VILOYATLAR, tumanlar } from '../lib/hududlar.js';
+import { palitra } from '../lib/mavzu.js';
 import { kanalgaBuyurtma, kanalgaChek } from '../services/kanal.js';
 import { variantlar, TURLAR, turTozala, bepulChegara } from '../services/yetkazish.js';
 import { natijaRasminiYarat, saqlanganRasm, kanalgaTahlil, yuzniSaqla } from '../services/natija-rasm.js';
@@ -310,7 +311,7 @@ function hududniTekshir(xomViloyat, xomTuman) {
 /** Katalog ma'lumotini bir marta yig'adi — kesh shu funksiyani chaqiradi. */
 async function katalogniYig() {
   const [mahsulotlar, kategoriyalar, fee, bepul, pogonalar, karta, egasi, konsult,
-         menejerTel, ishVaqti, donaChegirma, donaDan, minimal, namunaId] =
+         menejerTel, ishVaqti, donaChegirma, donaDan, minimal, namunaId, mavzu] =
     await Promise.all([
       faolMahsulotlar(),
       qatorlar('select * from categories order by sort'),
@@ -326,6 +327,7 @@ async function katalogniYig() {
       sozlama('mahsulot_chegirma_dan', 1),
       sozlama('minimal_buyurtma', 0),
       sozlama('skaner_namuna_id', ''),
+      sozlama('mavzu', {}),
     ]);
   const son = (v) => {
     const n = Number(String(v ?? '').replace(/"/g, ''));
@@ -343,6 +345,8 @@ async function katalogniYig() {
     menejer: { telefon: String(menejerTel || ''), ish_vaqti: String(ishVaqti || '') },
     // «Yuz skaneri» ekranidagi namuna surat (bo'sh bo'lsa matnli ko'rsatma)
     skaner_namuna: String(namunaId || '').replace(/"/g, ''),
+    // Ilova ranglari — admin panelda tanlanadi
+    mavzu: palitra((mavzu && typeof mavzu === 'object') ? mavzu : {}),
   };
 }
 

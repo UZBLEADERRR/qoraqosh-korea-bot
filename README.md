@@ -18,14 +18,11 @@ Google Gemini · Railway.
   profil, konsultatsiya va yordam Mini App'ning **👤 Profil** bo'limiga
   ko'chirildi: oltita tugma orasida asosiy amal ko'zdan yo'qolardi.
 - **Yuz skaneri** — botda ham, Mini App ichida ham ishlaydi.
-  **Botdagi javob qisqa:** teri holati, topilgan belgilar (foizi va terining
-  qaysi joyida ekani), bitta prognoz va **«💡 Tavsiyani ochish»** tugmasi.
-  Sabab, yechim va bosqichma-bosqich parvarish — ILOVADA. Telegramda uzun
-  xabar oxirigacha o'qilmaydi va odam tugmagacha yetib bormaydi.
-- **Belgilar suratda ko'rsatiladi** — AI har bir muammo uchun uning rasmdagi
-  joyini (markazi va radiusi) qaytaradi; ilovada va natija rasmida yuz ustiga
-  **raqamlangan doira** chiziladi. Doiradagi raqam pastdagi ro'yxatdagi raqam
-  bilan bir xil: odam «bu qayerda ekan?» deb izlamaydi.
+  **Botdagi javob qisqa** (~500 belgi): teri holati, ball shkalasi va
+  topilgan belgilar — har biri nomi, foizi va zonasi bilan. Sabab, yechim,
+  prognoz va bosqichma-bosqich parvarish — ILOVADA, **«💡 Tavsiyani ochish»**
+  tugmasi ostida. Telegramda uzun xabar oxirigacha o'qilmaydi va odam
+  tugmagacha yetib bormaydi; botning butun vazifasi — ilovaga olib kirish.
 - **Namuna surat** — «Yuz skaneri» ochilganda qanday rasm kutilayotgani
   ko'rsatiladi (admin panelidan yuklanadi). Odam ko'rsatmani o'qib emas,
   ko'rib tushunadi.
@@ -49,14 +46,16 @@ Google Gemini · Railway.
 - **Minimal buyurtma** — admin sozlaydigan eng kam summa. Kam bo'lsa
   rasmiylashtirish tugmasi ochilmaydi va nechchi so'm yetmayotgani aytiladi.
   Tekshiruv `place_order()` ichida ham bor — klientga ishonilmaydi.
-- **Natija RASM bo'lib keladi** — yuqori chap tarafda surat (topilgan
-  belgilar raqamlangan doira bilan belgilangan), yonida taxminiy yosh, teri
-  turi va rangi hamda 0–100 ball. Statistika **to'q yashil fon** ustida.
-  Pastda belgilar ro'yxati va tavsiya etilgan mahsulotlar — **rasmi bilan
-  kichik kartochkalarda**, har birida nima uchun kerakligi bir-ikki so'zda
-  (Tozalash, Quyoshdan himoya…). **Ism yozilmaydi:** bitta telefondan bir
-  necha odam surat yuklashi mumkin. Rasm serverda chiziladi, shuning uchun
-  bot va Mini App'da bir xil ko'rinadi.
+- **Natija RASM bo'lib keladi** — rangli sarlavhada surat, yonida taxminiy
+  yosh, teri turi va rangi, katta ball va ball halqasi; ostida uchta
+  ko'rsatkich (nechta belgi, eng kuchlisi, xavf ehtimoli). Pastda belgilar
+  ro'yxati — har biri rangli chiziq, raqam, foiz chizig'i bilan — va tavsiya
+  etilgan mahsulotlar **rasmi bilan kichik kartochkalarda**, har birida nima
+  uchun kerakligi bir-ikki so'zda (Tozalash, Quyoshdan himoya…).
+  **Ism yozilmaydi:** bitta telefondan bir necha odam surat yuklashi mumkin.
+  **Suratga doira chizilmaydi:** belgi qayerdaligi ro'yxatdagi «📍 zona»
+  matnida turadi, doira esa suratni bulg'ab, raqamlarni ko'zdan qochirardi.
+  Ranglar mavzudan olinadi (pastga qarang).
 - **«Rasm qilib olish»** — Mini App'dagi tugma rasmni Telegram chatiga yuboradi.
   (WebView ichida brauzerning yuklab olish va ulashish oynasi ishonchli
   ishlamaydi; chatdan saqlash esa har telefonda ishlaydi.)
@@ -73,9 +72,9 @@ Google Gemini · Railway.
 - **Eng yaqin ombor** — mahsulot yetib kelganda mijozga aynan qaysi omborga
   kelgani, uning manzili, mo'ljali, telefoni va ish vaqti yuboriladi.
   Ombor avval tuman, topilmasa viloyat bo'yicha tanlanadi.
-- **Tahlil bo'limida O'Z suratingiz** — yuklangan surat belgilari bilan
-  ko'rinadi, ostida belgilar ro'yxati (sabab va yechim bilan) va tavsiya
-  etilgan mahsulotlar **gorizontal lentada**, rasmi va narxi bilan.
+- **Tahlil bo'limida O'Z suratingiz** ko'rinadi, ostida belgilar ro'yxati
+  (sabab va yechim bilan) va tavsiya etilgan mahsulotlar **gorizontal
+  lentada**, rasmi va narxi bilan.
 - **👤 Profil bo'limi (Mini App)** — ism, telefon, yosh, hudud; nechta tahlil,
   nechta buyurtma va jami qancha xarid qilgani; buyurtmalar tarixi;
   konsultatsiya, yordam, ommaviy oferta va ma'lumotni o'chirish.
@@ -139,6 +138,7 @@ Google Gemini · Railway.
   matnni qo'yasiz; `# Sarlavha`, `## Bo'lim`, `- ro'yxat` bilan belgilanadi,
   HTML yozish shart emas. Bo'sh qoldirilsa koddagi namunaviy shablon ishlaydi.
 - **Skaner namunasi** — «Yuz skaneri» ekranida ko'rsatiladigan namuna surat.
+- **Ilova mavzusi** — ranglarni tanlash (pastga qarang).
 - **Tizim holati** — baza, Telegram bot va webhook, AI provayderi va haqiqiy AI
   chaqiruvi bitta tugma bilan tekshiriladi. Xatolik bo'lsa sababi ko'rsatiladi.
 - **Mobil interfeys** — 900px dan tor ekranda pastki menyu, kengroqda yon panel.
@@ -180,6 +180,28 @@ Kompyuter oldiga o'tirmasdan, Telegram'dan:
   o'zi olgan mahsulotlarni qaysi tartibda va qanday ishlatishi, faol
   moddalari, ehtiyot choralari. Print qilib har birini o'z qutisiga solasiz.
   Mahsulot to'g'ri ishlatilsa natija ko'rinadi — bu qayta xaridga olib keladi.
+
+### 🎨 Ilova mavzusi (ranglar)
+
+Sozlamalar → **Ilova mavzusi** da ikkita rang tanlanadi: **sarlavha** va
+**fon** (uchinchisi — tugmalar uchun urg'u). Tayyor to'plamlar bir bosishda
+qo'llanadi (qizil · och yashil, jigarrang · krem, to'q yashil, ko'k,
+binafsha, qora), yoki brend kitobingizdagi hex kodni qo'lda kiritasiz.
+Jonli ko'rinish darhol ko'rsatib turadi.
+
+Qolgan hamma tuslar — och/to'q variantlar, matn rangi, kartochka foni,
+chegara — SHU IKKITASIDAN HISOBLANADI (`src/lib/mavzu.js`). Shuning uchun
+admin o'nta rangni qo'lda tanlab, o'qib bo'lmaydigan kombinatsiya yasab
+qo'ya olmaydi: matn rangi fon yorqinligiga qarab (WCAG formulasi bilan)
+oq yoki qora qilib olinadi.
+
+Bir xil palitra **uch joyda** ishlatiladi: Mini App (CSS o'zgaruvchilari),
+tahlil rasmi (SVG) va admin paneldagi ko'rinish — shuning uchun tanlagan
+narsangiz aynan shunday chiqadi. Qorong'i rejimda faqat urg'u rangi
+o'zgaradi: och fon u yerda ko'zni qamashtiradi.
+
+Muammo darajasining ranglari (qizil / sariq / yashil) mavzuga **bog'liq
+emas** — «qizil = yomon» degani hamma joyda bir xil qolishi kerak.
 
 ### 🎁 Chegirma va minimal buyurtma
 
@@ -397,6 +419,8 @@ src/
     brend.js           brend nomi va logotipi (bitta manba, keshlanadi)
     bosqichlar.js      buyurtma bosqichlari — bot va panel uchun bitta ro'yxat
     emu-tarif.js       EMU rasmiy tarif kartasi: zonalar va narxlar
+    mavzu.js           ilova ranglari: ikki rangdan to‘liq palitra
+    post-korinish.js   agent posti kanalda qanday chiqishini ko‘rsatuvchi sahifa
     docx.js            .docx yozuvchi (ZIP + WordprocessingML), kutubxonasiz
     admin.js           kim admin — bot va admin API uchun bitta javob
     hududlar.js        14 viloyat, 210 tuman — manzil tekshiruvi uchun
@@ -454,9 +478,8 @@ Model `ishonch` ni umuman qaytarmasa filtr ishlamaydi: hech narsa
 ko'rsatmagandan ko'ra, topilganini ko'rsatgan yaxshiroq.
 
 **Natija rasmi SVG dan chiziladi.** `src/rasm/natija-kartochka.js` SVG
-yig'adi, `chiz.js` uni resvg bilan PNG ga o'giradi (~170 ms). Tuzilishi:
-yuqorida to'q yashil fon — chapda surat, yonida ism va tavsif, ostida
-statistika; pastda oq fonda muammolar va mahsulotlar, kichikroq. Shriftlar
+yig'adi, `chiz.js` uni resvg bilan PNG ga o'giradi (~170 ms). Ranglar
+`src/lib/mavzu.js` palitrasidan keladi — admin panelda tanlangani. Shriftlar
 `assets/shrift/` dan yuklanadi, tizimdan EMAS — konteynerda shrift
 bo'lmasa matn jimgina yo'qolardi. Rasmda emoji ishlatilmaydi: resvg rangli
 emoji shriftini chizmaydi, o'rnida bo'sh kvadrat qoladi.

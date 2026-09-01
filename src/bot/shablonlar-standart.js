@@ -96,17 +96,20 @@ Suratingizni yuboring 📸
 <i>Xira yoki uzoqdan olingan rasm qabul qilinmaydi — terining o‘zi ko‘rinishi kerak.</i>`,
 
   xabar_tahlil_bosh:
-`🔬 <b>Tahlil tayyor</b>
+`🔬 <b>Tahlil natijasi</b>
 
 👤 {yosh} yosh · {teri_turi} teri
-✨ <b>{ball}/100</b> — {baho}
+🎨 {teri_rangi}
+
+✨ <b>Teri holati: {ball}/100</b>
+
 {shkala}`,
 
-  xabar_muammolar_sarlavha: `🔍 <b>Nima topdim</b>`,
+  xabar_muammolar_sarlavha: `🔍 <b>Aniqlangan muammolar</b>`,
 
   // Botda faqat NIMA topilgani va QAYERDA. Sababi, yechimi va tavsiya —
   // ilovada: bot xabarining maqsadi odamni ilovaga olib kirish.
-  blok_muammo: `{nuqta} <b>{nom}</b> · {foiz}%\n<i>{zona}</i>`,
+  blok_muammo: `{nuqta} <b>{nom}</b> — {foiz}%\n📍 {zona}`,
 
   blok_ogohlantirish: `⚠️ <i>{ogohlantirish}</i>`,
 
@@ -117,13 +120,12 @@ Suratingizni yuboring 📸
 <i>{muddat} ichida · {ehtimol}% ehtimol</i>`,
 
   xabar_tahlil_yakun:
-`💡 Har bir belgining <b>sababi</b>, <b>yechimi</b> va sizga tanlangan
-<b>{tavsiya_soni} ta mahsulot</b> ilovada.
+`💡 <b>Siz uchun {tavsiya_soni} ta mahsulot tanlandi</b>
 
-<b>To‘liq ma’lumotni ochish uchun quyidagi tugmani bosing</b> 👇`,
+Teri muammolaringizga mos tavsiyalarni ko‘ring 👇`,
 
   ogohlantirish_tibbiy:
-`⚕️ <i>Bu AI bahosi, tibbiy tashxis emas.</i>`,
+`⚕️ <i>AI tahlili tibbiy tashxis emas.</i>`,
 
   xabar_rad:
 `{emoji} <b>Bu rasm to‘g‘ri kelmadi</b>

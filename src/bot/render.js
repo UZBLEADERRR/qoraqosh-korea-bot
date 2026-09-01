@@ -27,10 +27,10 @@ const holatSozi = (b) =>
 /**
  * Botdagi tahlil xabari — QISQA.
  *
- * Botda faqat: teri holati, topilgan muammolar ro'yxati va bitta FOMO
- * (e'tibor bermasa nima bo'lishi). Sabab, yechim, zona va to'liq tavsiya
- * ILOVADA — «Tavsiyani ochish» tugmasi ostida. Telegramda uzun xabar
- * o'qilmaydi va odam tugmagacha yetib bormaydi.
+ * Botda faqat: teri holati, topilgan belgilar (nomi, foizi va zonasi) va
+ * ilovaga chaqiriq. Sabab, yechim, prognoz va to'liq tavsiya ILOVADA —
+ * «Tavsiyani ochish» tugmasi ostida. Telegramda uzun xabar o'qilmaydi va
+ * odam tugmagacha yetib bormaydi.
  *
  * @param {object} a            tahlil natijasi
  * @param {number} tavsiyaSoni
@@ -54,7 +54,10 @@ export async function tahlilXabari(a, tavsiyaSoni = 0, maxMuammo = 4) {
   // ---- Muammolar: bittasi bitta qator ----
   const muammolar = (a.muammolar || []).slice(0, maxMuammo);
   if (muammolar.length) {
-    const qatorlar = [await xabar('xabar_muammolar_sarlavha', {}, '🔍 <b>Nima topdim</b>'), ''];
+    // Har bir muammo ALOHIDA bo'lak: Telegramda bo'sh qator bilan
+    // ajratilgani o'qishni ancha osonlashtiradi
+    bolaklar.push(await xabar('xabar_muammolar_sarlavha', {}, '🔍 <b>Aniqlangan muammolar</b>'));
+    const qatorlar = [];
 
     for (const m of muammolar) {
       const foiz = m.foiz ?? (m.daraja === 3 ? 80 : m.daraja === 2 ? 55 : 25);
@@ -72,22 +75,7 @@ export async function tahlilXabari(a, tavsiyaSoni = 0, maxMuammo = 4) {
 
     const qolgan = (a.muammolar || []).length - muammolar.length;
     if (qolgan > 0) qatorlar.push(`<i>…va yana ${qolgan} tasi ilovada</i>`);
-    bolaklar.push(qatorlar.join('\n'));
-  }
-
-  // ---- FOMO: eng ehtimolli bitta prognoz ----
-  const eng = (a.prognoz || []).slice().sort((x, y) => y.ehtimol - x.ehtimol)[0];
-  if (eng) {
-    bolaklar.push([
-      await xabar('xabar_prognoz_sarlavha', {}, '⏳ <b>Hozir e’tibor bermasangiz</b>'),
-      await xabar('blok_prognoz', {
-        muammo:  esc(eng.muammo),
-        natija:  esc(eng.natija || ''),
-        ehtimol: eng.ehtimol,
-        muddat:  esc(eng.muddat || ''),
-        shkala:  shkala(eng.ehtimol),
-      }, '<b>{muammo}</b> → {natija}\n<i>{muddat} ichida · {ehtimol}% ehtimol</i>'),
-    ].filter(Boolean).join('\n'));
+    bolaklar.push(qatorlar.join('\n\n'));
   }
 
   // Tugmaga chaqiriq HAR DOIM bo'ladi — botdagi xabarning butun maqsadi
@@ -95,10 +83,9 @@ export async function tahlilXabari(a, tavsiyaSoni = 0, maxMuammo = 4) {
   // sabab va yechim o'sha yerda.
   bolaklar.push(tavsiyaSoni
     ? await xabar('xabar_tahlil_yakun', { tavsiya_soni: tavsiyaSoni },
-        '💡 Sabab, yechim va <b>{tavsiya_soni} ta mahsulot</b> ilovada.\n\n'
-        + '<b>To‘liq ma’lumotni ochish uchun quyidagi tugmani bosing</b> 👇')
-    : '💡 Har bir belgining sababi va yechimi ilovada.\n\n'
-      + '<b>To‘liq ma’lumotni ochish uchun quyidagi tugmani bosing</b> 👇');
+        '💡 <b>Siz uchun {tavsiya_soni} ta mahsulot tanlandi</b>\n\n'
+        + 'Teri muammolaringizga mos tavsiyalarni ko‘ring 👇')
+    : '💡 Har bir belgining sababi va yechimi ilovada 👇');
   bolaklar.push(await xabar('ogohlantirish_tibbiy', {}, ''));
 
   return bolaklar.filter(Boolean).join('\n\n');

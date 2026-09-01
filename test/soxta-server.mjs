@@ -26,10 +26,9 @@ const TAHLIL = {
   muammolar: [
     { kalit:'teshik', nom:'Kengaygan teshiklar', foiz:71, zona:'Burun qanotlari va peshona',
       izoh:'Teshiklar ko‘rinadi', sabab:'Yog‘ bezlari faol', yechim:'BHA bilan tozalang',
-      ogohlantirish:'Siqmang', joy_x: 50, joy_y: 28, joy_r: 11 },
+      ogohlantirish:'Siqmang' },
     { kalit:'quruqlik', nom:'Namlik yetishmasligi', foiz:48, zona:'Yonoqlar',
-      izoh:'Yengil qipiqlanish', sabab:'To‘siq zaif', yechim:'Gialuron serum', ogohlantirish:'',
-      joy_x: 34, joy_y: 55, joy_r: 9 },
+      izoh:'Yengil qipiqlanish', sabab:'To‘siq zaif', yechim:'Gialuron serum', ogohlantirish:'' },
   ],
   prognoz: [{ muammo:'Kengaygan teshiklar', natija:'Kengayadi', ehtimol:66, muddat:'6–12 oy' }],
   tavsiya: [

@@ -375,23 +375,12 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
   text-align:left;gap:12px}
 #profil-tan .tanlov-tugma>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
 
-/* ---------- Tahlil qilingan surat va undagi belgilar ---------- */
+/* ---------- Tahlil qilingan surat ---------- */
+/* Suratga doira chizilmaydi: belgi qayerdaligi ro'yxatdagi «📍 zona»
+   matnida yozilgan, doira esa suratni bulg'ardi. */
 .yuz-quti{position:relative;border-radius:14px;overflow:hidden;background:var(--fon);
   aspect-ratio:1;display:block}
 .yuz-quti img{width:100%;height:100%;object-fit:cover;display:block}
-/* Doira aynan muammo ko'ringan joyda turadi (foizli koordinata) */
-.yuz-belgi{position:absolute;transform:translateY(-50%);border-radius:50%;
-  border:3px solid var(--sariq);box-shadow:0 0 0 1px rgba(0,0,0,.25);
-  display:block;pointer-events:none}
-.yuz-belgi.d1{border-color:var(--yashil)}
-.yuz-belgi.d2{border-color:var(--sariq)}
-.yuz-belgi.d3{border-color:var(--qizil)}
-.yuz-belgi i{position:absolute;top:-9px;right:-9px;min-width:22px;height:22px;
-  border-radius:11px;background:var(--sariq);color:#fff;font-style:normal;
-  font-size:12.5px;font-weight:700;line-height:22px;text-align:center;padding:0 3px}
-.yuz-belgi.d1 i{background:var(--yashil)}
-.yuz-belgi.d2 i{background:var(--sariq)}
-.yuz-belgi.d3 i{background:var(--qizil)}
 
 /* Ro'yxatdagi raqam — suratdagi doira raqami bilan bir xil */
 .muammo-raqam{flex:0 0 auto;width:26px;height:26px;border-radius:13px;color:#fff;

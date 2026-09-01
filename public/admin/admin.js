@@ -1364,7 +1364,10 @@ function omborOyna(o) {
 // ═══════════ 8. SOZLAMALAR ═══════════
 async function sozlamalar() {
   try {
-    const { settings: st } = await api('/api/admin/settings');
+    const j = await api('/api/admin/settings');
+    const st = j.settings;
+    holat.kesh.mavzu = { ...(st.mavzu || {}) };
+    holat.kesh.mavzuToplamlar = j.mavzu_toplamlar || [];
     const matn = (k, z = '') => String(st[k] ?? z).replace(/^"|"$/g, '');
     holat.kesh.pogonalar = Array.isArray(st.chegirma_pogonalari) ? [...st.chegirma_pogonalari] : [];
 
@@ -1437,6 +1440,41 @@ async function sozlamalar() {
         <input id="s-tel" inputmode="tel" value="${esc(matn('menejer_telefon'))}" placeholder="+998 90 123 45 67">
         <label>Ish vaqti</label>
         <input id="s-vaqt" value="${esc(matn('menejer_ish_vaqti'))}" placeholder="Har kuni 9:00 – 21:00">
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>🎨 Ilova mavzusi</h2></div>
+        <p class="mayda" style="margin:0 0 12px">Ikkita rang tanlaysiz —
+          <b>sarlavha</b> va <b>fon</b>. Qolgan tuslar shulardan hisoblanadi,
+          shuning uchun o‘qib bo‘lmaydigan kombinatsiya chiqmaydi.
+          Ranglar Mini App’ga ham, tahlil rasmiga ham qo‘llanadi.</p>
+
+        <div class="mavzu-toplamlar" id="mavzu-toplamlar"></div>
+
+        <div class="forma-tor" style="margin-top:14px">
+          <div><label>Sarlavha rangi</label>
+            <div class="rang-tanlov">
+              <input type="color" id="s-mv-asosiy">
+              <input type="text" id="s-mv-asosiy-hex" spellcheck="false" maxlength="7">
+            </div></div>
+          <div><label>Fon rangi</label>
+            <div class="rang-tanlov">
+              <input type="color" id="s-mv-fon">
+              <input type="text" id="s-mv-fon-hex" spellcheck="false" maxlength="7">
+            </div></div>
+          <div><label>Urg‘u (tugma va narx)</label>
+            <div class="rang-tanlov">
+              <input type="color" id="s-mv-urgu">
+              <input type="text" id="s-mv-urgu-hex" spellcheck="false" maxlength="7">
+            </div></div>
+        </div>
+
+        <label style="margin-top:14px">Ko‘rinishi</label>
+        <div id="mavzu-korinish"></div>
+
+        <div id="mavzu-holat"></div>
+        <button class="tug asos keng" id="t-mavzu-saqla" style="margin-top:10px">
+          Mavzuni saqlash</button>
       </div>
 
       <div class="karta tor">
@@ -1649,6 +1687,7 @@ async function sozlamalar() {
     donaNamunaChiz();
     $('#s-dona-chegirma').oninput = donaNamunaChiz;
     $('#s-dona-dan').oninput = donaNamunaChiz;
+    mavzuniUla();
     $('#s-saqla').onclick = sozlamalarniSaqla;
     $('#t-kanal-sina').onclick = kanallarniSina;
     $('#t-tarif-sina').onclick = tarifniSina;
@@ -1691,6 +1730,137 @@ function pogonalarniChiz() {
   $$('[data-och]', el).forEach((b) => b.onclick = () => {
     p.splice(Number(b.dataset.och), 1); pogonalarniChiz(); });
   namunaChiz();
+}
+
+// ---------- Ilova mavzusi ----------
+//
+// Admin ikkita rang tanlaydi; qolgan tuslar SERVERDA hisoblanadi
+// (src/lib/mavzu.js) va o'sha palitra ilovaga ham, tahlil rasmiga ham
+// boradi. Shu sababli bu yerdagi ko'rinish haqiqiy natijaga mos tushadi.
+
+/** Rangdan matn rangini tanlaydi — WCAG yorqinligi bo'yicha. */
+function kontrastMatn(hex) {
+  const t = String(hex || '').replace('#', '');
+  if (!/^[0-9a-f]{6}$/i.test(t)) return '#fff';
+  const [r, g, b] = [0, 2, 4].map((i) => {
+    const v = parseInt(t.slice(i, i + 2), 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.45 ? '#141414' : '#ffffff';
+}
+
+const aralash = (hex, ulush, oq) => {
+  const t = String(hex || '').replace('#', '');
+  if (!/^[0-9a-f]{6}$/i.test(t)) return hex;
+  const c = [0, 2, 4].map((i) => parseInt(t.slice(i, i + 2), 16))
+    .map((v) => (oq ? v + (255 - v) * ulush : v * (1 - ulush)));
+  return '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
+};
+
+function mavzuniUla() {
+  const M = holat.kesh.mavzu || {};
+  const maydonlar = [['asosiy', M.asosiy], ['fon', M.fon], ['urgu', M.urgu]];
+
+  for (const [kalit, qiymat] of maydonlar) {
+    const rang = $('#s-mv-' + kalit);
+    const hex  = $('#s-mv-' + kalit + '-hex');
+    if (!rang || !hex) continue;
+    rang.value = qiymat || '#000000';
+    hex.value  = qiymat || '';
+    // Ikkita maydon bir qiymatni ko'rsatadi: rangni ko'z bilan tanlash ham,
+    // brend kitobidan hex ko'chirib qo'yish ham ishlashi kerak
+    rang.oninput = () => { hex.value = rang.value; mavzuOzgardi(); };
+    hex.oninput = () => {
+      const v = hex.value.trim();
+      if (/^#?[0-9a-fA-F]{6}$/.test(v)) { rang.value = v.startsWith('#') ? v : '#' + v; mavzuOzgardi(); }
+    };
+  }
+
+  // Tayyor to'plamlar
+  const t = $('#mavzu-toplamlar');
+  if (t) {
+    t.innerHTML = (holat.kesh.mavzuToplamlar || []).map((x) => `
+      <button class="mavzu-plita" data-mv='${esc(JSON.stringify(x))}' title="${esc(x.nom)}">
+        <span class="mv-tus"><i style="background:${esc(x.asosiy)}"></i><i style="background:${esc(x.fon)}"></i></span>
+        <span class="mv-nom">${esc(x.nom)}</span>
+      </button>`).join('');
+    $$('[data-mv]', t).forEach((b) => b.onclick = () => {
+      const x = JSON.parse(b.dataset.mv);
+      $('#s-mv-asosiy').value = x.asosiy; $('#s-mv-asosiy-hex').value = x.asosiy;
+      $('#s-mv-fon').value    = x.fon;    $('#s-mv-fon-hex').value    = x.fon;
+      $('#s-mv-urgu').value   = x.urgu;   $('#s-mv-urgu-hex').value   = x.urgu;
+      mavzuOzgardi();
+    });
+  }
+
+  $('#t-mavzu-saqla').onclick = mavzuniSaqla;
+  mavzuOzgardi();
+}
+
+/** Jonli ko'rinish — tahlil rasmining kichraytirilgan taqlidi. */
+function mavzuOzgardi() {
+  const el = $('#mavzu-korinish'); if (!el) return;
+  const asosiy = $('#s-mv-asosiy').value;
+  const fon    = $('#s-mv-fon').value;
+  const urgu   = $('#s-mv-urgu').value;
+  const oq     = kontrastMatn(asosiy);
+  const shaffof = oq === '#ffffff' ? 'rgba(255,255,255,' : 'rgba(0,0,0,';
+  const fonMatn = kontrastMatn(fon);
+  const karta   = fonMatn === '#141414' ? '#ffffff' : aralash(fon, 0.35, false);
+  const chiziq  = fonMatn === '#141414' ? aralash(fon, 0.1, false) : aralash(fon, 0.12, true);
+
+  el.innerHTML = `
+    <div class="mv-korinish" style="background:${fon}">
+      <div class="mv-bosh" style="background:linear-gradient(160deg,${aralash(asosiy, .12, true)},${aralash(asosiy, .22, false)});color:${oq}">
+        <div class="mv-brend">
+          <span class="mv-nishon" style="background:${shaffof}.18)"></span>
+          <b>${esc(holat.kesh.mavzu?.brend || 'KiOVO')}</b>
+          <span class="mv-ong" style="opacity:.8">Teri tahlili</span>
+        </div>
+        <div class="mv-karta" style="background:${shaffof}.1);border-color:${shaffof}.16)">
+          <span class="mv-surat" style="background:${shaffof}.16)"></span>
+          <span class="mv-tan">
+            <b>Teri holati</b>
+            <span class="mv-yorliqlar">
+              <i style="background:${shaffof}.18)">18–22 yosh</i>
+              <i style="background:${shaffof}.18)">yog‘li teri</i>
+            </span>
+            <span class="mv-chiziq" style="background:${shaffof}.22)">
+              <i style="background:${aralash(urgu, .35, true)}"></i></span>
+          </span>
+        </div>
+      </div>
+      <div class="mv-tan-past">
+        <div class="mv-satr" style="background:${karta};border-color:${chiziq};color:${fonMatn}">
+          <i style="background:#D92B2B"></i><b>Terining yog‘liligi</b><span style="color:#D92B2B">70%</span>
+        </div>
+        <div class="mv-satr" style="background:${karta};border-color:${chiziq};color:${fonMatn}">
+          <i style="background:#E8703A"></i><b>Kengaygan teshiklar</b><span style="color:#E8703A">65%</span>
+        </div>
+        <button class="mv-tugma" style="background:${urgu};color:${kontrastMatn(urgu)}">
+          Savatga qo‘shish</button>
+      </div>
+    </div>`;
+}
+
+async function mavzuniSaqla() {
+  const t = $('#t-mavzu-saqla');
+  t.disabled = true; t.textContent = 'Saqlanmoqda…';
+  try {
+    const j = await api('/api/admin/mavzu', { method: 'POST', body: JSON.stringify({
+      asosiy: $('#s-mv-asosiy').value,
+      fon:    $('#s-mv-fon').value,
+      urgu:   $('#s-mv-urgu').value,
+    })});
+    holat.kesh.mavzu = j.palitra;
+    $('#mavzu-holat').innerHTML =
+      `<div class="xabar-quti ok" style="margin:10px 0 0">✓ Saqlandi — ilovada va tahlil rasmida ko‘rinadi</div>`;
+    setTimeout(() => { const h = $('#mavzu-holat'); if (h) h.innerHTML = ''; }, 4000);
+  } catch (e) {
+    $('#mavzu-holat').innerHTML = `<div class="xato">${esc(e.message)}</div>`;
+  } finally {
+    t.disabled = false; t.textContent = 'Mavzuni saqlash';
+  }
 }
 
 /** Dona chegirmasi: admin raqamni yozayotganda natijani darhol ko'rsatamiz. */

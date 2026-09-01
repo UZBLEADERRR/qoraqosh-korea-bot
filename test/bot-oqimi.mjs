@@ -58,10 +58,12 @@ await rasmYubor();
 const t = oxirgi().text || '';
 // Botdagi tahlil QISQA bo'lishi kerak: muammolar ro'yxati, bitta FOMO va
 // tugma. Sabab, yechim va zona ILOVADA — «Tavsiyani ochish» ostida.
-test('rasmga tahlil qaytaradi', /Tahlil tayyor/.test(t), `${yuborilgan.length} ta xabar`);
+test('rasmga tahlil qaytaradi', /Tahlil natijasi/.test(t), `${yuborilgan.length} ta xabar`);
 const botMatni = yuborilgan.filter((x) => !x.rasm).map((x) => x.text || '').join('\n');
 test('muammolar foizi bilan ko‘rsatilgan', /\d+%/.test(botMatni));
-test('FOMO (prognoz) bor', /e’tibor bermasangiz|ehtimol/i.test(botMatni));
+// Prognoz ATAYLAB botda yo'q: xabar qisqa bo'lishi kerak, batafsili ilovada
+test('prognoz botda YO‘Q — ilovada', !/e’tibor bermasangiz/i.test(botMatni));
+test('muammo zonasi ko‘rsatilgan', /📍/.test(botMatni));
 test('sabab va yechim botda YO‘Q — ular ilovada',
   !/Sababi|Yechimi/.test(botMatni));
 test('bot xabari qisqa', botMatni.length < 1200, `${botMatni.length} belgi`);
@@ -110,22 +112,22 @@ test('tahlil RASM bilan yuboriladi', rasmlar.length === 1,
 test('rasm bo‘sh emas', (rasmlar[0]?.hajm || 0) > 20000);
 test('rasm izohida ball bor', /\d+\/100/.test(rasmlar[0]?.text || ''));
 test('rasmdan keyin qisqa tahlil matni ham keladi',
-  yuborilgan.some((x) => !x.rasm && /Nima topdim/.test(x.text || '')));
+  yuborilgan.some((x) => !x.rasm && /Aniqlangan muammolar/.test(x.text || '')));
 
 const { qator } = await import('../src/db.js');
 const saqlangan = await qator(
   `select natija_rasm_id from analyses where user_id = (select id from users where telegram_id = $1)
     order by created_at desc limit 1`, [TG]);
-// Muammo joyi saqlanganmi — ilovada va rasmda doira shundan chiziladi
+// Surat ilovadagi tahlil bo'limida ko'rsatiladi
 {
   const { qator } = await import('../src/db.js');
   const a = await qator(
     `select problems, yuz_rasm_id from analyses
       where user_id = (select id from users where telegram_id = $1)
       order by created_at desc limit 1`, [TG]);
-  const joyli = (a?.problems || []).filter((m) => m.joy && m.joy.r > 0);
-  test('muammo joyi (doira koordinatasi) saqlandi', joyli.length === 2,
-    `${joyli.length} ta · ${JSON.stringify(joyli[0]?.joy || null)}`);
+  test('muammo zonasi saqlandi',
+    (a?.problems || []).every((m) => typeof m.zona === 'string'),
+    (a?.problems || [])[0]?.zona);
   test('foydalanuvchi surati saqlandi', Boolean(a?.yuz_rasm_id));
 }
 
