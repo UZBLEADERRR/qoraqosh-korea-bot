@@ -7,7 +7,7 @@ export const GURUHLAR = [
   {
     nom: '🔬 Tahlil natijasi',
     izoh: 'Yuz skanerlangandan keyin botda chiqadigan xabar.',
-    kalitlar: ['xabar_tahlil_bosh', 'xabar_muammolar_sarlavha', 'blok_muammo',
+    kalitlar: ['xabar_tahlil_qisqa', 'xabar_tahlil_bosh', 'xabar_muammolar_sarlavha', 'blok_muammo',
                'blok_ogohlantirish', 'xabar_prognoz_sarlavha', 'blok_prognoz',
                'xabar_tahlil_yakun', 'ogohlantirish_tibbiy'],
   },
@@ -31,9 +31,15 @@ export const GURUHLAR = [
 
 /** Har bir shablon: nomi, tushuntirishi va ishlatsa bo'ladigan o'rin egallovchilar. */
 export const TAVSIF = {
+  xabar_tahlil_qisqa: {
+    nom: 'Rasm ostidagi qisqa izoh',
+    izoh: 'ASOSIY xabar: tahlil rasmi bilan birga ketadi. Qisqa bo‘lsin — '
+        + 'tafsilot rasmda, to‘liq ma’lumot ilovada.',
+    orin: ['ball', 'muammo_soni', 'eng_kuchli', 'tavsiya_soni', 'teri_turi', 'yosh'],
+  },
   xabar_tahlil_bosh: {
-    nom: 'Tahlil sarlavhasi',
-    izoh: 'Xabarning eng boshi: yosh, teri turi va umumiy ball.',
+    nom: 'Tahlil sarlavhasi (zaxira)',
+    izoh: 'Rasm chizilmagan holatda ishlatiladigan to‘liq matnning boshi.',
     orin: ['yosh', 'teri_turi', 'teri_rangi', 'ball', 'baho', 'shkala', 'dokon'],
   },
   xabar_muammolar_sarlavha: { nom: 'Muammolar sarlavhasi', izoh: 'Ro‘yxat oldidan chiqadi.', orin: [] },
@@ -104,6 +110,19 @@ Suratingizni yuboring 📸
 ✨ <b>Teri holati: {ball}/100</b>
 
 {shkala}`,
+
+  // Botda RASM bilan birga ketadigan qisqa izoh — asosiy xabar shu.
+  // Batafsili rasmda ko'rinadi, to'liq tafsilot ilovada.
+  xabar_tahlil_qisqa:
+`🔬 <b>Tahlil tayyor</b>
+
+✨ Teri holati: <b>{ball}/100</b>
+🔍 {muammo_soni} ta belgi topildi{eng_kuchli}
+
+💡 Siz uchun <b>{tavsiya_soni} ta mahsulot</b> tanlandi
+Tavsiyalarni ko‘ring 👇
+
+⚕️ <i>AI tahlili tibbiy tashxis emas.</i>`,
 
   xabar_muammolar_sarlavha: `🔍 <b>Aniqlangan muammolar</b>`,
 

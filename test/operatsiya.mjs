@@ -488,5 +488,107 @@ console.log('\n── MAVZU ──');
 }
 
 
+// ═══════════ MARKETPLACE ═══════════
+// Haqiqiy Daiso/Coupang sahifasi o'rniga soxta do'kon ishlatiladi:
+// oqim bir xil — sahifa o'qiladi, AI kartochkani to'ldiradi, narx
+// hisoblanadi, admin tasdiqlaydi.
+console.log('\n── MARKETPLACE ──');
+{
+  const mp = await import('../src/services/marketplace.js');
+  const DOKON = `http://127.0.0.1:${PORT}/dokon`;
+
+  // Sahifadan ma'lumot ajratish
+  const { html } = await mp.sahifaniOl(`${DOKON}/aloe-gel`);
+  const siqilgan = mp.sahifaniSiqish(html);
+  test('sahifadan sarlavha ajratildi', /Soothing Aloe Gel Cream/.test(siqilgan));
+  test('meta narx ajratildi', /product:price:amount: 5000/.test(siqilgan));
+  test('JSON-LD ajratildi', /"@type":"Product"/.test(siqilgan));
+  test('skript va uslub tashlandi', !/<script/i.test(siqilgan));
+
+  test('og:image topildi',
+    (mp.rasmHavolasi(html, `${DOKON}/aloe-gel`) || '').includes('/rasm/mahsulot.png'));
+
+  const havolalar = mp.mahsulotHavolalari(html, `${DOKON}/aloe-gel`);
+  test('mahsulot havolalari yig‘ildi', havolalar.length === 2, havolalar.join(' '));
+  test('tashqi sayt havolasi olinmadi', !havolalar.some((h) => h.includes('tashqi.example')));
+  test('kategoriya havolasi olinmadi', !havolalar.some((h) => h.includes('/category/')));
+
+  // To'liq oqim
+  const t = await mp.havoladanOl(`${DOKON}/aloe-gel`);
+  test('mahsulot ro‘yxatga tushdi', t.holat === 'kutilmoqda', `${t.holat} · ${t.sabab || ''}`);
+  test('narx hisoblandi', t.narx_izoh?.narx > 0,
+    `narx ${t.narx_izoh?.narx} · tannarx ${t.narx_izoh?.tannarx} · foyda ${t.narx_izoh?.foyda}`);
+  test('tannarx KRW dan o‘girildi', t.narx_izoh?.tannarx === Math.round(5000 * 9.5));
+  test('yetkazish 120 g uchun ikki bo‘lak', t.narx_izoh?.yetkazish === 2 * 15000,
+    String(t.narx_izoh?.yetkazish));
+  test('mahsulot rasmi saqlandi', Boolean(t.rasm_id));
+
+  // Bir havola ikki marta tushmasin
+  const takror = await mp.havoladanOl(`${DOKON}/aloe-gel`);
+  test('takroriy havola qayta olinmaydi', takror.takror === true);
+  test('bazada bitta yozuv',
+    (await qiymat('select count(*)::int from marketplace_topilgan')) === 1);
+
+  // Og'irlik chegarasi
+  await sorov(`update settings set value = '100'::jsonb where key = 'marketplace_maks_ogirlik'`);
+  const ogir = await mp.havoladanOl(`${DOKON}/ogir-mahsulot`);
+  test('og‘ir mahsulot rad etiladi', ogir.holat === 'rad_etildi', ogir.sabab);
+  test('sabab tushunarli', /Og‘irligi 120 g/.test(ogir.sabab || ''), ogir.sabab);
+  await sorov(`update settings set value = '600'::jsonb where key = 'marketplace_maks_ogirlik'`);
+
+  // Narx oralig'i
+  await sorov(`update settings set value = '900000'::jsonb where key = 'marketplace_narx_dan'`);
+  const arzon = await mp.havoladanOl(`${DOKON}/arzon`);
+  test('narx oralig‘idan tashqari rad etiladi', arzon.holat === 'rad_etildi', arzon.sabab);
+  await sorov(`update settings set value = '0'::jsonb where key = 'marketplace_narx_dan'`);
+
+  // Do'kon rad etsa — tushunarli xato, tizim yiqilmaydi
+  const bloklangan = await mp.havoladanOl(`${DOKON}/yoq-sahifa`);
+  test('do‘kon rad etsa xato yoziladi', bloklangan.holat === 'xato');
+  test('xato sababi tushunarli', /rad etdi|HTTP 403/.test(bloklangan.sabab || ''), bloklangan.sabab);
+
+  // Tasdiqlash — katalogga qo'shiladi
+  const oldin = await qiymat('select count(*)::int from products');
+  const p = await mp.tasdiqla(t.id, { stock: 5 });
+  test('katalogga qo‘shildi', Boolean(p.id));
+  test('mahsulot soni oshdi',
+    (await qiymat('select count(*)::int from products')) === oldin + 1);
+  test('narx katalogga o‘tdi', p.price === t.narx_izoh.narx, `${p.price}`);
+  test('tannarx ham yozildi', p.cost_price === t.narx_izoh.tannarx);
+  test('manba havolasi saqlandi', p.manba_url.includes('/dokon/aloe-gel'));
+  test('og‘irlik o‘tdi', p.ogirlik === 120, String(p.ogirlik));
+  test('rasm mahsulotga bog‘landi', p.poster_id === t.rasm_id);
+  test('ombor admin bergani bo‘yicha', p.stock === 5);
+
+  let ikkinchi = '';
+  try { await mp.tasdiqla(t.id, {}); } catch (e) { ikkinchi = e.message; }
+  test('ikkinchi marta tasdiqlanmaydi', /allaqachon/.test(ikkinchi), ikkinchi);
+
+  // ── Agent topshirig'i: bo'limni o'zi aylanadi ──
+  await sorov('delete from marketplace_topilgan');
+  const y = await mp.agentYigish(`${DOKON}/category/kremlar`, { limit: 10 });
+  test('agent mahsulot havolalarini topdi', y.havolalar.length === 2, y.havolalar.join(' '));
+  test('agent hammasini navbatga qo‘ydi', y.hisob.kutilmoqda === 2,
+    JSON.stringify(y.hisob));
+  test('agent bazaga yozdi',
+    (await qiymat('select count(*)::int from marketplace_topilgan')) === 2);
+  // Agent HECH QACHON o'zi sotuvga qo'ymaydi — faqat tasdiq navbati
+  test('agent katalogga o‘zi qo‘shmaydi',
+    (await qiymat(`select count(*)::int from marketplace_topilgan where holat = 'tasdiqlandi'`)) === 0);
+
+  // Ikkinchi marta yurganda takrorini ajratadi
+  const y2 = await mp.agentYigish(`${DOKON}/category/kremlar`, { limit: 10 });
+  test('agent takrorlarni qayta olmaydi', y2.hisob.takror === 2, JSON.stringify(y2.hisob));
+
+  // Qoida agent yurganda ham ishlaydi
+  await sorov('delete from marketplace_topilgan');
+  await sorov(`update settings set value = '100'::jsonb where key = 'marketplace_maks_ogirlik'`);
+  const y3 = await mp.agentYigish(`${DOKON}/category/kremlar`, { limit: 10 });
+  test('agent og‘irlik chegarasiga bo‘ysunadi',
+    y3.hisob.rad_etildi === 2 && y3.hisob.kutilmoqda === 0, JSON.stringify(y3.hisob));
+  await sorov(`update settings set value = '600'::jsonb where key = 'marketplace_maks_ogirlik'`);
+}
+
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

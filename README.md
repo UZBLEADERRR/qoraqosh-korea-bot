@@ -18,11 +18,13 @@ Google Gemini · Railway.
   profil, konsultatsiya va yordam Mini App'ning **👤 Profil** bo'limiga
   ko'chirildi: oltita tugma orasida asosiy amal ko'zdan yo'qolardi.
 - **Yuz skaneri** — botda ham, Mini App ichida ham ishlaydi.
-  **Botdagi javob qisqa** (~500 belgi): teri holati, ball shkalasi va
-  topilgan belgilar — har biri nomi, foizi va zonasi bilan. Sabab, yechim,
-  prognoz va bosqichma-bosqich parvarish — ILOVADA, **«💡 Tavsiyani ochish»**
-  tugmasi ostida. Telegramda uzun xabar oxirigacha o'qilmaydi va odam
-  tugmagacha yetib bormaydi; botning butun vazifasi — ilovaga olib kirish.
+  **Botdan BITTA xabar keladi:** natija rasmi + ~250 belgilik izoh (ball,
+  nechta belgi topilgani, eng kuchlisi, nechta mahsulot tanlangani va
+  tibbiy ogohlantirish) + **«💡 Tavsiyani ochish»** tugmasi. Belgilar
+  ro'yxati RASMDA, sabab-yechim-prognoz va parvarish tartibi esa ILOVADA.
+  Ilgari rasmdan keyin yana uzun matn ketardi va u rasmda ko'ringanni
+  takrorlardi: chat to'lib, tugma pastda qolib ketardi. Botning butun
+  vazifasi — ilovaga olib kirish.
 - **Namuna surat** — «Yuz skaneri» ochilganda qanday rasm kutilayotgani
   ko'rsatiladi (admin panelidan yuklanadi). Odam ko'rsatmani o'qib emas,
   ko'rib tushunadi.
@@ -137,6 +139,8 @@ Google Gemini · Railway.
 - **Ommaviy oferta matni** — Sozlamalardan tahrirlanadi. Yuristingiz bergan
   matnni qo'yasiz; `# Sarlavha`, `## Bo'lim`, `- ro'yxat` bilan belgilanadi,
   HTML yozish shart emas. Bo'sh qoldirilsa koddagi namunaviy shablon ishlaydi.
+- **🛒 Marketplace** — Daiso va Coupang sahifasidan mahsulotni to'g'ridan-to'g'ri
+  olish (pastga qarang). Qo'lda kiritish ham qoladi.
 - **Skaner namunasi** — «Yuz skaneri» ekranida ko'rsatiladigan namuna surat.
 - **Ilova mavzusi** — ranglarni tanlash (pastga qarang).
 - **Tizim holati** — baza, Telegram bot va webhook, AI provayderi va haqiqiy AI
@@ -202,6 +206,64 @@ o'zgaradi: och fon u yerda ko'zni qamashtiradi.
 
 Muammo darajasining ranglari (qizil / sariq / yashil) mavzuga **bog'liq
 emas** — «qizil = yomon» degani hamma joyda bir xil qolishi kerak.
+
+### 🛒 Marketplace — Daiso va Coupang'dan mahsulot olish
+
+Ilgari har bir mahsulot qo'lda kiritilardi. Endi **havolani qo'yasiz** —
+server sahifani o'zi o'qiydi, AI kartochkani (nomi, brendi, tarkibi,
+qo'llash tartibi, kimga mos, og'irligi, narxi) to'ldiradi, narx qoidaga
+ko'ra hisoblanadi va mahsulot **tasdiq navbatiga** tushadi.
+**Siz tasdiqlamaguningizcha katalogga tushmaydi.**
+
+Uch xil ishlatish:
+
+1. **Havoladan olish** — bir nechta havolani birdan qo'yasiz (20 tagacha).
+2. **Havolalarni topish** — bo'lim yoki qidiruv sahifasini berasiz, undagi
+   mahsulot havolalari yig'iladi va ro'yxatga tushadi.
+3. **🤖 Agent o'zi yig'sin** — bo'lim havolasini va nechta kerakligini
+   berasiz, qolganini agent qiladi: har bir sahifani o'qiydi va **faqat
+   qoidaga to'g'ri kelganini** navbatga qo'yadi. Kosmetika bo'lmagani,
+   og'irligi chegaradan oshgani va narx oralig'iga tushmagani «rad etildi»
+   bo'lib, **sababi bilan** ro'yxatda qoladi (ko'pincha muammo mahsulotda
+   emas, chegarada bo'ladi). Agent hech qachon o'zi sotuvga qo'ymaydi.
+
+Sahifa **CSS selektorlar bilan emas**, ma'no bilan o'qiladi: sarlavha,
+`og:`/`product:` meta teglari, JSON-LD va ko'rinadigan matn AI ga beriladi.
+Do'kon dizaynini o'zgartirsa ham ishlashda davom etadi. Do'kon so'rovni rad
+etsa (HTTP 403 — bot himoyasi), sabab tushunarli yoziladi va mahsulotni
+skrinshotdan qo'shish taklif qilinadi.
+
+**Og'irlik chegarasi** (sukut bo'yicha 600 g) va **narx oralig'i** —
+Sozlamalardagi maydonlar. Coupang'dan «shu narxdan shu narxgacha» deb
+yig'ish uchun oraliqni qo'yib qo'yasiz (0 = cheklovsiz).
+
+### 💰 Narx qoidasi
+
+```
+narx = tannarx + yetkazish + sof foyda
+```
+
+- **tannarx** — KRW narxi × kurs (sukut bo'yicha 1 KRW = 9.5 so'm);
+- **yetkazish** — har **boshlangan 100 g** uchun 15 000 so'm
+  (120 g ham, 200 g ham ikki bo'lak);
+- **sof foyda** — tannarx va yetkazishdan foizda (35%), lekin **eng kam
+  30 000** va **eng ko'p 50 000** so'mdan chiqmaydi. Chegara shuning uchun:
+  arzon kichik tovarda foiz mehnatni qoplamaydi, qimmat kremda esa narxni
+  haddan oshirib yuboradi.
+- natija **1 000 so'mgacha yuqoriga yaxlitlanadi**.
+
+Hamma raqam Sozlamalardan o'zgartiriladi va uchta misol jonli hisoblanib
+turadi. Qoida `src/lib/narx.js` da — bitta joyda, chunki u marketplace,
+qo'lda qo'shish va tasdiqlashda bir xil ishlatiladi.
+
+### 💊 Ichki qabul mahsulotlari
+
+Kollagen, jenshen, vitamin va shunga o'xshash **ichish uchun** qo'shimchalar
+alohida `ichimlik` toifasida va parvarish tartibida alohida **`ichki`**
+bosqichda turadi. AI tavsiya berganda **to'liq set** beradi (tozalash →
+namlash → himoya, kerak bo'lsa davolash), va **katalogda mos mahsulot bo'lsa
+hamda muammo bilan mantiqan bog'lansa** ustiga ichki qabulni qo'shadi.
+U hech qachon «davolaydi» deb ko'rsatilmaydi — bu qo'shimcha, dori emas.
 
 ### 🎁 Chegirma va minimal buyurtma
 
@@ -420,6 +482,7 @@ src/
     bosqichlar.js      buyurtma bosqichlari — bot va panel uchun bitta ro'yxat
     emu-tarif.js       EMU rasmiy tarif kartasi: zonalar va narxlar
     mavzu.js           ilova ranglari: ikki rangdan to‘liq palitra
+    narx.js            sotuv narxi: tannarx + yetkazish + sof foyda
     post-korinish.js   agent posti kanalda qanday chiqishini ko‘rsatuvchi sahifa
     docx.js            .docx yozuvchi (ZIP + WordprocessingML), kutubxonasiz
     admin.js           kim admin — bot va admin API uchun bitta javob
@@ -433,6 +496,7 @@ src/
     qollanma-hujjati.js mijozga qutiga qo'shiladigan parvarish qo'llanmasi
     broadcast.js       reklama yuborish (tezlik cheklovi bilan)
     majburiy-kanal.js  obuna tekshiruvi
+    marketplace.js     Daiso/Coupang sahifasidan mahsulot olish va filtrlash
     agent.js           kanal rejasi va post yozish
     agent-jadval.js    kunlik jadval (advisory lock bilan)
 public/

@@ -18,6 +18,7 @@ const BOSQICH_NOM = {
   namlash:  '4-qadam · Namlash',
   himoya:   '5-qadam · Quyoshdan himoya',
   qoshimcha:'Qo‘shimcha',
+  ichki:'Ichki qabul',
 };
 const BOSQICH_IZOH = {
   tozalash: 'Yuzni iliq suv bilan ho‘llang, vositani qo‘lda ko‘piklantirib, '
@@ -30,6 +31,7 @@ const BOSQICH_IZOH = {
   himoya:   'Ertalabki parvarishning ENG OXIRGI bosqichi. Har 2–3 soatda '
           + 'yangilang, bulutli kunda ham qo‘llang.',
   qoshimcha:'Haftasiga 1–2 marta, asosiy parvarishdan keyin.',
+  ichki:'Ichki qabul qilinadi — qadoqdagi ko‘rsatmaga amal qiling.',
 };
 
 /** Bitta buyurtma uchun bloklar. Faylga o'ralmagan — qayta ishlatiladi. */

@@ -11,8 +11,8 @@ const SXEMA = {
     izoh:       { type: 'string' },
     name:       { type: 'string' },
     brand:      { type: 'string' },
-    category:   { type: 'string', enum: ['tozalash','toner','serum','krem','niqob','quyosh','lab','toplam'] },
-    step:       { type: 'string', enum: ['tozalash','toner','davolash','namlash','himoya','qoshimcha'] },
+    category:   { type: 'string', enum: ['tozalash','toner','serum','krem','niqob','quyosh','lab','toplam','ichimlik'] },
+    step:       { type: 'string', enum: ['tozalash','toner','davolash','namlash','himoya','qoshimcha','ichki'] },
     volume:     { type: 'string' },
     country:    { type: 'string' },
     description:{ type: 'string' },
@@ -48,6 +48,9 @@ Qoidalar:
 - warnings: ehtiyot choralari (masalan "kunduzi SPF bilan", "homiladorlikda
   tavsiya etilmaydi", "sezgir teri sinov qilib ko'rsin"). Bo'lmasa bo'sh satr.
 - emoji: mahsulotga mos bitta emoji.
+- Ichki qabul qilinadigan qo'shimcha (kollagen, jenshen, vitamin, biotin)
+  bo'lsa: step = "ichki", category = "ichimlik". usage_text da kuniga
+  qancha va qachon ichilishini yoz.
 - Narx yozma — uni admin o'zi qo'yadi.
 
 Butun javob o'zbek tilida (lotin alifbosida). Faqat JSON qaytar.`;

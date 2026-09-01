@@ -9,6 +9,7 @@ import { brendNomi, brendLogosi } from '../lib/brend.js';
 const BOSQICH_NOMI = {
   tozalash: 'Tozalash', toner: 'Toner', davolash: 'Davolash',
   namlash: 'Namlash', himoya: 'Himoya', qoshimcha: 'Qo‘shimcha',
+  ichki: 'Ichki qabul',
 };
 
 /** Tahlildagi product_id larni katalogdagi nom/brend bilan bog'laydi. */

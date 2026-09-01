@@ -14,6 +14,8 @@ import { esc } from '../bot/format.js';
 import { xabar, keshniTozala } from '../bot/shablon.js';
 import { STANDART, GURUHLAR, TAVSIF } from '../bot/shablonlar-standart.js';
 import { palitra, rangTozala, MAVZU_STANDART, TOPLAMLAR } from '../lib/mavzu.js';
+import * as mp from '../services/marketplace.js';
+import { narxHisobla, qoidaniTozala } from '../lib/narx.js';
 import { keshniTashla } from '../lib/kesh.js';
 import { kanalniSina, kanalgaHolat } from '../services/kanal.js';
 import { rasmChizaOlamizmi, svgdanPng } from '../rasm/chiz.js';
@@ -779,6 +781,108 @@ export async function adminRoutes(req, res, yol) {
     if (eski) await sorov('delete from media where id = $1', [eski]).catch(() => {});
     katalogYangilandi();
     return ok(res, { ok: true });
+  }
+
+  // ================= MARKETPLACE =================
+  // Daiso / Coupang dan mahsulotni olish. Havola beriladi, server sahifani
+  // o'qiydi, AI kartochkani to'ldiradi, narx qoida bo'yicha hisoblanadi.
+  // Tasdiqlanmagan narsa katalogga TUSHMAYDI.
+  if (yol === '/api/admin/marketplace' && req.method === 'GET') {
+    const url = new URL(req.url, 'http://x');
+    const holat = url.searchParams.get('holat') || '';
+    const [ro, hi, sozlash] = await Promise.all([
+      mp.royxat(holat, 200), mp.hisob(), mp.sozlamalar(),
+    ]);
+    return ok(res, {
+      royxat: ro,
+      hisob: Object.fromEntries(hi.map((x) => [x.holat, x.soni])),
+      sozlama: sozlash,
+    });
+  }
+
+  // Havolalar ro'yxatini olish. Sahifalar KETMA-KET o'qiladi: bir vaqtda
+  // o'nta so'rov yuborsak do'kon bizni bot deb bloklaydi.
+  if (yol === '/api/admin/marketplace/olish' && req.method === 'POST') {
+    const b = await tana(req);
+    const xom = Array.isArray(b.havolalar) ? b.havolalar
+      : String(b.havolalar || '').split(/[\s,]+/);
+    const havolalar = xom.map((x) => String(x).trim()).filter(Boolean).slice(0, 20);
+    if (!havolalar.length) return xato(res, 400, 'Havola yuborilmadi.');
+
+    const natijalar = [];
+    for (const h of havolalar) {
+      try {
+        // adminId yozilmaydi: panel tokeni foydalanuvchi id sini olib
+        // yurmaydi, uni bu yerda o'ylab topgandan ko'ra bo'sh qoldirgan yaxshi
+        natijalar.push(await mp.havoladanOl(h));
+      } catch (e) {
+        natijalar.push({ manba_url: h, holat: 'xato', sabab: e.message });
+      }
+    }
+    return ok(res, { natijalar });
+  }
+
+  // Katalog sahifasidan mahsulot havolalarini topish
+  if (yol === '/api/admin/marketplace/qidir' && req.method === 'POST') {
+    const b = await tana(req);
+    const url = mp.havolaTogrimi(b.url);
+    if (!url) return xato(res, 400, 'Havola noto‘g‘ri.');
+    try {
+      const { html, url: oxirgi } = await mp.sahifaniOl(url);
+      const havolalar = mp.mahsulotHavolalari(html, oxirgi,
+        Math.min(40, Number(b.limit) || 20));
+      return ok(res, { havolalar });
+    } catch (e) {
+      return xato(res, 502, e.message);
+    }
+  }
+
+  // Agent topshirig'i: bo'lim havolasini berib qo'yiladi, qolganini o'zi qiladi
+  if (yol === '/api/admin/marketplace/agent' && req.method === 'POST') {
+    const b = await tana(req);
+    try {
+      return ok(res, await mp.agentYigish(b.url, { limit: Number(b.limit) || 10 }));
+    } catch (e) {
+      return xato(res, e.turi === 'havola' ? 400 : 502, e.message);
+    }
+  }
+
+  if (yol === '/api/admin/marketplace/tasdiq' && req.method === 'POST') {
+    const b = await tana(req);
+    try {
+      return ok(res, { mahsulot: await mp.tasdiqla(Number(b.id), b.ozgarish || {}) });
+    } catch (e) {
+      if (/duplicate key|products_brend_nom_uniq/i.test(e.message)) {
+        return xato(res, 409, 'Bu brend va nom bilan mahsulot allaqachon bor.');
+      }
+      return xato(res, 400, e.message);
+    }
+  }
+
+  if (yol === '/api/admin/marketplace/rad' && req.method === 'POST') {
+    const b = await tana(req);
+    await mp.radEt(Number(b.id), b.sabab);
+    return ok(res, { ok: true });
+  }
+
+  if (yol === '/api/admin/marketplace' && req.method === 'DELETE') {
+    const b = await tana(req);
+    await mp.ochir(Number(b.id));
+    return ok(res, { ok: true });
+  }
+
+  // Narxni qayta hisoblash — admin og'irlik yoki tannarxni o'zgartirganda
+  if (yol === '/api/admin/marketplace/narx' && req.method === 'POST') {
+    const b = await tana(req);
+    const s = await mp.sozlamalar();
+    return ok(res, {
+      narx: narxHisobla({
+        krw: b.krw != null ? Number(b.krw) : undefined,
+        tannarx: Number(b.tannarx) || 0,
+        gramm: Number(b.gramm) || 0,
+      }, s.qoida),
+      qoida: s.qoida,
+    });
   }
 
   // Kanal ID to'g'rimi va bot unga yoza oladimi

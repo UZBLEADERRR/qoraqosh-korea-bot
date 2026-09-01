@@ -640,7 +640,8 @@ const NUQTA = ['', '🟢', '🟡', '🔴'];
 const DARAJA = ['', 'yengil', 'o‘rtacha', 'kuchli'];
 const DSINF  = ['', 'yengil', 'ortacha', 'kuchli'];
 const BOSQICH = { tozalash:'🫧 Tozalash', toner:'💧 Toner', davolash:'🧪 Davolash',
-                  namlash:'🫙 Namlash', himoya:'☀️ Quyoshdan himoya', qoshimcha:'🎭 Qo‘shimcha' };
+                  namlash:'🫙 Namlash', himoya:'☀️ Quyoshdan himoya', qoshimcha:'🎭 Qo‘shimcha',
+                  ichki:'💊 Ichki qabul' };
 
 function natijaniChiz() {
   const t = holat.tahlil;

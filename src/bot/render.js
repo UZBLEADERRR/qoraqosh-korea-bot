@@ -25,7 +25,36 @@ const holatSozi = (b) =>
   : b >= 35 ? "e’tibor kerak 😕" : 'zaif 😟';
 
 /**
- * Botdagi tahlil xabari — QISQA.
+ * Rasm ostidagi qisqa izoh — botdagi ASOSIY xabar.
+ *
+ * Ilgari bot ikkita xabar yuborardi: rasm + uzun matn. Matn rasmda
+ * ko'ringan narsani takrorlardi va chat to'lib ketardi. Endi bitta xabar:
+ * rasm, ostida bir necha qator va tugmalar. Tafsilot rasmda, to'liq
+ * ma'lumot ilovada.
+ *
+ * @param {object} a            tahlil natijasi
+ * @param {number} tavsiyaSoni
+ */
+export async function qisqaIzoh(a, tavsiyaSoni = 0) {
+  const muammolar = a.muammolar || [];
+  const eng = muammolar.slice().sort((x, y) => (y.foiz ?? 0) - (x.foiz ?? 0))[0];
+
+  return xabar('xabar_tahlil_qisqa', {
+    ball:        a.ball ?? 0,
+    yosh:        esc(a.taxminiy_yosh || ''),
+    teri_turi:   esc(a.teri_turi || ''),
+    muammo_soni: muammolar.length,
+    // Bitta ham belgi topilmasa «eng kuchlisi» degan qism umuman chiqmaydi
+    eng_kuchli:  eng ? ` — eng kuchlisi: <b>${esc(eng.nom)}</b> (${eng.foiz ?? 0}%)` : '',
+    tavsiya_soni: tavsiyaSoni,
+  }, '🔬 <b>Tahlil tayyor</b>\n\n✨ Teri holati: <b>{ball}/100</b>\n'
+   + '🔍 {muammo_soni} ta belgi topildi{eng_kuchli}\n\n'
+   + '💡 Siz uchun <b>{tavsiya_soni} ta mahsulot</b> tanlandi\nTavsiyalarni ko‘ring 👇\n\n'
+   + '⚕️ <i>AI tahlili tibbiy tashxis emas.</i>');
+}
+
+/**
+ * TO'LIQ matnli tahlil — faqat RASM CHIZILMAGANDA ishlatiladi.
  *
  * Botda faqat: teri holati, topilgan belgilar (nomi, foizi va zonasi) va
  * ilovaga chaqiriq. Sabab, yechim, prognoz va to'liq tavsiya ILOVADA —
@@ -97,6 +126,7 @@ export function tavsiyaMatni(tavsiyalar, mahsulotlar) {
   const BOSQICH = {
     tozalash:'🫧 Tozalash', toner:'💧 Toner', davolash:'🧪 Serum',
     namlash:'🫙 Namlash', himoya:'☀️ SPF', qoshimcha:'🎭 Qo‘shimcha',
+    ichki:'💊 Ichki qabul',
   };
   const q = ['💡 <b>Sizga mos parvarish</b>', ''];
   let jami = 0;

@@ -2,7 +2,7 @@
 import { harakat, yubor, faylOl, tg, rasmYubor } from '../tg.js';
 import { natijaRasminiYarat, kanalgaTahlil, yuzniSaqla } from '../../services/natija-rasm.js';
 import { tahlilQil } from '../../services/analysis.js';
-import { radXabari, tahlilXabari, tavsiyaMatni } from '../render.js';
+import { radXabari, tahlilXabari, tavsiyaMatni, qisqaIzoh } from '../render.js';
 import { natijaTugmalari, appUrl, ortga } from '../keyboards.js';
 import { bolakla, esc } from '../format.js';
 import { xabar } from '../shablon.js';
@@ -11,15 +11,6 @@ import { limitHolati } from '../../services/analysis.js';
 import { appTugma } from '../keyboards.js';
 
 /** Rasm ostidagi qisqa izoh (Telegram cheklovi — 1024 belgi). */
-function rasmIzohi(a) {
-  const eng = (a.muammolar || [])[0];
-  const qatorlar = [`🔬 <b>Teri tahlilingiz tayyor</b>`, ``, `📊 Umumiy ball: <b>${a.ball ?? 0}/100</b>`];
-  if (a.teri_turi) qatorlar.push(`💧 Teri turi: ${esc(a.teri_turi)}`);
-  if (eng) qatorlar.push(`🎯 Asosiy e’tibor: <b>${esc(eng.nom)}</b> — ${eng.foiz}%`);
-  qatorlar.push(``, `👇 Batafsil izoh quyida`);
-  return qatorlar.join('\n');
-}
-
 export async function skanerYordami(chatId) {
   await yubor(chatId, await xabar('xabar_skaner', {},
     '🔬 <b>Yuz skaneri</b>\n\nYuzingiz aniq ko‘ringan surat yuboring 📸'),
@@ -79,16 +70,23 @@ export async function rasmniQabulQil(msg, user) {
     // Surat ilovadagi tahlil bo'limida belgilar bilan ko'rsatiladi
     await yuzniSaqla({ analysisId: natija.analysisId, rasmBase64: base64, mime });
     if (rasm) {
-      await rasmYubor(chatId, rasm.bayt, rasmIzohi(natija.tahlil));
+      // BITTA xabar: rasm + qisqa izoh + tugmalar.
+      // Ilgari rasm va uzun matn alohida ketardi, matn esa rasmda
+      // ko'ringanni takrorlardi — chat to'lib ketardi va tugma pastda
+      // qolib, hech kim bosmasdi.
+      await rasmYubor(chatId, rasm.bayt,
+        await qisqaIzoh(natija.tahlil, tavsiyalar.length),
+        { reply_markup: natijaTugmalari() });
       kanalgaTahlil(rasm.bayt, user, natija.tahlil).catch(() => {});
-    }
-
-    // 2) Batafsil matn — sabab, yechim, ogohlantirish
-    const matn = await tahlilXabari(natija.tahlil, tavsiyalar.length);
-    const qismlar = bolakla(matn);
-    for (let i = 0; i < qismlar.length; i++) {
-      await yubor(chatId, qismlar[i],
-        i === qismlar.length - 1 ? { reply_markup: natijaTugmalari() } : {});
+    } else {
+      // Rasm chizilmadi (motor yoki shrift yo'q) — natija yo'qolmasin,
+      // to'liq matnni yuboramiz
+      const matn = await tahlilXabari(natija.tahlil, tavsiyalar.length);
+      const qismlar = bolakla(matn);
+      for (let i = 0; i < qismlar.length; i++) {
+        await yubor(chatId, qismlar[i],
+          i === qismlar.length - 1 ? { reply_markup: natijaTugmalari() } : {});
+      }
     }
 
     // Mini App yo'q bo'lsa (PUBLIC_URL sozlanmagan) — tavsiyani matnda beramiz

@@ -84,7 +84,7 @@ const SXEMA = {
       items: {
         type: 'object',
         properties: {
-          bosqich:    { type: 'string', enum: ['tozalash','toner','davolash','namlash','himoya','qoshimcha'] },
+          bosqich:    { type: 'string', enum: ['tozalash','toner','davolash','namlash','himoya','qoshimcha','ichki'] },
           product_id: { type: 'integer' },
           sabab:      { type: 'string' },
         },
@@ -207,9 +207,25 @@ QADAM 4 — prognoz: FAQAT QADAM 3 da haqiqatan yozgan muammolaring uchun.
 QADAM 5 — tavsiya: quyidagi katalogdan mahsulot tanla.
   Muammo topilmagan bo'lsa ham parvarish tavsiya qilinadi — lekin sababda
   yo'q muammoni tilga olma, "terini shu holatda saqlash uchun" deb yoz.
-  Tartib QAT'IY shunday: tozalash -> toner -> davolash -> namlash -> himoya -> qoshimcha.
-  Har bosqichdan ko'pi bilan 1 ta mahsulot, jami 3-5 ta.
+  Tartib QAT'IY shunday: tozalash -> toner -> davolash -> namlash -> himoya
+  -> qoshimcha -> ichki.
+
+  TO'LIQ TO'PLAM ber. Katalogda mos mahsulot bo'lsa quyidagi TO'RT bosqich
+  har doim bo'lishi kerak: tozalash, namlash, himoya va muammoga qarab
+  davolash. Yarim to'plam parvarish emas — odam nimadan boshlashni
+  bilmay qoladi.
+  Har bosqichdan ko'pi bilan 1 ta mahsulot, jami 4-6 ta.
   "himoya" (SPF) bosqichini deyarli har doim qo'sh — bu eng muhim bosqich.
+
+  "ichki" — ICHKI QABUL qilinadigan qo'shimcha (kollagen, jenshen, vitamin,
+  biotin). U tashqi parvarish tartibiga kirmaydi va MAJBURIY EMAS. Faqat
+  shu shartlar bajarilganda qo'sh:
+    - katalogda "ichki" bosqichdagi mahsulot bor;
+    - topilgan muammo unga mantiqan bog'liq (ajin va elastiklik yo'qolishi
+      — kollagen; xiralik va charchoq — vitamin; quruqlik — ichimlik rejimi).
+  Bog'lanmasa qo'shma. Va sababda uni DAVO deb atama: "parvarishni ichkaridan
+  qo'llab-quvvatlaydi" degan ma'noda yoz — biz shifokor emasmiz.
+
   product_id — FAQAT quyidagi ro'yxatdagi raqam. O'zingdan mahsulot o'ylab TOPMA.
   sabab — nima uchun aynan shu mahsulot aynan SHU odamga kerakligini
   1-2 jumlada tushuntir: qaysi muammosiga, tarkibidagi qaysi modda yordam beradi.
@@ -255,7 +271,8 @@ Faqat boshqa mos variant umuman bo'lmasa, eskisini qoldirishing mumkin.`
 }
 
 // ---------- Modeldan kelgan javobni tozalash va tekshirish ----------
-const BOSQICH_TARTIB = ['tozalash', 'toner', 'davolash', 'namlash', 'himoya', 'qoshimcha'];
+// «ichki» eng oxirida: u parvarish tartibining bir qismi emas, qo'shimcha
+const BOSQICH_TARTIB = ['tozalash', 'toner', 'davolash', 'namlash', 'himoya', 'qoshimcha', 'ichki'];
 
 // Model shu chegaradan past ishonch bilan aytgan muammo ko'rsatilmaydi.
 const ISHONCH_CHEGARASI = 60;
@@ -350,7 +367,7 @@ function tozala(javob, products) {
     teri_turi:     String(u.teri_turi || 'normal').slice(0, 20),
     ball:          Math.min(100, Math.max(0, Number(u.ball) || 60)),
     xulosa:        String(u.xulosa || '').slice(0, 400),
-    muammolar, prognoz, tavsiya: tavsiya.slice(0, 5),
+    muammolar, prognoz, tavsiya: tavsiya.slice(0, 6),
   };
 }
 

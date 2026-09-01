@@ -150,6 +150,7 @@ const BOLIMLAR = {
   boshqaruv: { nom: 'Boshqaruv',    chiz: () => boshqaruv() },
   buyurtma:  { nom: 'Buyurtmalar',  chiz: () => buyurtmalar() },
   mahsulot:  { nom: 'Mahsulotlar',  chiz: () => mahsulotlar() },
+  market:    { nom: 'Marketplace',  chiz: () => marketplace() },
   mijoz:     { nom: 'Mijozlar',     chiz: () => mijozlar() },
   sotuv:     { nom: 'Sotuvlar',     chiz: () => sotuvlar() },
   ombor:     { nom: 'Omborlar',     chiz: () => omborlar() },
@@ -182,7 +183,7 @@ window.addEventListener('hashchange', () => {
 });
 $('#t-yangila').onclick = () => { holat.kesh = {}; bolimOch(holat.bolim); tost('Yangilandi'); };
 
-const KOP_MENYU = ['sotuv', 'ombor', 'sozlama', 'xabar', 'tizim', 'qollanma'];
+const KOP_MENYU = ['market', 'sotuv', 'ombor', 'sozlama', 'xabar', 'tizim', 'qollanma'];
 const kopMenyu = () => modal('Ko‘proq', `
   <div style="display:grid;gap:8px">
     ${KOP_MENYU.map((k) => `<button class="tug keng" data-kop="${k}"
@@ -440,7 +441,8 @@ async function tolovHolati(id, holatNomi) {
 
 // ═══════════ 3. MAHSULOTLAR ═══════════
 const BOSQICHLAR = { tozalash:'🫧 Tozalash', toner:'💧 Toner', davolash:'🧪 Davolash (serum)',
-                     namlash:'🫙 Namlash', himoya:'☀️ Quyoshdan himoya', qoshimcha:'🎭 Qo‘shimcha' };
+                     namlash:'🫙 Namlash', himoya:'☀️ Quyoshdan himoya', qoshimcha:'🎭 Qo‘shimcha',
+                     ichki:'💊 Ichki qabul' };
 const MUAMMOLAR = ['akne','teshik','yoglilik','quruqlik','qizarish','dog','ajin','xiralik','sezgirlik','quyosh'];
 const TERILAR = ['quruq','yogli','aralash','normal','sezgir','barcha'];
 
@@ -1155,6 +1157,306 @@ function mijozlarniCsv(users) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   tost(`${users.length} ta mijoz yuklandi`);
+}
+
+// ═══════════ MARKETPLACE ═══════════
+//
+// Daiso / Coupang dan mahsulotni to'g'ridan-to'g'ri olish.
+// Havola beriladi -> server sahifani o'qiydi -> AI kartochkani to'ldiradi ->
+// narx qoida bo'yicha hisoblanadi -> admin ko'rib tasdiqlaydi.
+// Tasdiqlanmagan narsa KATALOGGA TUSHMAYDI.
+
+const MARKET_HOLAT = {
+  kutilmoqda:  ['Ko‘rib chiqilmagan', 'sariq'],
+  tasdiqlandi: ['Katalogda',          'yashil'],
+  rad_etildi:  ['Rad etilgan',        'kul'],
+  xato:        ['Olinmadi',           'qizil'],
+};
+let marketFiltr = 'kutilmoqda';
+
+async function marketplace() {
+  try {
+    const j = await api('/api/admin/marketplace' + (marketFiltr ? `?holat=${marketFiltr}` : ''));
+    const h = j.hisob || {};
+    const s = j.sozlama || {};
+    const q = s.qoida || {};
+
+    $('#tan').innerHTML = `
+      <div class="bosh"><h1>Marketplace</h1>
+        <span class="ozgina">${j.royxat.length} ta</span></div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>🔗 Havoladan olish</h2></div>
+        <p class="mayda" style="margin:0 0 10px">Daiso yoki Coupang mahsulot havolasini
+          qo‘ying — har qatorga bittadan. Server sahifani o‘qiydi, AI kartochkani
+          to‘ldiradi, narx qoidaga ko‘ra hisoblanadi. <b>Siz tasdiqlamaguningizcha
+          katalogga tushmaydi.</b></p>
+        <textarea id="mk-havolalar" rows="4" spellcheck="false"
+          placeholder="https://www.daiso.co.kr/product/...&#10;https://www.coupang.com/vp/products/..."></textarea>
+        <button class="tug asos keng" id="mk-ol" style="margin-top:8px">Olib kelish</button>
+
+        <details style="margin-top:12px">
+          <summary class="mayda">Bo‘lim havolasi bilan ishlash</summary>
+          <p class="mayda" style="margin:8px 0">Kategoriya yoki qidiruv sahifasining
+            havolasini qo‘ying. <b>Havolalarni topish</b> ularni yuqoridagi maydonga
+            tushiradi. <b>Agent o‘zi yig‘sin</b> esa har birini o‘qib chiqadi va
+            faqat qoidaga to‘g‘ri kelganini — kosmetika, og‘irligi va narxi
+            chegarada — tasdiq navbatiga qo‘yadi.</p>
+          <input id="mk-katalog" placeholder="https://www.daiso.co.kr/category/..." spellcheck="false">
+          <div class="forma-tor" style="margin-top:8px">
+            <div><label>Nechta mahsulot</label>
+              <input id="mk-agent-soni" type="number" min="1" max="30" value="10"></div>
+          </div>
+          <button class="tug keng" id="mk-qidir" style="margin-top:8px">Havolalarni topish</button>
+          <button class="tug asos keng" id="mk-agent" style="margin-top:8px">🤖 Agent o‘zi yig‘sin</button>
+        </details>
+        <div id="mk-holat" style="margin-top:10px"></div>
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>💰 Narx qoidasi</h2></div>
+        <p class="mayda" style="margin:0 0 10px">
+          Narx = <b>tannarx</b> + <b>yetkazish</b> + <b>sof foyda</b>.
+          Yetkazish har boshlangan 100 g uchun. Foyda foizda hisoblanadi,
+          lekin eng kam va eng ko‘p chegarasidan chiqmaydi — arzon kichik
+          tovarda mehnat qoplanishi, qimmat kremda esa narx haddan oshmasligi uchun.</p>
+        <div class="forma-tor">
+          <div><label>1 KRW necha so‘m</label>
+            <input id="mk-kurs" type="number" step="0.1" value="${q.krw_kurs ?? 9.5}"></div>
+          <div><label>Har 100 g uchun (so‘m)</label>
+            <input id="mk-yetkazish" type="number" value="${q.yetkazish_100g ?? 15000}"></div>
+          <div><label>Foyda foizi (%)</label>
+            <input id="mk-foiz" type="number" value="${q.foyda_foiz ?? 35}"></div>
+          <div><label>Yaxlitlash (so‘m)</label>
+            <input id="mk-yaxlit" type="number" value="${q.yaxlitlash ?? 1000}"></div>
+          <div><label>Eng kam sof foyda</label>
+            <input id="mk-foyda-min" type="number" value="${q.foyda_min ?? 30000}"></div>
+          <div><label>Eng ko‘p sof foyda</label>
+            <input id="mk-foyda-max" type="number" value="${q.foyda_max ?? 50000}"></div>
+          <div><label>Eng og‘ir mahsulot (g)</label>
+            <input id="mk-maks-ogirlik" type="number" value="${s.maksOgirlik ?? 600}"></div>
+          <div><label>Narx oralig‘i — dan <span class="yordam">0 = cheklovsiz</span></label>
+            <input id="mk-narx-dan" type="number" value="${s.narxDan ?? 0}"></div>
+          <div><label>Narx oralig‘i — gacha</label>
+            <input id="mk-narx-gacha" type="number" value="${s.narxGacha ?? 0}"></div>
+        </div>
+        <div id="mk-namuna" class="ozgina" style="margin-top:10px"></div>
+        <button class="tug keng" id="mk-qoida-saqla" style="margin-top:8px">Qoidani saqlash</button>
+      </div>
+
+      <div class="segment-lenta">
+        ${['kutilmoqda', 'tasdiqlandi', 'rad_etildi', 'xato', ''].map((k) => `
+          <button class="tug kichik ${marketFiltr === k ? 'asos' : ''}" data-mkf="${k}">
+            ${k ? MARKET_HOLAT[k][0] : 'Hammasi'}${h[k] ? ` · ${h[k]}` : ''}</button>`).join('')}
+      </div>
+
+      ${j.royxat.length ? j.royxat.map(marketKarta).join('')
+        : boshHolat('🔗', 'Bu ro‘yxat bo‘sh',
+            '<p class="mayda">Yuqoriga havola qo‘yib «Olib kelish» ni bosing</p>')}`;
+
+    $('#mk-ol').onclick = marketOl;
+    $('#mk-qidir').onclick = marketQidir;
+    $('#mk-agent').onclick = marketAgent;
+    $('#mk-qoida-saqla').onclick = marketQoidaSaqla;
+    ['mk-kurs','mk-yetkazish','mk-foiz','mk-yaxlit','mk-foyda-min','mk-foyda-max']
+      .forEach((id) => { const el = $('#' + id); if (el) el.oninput = marketNamuna; });
+    marketNamuna();
+
+    $$('[data-mkf]').forEach((b) => b.onclick = () => { marketFiltr = b.dataset.mkf; marketplace(); });
+    $$('[data-mk-tasdiq]').forEach((b) => b.onclick = () => marketTasdiq(Number(b.dataset.mkTasdiq)));
+    $$('[data-mk-rad]').forEach((b) => b.onclick = () => marketRad(Number(b.dataset.mkRad)));
+    $$('[data-mk-qayta]').forEach((b) => b.onclick = () => {
+      $('#mk-havolalar').value = b.dataset.mkQayta;
+      $('#mk-havolalar').scrollIntoView({ block: 'center' });
+    });
+  } catch (e) { xatoChiz(e); }
+}
+
+function marketKarta(t) {
+  const m = t.malumot || {};
+  const n = t.narx_izoh || {};
+  const [nom, sinf] = MARKET_HOLAT[t.holat] || [t.holat, 'kul'];
+  return `
+  <div class="qator-karta">
+    <div class="qator-bosh">
+      <div style="display:flex;gap:10px;align-items:flex-start;min-width:0">
+        ${t.rasm_id ? `<img src="/media/${esc(t.rasm_id)}" alt=""
+          style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex:0 0 auto">` : ''}
+        <div style="min-width:0">
+          <div class="nom">${esc(m.name || '(nomsiz)')}</div>
+          <div class="ozgina">${esc(m.brand || '')} · ${esc(t.manba)}</div>
+        </div>
+      </div>
+      <span class="yor ${sinf}">${nom}</span>
+    </div>
+
+    ${t.sabab ? `<div class="ozgina" style="margin-top:8px">⚠️ ${esc(t.sabab)}</div>` : ''}
+
+    ${m.name ? `<div style="margin-top:8px">
+      <div class="qator-satr"><span class="k">Koreyadagi narx</span>
+        <span class="v">${m.narx_qiymat ? `${som(m.narx_qiymat)} ${esc(m.narx_valyuta)}` : '—'}</span></div>
+      <div class="qator-satr"><span class="k">Og‘irligi</span>
+        <span class="v">${m.ogirlik_g || '—'} g${m.volume ? ` · ${esc(m.volume)}` : ''}</span></div>
+      <div class="qator-satr"><span class="k">Tannarx</span><span class="v">${som(n.tannarx || 0)}</span></div>
+      <div class="qator-satr"><span class="k">Yetkazish</span><span class="v">${som(n.yetkazish || 0)}</span></div>
+      <div class="qator-satr"><span class="k">Sof foyda</span><span class="v">${som(n.foyda || 0)}</span></div>
+      <div class="qator-satr"><span class="k"><b>Sotuv narxi</b></span>
+        <span class="v"><b>${som(n.narx || 0)}</b>${n.marja ? ` · marja ${n.marja}%` : ''}</span></div>
+    </div>` : ''}
+
+    <div class="amallar">
+      <a class="tug kichik" href="${esc(t.manba_url)}" target="_blank" rel="noopener">🔗 Sahifa</a>
+      ${t.holat === 'kutilmoqda'
+        ? `<button class="tug kichik asos" data-mk-tasdiq="${t.id}">✅ Katalogga qo‘shish</button>
+           <button class="tug kichik xavf" data-mk-rad="${t.id}">✕ Rad etish</button>`
+        : ''}
+      ${t.holat === 'xato' ? `<button class="tug kichik" data-mk-qayta="${esc(t.manba_url)}">🔄 Qayta urinish</button>` : ''}
+      ${t.product_id ? `<span class="ozgina">Katalogda: ${esc(t.mahsulot_nomi || '')}</span>` : ''}
+    </div>
+  </div>`;
+}
+
+/** Qoida o'zgarganda misol darhol ko'rinsin — raqamlar mavhum qolmasin. */
+async function marketNamuna() {
+  const el = $('#mk-namuna'); if (!el) return;
+  const qoida = marketQoida();
+  const misollar = [
+    ['Kichik tovar · 3 000 KRW · 50 g', 3000, 50],
+    ['Krem · 12 000 KRW · 100 g',       12000, 100],
+    ['Katta · 25 000 KRW · 250 g',      25000, 250],
+  ];
+  try {
+    const natijalar = [];
+    for (const [nom, krw, gramm] of misollar) {
+      const j = await api('/api/admin/marketplace/narx',
+        { method: 'POST', body: JSON.stringify({ krw, gramm, ...qoida }) });
+      natijalar.push(`${nom} → <b>${som(j.narx.narx)}</b> (foyda ${som(j.narx.foyda)})`);
+    }
+    el.innerHTML = natijalar.join('<br>');
+  } catch { el.innerHTML = ''; }
+}
+
+const marketQoida = () => ({
+  krw_kurs:       Number($('#mk-kurs')?.value) || 9.5,
+  yetkazish_100g: Number($('#mk-yetkazish')?.value) || 0,
+  foyda_foiz:     Number($('#mk-foiz')?.value) || 0,
+  foyda_min:      Number($('#mk-foyda-min')?.value) || 0,
+  foyda_max:      Number($('#mk-foyda-max')?.value) || 0,
+  yaxlitlash:     Number($('#mk-yaxlit')?.value) || 1000,
+});
+
+async function marketQoidaSaqla(ev) {
+  const t = ev.currentTarget;
+  t.disabled = true; t.textContent = 'Saqlanmoqda…';
+  try {
+    await api('/api/admin/settings', { method: 'POST', body: JSON.stringify({ settings: {
+      narx_qoidasi: marketQoida(),
+      marketplace_maks_ogirlik: Math.max(0, Number($('#mk-maks-ogirlik').value) || 0),
+      marketplace_narx_dan:     Math.max(0, Number($('#mk-narx-dan').value) || 0),
+      marketplace_narx_gacha:   Math.max(0, Number($('#mk-narx-gacha').value) || 0),
+    }})});
+    tost('Qoida saqlandi');
+  } catch (e) { tost(e.message); }
+  finally { t.disabled = false; t.textContent = 'Qoidani saqlash'; }
+}
+
+async function marketOl() {
+  const havolalar = $('#mk-havolalar').value.trim();
+  if (!havolalar) return tost('Havola qo‘ying');
+  const h = $('#mk-holat');
+  const t = $('#mk-ol');
+  t.disabled = true;
+  h.innerHTML = `<div class="mayda"><span class="aylana"></span>
+    Sahifalar o‘qilmoqda… <b>har biri 10–20 soniya</b></div>`;
+  try {
+    const j = await api('/api/admin/marketplace/olish',
+      { method: 'POST', body: JSON.stringify({ havolalar }) });
+    const yaxshi = j.natijalar.filter((x) => x.holat === 'kutilmoqda').length;
+    const xatolar = j.natijalar.filter((x) => x.holat === 'xato');
+    $('#mk-havolalar').value = '';
+    marketFiltr = yaxshi ? 'kutilmoqda' : 'xato';
+    await marketplace();
+    tost(`${yaxshi} ta tayyor${xatolar.length ? ` · ${xatolar.length} ta olinmadi` : ''}`);
+  } catch (e) {
+    h.innerHTML = `<div class="xato">${esc(e.message)}</div>`;
+  } finally { t.disabled = false; }
+}
+
+async function marketQidir() {
+  const url = $('#mk-katalog').value.trim();
+  if (!url) return tost('Havola qo‘ying');
+  const h = $('#mk-holat');
+  h.innerHTML = `<div class="mayda"><span class="aylana"></span> Sahifa o‘qilmoqda…</div>`;
+  try {
+    const j = await api('/api/admin/marketplace/qidir',
+      { method: 'POST', body: JSON.stringify({ url, limit: 20 }) });
+    if (!j.havolalar.length) {
+      h.innerHTML = `<div class="mayda">Mahsulot havolasi topilmadi.
+        Bu sahifa JavaScript bilan yuklanadigan bo‘lishi mumkin — mahsulot
+        havolalarini qo‘lda nusxa qiling.</div>`;
+      return;
+    }
+    $('#mk-havolalar').value = j.havolalar.join('\n');
+    h.innerHTML = `<div class="xabar-quti ok">${j.havolalar.length} ta havola topildi —
+      tekshirib «Olib kelish» ni bosing</div>`;
+  } catch (e) {
+    h.innerHTML = `<div class="xato">${esc(e.message)}</div>`;
+  }
+}
+
+/**
+ * Agent topshirig'i: bo'limni o'zi aylanib chiqadi.
+ *
+ * Katalogga baribir ADMIN tasdiqlagandan keyin tushadi — agent faqat
+ * navbat to'ldiradi. Rad etilganlari ham ro'yxatda qoladi: sababi
+ * ko'rinib tursin, chunki ko'pincha muammo qoidada bo'ladi (masalan
+ * og'irlik chegarasi past qo'yilgan).
+ */
+async function marketAgent() {
+  const url = $('#mk-katalog').value.trim();
+  if (!url) return tost('Bo‘lim havolasini qo‘ying');
+  const soni = Math.max(1, Math.min(30, Number($('#mk-agent-soni').value) || 10));
+  const h = $('#mk-holat');
+  const t = $('#mk-agent');
+  t.disabled = true;
+  h.innerHTML = `<div class="mayda"><span class="aylana"></span>
+    Agent ishlamoqda… <b>${soni} ta sahifa</b>, har biri 10–20 soniya.
+    Sahifani yopmang.</div>`;
+  try {
+    const j = await api('/api/admin/marketplace/agent',
+      { method: 'POST', body: JSON.stringify({ url, limit: soni }) });
+    const c = j.hisob || {};
+    if (!j.havolalar.length) {
+      h.innerHTML = `<div class="mayda">${esc(j.sabab || 'Mahsulot havolasi topilmadi.')}</div>`;
+      return;
+    }
+    marketFiltr = c.kutilmoqda ? 'kutilmoqda' : '';
+    await marketplace();
+    $('#mk-holat').innerHTML = `<div class="xabar-quti ok">
+      Agent ${j.havolalar.length} ta havolani ko‘rdi:
+      <b>${c.kutilmoqda || 0}</b> ta tasdiq kutmoqda,
+      ${c.rad_etildi || 0} ta qoidaga to‘g‘ri kelmadi,
+      ${c.takror || 0} ta avval olingan${c.xato ? `, ${c.xato} ta o‘qilmadi` : ''}.</div>`;
+    tost(`${c.kutilmoqda || 0} ta mahsulot tasdiq kutmoqda`);
+  } catch (e) {
+    h.innerHTML = `<div class="xato">${esc(e.message)}</div>`;
+  } finally { t.disabled = false; }
+}
+
+async function marketTasdiq(id) {
+  try {
+    const j = await api('/api/admin/marketplace/tasdiq',
+      { method: 'POST', body: JSON.stringify({ id, ozgarish: {} }) });
+    tost(`«${j.mahsulot.name}» katalogga qo‘shildi`);
+    holat.kesh.mahsulotlar = null;
+    marketplace();
+  } catch (e) { tost(e.message); }
+}
+
+async function marketRad(id) {
+  if (!confirm('Rad etilsinmi?')) return;
+  await api('/api/admin/marketplace/rad', { method: 'POST', body: JSON.stringify({ id }) });
+  marketplace();
 }
 
 // ═══════════ 6. SOTUVLAR ═══════════

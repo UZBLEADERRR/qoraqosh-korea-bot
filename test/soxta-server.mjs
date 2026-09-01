@@ -3,6 +3,11 @@ import http from 'node:http';
 import zlib from 'node:zlib';
 
 export const yuborilgan = [];   // botdan chiqqan xabarlar
+// Telegramdagi kabi haqiqiy message_id: ro'yxat tozalansa ham takrorlanmaydi,
+// shunda deleteMessage aynan o'sha xabarni topadi.
+let xabarId = 0;
+/** Foydalanuvchi CHATIDA qolgan xabarlar — o'chirilganlari hisobga olinmaydi. */
+export const korinadigan = () => yuborilgan.filter((x) => !x.ochirilgan);
 
 function png(w = 400, h = 400) {
   const chunk = (t, d) => {
@@ -42,6 +47,18 @@ const TAHLIL = {
 function javobMatni(sxemaMatni) {
   if (sxemaMatni.includes('muammolar')) return JSON.stringify(TAHLIL);
   if (sxemaMatni.includes('goyalar'))   return JSON.stringify({ goyalar: [] });
+  // Marketplace: do'kon sahifasidan mahsulot o'qish
+  if (sxemaMatni.includes('kosmetikami')) return JSON.stringify({
+    kosmetikami: true, ishonch: 90, izoh: '',
+    name: 'Soothing Aloe Gel Cream', brand: 'Daiso',
+    narx_qiymat: 5000, narx_valyuta: 'KRW',
+    ogirlik_g: 120, volume: '100 ml',
+    category: 'krem', step: 'namlash',
+    description: 'Yengil gel-krem, terini tinchlantiradi.',
+    usage_text: 'Toza teriga ertalab va kechqurun surting.',
+    ingredients: 'Aloe Barbadensis Leaf Extract, Glycerin',
+    actives: ['aloe'], concerns: ['quruqlik'], skin_types: ['barcha'],
+    warnings: '', emoji: '🧴' });
   if (sxemaMatni.includes('topildi'))   return JSON.stringify({
     topildi: true, ishonch: 88, izoh: '', name: 'Sinov krem', brand: 'TestBrand',
     category: 'krem', step: 'namlash', volume: '50 ml', country: 'KR',
@@ -75,8 +92,9 @@ export function soxtaServer(port = 4444) {
       if (yol.includes('/file/bot')) { res.writeHead(200, { 'Content-Type': 'image/jpeg' }); return res.end(png()); }
       if (yol.endsWith('/sendMessage')) {
         const b = JSON.parse(await tana(req) || '{}');
+        b.id = ++xabarId;
         yuborilgan.push(b);
-        return j({ ok: true, result: { message_id: yuborilgan.length, chat: { id: b.chat_id } } });
+        return j({ ok: true, result: { message_id: b.id, chat: { id: b.chat_id } } });
       }
       // sendPhoto multipart bilan keladi — izohni ajratib olamiz, baytni tashlaymiz
       if (yol.endsWith('/sendPhoto')) {
@@ -84,18 +102,27 @@ export function soxtaServer(port = 4444) {
         const izoh = /name="caption"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
         const chat = /name="chat_id"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
         const kb   = /name="reply_markup"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
-        yuborilgan.push({ rasm: true, chat_id: chat?.[1], text: izoh?.[1] || '', hajm: xom.length,
-          reply_markup: kb ? JSON.parse(kb[1]) : undefined });
-        return j({ ok: true, result: { message_id: yuborilgan.length, photo: [{ file_id: 'f1' }] } });
+        yuborilgan.push({ id: ++xabarId, rasm: true, chat_id: chat?.[1], text: izoh?.[1] || '',
+          hajm: xom.length, reply_markup: kb ? JSON.parse(kb[1]) : undefined });
+        return j({ ok: true, result: { message_id: xabarId, photo: [{ file_id: 'f1' }] } });
       }
       if (yol.endsWith('/sendDocument')) {
         const xom = await tana(req);
         const izoh = /name="caption"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
         const chat = /name="chat_id"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
-        yuborilgan.push({ hujjat: true, chat_id: chat?.[1], text: izoh?.[1] || '', hajm: xom.length });
-        return j({ ok: true, result: { message_id: yuborilgan.length } });
+        yuborilgan.push({ id: ++xabarId, hujjat: true, chat_id: chat?.[1],
+          text: izoh?.[1] || '', hajm: xom.length });
+        return j({ ok: true, result: { message_id: xabarId } });
       }
-      if (yol.endsWith('/sendChatAction') || yol.endsWith('/deleteMessage') ||
+      // O'chirilgan xabar chatda qolmaydi — sinov aynan foydalanuvchi
+      // ko'radigan holatni tekshirishi uchun belgilab qo'yamiz.
+      if (yol.endsWith('/deleteMessage')) {
+        const b = JSON.parse(await tana(req) || '{}');
+        const x = yuborilgan.find((y) => y.id === Number(b.message_id));
+        if (x) x.ochirilgan = true;
+        return j({ ok: true, result: true });
+      }
+      if (yol.endsWith('/sendChatAction') ||
           yol.endsWith('/editMessageReplyMarkup') || yol.endsWith('/answerCallbackQuery') ||
           yol.endsWith('/setWebhook') || yol.endsWith('/deleteWebhook')) return j({ ok: true, result: true });
       if (yol.endsWith('/getUpdates')) return j({ ok: true, result: [] });
@@ -119,6 +146,43 @@ export function soxtaServer(port = 4444) {
       }
 
       // ---- Google Gemini ----
+      // ── Soxta do'kon sahifasi (marketplace sinovi uchun) ──
+      if (yol.startsWith('/dokon/')) {
+        const yoq = yol.includes('yoq');
+        if (yoq) { res.writeHead(403); return res.end('Forbidden'); }
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        return res.end(`<!doctype html><html><head>
+<title>Soothing Aloe Gel Cream 100ml | Daiso</title>
+<meta property="og:title" content="Soothing Aloe Gel Cream 100ml">
+<meta property="og:image" content="http://127.0.0.1:${port}/rasm/mahsulot.png">
+<meta property="product:price:amount" content="5000">
+<meta property="product:price:currency" content="KRW">
+<script type="application/ld+json">
+{"@type":"Product","name":"Soothing Aloe Gel Cream","brand":{"name":"Daiso"},
+ "offers":{"@type":"Offer","price":"5000","priceCurrency":"KRW"},
+ "weight":"120g"}
+</script>
+</head><body>
+<h1>Soothing Aloe Gel Cream 100ml</h1>
+<div class="price">5,000원</div>
+<p>알로에 성분이 피부를 진정시켜 줍니다. 100ml</p>
+<a href="/dokon/product/boshqa-1">Boshqa mahsulot</a>
+<a href="/dokon/product/boshqa-2">Yana bitta</a>
+<a href="/dokon/category/kremlar">Kremlar</a>
+<a href="https://tashqi.example/reklama">Reklama</a>
+</body></html>`);
+      }
+
+      // Soxta mahsulot rasmi
+      if (yol.startsWith('/rasm/')) {
+        // 1x1 shaffof PNG
+        const png = Buffer.from(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+          'base64');
+        res.writeHead(200, { 'Content-Type': 'image/png', 'Content-Length': png.length });
+        return res.end(png);
+      }
+
       if (yol.includes(':generateContent')) {
         const b = JSON.parse(await tana(req) || '{}');
         // Rasm chizish so'rovi — JSON sxema bo'lmaydi, rasm qaytariladi

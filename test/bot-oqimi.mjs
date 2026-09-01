@@ -5,7 +5,7 @@
 //
 // Botda "Xatolik yuz berdi" chiqsa, avval shuni ishga tushiring: agar bu yerda
 // hammasi o'tsa, muammo kodda emas — kalitlarda yoki tarmoqda.
-import { soxtaServer, yuborilgan } from './soxta-server.mjs';
+import { soxtaServer, yuborilgan, korinadigan } from './soxta-server.mjs';
 
 const PORT = 4477;
 const srv = await soxtaServer(PORT);
@@ -55,18 +55,22 @@ console.log('\n── BOT OQIMI ──');
 
 yuborilgan.length = 0;
 await rasmYubor();
-const t = oxirgi().text || '';
-// Botdagi tahlil QISQA bo'lishi kerak: muammolar ro'yxati, bitta FOMO va
-// tugma. Sabab, yechim va zona ILOVADA — «Tavsiyani ochish» ostida.
-test('rasmga tahlil qaytaradi', /Tahlil natijasi/.test(t), `${yuborilgan.length} ta xabar`);
-const botMatni = yuborilgan.filter((x) => !x.rasm).map((x) => x.text || '').join('\n');
-test('muammolar foizi bilan ko‘rsatilgan', /\d+%/.test(botMatni));
-// Prognoz ATAYLAB botda yo'q: xabar qisqa bo'lishi kerak, batafsili ilovada
+// Tahlil BITTA xabar bo'lib keladi: rasm + qisqa izoh. Tafsilot (muammo
+// nomi, zonasi, sababi, yechimi) RASMDA va ILOVADA — botda takrorlanmaydi.
+// «Tahlil qilinmoqda…» xabari o'chiriladi — chatda faqat natija qoladi
+test('tahlil bitta xabar bo‘lib keladi', korinadigan().length === 1,
+  `${korinadigan().length} ta xabar: ${korinadigan().map((x) => (x.text || '').slice(0, 24)).join(' | ')}`);
+const botMatni = korinadigan().map((x) => x.text || '').join('\n');
+test('rasmga tahlil qaytaradi', /Tahlil tayyor/.test(botMatni));
+test('izohda teri holati bali bor', /\d+\/100/.test(botMatni));
+test('izohda topilgan belgilar soni bor', /\d+ ta belgi topildi/.test(botMatni));
+// Prognoz, sabab, yechim va muammolar ro'yxati ATAYLAB botda yo'q
 test('prognoz botda YO‘Q — ilovada', !/e’tibor bermasangiz/i.test(botMatni));
-test('muammo zonasi ko‘rsatilgan', /📍/.test(botMatni));
 test('sabab va yechim botda YO‘Q — ular ilovada',
   !/Sababi|Yechimi/.test(botMatni));
-test('bot xabari qisqa', botMatni.length < 1200, `${botMatni.length} belgi`);
+test('muammolar ro‘yxati botda YO‘Q — rasmda va ilovada',
+  !/📍/.test(botMatni));
+test('bot xabari juda qisqa', botMatni.length < 320, `${botMatni.length} belgi`);
 test('tibbiy ogohlantirish bor', /tashxis emas/.test(botMatni));
 test('«Tavsiyani ochish» tugmasi bor',
   (oxirgi().reply_markup?.inline_keyboard || []).flat()
@@ -111,8 +115,9 @@ test('tahlil RASM bilan yuboriladi', rasmlar.length === 1,
   `${rasmlar.length} ta rasm, ${(rasmlar[0]?.hajm / 1024 || 0).toFixed(0)} KB`);
 test('rasm bo‘sh emas', (rasmlar[0]?.hajm || 0) > 20000);
 test('rasm izohida ball bor', /\d+\/100/.test(rasmlar[0]?.text || ''));
-test('rasmdan keyin qisqa tahlil matni ham keladi',
-  yuborilgan.some((x) => !x.rasm && /Aniqlangan muammolar/.test(x.text || '')));
+test('rasmdan keyin qo‘shimcha matn YUBORILMAYDI',
+  korinadigan().filter((x) => !x.rasm).length === 0,
+  `${korinadigan().filter((x) => !x.rasm).length} ta ortiqcha xabar`);
 
 const { qator } = await import('../src/db.js');
 const saqlangan = await qator(
