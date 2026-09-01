@@ -56,16 +56,31 @@ console.log('\n── BOT OQIMI ──');
 yuborilgan.length = 0;
 await rasmYubor();
 const t = oxirgi().text || '';
+// Botdagi tahlil QISQA bo'lishi kerak: muammolar ro'yxati, bitta FOMO va
+// tugma. Sabab, yechim va zona ILOVADA — «Tavsiyani ochish» ostida.
 test('rasmga tahlil qaytaradi', /Tahlil tayyor/.test(t), `${yuborilgan.length} ta xabar`);
-test('foiz shkalasi bor', /■+□*\s*\d+%/.test(t));
-test('muammo joyi ko‘rsatilgan', /📍/.test(t));
-test('sabab va yechim bor', /Sababi/.test(t) && /Yechimi/.test(t));
-test('tibbiy ogohlantirish bor', /tashxis emas/.test(t));
-test('Mini App tugmasi bor',
-  (oxirgi().reply_markup?.inline_keyboard || []).flat().some((b) => b.web_app));
+const botMatni = yuborilgan.filter((x) => !x.rasm).map((x) => x.text || '').join('\n');
+test('muammolar foizi bilan ko‘rsatilgan', /\d+%/.test(botMatni));
+test('FOMO (prognoz) bor', /e’tibor bermasangiz|ehtimol/i.test(botMatni));
+test('sabab va yechim botda YO‘Q — ular ilovada',
+  !/Sababi|Yechimi/.test(botMatni));
+test('bot xabari qisqa', botMatni.length < 1200, `${botMatni.length} belgi`);
+test('tibbiy ogohlantirish bor', /tashxis emas/.test(botMatni));
+test('«Tavsiyani ochish» tugmasi bor',
+  (oxirgi().reply_markup?.inline_keyboard || []).flat()
+    .some((b) => b.web_app && /Tavsiya/i.test(b.text)));
+
+// Asosiy menyu ikkita tugmadan iborat: skaner va do'kon
+await bosish('menyu');
+const menyuTugmalari = (oxirgi().reply_markup?.inline_keyboard || []).flat();
+test('asosiy menyuda 2 ta tugma', menyuTugmalari.length === 2,
+  menyuTugmalari.map((b) => b.text).join(' | '));
+test('menyuda skaner va do‘kon bor',
+  menyuTugmalari.some((b) => /skaner/i.test(b.text)) &&
+  menyuTugmalari.some((b) => /Do‘kon|Dokon/i.test(b.text)));
 
 for (const [data, kutilgan] of [
-  ['menyu', /Meduza Cosmetics/], ['skaner', /Yuz skaneri/], ['konsultatsiya', /Konsultatsiya/],
+  ['menyu', /KiOVO/], ['skaner', /Yuz skaneri/], ['konsultatsiya', /Konsultatsiya/],
   ['profil', /Profilingiz/], ['yordam', /Yordam/], ['buyurtmalar', /buyurtma/i],
 ]) {
   yuborilgan.length = 0;
@@ -94,8 +109,8 @@ test('tahlil RASM bilan yuboriladi', rasmlar.length === 1,
   `${rasmlar.length} ta rasm, ${(rasmlar[0]?.hajm / 1024 || 0).toFixed(0)} KB`);
 test('rasm bo‘sh emas', (rasmlar[0]?.hajm || 0) > 20000);
 test('rasm izohida ball bor', /\d+\/100/.test(rasmlar[0]?.text || ''));
-test('rasmdan keyin batafsil matn ham keladi',
-  yuborilgan.some((x) => !x.rasm && /Sababi/.test(x.text || '')));
+test('rasmdan keyin qisqa tahlil matni ham keladi',
+  yuborilgan.some((x) => !x.rasm && /Nima topdim/.test(x.text || '')));
 
 const { qator } = await import('../src/db.js');
 const saqlangan = await qator(

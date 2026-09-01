@@ -24,7 +24,7 @@ const holat = (userId, state) => sorov('update users set state = $1 where id = $
 export async function boshla(chatId, user) {
   const dokon = await brendNomi();
   await yubor(chatId, await xabar('xabar_start', { dokon: esc(dokon) },
-    '👋 <b>{dokon}</b>\n\n<b>1/3</b> · Telefon raqamingizni ulashing 👇'),
+    '✨ <b>{dokon}</b>\n\n<b>1/3</b> · Telefon raqamingiz 👇'),
     { reply_markup: telefonSora() });
   await holat(user.id, HOLAT.TELEFON);
   await hodisa(user.id, 'start');
@@ -51,7 +51,7 @@ export async function qadam(msg, user) {
       }
       if (!tel.startsWith('+')) tel = '+' + tel;
       await sorov('update users set phone=$1, state=$2 where id=$3', [tel, HOLAT.ISM, user.id]);
-      await yubor(chatId, `✅ <code>${esc(tel)}</code>\n\n<b>2/3</b> · Ismingizni yozing.`,
+      await yubor(chatId, `✅ <b>2/3</b> · Ismingizni yozing.`,
         { reply_markup: { remove_keyboard: true } });
       return true;
     }
@@ -63,7 +63,7 @@ export async function qadam(msg, user) {
       }
       await sorov('update users set full_name=$1, state=$2 where id=$3', [matn, HOLAT.YOSH, user.id]);
       await yubor(chatId,
-        `✅ Xush kelibsiz, <b>${esc(matn.split(' ')[0])}</b>!\n\n<b>3/3</b> · Yoshingiz nechida? (masalan <code>24</code>)`);
+        `✅ <b>3/3</b> · Yoshingiz nechida? (masalan <code>24</code>)`);
       return true;
     }
 
@@ -74,14 +74,11 @@ export async function qadam(msg, user) {
         return true;
       }
       await sorov('update users set age=$1, state=$2 where id=$3', [yosh, HOLAT.SHARTNOMA, user.id]);
-      await yubor(chatId, [
-        `📄 <b>Oxirgi qadam</b>`,
-        ``,
-        `Foydalanish shartlari bilan tanishing.`,
-        ``,
-        `🔒 Yuz suratingiz <b>saqlanmaydi</b> — faqat tahlil paytida ishlatiladi.`,
-        `🗑 Ma’lumotlaringizni istagan vaqtda /ochir bilan o‘chirasiz.`,
-      ].join('\n'), { reply_markup: shartnomaTugmalari() });
+      // Qisqa: uzun huquqiy matn tugmagacha yetib borishga xalaqit beradi.
+      // To'liq shartlar «Shartnomani o'qish» tugmasi ostida.
+      await yubor(chatId,
+        '🔒 Suratingiz <b>saqlanmaydi</b> — faqat tahlil paytida ishlatiladi.',
+        { reply_markup: shartnomaTugmalari() });
       return true;
     }
 
@@ -98,6 +95,6 @@ export async function roziBol(chatId, user) {
 
   await yubor(chatId, await xabar('xabar_royxat_tugadi',
     { ism: esc((user.full_name || '').split(' ')[0] || '') },
-    '🎉 <b>Tayyor!</b>\n\nEndi <b>🔬 Yuz skaneri</b> ni bosing.'),
+    '🎉 <b>Tayyor!</b>\n\n<b>🔬 Yuz skaneri</b> ni bosing.'),
     { reply_markup: asosiyMenyu(adminmi(user)) });
 }

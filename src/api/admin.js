@@ -292,10 +292,28 @@ export async function adminRoutes(req, res, yol) {
 
   if (yol === '/api/admin/product' && req.method === 'DELETE') {
     const b = await tana(req);
-    // O'chirmaymiz — buyurtmalar tarixi buziladi. Arxivga olamiz.
-    await sorov('update products set is_active=false where id=$1', [b.id]);
+    const id = Number(b.id);
+    if (!id) return xato(res, 400, 'id kerak.');
+
+    // Ikki xil o'chirish:
+    //   arxiv  — katalogdan yashiriladi, qaytarish mumkin (standart)
+    //   to'liq — bazadan butunlay o'chadi, qaytarib bo'lmaydi
+    // Buyurtma tarixi ikkalasida ham butun qoladi: mahsulot nomi va narxi
+    // orders.items ichida nusxa bo'lib yotadi, products ga havola emas.
+    if (b.toliq) {
+      try {
+        const r = await qiymat('select mahsulotni_ochir($1)', [id]);
+        katalogYangilandi();
+        return ok(res, { ok: true, toliq: true, natija: r });
+      } catch (e) {
+        if (/MAHSULOT_TOPILMADI/.test(e.message)) return xato(res, 404, 'Mahsulot topilmadi.');
+        throw e;
+      }
+    }
+
+    await sorov('update products set is_active=false where id=$1', [id]);
     katalogYangilandi();
-    return ok(res, { ok: true });
+    return ok(res, { ok: true, toliq: false });
   }
 
   // ================= POSTER =================
@@ -373,20 +391,98 @@ export async function adminRoutes(req, res, yol) {
   }
 
   // ================= FOYDALANUVCHILAR =================
+  // Mijozlarni filtrlash — marketing uchun.
+  // «Kim qancha savdo qildi va qachon» — cold call ro'yxatini shu yerdan
+  // olamiz: summa oralig'i, oxirgi xarid sanasi, buyurtmalar soni.
   if (yol === '/api/admin/users' && req.method === 'GET') {
     const url = new URL(req.url, 'http://x');
-    const qidiruv = (url.searchParams.get('q') || '').trim();
-    const limit = Math.min(1000, Number(url.searchParams.get('limit')) || 200);
+    const p = url.searchParams;
+    const qidiruv = (p.get('q') || '').trim();
+    const limit = Math.min(2000, Number(p.get('limit')) || 200);
+
+    // DIQQAT: Number(null) === 0. Bo'sh parametrni 0 deb qabul qilsak,
+    // filtr qo'yilmaganda ham «jami <= 0» shartiga tushib, ro'yxat bo'sh
+    // qolardi. Shuning uchun avval "berilganmi?" deb tekshiramiz.
+    const son = (nom) => {
+      const xom = p.get(nom);
+      if (xom === null || String(xom).trim() === '') return null;
+      const v = Number(xom);
+      return Number.isFinite(v) && v >= 0 ? Math.round(v) : null;
+    };
+    const sana = (nom) => (/^\d{4}-\d{2}-\d{2}$/.test(p.get(nom) || '') ? p.get(nom) : null);
+
+    const xaridDan = son('xarid_dan');       // shundan ko'p xarid qilganlar
+    const xaridGacha = son('xarid_gacha');
+    const buyurtmaDan = son('buyurtma_dan'); // shundan ko'p buyurtma bergani
+    const oxirgiDan = sana('oxirgi_dan');    // oxirgi xaridi shu sanadan keyin
+    const oxirgiGacha = sana('oxirgi_gacha');// ...shu sanagacha (uxlab qolganlar)
+
+    // «Faqat xaridorlar» — hech narsa sotib olmaganlarni chiqarmaslik
+    const faqatXaridor = p.get('xaridor') === '1';
+
+    const TARTIB = {
+      yangi:      'u.created_at desc nulls last',
+      xarid:      'jami_xarid desc',
+      buyurtma:   'buyurtma_soni desc',
+      oxirgi:     'oxirgi_xarid desc nulls last',
+      faol:       'u.last_active desc nulls last',
+    };
+    const tartib = TARTIB[p.get('tartib')] || TARTIB.yangi;
+
+    // Shartlarni raqamlangan parametrlar bilan yig'amiz
+    const arg = [limit];
+    const shart = [];
+    const q = (v) => { arg.push(v); return '$' + arg.length; };
+
+    if (qidiruv) {
+      const t = q(`%${qidiruv}%`);
+      shart.push(`(u.full_name ilike ${t} or u.phone ilike ${t} or u.username ilike ${t})`);
+    }
+    // coalesce shart: left join tufayli xarid qilmaganda x.jami NULL bo'ladi,
+    // NULL esa hech qanday solishtiruvga tushmaydi — «0 dan 0 gacha», ya'ni
+    // «hali sotib olmaganlar» segmenti bo'sh chiqardi.
+    if (xaridDan    != null) shart.push(`coalesce(x.jami, 0) >= ${q(xaridDan)}`);
+    if (xaridGacha  != null) shart.push(`coalesce(x.jami, 0) <= ${q(xaridGacha)}`);
+    if (buyurtmaDan != null) shart.push(`coalesce(x.soni, 0) >= ${q(buyurtmaDan)}`);
+    // Sana chegaralari Toshkent vaqtida — admin ko'rgan sana bilan bir xil
+    if (oxirgiDan)   shart.push(`(x.oxirgi at time zone 'Asia/Tashkent')::date >= ${q(oxirgiDan)}::date`);
+    if (oxirgiGacha) shart.push(`(x.oxirgi at time zone 'Asia/Tashkent')::date <= ${q(oxirgiGacha)}::date`);
+    if (faqatXaridor) shart.push('coalesce(x.soni, 0) > 0');
+
+    const users = await qatorlar(
+      `with x as (
+         select o.user_id,
+                coalesce(sum(o.total), 0)::bigint as jami,
+                count(*)::int                     as soni,
+                max(o.created_at)                 as oxirgi,
+                min(o.created_at)                 as birinchi
+           from orders o where o.status <> 'bekor'
+          group by o.user_id)
+       select u.id, u.telegram_id, u.username, u.full_name, u.phone, u.age, u.address,
+              u.viloyat, u.tuman,
+              u.agreed_at, u.is_blocked, u.created_at, u.last_active,
+              coalesce(x.jami, 0)::bigint as jami_xarid,
+              coalesce(x.soni, 0)::int    as buyurtma_soni,
+              x.oxirgi                    as oxirgi_xarid,
+              x.birinchi                  as birinchi_xarid,
+              case when coalesce(x.soni, 0) > 0
+                   then (coalesce(x.jami, 0) / x.soni)::bigint end as ortacha_chek
+         from users u
+         left join x on x.user_id = u.id
+        ${shart.length ? 'where ' + shart.join(' and ') : ''}
+        order by ${tartib}
+        limit $1`, arg);
+
+    // Ro'yxatning umumiy ko'rsatkichi — «shu segment qancha pul olib keladi»
+    const jami = users.reduce((s, u) => s + Number(u.jami_xarid || 0), 0);
     return ok(res, {
-      users: await qatorlar(
-        `select u.id, u.telegram_id, u.username, u.full_name, u.phone, u.age, u.address,
-                u.agreed_at, u.is_blocked, u.created_at, u.last_active,
-                coalesce((select sum(o.total) from orders o
-                           where o.user_id = u.id and o.status <> 'bekor'), 0)::bigint as jami_xarid
-           from users u
-          ${qidiruv ? `where u.full_name ilike $2 or u.phone ilike $2 or u.username ilike $2` : ''}
-          order by u.created_at desc limit $1`,
-        qidiruv ? [limit, `%${qidiruv}%`] : [limit]),
+      users,
+      xulosa: {
+        soni: users.length,
+        jami_xarid: jami,
+        xaridorlar: users.filter((u) => u.buyurtma_soni > 0).length,
+        ortacha: users.length ? Math.round(jami / users.length) : 0,
+      },
     });
   }
 

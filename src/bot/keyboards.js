@@ -11,24 +11,21 @@ export function appTugma(matn, yol = '/app/') {
 }
 
 /**
- * Asosiy menyu — inline.
+ * Asosiy menyu — atigi IKKI tugma.
+ *
+ * Buyurtmalar, profil, konsultatsiya va yordam ILOVADAGI «Profil»
+ * bo'limiga ko'chirildi: botda oltita tugma ko'rinsa odam qayerga
+ * bosishni bilmay qoladi va asosiy amal — skaner va do'kon — ko'zdan
+ * yo'qoladi. Eski xabarlardagi tugmalar hali ham ishlaydi (callback
+ * ishlovchilari joyida turibdi).
+ *
  * @param {boolean} adminmi  admin bo'lsa panel tugmasi ham qo'shiladi
  */
 export function asosiyMenyu(adminmi = false) {
-  const qatorlar = [];
-  const katalog = appTugma('🛍 Do‘kon', '/app/');
-  const savat   = appTugma('🛒 Savatim', '/app/?tab=savat');
+  const qatorlar = [[{ text: '🔬 Yuz skaneri', callback_data: 'skaner' }]];
 
-  qatorlar.push([{ text: '🔬 Yuz skaneri', callback_data: 'skaner' }]);
-  if (katalog && savat) qatorlar.push([katalog, savat]);
-  qatorlar.push([
-    { text: '📋 Buyurtmalarim', callback_data: 'buyurtmalar' },
-    { text: '💬 Konsultatsiya', callback_data: 'konsultatsiya' },
-  ]);
-  qatorlar.push([
-    { text: '👤 Profilim', callback_data: 'profil' },
-    { text: 'ℹ️ Yordam', callback_data: 'yordam' },
-  ]);
+  const katalog = appTugma('🛍 Do‘kon', '/app/');
+  if (katalog) qatorlar.push([katalog]);
 
   // Admin panel — faqat adminlarga ko'rinadi. Panel Telegram ID orqali
   // o'zi ham qayta tekshiradi, bu tugma shunchaki qulaylik.
@@ -53,17 +50,19 @@ export function shartnomaTugmalari() {
   return { inline_keyboard: qatorlar };
 }
 
-/** Tahlil natijasi ostidagi tugmalar. */
+/**
+ * Tahlil natijasi ostidagi tugmalar.
+ *
+ * Botdagi xabar qisqa — muammo, sabab, yechim va mahsulotlarning to'liq
+ * tafsiloti shu birinchi tugma ostida, ilovada.
+ */
 export function natijaTugmalari() {
   const qatorlar = [];
-  const toliq = appTugma('💡 To‘liq natija va tavsiya', '/app/?tab=natija');
+  const toliq = appTugma('💡 Tavsiyani ochish', '/app/?tab=natija');
   const savatga = appTugma('🛒 Hammasini savatga', '/app/?tavsiya=1');
   if (toliq)   qatorlar.push([toliq]);
   if (savatga) qatorlar.push([savatga]);
-  qatorlar.push([
-    { text: '🔄 Qayta skanerlash', callback_data: 'skaner' },
-    { text: '💬 Konsultatsiya', callback_data: 'konsultatsiya' },
-  ]);
+  qatorlar.push([{ text: '🔄 Qayta skanerlash', callback_data: 'skaner' }]);
   return { inline_keyboard: qatorlar };
 }
 

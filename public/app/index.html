@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
-<title>Meduza Cosmetics — Koreya kosmetikasi</title>
+<title>KiOVO — Koreya kosmetikasi</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -13,20 +13,18 @@
 <!-- ============ RO'YXATDAN O'TISH ============ -->
 <section id="ekran-royxat" class="ekran yashirin">
   <div class="bosh">
-    <div class="brend">🌸 Meduza Cosmetics</div>
+    <div class="brend">🌸 KiOVO</div>
     <h1>Tanishib olamiz</h1>
-    <div class="izoh">Bor-yo‘g‘i 3 ta savol — yarim daqiqa</div>
+    <div class="izoh">3 ta savol — yarim daqiqa</div>
   </div>
   <div class="karta">
     <label for="f-ism">👤 Ismingiz</label>
     <input id="f-ism" type="text" placeholder="Aliyeva Malika" autocomplete="name">
 
-    <label for="f-tel">📱 Telefon raqamingiz
-      <span class="yordam">Kuryer shu raqamga qo‘ng‘iroq qiladi</span></label>
+    <label for="f-tel">📱 Telefon raqamingiz</label>
     <input id="f-tel" type="tel" placeholder="+998 90 123 45 67" inputmode="tel" autocomplete="tel">
 
-    <label for="f-yosh">🎂 Yoshingiz
-      <span class="yordam">Tavsiyalarni aniqroq qilish uchun</span></label>
+    <label for="f-yosh">🎂 Yoshingiz</label>
     <input id="f-yosh" type="number" placeholder="24" inputmode="numeric" min="12" max="90">
 
     <div id="royxat-xato" class="xato-matn"></div>
@@ -34,8 +32,7 @@
        style="margin-top:20px;text-decoration:none">📄 Shartnomani o‘qish</a>
     <button class="asosiy" id="t-roziman" style="margin-top:10px">✅ Roziman, boshladik</button>
     <div class="ogoh" style="margin-top:16px">
-      🔒 Yuz suratingiz saqlanmaydi — faqat tahlil paytida ishlatiladi.<br>
-      🗑 Ma’lumotlaringizni istagan vaqtda botdagi <b>/ochir</b> bilan o‘chirasiz.
+      🔒 Yuz suratingiz saqlanmaydi — faqat tahlil paytida ishlatiladi.
     </div>
   </div>
 </section>
@@ -46,9 +43,9 @@
   <!-- ---------- DO'KON ---------- -->
   <section id="tab-katalog" class="ekran">
     <div class="bosh">
-      <div class="brend">🌸 Meduza Cosmetics</div>
+      <div class="brend">🌸 KiOVO</div>
       <h1>Do‘kon</h1>
-      <div class="izoh">Koreyadan original kosmetika</div>
+      <div class="izoh">Koreyadan original</div>
     </div>
 
     <button class="chaqiriq" id="skaner-chaqiriq">
@@ -140,9 +137,14 @@
     <div id="savat-tan"></div>
   </section>
 
-  <!-- ---------- BUYURTMALAR ---------- -->
-  <section id="tab-buyurtma" class="ekran yashirin">
-    <div class="bosh"><div class="brend">📋 Tarix</div><h1>Buyurtmalarim</h1></div>
+  <!-- ---------- PROFIL ----------
+       Botdagi menyu ikki tugmagacha qisqardi: buyurtmalar, konsultatsiya,
+       yordam va shaxsiy ma'lumot shu bo'limga ko'chdi. -->
+  <section id="tab-profil" class="ekran yashirin">
+    <div class="bosh"><div class="brend">👤 Profil</div><h1 id="profil-ism">Profilim</h1>
+      <div class="izoh" id="profil-tel"></div></div>
+    <div id="profil-tan"></div>
+    <div class="satr-bosh"><h3>📋 Buyurtmalarim</h3></div>
     <div id="buyurtma-tan"></div>
   </section>
 
@@ -151,7 +153,7 @@
     <button data-tab="katalog" class="tanlangan"><span class="ikon">🛍</span>Do‘kon</button>
     <button data-tab="skaner"><span class="ikon">🔬</span>Skaner</button>
     <button data-tab="savat"><span class="ikon">🛒</span>Savat<i id="savat-nishon" class="nishon yashirin">0</i></button>
-    <button data-tab="buyurtma"><span class="ikon">📋</span>Buyurtma</button>
+    <button data-tab="profil"><span class="ikon">👤</span>Profil</button>
   </nav>
 </div>
 

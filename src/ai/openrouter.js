@@ -58,7 +58,7 @@ export async function openrouterJson(parts, schema, opts = {}) {
           Authorization: `Bearer ${config.openrouterKey}`,
           // OpenRouter statistikasi uchun (ixtiyoriy, lekin tavsiya etiladi)
           'HTTP-Referer': config.publicUrl || 'https://qoraqosh.uz',
-          'X-Title': 'Meduza Cosmetics',
+          'X-Title': 'KiOVO',
         },
         signal: ctrl.signal,
         body: JSON.stringify({

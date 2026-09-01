@@ -1,4 +1,4 @@
-# 🌸 Meduza Cosmetics — Koreya kosmetikasi
+# 🌸 KiOVO — Koreya kosmetikasi
 
 Telegram bot + Mini App + admin panel. AI yuz tahlili asosida mahsulot tavsiya
 qiladi va buyurtmani boshidan oxirigacha olib boradi.
@@ -14,20 +14,35 @@ Google Gemini · Railway.
 - **Ro'yxatdan o'tish** — telefon (Telegram kontakti orqali), ism, yosh,
   so'ng ommaviy oferta va «Barchasiga roziman». **Manzil bu yerda so'ralmaydi** —
   u buyurtma rasmiylashtirishda olinadi.
-- **Yuz skaneri** — botda ham, Mini App ichida ham ishlaydi. Natija qat'iy
-  tartibda beriladi:
-  1. **Umumiy ko'rsatkichlar** — taxminiy yosh, teri rangi, teri turi, 0–100 ball
-  2. **Aniqlangan muammolar** — jadval: muammo, darajasi, joyi
-  3. **Agar e'tibor berilmasa** — jadval: ehtimol (%) va muddat, izohlar bilan
-  4. **Bosqichma-bosqich parvarish** — tozalash → toner → davolash → namlash →
-     SPF, har biri uchun **nega aynan shu mahsulot** degan tushuntirish
+- **Botda faqat IKKI tugma** — «🔬 Yuz skaneri» va «🛍 Do'kon». Buyurtmalar,
+  profil, konsultatsiya va yordam Mini App'ning **👤 Profil** bo'limiga
+  ko'chirildi: oltita tugma orasida asosiy amal ko'zdan yo'qolardi.
+- **Yuz skaneri** — botda ham, Mini App ichida ham ishlaydi.
+  **Botdagi javob qisqa:** teri holati, topilgan muammolar ro'yxati (foizi
+  bilan), bitta prognoz («hozir e'tibor bermasangiz…») va
+  **«💡 Tavsiyani ochish»** tugmasi. To'liq tafsilot — muammoning sababi,
+  yechimi, joyi va bosqichma-bosqich parvarish — ILOVADA. Telegramda uzun
+  xabar oxirigacha o'qilmaydi va odam tugmagacha yetib bormaydi.
 - **Rasm sifati nazorati** — uzoq, xira, qorong'i, yuzi yopiq, bir nechta odam,
   qalin pardoz, ekrandan olingan yoki **AI/deepfake** rasm rad etiladi va nima
   qilish kerakligi aytiladi. Yaroqsiz rasm hech qachon tahlil qilinmaydi.
 - **Katalog, savat, buyurtma** — Mini App ichida; buyurtma raqami beriladi va
   holati o'zgarganda botga xabar keladi.
-- **Natija RASM bo'lib keladi** — tepada foydalanuvchining surati, pastida
-  rangli foiz shkalalari, muammolar, yechimlar va tavsiya etilgan parvarish.
+- **Savatda yetkazish narxi KO'RSATILMAYDI** — u manzilga (zona, masofa) va
+  og'irlikka bog'liq. Savatda taxminiy narxni ko'rsatib, to'lovda boshqasini
+  chiqarish mijozni aldashdek tuyuladi, shuning uchun aniq narx faqat
+  rasmiylashtirishda, manzil tanlangach chiqadi.
+- **Har bir dona uchun chegirma** — admin sozlaydi (masalan har mahsulotga
+  5 000 so'm). 6 ta mahsulot olgan mijoz 30 000 so'm chegirma oladi va pochta
+  haqi o'zini qoplaydi. Savatda «yana 1 ta olsangiz chegirma oshadi» deb
+  ko'rsatiladi. Summa pog'onasi bilan **qo'shiladi**.
+- **Minimal buyurtma** — admin sozlaydigan eng kam summa. Kam bo'lsa
+  rasmiylashtirish tugmasi ochilmaydi va nechchi so'm yetmayotgani aytiladi.
+  Tekshiruv `place_order()` ichida ham bor — klientga ishonilmaydi.
+- **Natija RASM bo'lib keladi** — yuqori chap tarafda surat, uning yonida
+  ism, taxminiy yosh, teri turi va rangi hamda 0–100 ball. Statistika (nechta
+  muammo, eng kuchlisi, prognoz) **to'q yashil fon** ustida turadi. Muammolar
+  sababi/yechimi bilan va tavsiya etilgan mahsulotlar pastda, kichikroq.
   Rasm serverda chiziladi, shuning uchun bot va Mini App'da bir xil ko'rinadi.
 - **«Rasm qilib olish»** — Mini App'dagi tugma rasmni Telegram chatiga yuboradi.
   (WebView ichida brauzerning yuklab olish va ulashish oynasi ishonchli
@@ -45,6 +60,9 @@ Google Gemini · Railway.
 - **Eng yaqin ombor** — mahsulot yetib kelganda mijozga aynan qaysi omborga
   kelgani, uning manzili, mo'ljali, telefoni va ish vaqti yuboriladi.
   Ombor avval tuman, topilmasa viloyat bo'yicha tanlanadi.
+- **👤 Profil bo'limi (Mini App)** — ism, telefon, yosh, hudud; nechta tahlil,
+  nechta buyurtma va jami qancha xarid qilgani; buyurtmalar tarixi;
+  konsultatsiya, yordam, ommaviy oferta va ma'lumotni o'chirish.
 - **Buyurtma yo'li ko'rinib turadi** — to'lov tasdiqlandi → Koreyada
   qadoqlanmoqda → Koreyadan jo'natildi → yo'lda → O'zbekiston omborida →
   pochtadan jo'natildi → yetib keldi. Har bosqichda xabar keladi.
@@ -60,6 +78,11 @@ Google Gemini · Railway.
   (yangi 75%, tasdiqlangan 90%, yo'lda 97%) va tarixiy tugallanish ulushiga
   ko'paytiriladi; oy oxiri prognozi kunlik o'rtachadan chiqariladi.
 - **Buyurtmalar** — holatni o'zgartirish, bekor qilishda ombor avtomatik qaytadi.
+- **Mahsulotni o'chirish — ikki yo'l.** «📦 Arxivga olish» katalogdan
+  yashiradi va qaytarish mumkin; «💥 Butunlay o'chirish» bazadan o'chiradi
+  (rasmi va savatlardagi nusxalari bilan) va qaytarib bo'lmaydi. Ikkalasida
+  ham **buyurtmalar tarixi butun qoladi**: mahsulot nomi va narxi
+  `orders.items` ichida nusxa bo'lib saqlanadi, `products` ga havola emas.
 - **Mahsulotlar** — narx, **tannarx**, marja, ombor. **Skrinshotdan qo'shish:**
   qadoq yoki do'kon suratini yuklaysiz, AI mahsulotni tanib nomi, tarkibi,
   **qanday foydalanish**, kimga mos — hammasini to'ldiradi, siz tekshirib
@@ -78,7 +101,15 @@ Google Gemini · Railway.
   buyurtmalar, partiyalar va cheklar o'chadi, raqamlash 1 dan boshlanadi.
   Mahsulotlar, mijozlar va sozlamalar saqlanadi. Tasdiqlash so'zi talab
   qilinadi — tasodifan bosilmaydi.
-- **Foydalanuvchilar** — qidiruv, jami xarid summasi, rozilik sanasi, bloklash.
+- **Mijozlar (marketing va cold call)** — «kim qancha savdo qilgan va qachon».
+  Filtr: xarid summasi oralig'i, buyurtmalar soni, oxirgi xarid sanasi,
+  saralash (ko'p xarid qilgan / ko'p buyurtma bergan / oxirgi xarid / faollik).
+  Tayyor segmentlar bir bosishda: **💎 eng ko'p xarid qilganlar**,
+  **😴 uxlab qolganlar** (60 kundan beri jim), **🔁 takroriy xaridorlar**,
+  **🌱 hali sotib olmaganlar**. Har mijozda buyurtma soni, o'rtacha chek,
+  oxirgi xarid («3 oy oldin») va to'g'ridan-to'g'ri **📞 Qo'ng'iroq** /
+  **💬 Yozish** tugmalari. Segment bo'yicha jami aylanma ko'rsatiladi.
+  **⬇️ CSV** — ro'yxatni Excel'ga yuklab olib qo'ng'iroqqa berish.
 - **Omborlar** — filiallarni qo'shish (viloyat, tuman, manzil, mo'ljal, telefon,
   ish vaqti, tartib). Buyurtma «Omborda» holatiga o'tganda mijozga shu ma'lumot
   avtomatik ketadi.
@@ -124,6 +155,22 @@ Kompyuter oldiga o'tirmasdan, Telegram'dan:
   o'zi olgan mahsulotlarni qaysi tartibda va qanday ishlatishi, faol
   moddalari, ehtiyot choralari. Print qilib har birini o'z qutisiga solasiz.
   Mahsulot to'g'ri ishlatilsa natija ko'rinadi — bu qayta xaridga olib keladi.
+
+### 🎁 Chegirma va minimal buyurtma
+
+Sozlamalarda ikki dastak bor:
+
+**Har mahsulot uchun chegirma.** «Har donaga» maydoniga summa yozasiz
+(masalan 5 000) va «nechta donadan boshlab» (masalan 1). Mijoz 6 ta olsa
+30 000 so'm chegirma oladi — bu pochta haqini qoplaydi. Savatda mijoz
+«yana 1 ta olsangiz chegirma 5 000 so'mga oshadi» degan turtkini ko'radi.
+Summa pog'onasi bilan **qo'shiladi**, katta-kichigi tanlanmaydi: «har
+mahsulotga 5 000» va'dasi shartsiz bo'lishi kerak.
+
+**Minimal buyurtma.** Shu summadan kam savat bilan buyurtma berilmaydi
+(yetkazish hisobga olinmaydi). 0 — cheklov yo'q. Ikkala qoida ham
+`place_order()` ichida, bazada tekshiriladi: mijoz yuborgan summa hech
+qachon ishonchli emas.
 
 ### 🚚 Yetkazib berish narxi
 
@@ -365,7 +412,9 @@ Model `ishonch` ni umuman qaytarmasa filtr ishlamaydi: hech narsa
 ko'rsatmagandan ko'ra, topilganini ko'rsatgan yaxshiroq.
 
 **Natija rasmi SVG dan chiziladi.** `src/rasm/natija-kartochka.js` SVG
-yig'adi, `chiz.js` uni resvg bilan PNG ga o'giradi (~170 ms). Shriftlar
+yig'adi, `chiz.js` uni resvg bilan PNG ga o'giradi (~170 ms). Tuzilishi:
+yuqorida to'q yashil fon — chapda surat, yonida ism va tavsif, ostida
+statistika; pastda oq fonda muammolar va mahsulotlar, kichikroq. Shriftlar
 `assets/shrift/` dan yuklanadi, tizimdan EMAS — konteynerda shrift
 bo'lmasa matn jimgina yo'qolardi. Rasmda emoji ishlatilmaydi: resvg rangli
 emoji shriftini chizmaydi, o'rnida bo'sh kvadrat qoladi.
@@ -476,4 +525,4 @@ solishtirishlari jimgina buziladi.
 
 ---
 
-© Meduza Cosmetics
+© KiOVO

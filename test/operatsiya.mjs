@@ -10,7 +10,7 @@ process.env.ADMIN_TELEGRAM_IDS='700001';
 
 const { migratsiyalarniQoll } = await import('../src/db/migrate.js');
 await migratsiyalarniQoll();
-const { sorov, qator, qatorlar, pool } = await import('../src/db.js');
+const { sorov, qator, qatorlar, qiymat, pool } = await import('../src/db.js');
 const { yangilanish } = await import('../src/bot/index.js');
 
 let ok=0,xato=0;
@@ -98,7 +98,7 @@ await yoz('700001','/brend Meduza Beauty');
 test('brend o‘zgardi', /Meduza Beauty/.test(hammasi()));
 await yoz('800001','/start');
 test('menyuda yangi brend', /Meduza Beauty/.test(hammasi()));
-await yoz('700001','/brend Meduza Cosmetics');
+await yoz('700001','/brend KiOVO');
 
 console.log('\n── QO‘LLANMA HUJJATI ──');
 yuborilgan.length=0;
@@ -223,6 +223,108 @@ await havolaSinovi('kanal topilmadi', '-1001234567890', '', null);
 
 await sorov(`update settings set value='""'::jsonb where key='majburiy_kanal'`);
 keshniTashla();
+
+// ═══════════ DONA CHEGIRMASI VA MINIMAL BUYURTMA ═══════════
+console.log('\n── DONA CHEGIRMASI VA MINIMAL SUMMA ──');
+{
+  const q1 = qator;
+  const mijoz = await q1(`select id from users where telegram_id='800001'`);
+  await sorov(`update products set price=80000, stock=100, is_active=true where id in (1,2)`);
+  await sorov(`update settings set value='[]'::jsonb where key='chegirma_pogonalari'`);
+  await sorov(`update settings set value='5000'::jsonb where key='mahsulot_chegirma'`);
+  await sorov(`update settings set value='1'::jsonb where key='mahsulot_chegirma_dan'`);
+  await sorov(`update settings set value='0'::jsonb where key='minimal_buyurtma'`);
+  await sorov(`update settings set value='99000000'::jsonb where key='free_delivery_from'`);
+
+  const ber = (dona, yetkazish = 30000) => q1(
+    `select subtotal, discount, delivery_fee, total, chegirma_izoh from place_order(
+       $1, jsonb_build_array(jsonb_build_object('product_id',1,'quantity',$2::int)),
+       'Sinov','+998901112233','Toshkent, 5-uy 12-xonadon', null, 'karta',
+       'Toshkent shahri','Chilonzor tumani',$3,'filial',1200)`, [mijoz.id, dona, yetkazish]);
+
+  const olti = await ber(6);
+  test('6 ta mahsulot -> 30 000 chegirma', Number(olti.discount) === 30000,
+    `${olti.discount} so‘m`);
+  test('30 000 yo‘lkira o‘zini qopladi', Number(olti.total) === Number(olti.subtotal),
+    `${olti.subtotal} -> ${olti.total}`);
+  test('hisob tafsiloti saqlandi', Number(olti.chegirma_izoh?.dona) === 6);
+
+  const bir = await ber(1);
+  test('1 ta mahsulot -> 5 000 chegirma', Number(bir.discount) === 5000);
+
+  // Chegirma faqat 3 donadan boshlansin
+  await sorov(`update settings set value='3'::jsonb where key='mahsulot_chegirma_dan'`);
+  const ikki = await ber(2);
+  test('chegarasidan kam bo‘lsa chegirma yo‘q', Number(ikki.discount) === 0);
+  const uch = await ber(3);
+  test('chegarada chegirma boshlanadi', Number(uch.discount) === 15000);
+  await sorov(`update settings set value='1'::jsonb where key='mahsulot_chegirma_dan'`);
+
+  // Pog'ona chegirmasi bilan QO'SHILADI
+  await sorov(`update settings set value='[{"dan":200000,"chegirma":20000}]'::jsonb
+               where key='chegirma_pogonalari'`);
+  const q = await ber(4);   // 320 000 -> pog'ona 20 000 + dona 20 000
+  test('pog‘ona va dona chegirmasi qo‘shiladi', Number(q.discount) === 40000, `${q.discount} so‘m`);
+  await sorov(`update settings set value='[]'::jsonb where key='chegirma_pogonalari'`);
+
+  // Chegirma hech qachon summadan oshmasin
+  await sorov(`update settings set value='500000'::jsonb where key='mahsulot_chegirma'`);
+  const kop = await ber(1);
+  test('chegirma summadan oshmaydi', Number(kop.discount) === Number(kop.subtotal),
+    `${kop.discount} / ${kop.subtotal}`);
+  await sorov(`update settings set value='5000'::jsonb where key='mahsulot_chegirma'`);
+
+  // Minimal buyurtma
+  await sorov(`update settings set value='300000'::jsonb where key='minimal_buyurtma'`);
+  let xatoMatni = '';
+  try { await ber(2); } catch (e) { xatoMatni = e.message; }
+  test('minimal summadan kam buyurtma o‘tmaydi', /MINIMAL_SUMMA:300000:160000/.test(xatoMatni),
+    xatoMatni.slice(0, 60));
+
+  const { buyurtmaYarat } = await import('../src/services/orders.js');
+  let mijozgaKorinadigan = '';
+  try {
+    await buyurtmaYarat({ id: mijoz.id, full_name: 'Sinov', phone: '+998901112233' },
+      [{ product_id: 1, quantity: 2 }],
+      { address: 'Toshkent, 5-uy 12-xonadon', viloyat: 'Toshkent shahri', tuman: 'Chilonzor tumani' });
+  } catch (e) { mijozgaKorinadigan = e.message; }
+  test('mijoz tushunarli xato ko‘radi', /Minimal buyurtma/.test(mijozgaKorinadigan),
+    mijozgaKorinadigan);
+
+  const yetadi = await ber(4);
+  test('minimal summadan oshsa o‘tadi', Number(yetadi.subtotal) === 320000);
+  await sorov(`update settings set value='0'::jsonb where key='minimal_buyurtma'`);
+  await sorov(`update settings set value='0'::jsonb where key='mahsulot_chegirma'`);
+  await sorov(`update settings set value='500000'::jsonb where key='free_delivery_from'`);
+}
+
+// ═══════════ MAHSULOTNI TO'LIQ O'CHIRISH ═══════════
+console.log('\n── MAHSULOTNI TO‘LIQ O‘CHIRISH ──');
+{
+  const q1 = qator;
+  const mijoz = await q1(`select id from users where telegram_id='800001'`);
+  const yangi = await q1(
+    `insert into products (name, brand, price, cost_price, stock, is_active)
+     values ('Sinov mahsuloti','SINOV',50000,20000,10,true) returning id`);
+  await sorov(`insert into cart_items (user_id, product_id, quantity) values ($1,$2,3)
+               on conflict (user_id, product_id) do update set quantity=3`, [mijoz.id, yangi.id]);
+
+  const buyurtmalarOldin = await qiymat(`select count(*)::int from orders`);
+
+  const natija = await qiymat('select mahsulotni_ochir($1)', [yangi.id]);
+  test('mahsulot butunlay o‘chdi',
+    (await qiymat('select count(*)::int from products where id=$1', [yangi.id])) === 0);
+  test('savatdan ham olindi',
+    (await qiymat('select count(*)::int from cart_items where product_id=$1', [yangi.id])) === 0);
+  test('nechta savatda borligi aytiladi', Number(natija.savat) === 1, JSON.stringify(natija));
+  test('buyurtmalar tarixi buzilmadi',
+    (await qiymat(`select count(*)::int from orders`)) === buyurtmalarOldin);
+
+  let x2 = '';
+  try { await qiymat('select mahsulotni_ochir($1)', [999999]); } catch (e) { x2 = e.message; }
+  test('yo‘q mahsulotda aniq xato', /MAHSULOT_TOPILMADI/.test(x2));
+}
+
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

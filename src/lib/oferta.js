@@ -15,7 +15,7 @@ export function ofertaSahifasi() {
 <html lang="uz"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ommaviy oferta — Meduza Cosmetics</title>
+<title>Ommaviy oferta — KiOVO</title>
 <style>
   :root{--fon:#fbfaf9;--matn:#1c1a19;--kul:#6b6663;--chiziq:#e6e1dd;--urgu:#8a5a3d}
   @media (prefers-color-scheme:dark){:root{--fon:#151312;--matn:#eceae8;--kul:#9b9490;--chiziq:#2c2826;--urgu:#c99a72}}
@@ -37,7 +37,7 @@ export function ofertaSahifasi() {
 </style></head><body><main>
 
 <h1>Ommaviy oferta</h1>
-<div class="sana">Meduza Cosmetics — Koreya kosmetikasi · Tahrir 1.0</div>
+<div class="sana">KiOVO — Koreya kosmetikasi · Tahrir 1.0</div>
 
 <p>Ushbu hujjat ${b(T.nom)} (keyingi o‘rinlarda — «Sotuvchi») tomonidan
 noma’lum shaxslar doirasiga qaratilgan ommaviy taklif (oferta) hisoblanadi.

@@ -220,3 +220,12 @@ textarea{resize:vertical;min-height:80px}
 .jadval .oy-qator{cursor:pointer}
 .jadval .oy-qator:active{background:var(--urgu-och)}
 .jadval .oy-qator.tanlangan{background:var(--urgu-och)}
+
+/* ---------- Mijoz segmentlari ---------- */
+/* Tayyor segment tugmalari bir qatorda, yon tomonga suriladi */
+.segment-lenta{display:flex;gap:8px;overflow-x:auto;padding:0 16px 12px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.segment-lenta::-webkit-scrollbar{display:none}
+.segment-lenta .tug{flex:0 0 auto;white-space:nowrap}
+/* Havola ko'rinishidagi tugmalar (Qo'ng'iroq, Yozish) tugma bilan bir xil bo'lsin */
+.amallar a.tug{display:inline-flex;align-items:center;text-decoration:none}

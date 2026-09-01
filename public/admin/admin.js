@@ -1,4 +1,4 @@
-/* Meduza Cosmetics admin — mobil uchun mo'ljallangan boshqaruv paneli. */
+/* KiOVO admin — mobil uchun mo'ljallangan boshqaruv paneli. */
 (() => {
 'use strict';
 
@@ -562,24 +562,10 @@ function mahsulotOyna(p) {
     <div id="m-xato" class="xato"></div>
     <button class="tug asos keng" id="m-saqla" style="margin-top:18px">Saqlash</button>
     ${p?.id ? `<button class="tug xavf keng" id="m-ochir" style="margin-top:9px">
-      🗑 Mahsulotni o‘chirish</button>
-      <p class="mayda" style="margin:8px 0 0">
-        Mahsulot katalogdan yo‘qoladi, lekin eski buyurtmalar tarixida qoladi —
-        shu sababli butunlay o‘chirilmaydi, arxivga olinadi.</p>` : ''}`, { keng: true });
+      🗑 Mahsulotni o‘chirish</button>` : ''}`, { keng: true });
 
   const och = $('#m-ochir');
-  if (och) och.onclick = async () => {
-    if (!confirm(`«${p.name}» katalogdan olib tashlansinmi?`)) return;
-    och.disabled = true; och.textContent = 'O‘chirilmoqda…';
-    try {
-      await api('/api/admin/product', { method: 'DELETE', body: JSON.stringify({ id: p.id }) });
-      modalYop(); tost('Mahsulot arxivga olindi');
-      holat.kesh.mahsulotlar = null; mahsulotlar();
-    } catch (e) {
-      och.disabled = false; och.textContent = '🗑 Mahsulotni o‘chirish';
-      $('#m-xato').textContent = e.message;
-    }
-  };
+  if (och) och.onclick = () => mahsulotniOchirOyna(p);
 
   $('#m-saqla').onclick = async () => {
     const xato = $('#m-xato');
@@ -607,6 +593,51 @@ function mahsulotOyna(p) {
       modalYop(); tost('Saqlandi'); yuklanmoqda(); mahsulotlar();
     } catch (e) { xato.textContent = e.message; $('#m-saqla').disabled = false; }
   };
+}
+
+/**
+ * O'chirish oynasi: ikki yo'l.
+ *   Arxiv  — katalogdan yashiradi, keyin qaytarish mumkin
+ *   To'liq — bazadan butunlay o'chiradi, qaytarib bo'lmaydi
+ *
+ * Ikkalasida ham buyurtmalar tarixi butun qoladi: mahsulot nomi va narxi
+ * buyurtmaning ichida nusxa bo'lib saqlanadi.
+ */
+function mahsulotniOchirOyna(p) {
+  modal('🗑 Mahsulotni o‘chirish', `
+    <p style="margin:0 0 4px"><b>${esc(p.name)}</b></p>
+    <p class="mayda" style="margin:0 0 16px">${esc(p.brand || '')}</p>
+
+    <button class="tug keng" id="o-arxiv">📦 Arxivga olish</button>
+    <p class="mayda" style="margin:8px 0 18px">Katalogdan yo‘qoladi, lekin bazada
+      qoladi. «Katalogda ko‘rinsin» belgisini qayta yoqib tiklaysiz.</p>
+
+    <button class="tug xavf keng" id="o-toliq">💥 Butunlay o‘chirish</button>
+    <p class="mayda" style="margin:8px 0 0">Bazadan butunlay o‘chadi: rasm, savatlardagi
+      nusxalari va tavsiyalari bilan. <b>Qaytarib bo‘lmaydi.</b>
+      Eski buyurtmalar tarixiga tegmaydi.</p>
+    <div id="o-xato" class="xato"></div>`);
+
+  const yubor = async (toliq, tugma, matn) => {
+    if (toliq && !confirm(`«${p.name}» BUTUNLAY o‘chirilsinmi? Buni qaytarib bo‘lmaydi.`)) return;
+    tugma.disabled = true; tugma.textContent = 'O‘chirilmoqda…';
+    try {
+      const j = await api('/api/admin/product',
+        { method: 'DELETE', body: JSON.stringify({ id: p.id, toliq }) });
+      modalYop();
+      const n = j.natija || {};
+      tost(toliq
+        ? `O‘chirildi${n.savat ? ` · ${n.savat} ta savatdan olindi` : ''}`
+        : 'Arxivga olindi');
+      holat.kesh.mahsulotlar = null; mahsulotlar();
+    } catch (e) {
+      tugma.disabled = false; tugma.textContent = matn;
+      $('#o-xato').textContent = e.message;
+    }
+  };
+
+  $('#o-arxiv').onclick = (e) => yubor(false, e.currentTarget, '📦 Arxivga olish');
+  $('#o-toliq').onclick = (e) => yubor(true,  e.currentTarget, '💥 Butunlay o‘chirish');
 }
 
 // ---------- Skrinshotdan tanish ----------
@@ -794,13 +825,103 @@ async function posterniChiz(goya) {
 }
 
 // ═══════════ 5. MIJOZLAR ═══════════
-async function mijozlar(qidiruv = '') {
+//
+// Bu bo'lim marketing uchun: «kim qancha savdo qilgan va qachon».
+// Filtrlab, tayyor ro'yxat bilan cold call qilinadi — masalan
+// «100 mingdan ko'p xarid qilgan, lekin 2 oydan beri jim» segmenti.
+
+const MIJOZ_FILTR = {
+  q: '', xarid_dan: '', xarid_gacha: '', buyurtma_dan: '',
+  oxirgi_dan: '', oxirgi_gacha: '', xaridor: false, tartib: 'yangi',
+};
+
+/** Tayyor segmentlar — bir bosishda. Qo'lda raqam terish shart emas. */
+const SEGMENTLAR = [
+  { nom: '💎 Eng ko‘p xarid qilganlar', izoh: 'Sodiq mijozlar — yangi mahsulot birinchi ularga',
+    f: { xaridor: true, tartib: 'xarid' } },
+  { nom: '😴 Uxlab qolganlar', izoh: 'Xarid qilgan, lekin 60 kundan beri jim',
+    f: { xaridor: true, oxirgi_gacha: kunOldin(60), tartib: 'oxirgi' } },
+  { nom: '🔁 Takroriy xaridorlar', izoh: '2 va undan ko‘p buyurtma bergan',
+    f: { buyurtma_dan: 2, tartib: 'buyurtma' } },
+  { nom: '🌱 Hali sotib olmaganlar', izoh: 'Ro‘yxatdan o‘tgan, lekin buyurtma yo‘q',
+    f: { xarid_gacha: 0, tartib: 'yangi' } },
+];
+
+function kunOldin(n) {
+  const d = new Date(Date.now() - n * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
+async function mijozlar(yangiFiltr = null) {
+  if (yangiFiltr) Object.assign(MIJOZ_FILTR, yangiFiltr);
+  const F = MIJOZ_FILTR;
+
+  const p = new URLSearchParams();
+  if (F.q) p.set('q', F.q);
+  for (const k of ['xarid_dan', 'xarid_gacha', 'buyurtma_dan', 'oxirgi_dan', 'oxirgi_gacha']) {
+    if (F[k] !== '' && F[k] !== null && F[k] !== undefined) p.set(k, String(F[k]));
+  }
+  if (F.xaridor) p.set('xaridor', '1');
+  if (F.tartib)  p.set('tartib', F.tartib);
+  p.set('limit', '500');
+
   try {
-    const j = await api('/api/admin/users' + (qidiruv ? `?q=${encodeURIComponent(qidiruv)}` : ''));
+    const j = await api('/api/admin/users?' + p.toString());
+    const x = j.xulosa || {};
+    holat.kesh.mijozlar = j.users;
+
     $('#tan').innerHTML = `
-      <div class="bosh"><h1>Mijozlar</h1><span class="ozgina">${j.users.length} ta</span></div>
+      <div class="bosh"><h1>Mijozlar</h1>
+        <button class="tug kichik" id="u-csv">⬇️ CSV</button></div>
+
       <div style="padding:0 16px 12px">
-        <input id="u-qidiruv" placeholder="🔍 Ism, telefon yoki username" value="${esc(qidiruv)}"></div>
+        <input id="u-qidiruv" placeholder="🔍 Ism, telefon yoki username" value="${esc(F.q)}">
+      </div>
+
+      <div class="segment-lenta">
+        ${SEGMENTLAR.map((sg, n) => `<button class="tug kichik" data-seg="${n}"
+            title="${esc(sg.izoh)}">${sg.nom}</button>`).join('')}
+        <button class="tug kichik" data-seg="tozala">✕ Tozalash</button>
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>🎯 Filtr</h2>
+          <button class="tug kichik" id="u-qolla">Qo‘llash</button></div>
+        <div class="forma-tor">
+          <div><label>Xarid summasi — dan</label>
+            <input id="f-xarid-dan" type="number" inputmode="numeric" value="${esc(F.xarid_dan)}"></div>
+          <div><label>Xarid summasi — gacha</label>
+            <input id="f-xarid-gacha" type="number" inputmode="numeric" value="${esc(F.xarid_gacha)}"></div>
+          <div><label>Buyurtma soni — dan</label>
+            <input id="f-buyurtma-dan" type="number" inputmode="numeric" value="${esc(F.buyurtma_dan)}"></div>
+          <div><label>Saralash</label>
+            <select id="f-tartib">
+              ${[['yangi','Yangi qo‘shilgan'],['xarid','Ko‘p xarid qilgan'],
+                 ['buyurtma','Ko‘p buyurtma bergan'],['oxirgi','Oxirgi xarid'],
+                 ['faol','Oxirgi faollik']].map(([v, n]) =>
+                `<option value="${v}" ${F.tartib === v ? 'selected' : ''}>${n}</option>`).join('')}
+            </select></div>
+          <div><label>Oxirgi xarid — dan</label>
+            <input id="f-oxirgi-dan" type="date" value="${esc(F.oxirgi_dan)}"></div>
+          <div><label>Oxirgi xarid — gacha</label>
+            <input id="f-oxirgi-gacha" type="date" value="${esc(F.oxirgi_gacha)}"></div>
+        </div>
+        <label class="belgi-qator" style="margin-top:12px">
+          <input type="checkbox" id="f-xaridor" ${F.xaridor ? 'checked' : ''}>
+          Faqat sotib olganlar</label>
+      </div>
+
+      <div class="karta tor">
+        <div class="qator-satr"><span class="k">Topildi</span>
+          <span class="v">${x.soni ?? 0} ta</span></div>
+        <div class="qator-satr"><span class="k">Shundan xaridor</span>
+          <span class="v">${x.xaridorlar ?? 0} ta</span></div>
+        <div class="qator-satr"><span class="k">Segment aylanmasi</span>
+          <span class="v">${som(x.jami_xarid || 0)}</span></div>
+        <div class="qator-satr"><span class="k">Bir mijozga o‘rtacha</span>
+          <span class="v">${som(x.ortacha || 0)}</span></div>
+      </div>
+
       ${j.users.length ? j.users.map((u) => `
         <div class="qator-karta" style="${u.is_blocked ? 'opacity:.5' : ''}">
           <div class="qator-bosh">
@@ -812,28 +933,94 @@ async function mijozlar(qidiruv = '') {
           <div style="margin-top:8px">
             <div class="qator-satr"><span class="k">📱 Telefon</span>
               <span class="v"><a href="tel:${esc(String(u.phone || '').replace(/[^+\d]/g, ''))}">${esc(u.phone || '—')}</a></span></div>
-            <div class="qator-satr"><span class="k">🎂 Yosh</span><span class="v">${u.age || '—'}</span></div>
+            <div class="qator-satr"><span class="k">🛒 Buyurtma</span>
+              <span class="v">${u.buyurtma_soni || 0} ta${
+                u.ortacha_chek ? ` · o‘rtacha ${som(u.ortacha_chek)}` : ''}</span></div>
+            <div class="qator-satr"><span class="k">🕐 Oxirgi xarid</span>
+              <span class="v">${u.oxirgi_xarid ? `${sana(u.oxirgi_xarid)} · ${kunlarOldin(u.oxirgi_xarid)}` : '—'}</span></div>
             <div class="qator-satr"><span class="k">📍 Hudud</span>
               <span class="v">${esc([u.viloyat, u.tuman].filter(Boolean).join(', ') || '—')}</span></div>
             <div class="qator-satr"><span class="k">📅 Ro‘yxat</span>
               <span class="v">${u.agreed_at ? sana(u.agreed_at) : '—'}</span></div>
           </div>
           <div class="amallar">
+            ${u.phone ? `<a class="tug kichik" href="tel:${esc(String(u.phone).replace(/[^+\d]/g, ''))}">📞 Qo‘ng‘iroq</a>` : ''}
+            ${u.username ? `<a class="tug kichik" target="_blank"
+                href="https://t.me/${esc(u.username)}">💬 Yozish</a>` : ''}
             <button class="tug kichik ${u.is_blocked ? '' : 'xavf'}" data-blok="${u.id}"
               data-holat="${u.is_blocked ? 1 : 0}">${u.is_blocked ? '✓ Blokdan chiqarish' : '🚫 Bloklash'}</button>
           </div>
-        </div>`).join('') : boshHolat('🔍', 'Topilmadi')}`;
+        </div>`).join('') : boshHolat('🔍', 'Bu filtrga mos mijoz topilmadi')}`;
 
     let t; $('#u-qidiruv').oninput = (e) => {
       clearTimeout(t); const v = e.target.value;
-      t = setTimeout(() => { mijozlar(v); setTimeout(() => $('#u-qidiruv')?.focus(), 0); }, 350);
+      t = setTimeout(() => { mijozlar({ q: v }); setTimeout(() => $('#u-qidiruv')?.focus(), 0); }, 350);
     };
+
+    $('#u-qolla').onclick = () => mijozlar({
+      xarid_dan:    $('#f-xarid-dan').value.trim(),
+      xarid_gacha:  $('#f-xarid-gacha').value.trim(),
+      buyurtma_dan: $('#f-buyurtma-dan').value.trim(),
+      oxirgi_dan:   $('#f-oxirgi-dan').value,
+      oxirgi_gacha: $('#f-oxirgi-gacha').value,
+      xaridor:      $('#f-xaridor').checked,
+      tartib:       $('#f-tartib').value,
+    });
+
+    $$('[data-seg]').forEach((b) => b.onclick = () => {
+      const v = b.dataset.seg;
+      if (v === 'tozala') {
+        return mijozlar({ q: '', xarid_dan: '', xarid_gacha: '', buyurtma_dan: '',
+                          oxirgi_dan: '', oxirgi_gacha: '', xaridor: false, tartib: 'yangi' });
+      }
+      mijozlar({ q: '', xarid_dan: '', xarid_gacha: '', buyurtma_dan: '',
+                 oxirgi_dan: '', oxirgi_gacha: '', xaridor: false, tartib: 'yangi',
+                 ...SEGMENTLAR[Number(v)].f });
+    });
+
+    $('#u-csv').onclick = () => mijozlarniCsv(j.users);
+
     $$('[data-blok]').forEach((b) => b.onclick = async () => {
       await api('/api/admin/user-block', { method: 'POST',
         body: JSON.stringify({ id: Number(b.dataset.blok), blocked: b.dataset.holat === '0' }) });
-      tost('Saqlandi'); mijozlar(qidiruv);
+      tost('Saqlandi'); mijozlar();
     });
   } catch (e) { xatoChiz(e); }
+}
+
+/** «3 kun oldin» ko'rinishi — sanani o'qish osonroq bo'ladi. */
+function kunlarOldin(vaqt) {
+  const kun = Math.floor((Date.now() - new Date(vaqt).getTime()) / 86400000);
+  if (kun <= 0) return 'bugun';
+  if (kun === 1) return 'kecha';
+  if (kun < 30) return `${kun} kun oldin`;
+  const oy = Math.floor(kun / 30);
+  return `${oy} oy oldin`;
+}
+
+/**
+ * Ro'yxatni CSV qilib yuklab beradi — qo'ng'iroq qilish uchun.
+ * Excel UTF-8 ni BOM siz o'qimaydi, shuning uchun boshiga \uFEFF qo'yamiz.
+ */
+function mijozlarniCsv(users) {
+  const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const satrlar = [
+    ['Ism', 'Telefon', 'Username', 'Yosh', 'Viloyat', 'Tuman',
+     'Buyurtma', 'Jami xarid', "O'rtacha chek", 'Oxirgi xarid', "Ro'yxatdan"].map(q).join(','),
+    ...users.map((u) => [
+      u.full_name, u.phone, u.username ? '@' + u.username : '', u.age,
+      u.viloyat, u.tuman, u.buyurtma_soni || 0, u.jami_xarid || 0, u.ortacha_chek || 0,
+      u.oxirgi_xarid ? sana(u.oxirgi_xarid) : '',
+      u.agreed_at ? sana(u.agreed_at) : '',
+    ].map(q).join(',')),
+  ];
+  const blob = new Blob(['\uFEFF' + satrlar.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `mijozlar-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  tost(`${users.length} ta mijoz yuklandi`);
 }
 
 // ═══════════ 6. SOTUVLAR ═══════════
@@ -1070,9 +1257,38 @@ async function sozlamalar() {
       </div>
 
       <div class="karta tor">
-        <div class="karta-bosh"><h2>🚚 Yetkazib berish</h2></div>
+        <div class="karta-bosh"><h2>📦 Har mahsulot uchun chegirma</h2></div>
+        <p class="mayda" style="margin:0 0 10px">Mijoz nechta DONA olsa, har biriga shuncha
+          chegirma. 5 000 × 6 dona = 30 000 — pochta haqi o‘zini qoplaydi.
+          Bu summa pog‘onasi bilan <b>qo‘shiladi</b>.</p>
         <div class="forma-tor">
-          <div><label>Narxi (so‘m)</label>
+          <div><label>Har donaga (so‘m) <span class="yordam">0 — o‘chirilgan</span></label>
+            <input id="s-dona-chegirma" type="number" inputmode="numeric"
+                   value="${Number(st.mahsulot_chegirma) || 0}"></div>
+          <div><label>Nechta donadan boshlab</label>
+            <input id="s-dona-dan" type="number" inputmode="numeric" min="1"
+                   value="${Number(st.mahsulot_chegirma_dan) || 1}"></div>
+        </div>
+        <div id="dona-namuna" class="ozgina" style="margin-top:10px"></div>
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>🧾 Minimal buyurtma</h2></div>
+        <p class="mayda" style="margin:0 0 10px">Shu summadan kam savat bilan buyurtma
+          berib bo‘lmaydi (yetkazish hisobga olinmaydi). Kichik buyurtma pochta haqi
+          bilan zarar keltiradi. 0 — cheklov yo‘q.</p>
+        <label>Minimal summa (so‘m)</label>
+        <input id="s-minimal" type="number" inputmode="numeric"
+               value="${Number(st.minimal_buyurtma) || 0}">
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>🚚 Yetkazib berish</h2></div>
+        <p class="mayda" style="margin:0 0 10px">Aniq narx EMU tarifidan hisoblanadi va
+          mijozga faqat rasmiylashtirishda — manzil tanlangach — ko‘rinadi.
+          Quyidagi narx faqat zaxira sifatida ishlatiladi.</p>
+        <div class="forma-tor">
+          <div><label>Zaxira narxi (so‘m)</label>
             <input id="s-fee" type="number" inputmode="numeric" value="${Number(st.delivery_fee) || 25000}"></div>
           <div><label>Qaysi summadan bepul</label>
             <input id="s-free" type="number" inputmode="numeric" value="${Number(st.free_delivery_from) || 500000}"></div>
@@ -1092,7 +1308,7 @@ async function sozlamalar() {
       <div class="karta tor">
         <div class="karta-bosh"><h2>🏷 Brend</h2></div>
         <label>Do‘kon nomi <span class="yordam">bot, ilova va rasmlarda ko‘rinadi</span></label>
-        <input id="s-brend" value="${esc(matn('dokon_nomi'))}" placeholder="Meduza Cosmetics">
+        <input id="s-brend" value="${esc(matn('dokon_nomi'))}" placeholder="KiOVO">
         <p class="mayda" style="margin:6px 0 14px">Botdan turib ham o‘zgartirasiz: <code>/brend</code></p>
 
         <label>Logotip <span class="yordam">tahlil rasmlarida chiqadi</span></label>
@@ -1263,6 +1479,9 @@ async function sozlamalar() {
 
     pogonalarniChiz();
     $('#p-qosh').onclick = () => { holat.kesh.pogonalar.push({ dan: 0, chegirma: 0 }); pogonalarniChiz(); };
+    donaNamunaChiz();
+    $('#s-dona-chegirma').oninput = donaNamunaChiz;
+    $('#s-dona-dan').oninput = donaNamunaChiz;
     $('#s-saqla').onclick = sozlamalarniSaqla;
     $('#t-kanal-sina').onclick = kanallarniSina;
     $('#t-tarif-sina').onclick = tarifniSina;
@@ -1299,6 +1518,17 @@ function pogonalarniChiz() {
   namunaChiz();
 }
 
+/** Dona chegirmasi: admin raqamni yozayotganda natijani darhol ko'rsatamiz. */
+function donaNamunaChiz() {
+  const el = $('#dona-namuna'); if (!el) return;
+  const narx = Math.max(0, Number($('#s-dona-chegirma')?.value) || 0);
+  const dan  = Math.max(1, Number($('#s-dona-dan')?.value) || 1);
+  if (!narx) return void (el.innerHTML = '<b>O‘chirilgan</b> — dona bo‘yicha chegirma berilmaydi.');
+  el.innerHTML = `<b>Misol:</b> ` + [dan, dan + 2, 6, 10].filter((n, i, a) => a.indexOf(n) === i)
+    .sort((a, b) => a - b)
+    .map((n) => `${n} ta → −${som(narx * n)}`).join(' · ');
+}
+
 function namunaChiz() {
   const el = $('#p-namuna'); if (!el) return;
   const p = [...holat.kesh.pogonalar].filter((x) => x.dan > 0 && x.chegirma > 0).sort((a, b) => a.dan - b.dan);
@@ -1330,13 +1560,16 @@ async function sozlamalarniSaqla() {
       karta_egasi:        $('#s-egasi').value.trim(),
       delivery_fee:       Number($('#s-fee').value) || 0,
       free_delivery_from: Number($('#s-free').value) || 0,
+      mahsulot_chegirma:     Math.max(0, Number($('#s-dona-chegirma').value) || 0),
+      mahsulot_chegirma_dan: Math.max(1, Number($('#s-dona-dan').value) || 1),
+      minimal_buyurtma:      Math.max(0, Number($('#s-minimal').value) || 0),
       konsultatsiya_user: $('#s-konsult').value.trim().replace(/^@/, ''),
       menejer_telefon:    $('#s-tel').value.trim(),
       menejer_ish_vaqti:  $('#s-vaqt').value.trim(),
       limit_yoqilgan:     $('#s-limit-yoq').checked,
       limit_bepul:        Math.max(0, Number($('#s-limit-bepul').value) || 0),
       limit_mijoz:        Math.max(0, Number($('#s-limit-mijoz').value) || 0),
-      dokon_nomi:            $('#s-brend').value.trim() || 'Meduza Cosmetics',
+      dokon_nomi:            $('#s-brend').value.trim() || 'KiOVO',
       kanal_buyurtma:        $('#s-kanal-buyurtma').value.trim(),
       kanal_tahlil:          $('#s-kanal-tahlil').value.trim(),
       kanal_tahlil_yoqilgan: $('#s-kanal-tahlil-yoq').checked,
@@ -1511,7 +1744,7 @@ const SHKALA = (foiz, n = 10) => {
   return '■'.repeat(t) + '□'.repeat(n - t);
 };
 const NAMUNA = {
-  dokon:'Meduza Cosmetics', ism:'Malika', yosh:'24–28', teri_turi:'aralash',
+  dokon:'KiOVO', ism:'Malika', yosh:'24–28', teri_turi:'aralash',
   teri_rangi:'och bug‘doyrang, iliq ton', ball:62, baho:'o‘rtacha 😌', shkala:SHKALA(62),
   nuqta:'🔴', nom:'Kengaygan teshiklar', foiz:72, zona:'Burun qanotlari va peshona (T-zona)',
   izoh:'Teshiklar aniq ko‘rinadi', sabab:'Yog‘ bezlari faol ishlaydi, teshiklar tiqiladi',

@@ -3,7 +3,7 @@
 import { qator, sozlama } from '../db.js';
 import { kesh } from './kesh.js';
 
-export const BREND_STANDART = 'Meduza Cosmetics';
+export const BREND_STANDART = 'KiOVO';
 
 /** Har xabarda bazaga bormaslik uchun 60 soniya keshlanadi. */
 export const brendNomi = () =>

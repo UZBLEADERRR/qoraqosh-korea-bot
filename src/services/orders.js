@@ -10,6 +10,12 @@ const XATO_MATNI = (msg) => {
   if (msg.includes('MAHSULOT_TOPILMADI')) return 'Mahsulotlardan biri katalogdan olib tashlangan. Savatni yangilang.';
   const ombor = msg.match(/OMBORDA_YETARLI_EMAS:(.+?):(\d+)/);
   if (ombor) return `«${ombor[1]}» omborda ${ombor[2]} dona qoldi. Miqdorni kamaytiring.`;
+  const min = msg.match(/MINIMAL_SUMMA:(\d+):(\d+)/);
+  if (min) {
+    const som = (n) => Number(n).toLocaleString('uz-UZ').replace(/,/g, ' ');
+    return `Minimal buyurtma — ${som(min[1])} so‘m. Savatda ${som(min[2])} so‘m: `
+         + `yana ${som(Number(min[1]) - Number(min[2]))} so‘mlik mahsulot qo‘shing.`;
+  }
   return 'Buyurtmani rasmiylashtirib bo‘lmadi. Qayta urinib ko‘ring.';
 };
 

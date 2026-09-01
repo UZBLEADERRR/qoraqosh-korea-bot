@@ -362,3 +362,15 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
 /* ---------- Bosqichma-bosqich yuklash ---------- */
 .yana-nishon{grid-column:1/-1;display:grid;place-items:center;padding:22px 0}
 .aylana.kichik{width:24px;height:24px;border-width:2.5px}
+
+/* ---------- Profil ---------- */
+.profil-raqamlar{display:flex;text-align:center}
+.profil-raqamlar>div{flex:1;min-width:0;padding:2px 4px;border-right:1px solid var(--chiziq)}
+.profil-raqamlar>div:last-child{border-right:0}
+.profil-raqamlar b{display:block;font-size:21px;font-weight:700;letter-spacing:-.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profil-raqamlar span{display:block;font-size:12.5px;color:var(--och);margin-top:3px}
+/* Profildagi qatorlar tugma ham, havola ham bo'ladi — ko'rinishi bir xil */
+#profil-tan .tanlov-tugma{margin-bottom:9px;text-decoration:none;color:var(--matn);
+  text-align:left;gap:12px}
+#profil-tan .tanlov-tugma>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}

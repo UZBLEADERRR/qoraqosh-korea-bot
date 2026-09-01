@@ -73,7 +73,7 @@ export async function rasmniQabulQil(msg, user) {
     // 1) Natija RASMI — foydalanuvchi suratining ustida tahlil.
     //    Rasm chizilmasa (motor yoki shrift yo'q) — matn baribir ketadi.
     const rasm = await natijaRasminiYarat({
-      analysisId: natija.analysisId, userId: user.id,
+      analysisId: natija.analysisId, userId: user.id, ism: user.full_name,
       rasmBase64: base64, mime, tahlil: natija.tahlil, mahsulotlar: natija.mahsulotlar,
     });
     if (rasm) {

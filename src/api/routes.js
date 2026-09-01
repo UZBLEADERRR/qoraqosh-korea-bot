@@ -54,8 +54,17 @@ export async function apiRoutes(req, res, yol) {
   }
 
   if (yol === '/api/me' && req.method === 'GET') {
+    // Profil bo'limi uchun: nechta tahlil, nechta buyurtma, qancha xarid
+    const stat = await qator(
+      `select (select count(*)::int from analyses where user_id = $1) as tahlil,
+              (select count(*)::int from orders   where user_id = $1
+                 and status <> 'bekor')            as buyurtma,
+              (select coalesce(sum(total), 0)::bigint from orders where user_id = $1
+                 and status <> 'bekor')            as jami_xarid`, [user.id]);
     return ok(res, {
       limit: await limitHolati(user.id),
+      stat: { tahlil: stat?.tahlil ?? 0, buyurtma: stat?.buyurtma ?? 0,
+              jami_xarid: Number(stat?.jami_xarid ?? 0) },
       user: {
         id: user.id, full_name: user.full_name, phone: user.phone,
         age: user.age, address: user.address,
@@ -106,7 +115,7 @@ export async function apiRoutes(req, res, yol) {
       // qayta chizib bo'lmaydi. Chizish ~170 ms, AI chaqiruvi yonida sezilmaydi.
       if (natija.yaroqli) {
         const rasm = await natijaRasminiYarat({
-          analysisId: natija.analysisId, userId: user.id,
+          analysisId: natija.analysisId, userId: user.id, ism: user.full_name,
           rasmBase64: base64, mime, tahlil: natija.tahlil, mahsulotlar: natija.mahsulotlar,
         });
         natija.rasm_bor = Boolean(rasm);
@@ -298,7 +307,7 @@ function hududniTekshir(xomViloyat, xomTuman) {
 /** Katalog ma'lumotini bir marta yig'adi — kesh shu funksiyani chaqiradi. */
 async function katalogniYig() {
   const [mahsulotlar, kategoriyalar, fee, bepul, pogonalar, karta, egasi, konsult,
-         menejerTel, ishVaqti] =
+         menejerTel, ishVaqti, donaChegirma, donaDan, minimal] =
     await Promise.all([
       faolMahsulotlar(),
       qatorlar('select * from categories order by sort'),
@@ -310,11 +319,21 @@ async function katalogniYig() {
       sozlama('konsultatsiya_user', ''),
       sozlama('menejer_telefon', ''),
       sozlama('menejer_ish_vaqti', ''),
+      sozlama('mahsulot_chegirma', 0),
+      sozlama('mahsulot_chegirma_dan', 1),
+      sozlama('minimal_buyurtma', 0),
     ]);
+  const son = (v) => {
+    const n = Number(String(v ?? '').replace(/"/g, ''));
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
   return {
     mahsulotlar, kategoriyalar,
     yetkazish: { narx: Number(fee), bepul_chegara: Number(bepul) },
     chegirmalar: Array.isArray(pogonalar) ? pogonalar : [],
+    // Har DONA uchun chegirma: 6 ta mahsulot × 5 000 = 30 000 = pochta haqi
+    dona_chegirma: { narx: son(donaChegirma), dan: Math.max(1, son(donaDan) || 1) },
+    minimal_buyurtma: son(minimal),
     karta: { raqam: String(karta || ''), egasi: String(egasi || '') },
     konsultatsiya: String(konsult || ''),
     menejer: { telefon: String(menejerTel || ''), ish_vaqti: String(ishVaqti || '') },

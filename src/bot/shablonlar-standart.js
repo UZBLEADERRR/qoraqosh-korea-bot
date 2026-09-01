@@ -39,7 +39,7 @@ export const TAVSIF = {
   xabar_muammolar_sarlavha: { nom: 'Muammolar sarlavhasi', izoh: 'Ro‘yxat oldidan chiqadi.', orin: [] },
   blok_muammo: {
     nom: 'Bitta muammo bloki',
-    izoh: 'HAR BIR topilgan muammo uchun takrorlanadi. Eng muhim shablon.',
+    izoh: 'HAR BIR muammo uchun takrorlanadi. Botda qisqa — sabab va yechim ilovada ko‘rinadi.',
     orin: ['nuqta', 'nom', 'foiz', 'shkala', 'zona', 'izoh', 'sabab', 'yechim'],
   },
   blok_ogohlantirish: {
@@ -53,7 +53,7 @@ export const TAVSIF = {
     izoh: 'Har bir prognoz uchun takrorlanadi.',
     orin: ['muammo', 'natija', 'ehtimol', 'muddat', 'shkala'],
   },
-  xabar_tahlil_yakun: { nom: 'Tahlil yakuni', izoh: 'Tavsiyalarga o‘tishdan oldingi jumla.', orin: ['tavsiya_soni'] },
+  xabar_tahlil_yakun: { nom: 'Tahlil yakuni', izoh: 'Tugmadan oldingi oxirgi jumla — qiziqtirib qo‘yadi.', orin: ['tavsiya_soni'] },
   ogohlantirish_tibbiy: { nom: 'Tibbiy ogohlantirish', izoh: 'Tahlil va yordam oxirida. Olib tashlamang — huquqiy himoya.', orin: [] },
 
   xabar_start:          { nom: '/start xabari', izoh: 'Bot bilan birinchi uchrashuv.', orin: ['dokon'] },
@@ -76,102 +76,71 @@ export const TAVSIF = {
 
 export const STANDART = {
   xabar_start:
-`👋 <b>{dokon}</b> — Koreya kosmetikasi
+`✨ <b>{dokon}</b>
 
-Yuzingizni AI bilan tekshirib, aynan sizga mos parvarishni tuzib beraman.
+AI bilan terini tekshirib, sizga mos parvarishni tuzib beraman.
 
-Avval qisqa tanishamiz — <b>3 ta savol</b>, yarim daqiqa.
-
-<b>1/3</b> · Telefon raqamingizni ulashing 👇`,
+<b>1/3</b> · Telefon raqamingiz 👇`,
 
   xabar_royxat_tugadi:
 `🎉 <b>Tayyor, {ism}!</b>
 
-Endi <b>🔬 Yuz skaneri</b> ni bosing va yuzingiz aniq ko‘ringan surat yuboring.
-
-Men aytib beraman:
-👤 taxminiy yosh va teri turingizni
-🔍 qanday muammolar borligini va qanchalik kuchliligini
-⏳ e’tibor bermasangiz nima bo‘lishini
-💡 qaysi mahsulot, qaysi tartibda va nega kerakligini`,
+<b>🔬 Yuz skaneri</b> ni bosing va yuzingiz aniq ko‘ringan surat yuboring.`,
 
   xabar_skaner:
 `🔬 <b>Yuz skaneri</b>
 
-Yuzingiz aniq ko‘ringan surat yuboring 📸
+Suratingizni yuboring 📸
+☀️ Yorug‘ joyda · 🤳 Yaqindan · 🧼 Pardozsiz
 
-☀️ Yorug‘ joyda — deraza oldida
-🤳 Yaqindan — yuz kadrni to‘ldirsin
-👀 To‘g‘riga qarang
-🧼 Pardozsiz va filtrsiz
-
-<i>Xira, uzoq, ekrandan olingan yoki AI chizgan rasm qabul qilinmaydi.</i>`,
+<i>Xira, uzoq yoki ekrandan olingan rasm qabul qilinmaydi.</i>`,
 
   xabar_tahlil_bosh:
 `🔬 <b>Tahlil tayyor</b>
 
 👤 {yosh} yosh · {teri_turi} teri
-🎨 {teri_rangi}
-
-✨ <b>Teri holati: {ball}/100</b> — {baho}
+✨ <b>{ball}/100</b> — {baho}
 {shkala}`,
 
   xabar_muammolar_sarlavha: `🔍 <b>Nima topdim</b>`,
 
-  blok_muammo:
-`{nuqta} <b>{nom}</b>
-{shkala} {foiz}%
-📍 {zona}
-🔎 <i>Sababi:</i> {sabab}
-✅ <i>Yechimi:</i> {yechim}`,
+  // Botda faqat nomi va kuchi. Sababi va yechimi — ilovada.
+  blok_muammo: `{nuqta} <b>{nom}</b> · {foiz}%`,
 
   blok_ogohlantirish: `⚠️ <i>{ogohlantirish}</i>`,
 
-  xabar_prognoz_sarlavha: `⏳ <b>Agar e’tibor bermasangiz</b>`,
+  xabar_prognoz_sarlavha: `⏳ <b>Hozir e’tibor bermasangiz</b>`,
 
   blok_prognoz:
-`{shkala} {ehtimol}% · {muddat}
-<b>{muammo}</b> → {natija}`,
+`<b>{muammo}</b> → {natija}
+<i>{muddat} ichida · {ehtimol}% ehtimol</i>`,
 
   xabar_tahlil_yakun:
-`💡 Sizga <b>{tavsiya_soni} ta mahsulot</b> tanladim.
-Nega aynan shular kerakligini ilovada o‘qing 👇`,
+`💡 Sizga <b>{tavsiya_soni} ta mahsulot</b> tanladim — qaysi biri, qaysi tartibda va nega kerakligi tugmada 👇`,
 
   ogohlantirish_tibbiy:
-`⚕️ <i>Bu AI bahosi, tibbiy tashxis emas. Jiddiy yoki tez o‘zgarayotgan belgilarda dermatologga murojaat qiling.</i>`,
+`⚕️ <i>Bu AI bahosi, tibbiy tashxis emas.</i>`,
 
   xabar_rad:
 `{emoji} <b>Bu rasm to‘g‘ri kelmadi</b>
 
 {sabab}
 
-☀️ Yorug‘ joyda   🤳 Yaqindan
-👀 To‘g‘riga qarang   🧼 Pardozsiz
-
-📸 Yangi rasm yuboring.`,
+📸 Yorug‘ joyda, yaqindan va pardozsiz yangi rasm yuboring.`,
 
   xabar_konsultatsiya:
 `💬 <b>Konsultatsiya</b>
 
-Savolingiz bormi? Menejerimiz javob beradi:
-
-🧴 qaysi mahsulot sizga mos
-🔄 mahsulotlarni birga ishlatsa bo‘ladimi
-🚚 yetkazib berish va to‘lov
-↩️ almashtirish va qaytarish
+Savolingiz bo‘lsa menejerimiz javob beradi.
 
 📞 {telefon}
-🕘 {ish_vaqti}
-
-<i>Odatda 1 soat ichida javob beramiz.</i>`,
+🕘 {ish_vaqti}`,
 
   xabar_yordam:
 `ℹ️ <b>Yordam</b>
 
-🔬 <b>Yuz skaneri</b> — rasm yuboring, teri holatini tahlil qilaman
-🛍 <b>Do‘kon</b> — katalog, qidiruv va narx bo‘yicha filtr
-🛒 <b>Savat</b> — buyurtma berish
-💬 <b>Konsultatsiya</b> — menejer bilan bog‘lanish
+🔬 <b>Yuz skaneri</b> — rasm yuboring, terini tahlil qilaman
+🛍 <b>Do‘kon</b> — katalog, savat, buyurtmalar va profil
 
 <b>Buyruqlar</b>
 /start — boshlash
@@ -192,7 +161,7 @@ Savolingiz bormi? Menejerimiz javob beradi:
 
 <i>Olib ketishingiz yoki kuryer yetkazishini kutishingiz mumkin.</i>`,
   xabar_holat_yolda:        `🚚 <b>{raqam}</b> buyurtmangiz yo‘lga chiqdi. Kuryer bog‘lanadi.`,
-  xabar_holat_yetkazildi:   `📦 <b>{raqam}</b> yetkazildi. Xaridingiz uchun rahmat! 🌸`,
+  xabar_holat_yetkazildi:   `📦 <b>{raqam}</b> yetkazildi. Xaridingiz uchun rahmat! ✨`,
   xabar_holat_bekor:        `❌ <b>{raqam}</b> bekor qilindi.{sabab}`,
-  xabar_tolov_tasdiq:       `✅ <b>{raqam}</b> — to‘lovingiz tasdiqlandi. Rahmat! 🌸`,
+  xabar_tolov_tasdiq:       `✅ <b>{raqam}</b> — to‘lovingiz tasdiqlandi. Rahmat! ✨`,
 };

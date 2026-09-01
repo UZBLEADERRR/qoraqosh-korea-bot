@@ -25,12 +25,18 @@ const holatSozi = (b) =>
   : b >= 35 ? "e’tibor kerak 😕" : 'zaif 😟';
 
 /**
- * Tahlil xulosasi. Har muammo: foiz shkalasi, aniq joyi, sababi va yechimi.
+ * Botdagi tahlil xabari — QISQA.
+ *
+ * Botda faqat: teri holati, topilgan muammolar ro'yxati va bitta FOMO
+ * (e'tibor bermasa nima bo'lishi). Sabab, yechim, zona va to'liq tavsiya
+ * ILOVADA — «Tavsiyani ochish» tugmasi ostida. Telegramda uzun xabar
+ * o'qilmaydi va odam tugmagacha yetib bormaydi.
+ *
  * @param {object} a            tahlil natijasi
  * @param {number} tavsiyaSoni
  * @param {number} maxMuammo    botda nechtasini ko'rsatish (qolgani ilovada)
  */
-export async function tahlilXabari(a, tavsiyaSoni = 0, maxMuammo = 3) {
+export async function tahlilXabari(a, tavsiyaSoni = 0, maxMuammo = 4) {
   const bolaklar = [];
 
   bolaklar.push(await xabar('xabar_tahlil_bosh', {
@@ -45,14 +51,14 @@ export async function tahlilXabari(a, tavsiyaSoni = 0, maxMuammo = 3) {
 
   if (a.oflayn) bolaklar.push('<i>⚠️ AI hozir mavjud emas — bazaviy tavsiya.</i>');
 
-  // ---- Muammolar: har biri o'z bloki ----
+  // ---- Muammolar: bittasi bitta qator ----
   const muammolar = (a.muammolar || []).slice(0, maxMuammo);
   if (muammolar.length) {
-    bolaklar.push(await xabar('xabar_muammolar_sarlavha', {}, '🔍 <b>Nima topdim</b>'));
+    const qatorlar = [await xabar('xabar_muammolar_sarlavha', {}, '🔍 <b>Nima topdim</b>'), ''];
 
     for (const m of muammolar) {
       const foiz = m.foiz ?? (m.daraja === 3 ? 80 : m.daraja === 2 ? 55 : 25);
-      let blok = await xabar('blok_muammo', {
+      qatorlar.push(await xabar('blok_muammo', {
         nuqta:  darajaNuqta(m.daraja),
         nom:    esc(m.nom),
         foiz,
@@ -61,37 +67,32 @@ export async function tahlilXabari(a, tavsiyaSoni = 0, maxMuammo = 3) {
         izoh:   esc(m.izoh || ''),
         sabab:  esc(m.sabab || ''),
         yechim: esc(m.yechim || ''),
-      }, '{nuqta} <b>{nom}</b>\n{shkala} {foiz}%\n📍 {zona}');
-
-      if (m.ogohlantirish) {
-        blok += '\n' + await xabar('blok_ogohlantirish',
-          { ogohlantirish: esc(m.ogohlantirish) }, '⚠️ <i>{ogohlantirish}</i>');
-      }
-      bolaklar.push(blok);
+      }, '{nuqta} <b>{nom}</b> · {foiz}%'));
     }
 
     const qolgan = (a.muammolar || []).length - muammolar.length;
-    if (qolgan > 0) bolaklar.push(`<i>…va yana ${qolgan} ta — ilovada ko‘ring</i>`);
+    if (qolgan > 0) qatorlar.push(`<i>…va yana ${qolgan} tasi ilovada</i>`);
+    bolaklar.push(qatorlar.join('\n'));
   }
 
-  // ---- Prognoz ----
-  const prognoz = (a.prognoz || []).slice().sort((x, y) => y.ehtimol - x.ehtimol).slice(0, 2);
-  if (prognoz.length) {
-    bolaklar.push(await xabar('xabar_prognoz_sarlavha', {}, '⏳ <b>Agar e’tibor bermasangiz</b>'));
-    for (const p of prognoz) {
-      bolaklar.push(await xabar('blok_prognoz', {
-        muammo:  esc(p.muammo),
-        natija:  esc(p.natija || ''),
-        ehtimol: p.ehtimol,
-        muddat:  esc(p.muddat || ''),
-        shkala:  shkala(p.ehtimol),
-      }, '{shkala} {ehtimol}% · {muddat}\n<b>{muammo}</b> → {natija}'));
-    }
+  // ---- FOMO: eng ehtimolli bitta prognoz ----
+  const eng = (a.prognoz || []).slice().sort((x, y) => y.ehtimol - x.ehtimol)[0];
+  if (eng) {
+    bolaklar.push([
+      await xabar('xabar_prognoz_sarlavha', {}, '⏳ <b>Hozir e’tibor bermasangiz</b>'),
+      await xabar('blok_prognoz', {
+        muammo:  esc(eng.muammo),
+        natija:  esc(eng.natija || ''),
+        ehtimol: eng.ehtimol,
+        muddat:  esc(eng.muddat || ''),
+        shkala:  shkala(eng.ehtimol),
+      }, '<b>{muammo}</b> → {natija}\n<i>{muddat} ichida · {ehtimol}% ehtimol</i>'),
+    ].filter(Boolean).join('\n'));
   }
 
   if (tavsiyaSoni) {
     bolaklar.push(await xabar('xabar_tahlil_yakun', { tavsiya_soni: tavsiyaSoni },
-      '💡 Sizga <b>{tavsiya_soni} ta mahsulot</b> tanladim.'));
+      '💡 Sizga <b>{tavsiya_soni} ta mahsulot</b> tanladim — tugmani bosing 👇'));
   }
   bolaklar.push(await xabar('ogohlantirish_tibbiy', {}, ''));
 

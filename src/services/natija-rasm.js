@@ -31,12 +31,15 @@ const OCHILADI = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/gif']);
  * Rasmni chizadi va media jadvaliga saqlaydi.
  * @returns {Promise<{bayt:Buffer, mediaId:string}|null>} motor yo'q bo'lsa null
  */
-export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime, tahlil, mahsulotlar }) {
+export async function natijaRasminiYarat({ analysisId, userId, ism, rasmBase64, mime, tahlil, mahsulotlar }) {
   const mos = OCHILADI.has(String(mime || '').toLowerCase());
   const [brend, logo] = await Promise.all([brendNomi(), brendLogosi()]);
   const svg = natijaSvg({
     rasmBase64: mos ? rasmBase64 : null,
     mime: mos ? mime : 'image/jpeg',
+    // Ism rasmda surat yonida turadi. Faqat BIRINCHI so'z: familiya bilan
+    // birga rasm ijtimoiy tarmoqqa chiqsa keraksiz ma'lumot ulashiladi.
+    ism: String(ism || '').trim().split(/\s+/)[0] || '',
     tahlil,
     tavsiyalar: tavsiyaRoyxati(tahlil, mahsulotlar),
     brend,

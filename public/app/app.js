@@ -1,4 +1,4 @@
-/* Meduza Cosmetics Mini App */
+/* KiOVO Mini App */
 (() => {
 'use strict';
 
@@ -19,7 +19,8 @@ const holat = {
   mahsulotlar: [], kategoriyalar: [], savat: [], user: null, tahlil: null,
   kategoriya: 'hammasi', qidiruv: '', narxFiltr: 'hammasi', saralash: 'ommabop',
   yetkazish: { narx: 25000, bepul_chegara: 500000 },
-  chegirmalar: [], karta: { raqam: '', egasi: '' }, konsultatsiya: '',
+  chegirmalar: [], donaChegirma: { narx: 0, dan: 1 }, minimal: 0,
+  karta: { raqam: '', egasi: '' }, konsultatsiya: '',
   draft: {}, tab: 'katalog',
 };
 
@@ -126,6 +127,8 @@ async function boshla() {
     holat.mahsulotlar.forEach((p) => { p._indeks = indeks(p); });
     holat.yetkazish   = k.yetkazish;
     holat.chegirmalar = k.chegirmalar || [];
+    holat.donaChegirma = k.dona_chegirma || { narx: 0, dan: 1 };
+    holat.minimal = Number(k.minimal_buyurtma) || 0;
     holat.karta       = k.karta || { raqam: '', egasi: '' };
     holat.konsultatsiya = k.konsultatsiya || '';
     holat.menejer = k.menejer || { telefon: '', ish_vaqti: '' };
@@ -136,6 +139,7 @@ async function boshla() {
     holat.user = me.user;
     holat.tahlil = me.oxirgi_tahlil;
     holat.limit = me.limit;
+    holat.stat = me.stat || {};
     if (!me.user.royxatdan_otgan) return royxatEkrani();
   } catch {
     kor($('#ilova'), true);              // Telegram tashqarisida — faqat katalog
@@ -150,9 +154,10 @@ async function boshla() {
 
   const p = new URLSearchParams(location.search);
   if (p.get('tavsiya') === '1') await tavsiyaniSavatgaSol();
-  const boshlangich = p.get('tab') || sessionStorage.getItem('qq_tab') || 'katalog';
+  const xom = p.get('tab') || sessionStorage.getItem('qq_tab') || 'katalog';
+  const boshlangich = TAB_TAQMOQ[xom] || xom;
   if (boshlangich === 'natija' && holat.tahlil) natijaniChiz();
-  tabOch(['katalog','skaner','savat','buyurtma','natija'].includes(boshlangich) ? boshlangich : 'katalog');
+  tabOch(TABLAR.includes(boshlangich) ? boshlangich : 'katalog');
 }
 
 // ---------------- Ro'yxatdan o'tish ----------------
@@ -828,9 +833,21 @@ async function savatga(id, soni = 1) {
   }
 }
 
-const chegirmaHisobla = (oraliq) =>
-  Math.min(oraliq, holat.chegirmalar.reduce((m, p) =>
-    oraliq >= Number(p.dan) ? Math.max(m, Number(p.chegirma)) : m, 0));
+/** Savatdagi jami dona soni (mahsulot xillari emas). */
+const donaSoni = () => holat.savat.reduce((s, r) => s + r.quantity, 0);
+
+/**
+ * Chegirma: summa pog'onasi + har bir dona uchun qat'iy chegirma.
+ * Ikkalasi qo'shiladi — bazadagi place_order ham xuddi shunday hisoblaydi,
+ * shuning uchun ekrandagi son to'lov paytida o'zgarmaydi.
+ */
+function chegirmaHisobla(oraliq, dona = donaSoni()) {
+  const pogona = holat.chegirmalar.reduce((m, p) =>
+    oraliq >= Number(p.dan) ? Math.max(m, Number(p.chegirma)) : m, 0);
+  const d = holat.donaChegirma || { narx: 0, dan: 1 };
+  const donaCh = (d.narx > 0 && dona >= (d.dan || 1)) ? d.narx * dona : 0;
+  return Math.min(oraliq, pogona + donaCh);
+}
 
 function savatniChiz() {
   const el = $('#savat-tan');
@@ -844,15 +861,28 @@ function savatniChiz() {
     return;
   }
 
+  const dona     = donaSoni();
   const oraliq   = holat.savat.reduce((s, r) => s + r.products.price * r.quantity, 0);
-  const chegirma = chegirmaHisobla(oraliq);
-  const yetkazish = oraliq >= holat.yetkazish.bepul_chegara ? 0 : holat.yetkazish.narx;
-  const jami = oraliq - chegirma + yetkazish;
+  const chegirma = chegirmaHisobla(oraliq, dona);
+
+  // ⚠️ Yetkazish narxi bu yerda KO'RSATILMAYDI.
+  // U manzilga (zona, masofa) va og'irlikka bog'liq — savatda taxminiy
+  // 25 000 ni ko'rsatib, to'lovda 37 000 chiqarish mijozni aldashdek
+  // tuyuladi. Shuning uchun aniq narx faqat manzil tanlangach chiqadi.
+  const jami = oraliq - chegirma;
 
   // Keyingi chegirma pog'onasi
   const keyingi = holat.chegirmalar
     .map((p) => ({ dan: Number(p.dan), ch: Number(p.chegirma) }))
     .filter((p) => oraliq < p.dan).sort((a, b) => a.dan - b.dan)[0];
+
+  // Dona chegirmasi: «yana 2 ta olsangiz yo'l haqi o'zini qoplaydi»
+  const d = holat.donaChegirma || { narx: 0, dan: 1 };
+  const donaCh = (d.narx > 0 && dona >= (d.dan || 1)) ? d.narx * dona : 0;
+  const yetibKelmagan = d.narx > 0 && dona < (d.dan || 1) ? (d.dan || 1) - dona : 0;
+
+  // Minimal buyurtma: yetmasa rasmiylashtirish tugmasi ochilmaydi
+  const yetmaydi = holat.minimal > 0 && oraliq < holat.minimal;
 
   el.innerHTML = `
   <div class="satr-bosh">
@@ -882,27 +912,37 @@ function savatniChiz() {
 
   <div class="karta">
     ${qtr('🧾 Mahsulotlar', narx(oraliq))}
-    ${chegirma ? `<div class="qtr"><span class="k">🎁 Chegirma</span>
-        <span class="v chegirma">−${narx(chegirma)}</span></div>` : ''}
-    ${qtr('🚚 Yetkazib berish', yetkazish ? narx(yetkazish)
-        : '<span style="color:var(--yashil)">bepul</span>')}
-    <div class="qtr jami"><span class="k">Jami</span><span class="v">${narx(jami)}</span></div>
+    ${donaCh ? `<div class="qtr"><span class="k">🎁 ${dona} ta mahsulot uchun
+        (${qisqaNarx(d.narx)} × ${dona})</span>
+        <span class="v chegirma">−${narx(donaCh)}</span></div>` : ''}
+    ${chegirma - donaCh > 0 ? `<div class="qtr"><span class="k">🎁 Summa chegirmasi</span>
+        <span class="v chegirma">−${narx(chegirma - donaCh)}</span></div>` : ''}
+    <div class="qtr jami"><span class="k">Mahsulotlar jami</span><span class="v">${narx(jami)}</span></div>
+    <p class="ozgina" style="margin:10px 0 0">
+      🚚 Yetkazish narxi manzilingizga qarab hisoblanadi — rasmiylashtirishda ko‘rasiz.</p>
+    ${yetibKelmagan ? `<div class="ogoh yashil" style="margin-top:12px">
+        🎁 Yana <b>${yetibKelmagan} ta</b> mahsulot olsangiz har biriga
+        <b>${qisqaNarx(d.narx)} so‘m</b> chegirma boshlanadi</div>`
+      : donaCh ? `<div class="ogoh yashil" style="margin-top:12px">
+        🎁 Yana <b>1 ta</b> mahsulot — chegirma <b>${qisqaNarx(d.narx)} so‘m</b>ga oshadi</div>` : ''}
     ${keyingi ? `<div class="ogoh yashil" style="margin-top:12px">
         🎁 Yana <b>${narx(keyingi.dan - oraliq)}</b> qo‘shsangiz
         <b>${narx(keyingi.ch)}</b> chegirma olasiz</div>` : ''}
-    ${yetkazish && oraliq < holat.yetkazish.bepul_chegara ? `<p class="ozgina" style="margin:10px 0 0">
-      🚚 ${narx(holat.yetkazish.bepul_chegara - oraliq)} qo‘shsangiz yetkazish bepul</p>` : ''}
+    ${yetmaydi ? `<div class="ogoh" style="margin-top:12px">
+        ⚠️ Minimal buyurtma — <b>${narx(holat.minimal)}</b>.
+        Yana <b>${narx(holat.minimal - oraliq)}</b>lik mahsulot qo‘shing.</div>` : ''}
   </div>
 
   <div style="height:96px"></div>
   <div class="yopishqoq" id="yopishqoq-savat">
-    <div class="satr"><span class="mayda">To‘lash uchun</span><b>${narx(jami)}</b></div>
-    <button class="asosiy" id="t-rasmiylashtir">Buyurtmani rasmiylashtirish →</button>
+    <div class="satr"><span class="mayda">Mahsulotlar</span><b>${narx(jami)}</b></div>
+    <button class="asosiy" id="t-rasmiylashtir" ${yetmaydi ? 'disabled' : ''}>
+      ${yetmaydi ? `Minimal ${qisqaNarx(holat.minimal)} so‘m` : 'Buyurtmani rasmiylashtirish →'}</button>
   </div>`;
 
   $$('[data-kam]', el).forEach((b) => b.onclick = () => ozgartir(Number(b.dataset.kam), -1));
   $$('[data-kop]', el).forEach((b) => b.onclick = () => ozgartir(Number(b.dataset.kop), +1));
-  $('#t-rasmiylashtir').onclick = () => checkoutOch();
+  if (!yetmaydi) $('#t-rasmiylashtir').onclick = () => checkoutOch();
 
   const tz = $('#t-savat-tozala');
   if (tz) tz.onclick = () => {
@@ -1284,8 +1324,85 @@ function tayyorOyna(o, chekBor = false) {
     </div>`;
   modalOch();
   $('#t-tayyor').onclick = () => {
-    modalYop(); tabOch('buyurtma'); buyurtmalarniChiz({ majburiy: true });
+    modalYop(); tabOch('profil'); buyurtmalarniChiz({ majburiy: true });
   };
+}
+
+// ---------------- Profil ----------------
+// Botdagi menyu ikkita tugmaga qisqardi — qolgan hamma narsa shu yerda.
+function profilniChiz() {
+  const u = holat.user || {};
+  const st = holat.stat || {};
+  const ism = (u.full_name || '').trim();
+  $('#profil-ism').textContent = ism || 'Profilim';
+  $('#profil-tel').textContent = u.phone || '';
+
+  const m = holat.menejer || {};
+  const tgNom = String(holat.konsultatsiya || '').replace(/^@/, '');
+  const tel = String(m.telefon || '');
+
+  $('#profil-tan').innerHTML = `
+    <div class="karta">
+      <div class="profil-raqamlar">
+        <div><b>${st.tahlil ?? 0}</b><span>tahlil</span></div>
+        <div><b>${st.buyurtma ?? 0}</b><span>buyurtma</span></div>
+        <div><b>${qisqaNarx(st.jami_xarid || 0)}</b><span>so‘m xarid</span></div>
+      </div>
+    </div>
+
+    <div class="karta">
+      ${qtr('👤 Ism', esc(ism || '—'))}
+      ${qtr('📱 Telefon', esc(u.phone || '—'))}
+      ${qtr('🎂 Yosh', u.age ? u.age + ' yosh' : '—')}
+      ${u.viloyat ? qtr('📍 Hudud', esc([u.viloyat, u.tuman].filter(Boolean).join(', '))) : ''}
+    </div>
+
+    <div class="ichki">
+      ${tgNom ? `<a class="tanlov-tugma" href="https://t.me/${esc(tgNom)}" target="_blank">
+        <span>💬 Konsultatsiya${m.ish_vaqti ? ` · <span class="ozgina">${esc(m.ish_vaqti)}</span>` : ''}</span>
+        <span class="oq">›</span></a>` : ''}
+      ${tel ? `<a class="tanlov-tugma" href="tel:${esc(tel.replace(/[^+\d]/g, ''))}">
+        <span>📞 ${esc(tel)}</span><span class="oq">›</span></a>` : ''}
+      <button class="tanlov-tugma" id="t-profil-yordam">
+        <span>ℹ️ Yordam va tez-tez so‘raladigan savollar</span><span class="oq">›</span></button>
+      <a class="tanlov-tugma" href="/oferta" target="_blank">
+        <span>📄 Ommaviy oferta</span><span class="oq">›</span></a>
+      <button class="tanlov-tugma" id="t-profil-ochir">
+        <span style="color:var(--qizil)">🗑 Ma’lumotlarimni o‘chirish</span><span class="oq">›</span></button>
+    </div>`;
+
+  $('#t-profil-yordam').onclick = yordamOyna;
+  $('#t-profil-ochir').onclick = () => {
+    $('#modal-tan').innerHTML = `
+      <div style="padding:18px 18px 0">
+        <h2 style="margin-bottom:10px">🗑 Ma’lumotlarni o‘chirish</h2>
+        <p>Tahlillaringiz va savatingiz o‘chiriladi. Buni botda tasdiqlaysiz:
+          botga <b>/ochir</b> buyrug‘ini yuboring.</p>
+        <p class="ozgina">Buyurtmalar hisobi qonun talabi bilan saqlanadi,
+          lekin shaxsiy ma’lumotlarsiz.</p>
+        <button class="ikkilamchi" id="t-ochir-yop" style="margin-top:14px">Tushunarli</button>
+      </div>`;
+    modalOch();
+    $('#t-ochir-yop').onclick = modalYop;
+  };
+}
+
+function yordamOyna() {
+  $('#modal-tan').innerHTML = `
+    <div style="padding:18px 18px 0">
+      <h2 style="margin-bottom:12px">ℹ️ Yordam</h2>
+      <div class="karta" style="margin:0 0 12px">
+        ${qtr('🔬 Yuz skaneri', 'Rasm yuboring — terini tahlil qilamiz')}
+        ${qtr('🛍 Do‘kon', 'Katalog, qidiruv va narx filtri')}
+        ${qtr('🛒 Savat', 'Buyurtma berish va chek yuklash')}
+        ${qtr('📋 Buyurtmalarim', 'Shu profil sahifasida, pastda')}
+      </div>
+      <p class="ozgina">Botdagi buyruqlar: /start · /skaner · /qayta · /ochir</p>
+      <p class="ozgina">⚕️ Tahlil — AI bahosi, tibbiy tashxis emas.</p>
+      <button class="ikkilamchi" id="t-yordam-yop" style="margin-top:8px">Yopish</button>
+    </div>`;
+  modalOch();
+  $('#t-yordam-yop').onclick = modalYop;
 }
 
 // ---------------- Buyurtmalar ----------------
@@ -1355,14 +1472,18 @@ function buyurtmalarniYangila() {
 }
 
 // ---------------- Tablar ----------------
-const TABLAR = ['katalog','skaner','savat','buyurtma','natija'];
+const TABLAR = ['katalog','skaner','savat','profil','natija'];
+// Eski havolalar (botdagi «?tab=buyurtma») profilga olib boradi —
+// buyurtmalar ro'yxati endi shu yerda.
+const TAB_TAQMOQ = { buyurtma: 'profil' };
 function tabOch(nom) {
+  nom = TAB_TAQMOQ[nom] || nom;
   holat.tab = nom;
   sessionStorage.setItem('qq_tab', nom);
   TABLAR.forEach((t) => kor($(`#tab-${t}`), t === nom));
   $$('.menyu button').forEach((b) =>
     b.classList.toggle('tanlangan', b.dataset.tab === nom || (nom === 'natija' && b.dataset.tab === 'skaner')));
-  if (nom === 'buyurtma') buyurtmalarniChiz();
+  if (nom === 'profil') { profilniChiz(); buyurtmalarniChiz(); }
   if (nom === 'natija' && !holat.natijaKesh) natijaniChiz();
   scrollTo({ top: 0 });
 }
