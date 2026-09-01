@@ -93,7 +93,7 @@ AI bilan terini tekshirib, sizga mos parvarishni tuzib beraman.
 Suratingizni yuboring 📸
 ☀️ Yorug‘ joyda · 🤳 Yaqindan · 🧼 Pardozsiz
 
-<i>Xira, uzoq yoki ekrandan olingan rasm qabul qilinmaydi.</i>`,
+<i>Xira yoki uzoqdan olingan rasm qabul qilinmaydi — terining o‘zi ko‘rinishi kerak.</i>`,
 
   xabar_tahlil_bosh:
 `🔬 <b>Tahlil tayyor</b>
@@ -104,8 +104,9 @@ Suratingizni yuboring 📸
 
   xabar_muammolar_sarlavha: `🔍 <b>Nima topdim</b>`,
 
-  // Botda faqat nomi va kuchi. Sababi va yechimi — ilovada.
-  blok_muammo: `{nuqta} <b>{nom}</b> · {foiz}%`,
+  // Botda faqat NIMA topilgani va QAYERDA. Sababi, yechimi va tavsiya —
+  // ilovada: bot xabarining maqsadi odamni ilovaga olib kirish.
+  blok_muammo: `{nuqta} <b>{nom}</b> · {foiz}%\n<i>{zona}</i>`,
 
   blok_ogohlantirish: `⚠️ <i>{ogohlantirish}</i>`,
 
@@ -116,7 +117,10 @@ Suratingizni yuboring 📸
 <i>{muddat} ichida · {ehtimol}% ehtimol</i>`,
 
   xabar_tahlil_yakun:
-`💡 Sizga <b>{tavsiya_soni} ta mahsulot</b> tanladim — qaysi biri, qaysi tartibda va nega kerakligi tugmada 👇`,
+`💡 Har bir belgining <b>sababi</b>, <b>yechimi</b> va sizga tanlangan
+<b>{tavsiya_soni} ta mahsulot</b> ilovada.
+
+<b>To‘liq ma’lumotni ochish uchun quyidagi tugmani bosing</b> 👇`,
 
   ogohlantirish_tibbiy:
 `⚕️ <i>Bu AI bahosi, tibbiy tashxis emas.</i>`,
@@ -126,7 +130,8 @@ Suratingizni yuboring 📸
 
 {sabab}
 
-📸 Yorug‘ joyda, yaqindan va pardozsiz yangi rasm yuboring.`,
+📸 Yorug‘ joyda, yaqindan va pardozsiz yangi rasm yuboring —
+teri teshiklari va mayda tuklar ko‘rinib tursin.`,
 
   xabar_konsultatsiya:
 `💬 <b>Konsultatsiya</b>

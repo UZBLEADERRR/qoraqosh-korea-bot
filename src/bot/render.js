@@ -90,10 +90,15 @@ export async function tahlilXabari(a, tavsiyaSoni = 0, maxMuammo = 4) {
     ].filter(Boolean).join('\n'));
   }
 
-  if (tavsiyaSoni) {
-    bolaklar.push(await xabar('xabar_tahlil_yakun', { tavsiya_soni: tavsiyaSoni },
-      '💡 Sizga <b>{tavsiya_soni} ta mahsulot</b> tanladim — tugmani bosing 👇'));
-  }
+  // Tugmaga chaqiriq HAR DOIM bo'ladi — botdagi xabarning butun maqsadi
+  // shu: odamni ilovaga olib kirish. Tavsiya chiqmagan holatda ham
+  // sabab va yechim o'sha yerda.
+  bolaklar.push(tavsiyaSoni
+    ? await xabar('xabar_tahlil_yakun', { tavsiya_soni: tavsiyaSoni },
+        '💡 Sabab, yechim va <b>{tavsiya_soni} ta mahsulot</b> ilovada.\n\n'
+        + '<b>To‘liq ma’lumotni ochish uchun quyidagi tugmani bosing</b> 👇')
+    : '💡 Har bir belgining sababi va yechimi ilovada.\n\n'
+      + '<b>To‘liq ma’lumotni ochish uchun quyidagi tugmani bosing</b> 👇');
   bolaklar.push(await xabar('ogohlantirish_tibbiy', {}, ''));
 
   return bolaklar.filter(Boolean).join('\n\n');

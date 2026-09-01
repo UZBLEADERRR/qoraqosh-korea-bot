@@ -18,14 +18,24 @@ Google Gemini · Railway.
   profil, konsultatsiya va yordam Mini App'ning **👤 Profil** bo'limiga
   ko'chirildi: oltita tugma orasida asosiy amal ko'zdan yo'qolardi.
 - **Yuz skaneri** — botda ham, Mini App ichida ham ishlaydi.
-  **Botdagi javob qisqa:** teri holati, topilgan muammolar ro'yxati (foizi
-  bilan), bitta prognoz («hozir e'tibor bermasangiz…») va
-  **«💡 Tavsiyani ochish»** tugmasi. To'liq tafsilot — muammoning sababi,
-  yechimi, joyi va bosqichma-bosqich parvarish — ILOVADA. Telegramda uzun
+  **Botdagi javob qisqa:** teri holati, topilgan belgilar (foizi va terining
+  qaysi joyida ekani), bitta prognoz va **«💡 Tavsiyani ochish»** tugmasi.
+  Sabab, yechim va bosqichma-bosqich parvarish — ILOVADA. Telegramda uzun
   xabar oxirigacha o'qilmaydi va odam tugmagacha yetib bormaydi.
-- **Rasm sifati nazorati** — uzoq, xira, qorong'i, yuzi yopiq, bir nechta odam,
-  qalin pardoz, ekrandan olingan yoki **AI/deepfake** rasm rad etiladi va nima
-  qilish kerakligi aytiladi. Yaroqsiz rasm hech qachon tahlil qilinmaydi.
+- **Belgilar suratda ko'rsatiladi** — AI har bir muammo uchun uning rasmdagi
+  joyini (markazi va radiusi) qaytaradi; ilovada va natija rasmida yuz ustiga
+  **raqamlangan doira** chiziladi. Doiradagi raqam pastdagi ro'yxatdagi raqam
+  bilan bir xil: odam «bu qayerda ekan?» deb izlamaydi.
+- **Namuna surat** — «Yuz skaneri» ochilganda qanday rasm kutilayotgani
+  ko'rsatiladi (admin panelidan yuklanadi). Odam ko'rsatmani o'qib emas,
+  ko'rib tushunadi.
+- **Rasm sifati nazorati — qat'iy.** Uzoq, xira, qorong'i, yuzi yopiq, bir
+  nechta odam, qalin pardoz, ekrandan olingan yoki **AI/deepfake** rasm rad
+  etiladi. Qoida: **ikkilansa — rad etadi.** Teri TEKSTURASI (teshiklar,
+  mayda tuklar, donadorlik) ko'rinmasa rasm xira hisoblanadi — yuz tanilgani
+  yetarli emas, biz odamni emas, TERINI ko'rishimiz kerak. Model «yaroqli»
+  desa ham ishonchi 70% dan past bo'lsa tahlil qilinmaydi: chala rasmdan
+  chiqqan «tahlil» o'ylab topilgan bo'ladi va ishonchni yo'qotadi.
 - **Katalog, savat, buyurtma** — Mini App ichida; buyurtma raqami beriladi va
   holati o'zgarganda botga xabar keladi.
 - **Savatda yetkazish narxi KO'RSATILMAYDI** — u manzilga (zona, masofa) va
@@ -39,11 +49,14 @@ Google Gemini · Railway.
 - **Minimal buyurtma** — admin sozlaydigan eng kam summa. Kam bo'lsa
   rasmiylashtirish tugmasi ochilmaydi va nechchi so'm yetmayotgani aytiladi.
   Tekshiruv `place_order()` ichida ham bor — klientga ishonilmaydi.
-- **Natija RASM bo'lib keladi** — yuqori chap tarafda surat, uning yonida
-  ism, taxminiy yosh, teri turi va rangi hamda 0–100 ball. Statistika (nechta
-  muammo, eng kuchlisi, prognoz) **to'q yashil fon** ustida turadi. Muammolar
-  sababi/yechimi bilan va tavsiya etilgan mahsulotlar pastda, kichikroq.
-  Rasm serverda chiziladi, shuning uchun bot va Mini App'da bir xil ko'rinadi.
+- **Natija RASM bo'lib keladi** — yuqori chap tarafda surat (topilgan
+  belgilar raqamlangan doira bilan belgilangan), yonida taxminiy yosh, teri
+  turi va rangi hamda 0–100 ball. Statistika **to'q yashil fon** ustida.
+  Pastda belgilar ro'yxati va tavsiya etilgan mahsulotlar — **rasmi bilan
+  kichik kartochkalarda**, har birida nima uchun kerakligi bir-ikki so'zda
+  (Tozalash, Quyoshdan himoya…). **Ism yozilmaydi:** bitta telefondan bir
+  necha odam surat yuklashi mumkin. Rasm serverda chiziladi, shuning uchun
+  bot va Mini App'da bir xil ko'rinadi.
 - **«Rasm qilib olish»** — Mini App'dagi tugma rasmni Telegram chatiga yuboradi.
   (WebView ichida brauzerning yuklab olish va ulashish oynasi ishonchli
   ishlamaydi; chatdan saqlash esa har telefonda ishlaydi.)
@@ -60,6 +73,9 @@ Google Gemini · Railway.
 - **Eng yaqin ombor** — mahsulot yetib kelganda mijozga aynan qaysi omborga
   kelgani, uning manzili, mo'ljali, telefoni va ish vaqti yuboriladi.
   Ombor avval tuman, topilmasa viloyat bo'yicha tanlanadi.
+- **Tahlil bo'limida O'Z suratingiz** — yuklangan surat belgilari bilan
+  ko'rinadi, ostida belgilar ro'yxati (sabab va yechim bilan) va tavsiya
+  etilgan mahsulotlar **gorizontal lentada**, rasmi va narxi bilan.
 - **👤 Profil bo'limi (Mini App)** — ism, telefon, yosh, hudud; nechta tahlil,
   nechta buyurtma va jami qancha xarid qilgani; buyurtmalar tarixi;
   konsultatsiya, yordam, ommaviy oferta va ma'lumotni o'chirish.
@@ -83,6 +99,10 @@ Google Gemini · Railway.
   (rasmi va savatlardagi nusxalari bilan) va qaytarib bo'lmaydi. Ikkalasida
   ham **buyurtmalar tarixi butun qoladi**: mahsulot nomi va narxi
   `orders.items` ichida nusxa bo'lib saqlanadi, `products` ga havola emas.
+- **Ko'p mahsulotni birdan qo'shish** — bir necha qadoq rasmini *bir vaqtda*
+  tanlaysiz (12 tagacha), AI har birini tanib nomi, tarkibi, qo'llash tartibi
+  va kimga mosligini to'ldiradi, tanlangan rasm mahsulot rasmi bo'lib qoladi.
+  Sizga faqat **narx** qo'yish qoladi. Narxsiz mahsulot saqlanmaydi.
 - **Mahsulotlar** — narx, **tannarx**, marja, ombor. **Skrinshotdan qo'shish:**
   qadoq yoki do'kon suratini yuklaysiz, AI mahsulotni tanib nomi, tarkibi,
   **qanday foydalanish**, kimga mos — hammasini to'ldiradi, siz tekshirib
@@ -115,6 +135,10 @@ Google Gemini · Railway.
   avtomatik ketadi.
 - **Xabar matnlari** — botning har bir javobi admin paneldan tahrirlanadi,
   jonli ko'rinish bilan.
+- **Ommaviy oferta matni** — Sozlamalardan tahrirlanadi. Yuristingiz bergan
+  matnni qo'yasiz; `# Sarlavha`, `## Bo'lim`, `- ro'yxat` bilan belgilanadi,
+  HTML yozish shart emas. Bo'sh qoldirilsa koddagi namunaviy shablon ishlaydi.
+- **Skaner namunasi** — «Yuz skaneri» ekranida ko'rsatiladigan namuna surat.
 - **Tizim holati** — baza, Telegram bot va webhook, AI provayderi va haqiqiy AI
   chaqiruvi bitta tugma bilan tekshiriladi. Xatolik bo'lsa sababi ko'rsatiladi.
 - **Mobil interfeys** — 900px dan tor ekranda pastki menyu, kengroqda yon panel.
@@ -143,6 +167,7 @@ Kompyuter oldiga o'tirmasdan, Telegram'dan:
 | `/partiya` | Partiyani tanlab holatini birdaniga surasiz (mijozlarga xabar o'zi ketadi) va **pochta hujjatini** olasiz. |
 | `/reklama` | Hamma foydalanuvchiga xabar (matn yoki rasm). Oldindan ko'rasiz, keyin yuboriladi. |
 | `/reja` | Kanal agenti — pastga qarang. |
+| `/tanitish` | **Mahsulot reklamasi.** Mahsulotni tanlaysiz, AI katalogdagi ma'lumotdan reklama posti yozadi va tasdiqlashga yuboradi. Qidirish: `/tanitish krem`. |
 | `/brend` | Brend nomini o'zgartirish. |
 | `/panel` | Admin panelni ochish. |
 
@@ -214,24 +239,41 @@ yoziladi — keyin «nega shuncha?» degan savolga javob bera olasiz.
 
 ### 🤖 Kanal agenti
 
-Botda `/reja` yozib topshiriq berasiz — masalan *«har kuni teri parvarishi
-haqida foydali post joyla»*. Agent:
+Bir marta topshiriq berasiz — «har kuni soat 9 da teri parvarishi haqida post
+joyla» — agent 30 kunlik mavzular rejasini tuzadi va **har kuni bittadan**
+post tayyorlab, avval SIZGA tasdiqlashga yuboradi. Siz tasdiqlamaguningizcha
+kanalga hech narsa chiqmaydi. Tugmalar: joylash · o'zim yozaman · AI ga
+aytaman · boshqa variant · o'tkazib yuborish.
 
-1. **30 kunlik mavzular rejasini** tuzadi
-2. Har kuni belgilangan soatda **post tayyorlaydi** (matn + rasm)
-3. Uni **sizga** yuboradi — kanalga emas
+**👁 Ko'rinishini ochish** — post kanalda qanday chiqishini alohida sahifada
+ko'rsatadi: Telegram xabarining taqlidi (rasm + matn), belgilar soni va matn
+nusxa olish uchun. Havola imzolangan (HMAC), shuning uchun tasdiqlanmagan
+qoralama tarqalib ketmaydi. Rasmli postda matn 1024 belgidan oshsa sahifa
+ogohlantiradi — Telegram izohni o'sha yerda kesadi.
 
-**Siz tasdiqlamaguncha kanalga hech narsa chiqmaydi.** Tugmalar:
+**Kuniga bitta post.** Bu shunchaki e'tiborsizlik emas edi: kunlik chegara
+`reja_bandlari.created_at` bo'yicha tekshirilardi, lekin u — *reja tuzilgan*
+payt, 30 ta band bir vaqtda yaratiladi. Shart reja tuzilgan kuni hammasini
+to'sar, ertasiga esa hech qachon ishlamasdi va agent bir kunda o'ttizta
+tasdiq so'rovini yuborardi. Endi post *qachon tayyorlangani* alohida
+ustunda (`tayyorlandi_at`) turadi va so'rov `distinct on (reja_id)` bilan
+har rejadan bittasini oladi.
 
-- ✅ **Kanalga joylash**
-- ✏️ **O'zim yozaman** — matnni qo'lda yuborasiz
-- 🤖 **AI ga aytaman** — *«juda uzun, qisqartir»*, *«yoshlarga mos qil»* —
-  AI shu izohga qarab qayta yozadi
-- 🔄 **Boshqa variant** · ⏭ **O'tkazib yuborish**
+**Oldi-qochdi gaplar filtri.** Model o'zi bilmagan narsani ishonch bilan
+aytib qo'yadi: «tadqiqotlarga ko'ra 87%…», «bir haftada butunlay yo'qoladi»,
+«100% kafolat». Bunday post bir marta o'qiladi, keyin brendga ishonch
+yo'qoladi. Ko'rsatmada bular taqiqlangan, ustiga yozilgan matn tekshiruvdan
+o'tadi: manbasiz foiz, soxta manba, kafolat va'dasi, davolash va'dasi, real
+bo'lmagan muddat, asossiz ustunlik. Topilsa post bir marta qayta yozdiriladi;
+qolsa adminga xabarda ham, ko'rinish sahifasida ham ogohlantirish chiqadi.
 
-Joylangan mavzu rejadan chiqadi, qolgani navbatda turadi.
-
----
+**📣 Mahsulot reklamasi** — `/tanitish` (yoki `/tanitish krem`) mahsulot
+ro'yxatini beradi, bittasini tanlaysiz va agent reklama postini yozadi.
+Matn **katalogdagi haqiqiy ma'lumotdan** chiqadi (nomi, brendi, tarkibi,
+qo'llash tartibi, kimga mos) — model o'zidan xususiyat o'ylab topa olmasligi
+uchun unga «faqat shu ma'lumotdan foydalan» deb aytiladi. Rasm sifatida
+mahsulotning o'z posteri ishlatiladi. Keyin xuddi oddiy post kabi tasdiqlash
+oqimidan o'tadi.
 
 ## Ishga tushirish
 

@@ -12,7 +12,7 @@ import { cheklov } from '../lib/cheklov.js';
 import { VILOYATLAR, tumanlar } from '../lib/hududlar.js';
 import { kanalgaBuyurtma, kanalgaChek } from '../services/kanal.js';
 import { variantlar, TURLAR, turTozala, bepulChegara } from '../services/yetkazish.js';
-import { natijaRasminiYarat, saqlanganRasm, kanalgaTahlil } from '../services/natija-rasm.js';
+import { natijaRasminiYarat, saqlanganRasm, kanalgaTahlil, yuzniSaqla } from '../services/natija-rasm.js';
 import { rasmYubor } from '../bot/tg.js';
 
 // Kuniga minglab foydalanuvchi bo'lganda katalog eng ko'p so'raladigan yo'l.
@@ -115,10 +115,13 @@ export async function apiRoutes(req, res, yol) {
       // qayta chizib bo'lmaydi. Chizish ~170 ms, AI chaqiruvi yonida sezilmaydi.
       if (natija.yaroqli) {
         const rasm = await natijaRasminiYarat({
-          analysisId: natija.analysisId, userId: user.id, ism: user.full_name,
+          analysisId: natija.analysisId, userId: user.id,
           rasmBase64: base64, mime, tahlil: natija.tahlil, mahsulotlar: natija.mahsulotlar,
         });
         natija.rasm_bor = Boolean(rasm);
+        // Surat ilovadagi tahlil bo'limida belgilar bilan ko'rsatiladi
+        natija.yuz_rasm_id = await yuzniSaqla({
+          analysisId: natija.analysisId, rasmBase64: base64, mime });
         if (rasm) kanalgaTahlil(rasm.bayt, user, natija.tahlil).catch(() => {});
       }
       return ok(res, natija);
@@ -307,7 +310,7 @@ function hududniTekshir(xomViloyat, xomTuman) {
 /** Katalog ma'lumotini bir marta yig'adi — kesh shu funksiyani chaqiradi. */
 async function katalogniYig() {
   const [mahsulotlar, kategoriyalar, fee, bepul, pogonalar, karta, egasi, konsult,
-         menejerTel, ishVaqti, donaChegirma, donaDan, minimal] =
+         menejerTel, ishVaqti, donaChegirma, donaDan, minimal, namunaId] =
     await Promise.all([
       faolMahsulotlar(),
       qatorlar('select * from categories order by sort'),
@@ -322,6 +325,7 @@ async function katalogniYig() {
       sozlama('mahsulot_chegirma', 0),
       sozlama('mahsulot_chegirma_dan', 1),
       sozlama('minimal_buyurtma', 0),
+      sozlama('skaner_namuna_id', ''),
     ]);
   const son = (v) => {
     const n = Number(String(v ?? '').replace(/"/g, ''));
@@ -337,6 +341,8 @@ async function katalogniYig() {
     karta: { raqam: String(karta || ''), egasi: String(egasi || '') },
     konsultatsiya: String(konsult || ''),
     menejer: { telefon: String(menejerTel || ''), ish_vaqti: String(ishVaqti || '') },
+    // «Yuz skaneri» ekranidagi namuna surat (bo'sh bo'lsa matnli ko'rsatma)
+    skaner_namuna: String(namunaId || '').replace(/"/g, ''),
   };
 }
 

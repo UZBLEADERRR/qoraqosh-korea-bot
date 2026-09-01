@@ -374,3 +374,58 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
 #profil-tan .tanlov-tugma{margin-bottom:9px;text-decoration:none;color:var(--matn);
   text-align:left;gap:12px}
 #profil-tan .tanlov-tugma>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- Tahlil qilingan surat va undagi belgilar ---------- */
+.yuz-quti{position:relative;border-radius:14px;overflow:hidden;background:var(--fon);
+  aspect-ratio:1;display:block}
+.yuz-quti img{width:100%;height:100%;object-fit:cover;display:block}
+/* Doira aynan muammo ko'ringan joyda turadi (foizli koordinata) */
+.yuz-belgi{position:absolute;transform:translateY(-50%);border-radius:50%;
+  border:3px solid var(--sariq);box-shadow:0 0 0 1px rgba(0,0,0,.25);
+  display:block;pointer-events:none}
+.yuz-belgi.d1{border-color:var(--yashil)}
+.yuz-belgi.d2{border-color:var(--sariq)}
+.yuz-belgi.d3{border-color:var(--qizil)}
+.yuz-belgi i{position:absolute;top:-9px;right:-9px;min-width:22px;height:22px;
+  border-radius:11px;background:var(--sariq);color:#fff;font-style:normal;
+  font-size:12.5px;font-weight:700;line-height:22px;text-align:center;padding:0 3px}
+.yuz-belgi.d1 i{background:var(--yashil)}
+.yuz-belgi.d2 i{background:var(--sariq)}
+.yuz-belgi.d3 i{background:var(--qizil)}
+
+/* Ro'yxatdagi raqam — suratdagi doira raqami bilan bir xil */
+.muammo-raqam{flex:0 0 auto;width:26px;height:26px;border-radius:13px;color:#fff;
+  font-size:14px;font-weight:700;line-height:26px;text-align:center;background:var(--och)}
+.muammo-raqam.d1{background:var(--yashil)}
+.muammo-raqam.d2{background:var(--sariq)}
+.muammo-raqam.d3{background:var(--qizil)}
+
+/* Skaner namunasi */
+.namuna{width:100%;border-radius:12px;display:block}
+
+/* ---------- Tavsiya lentasi ---------- */
+.tavsiya-lenta{display:flex;gap:12px;overflow-x:auto;padding:2px 16px 14px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+.tavsiya-lenta::-webkit-scrollbar{display:none}
+.tavsiya-karta{flex:0 0 152px;scroll-snap-align:start;display:flex;flex-direction:column;
+  gap:2px;background:var(--panel);border:1px solid var(--chiziq);border-radius:var(--r);
+  box-shadow:var(--sh);padding:0 0 12px;text-align:left;overflow:hidden;color:var(--matn)}
+.tk-rasm{position:relative;display:grid;place-items:center;aspect-ratio:1;font-size:40px;
+  overflow:hidden;margin-bottom:9px}
+.tk-rasm img{width:100%;height:100%;object-fit:cover;display:block}
+.tk-raqam{position:absolute;top:8px;left:8px;width:24px;height:24px;border-radius:12px;
+  background:var(--urgu);color:#fff;font-style:normal;font-size:13px;font-weight:700;
+  line-height:24px;text-align:center}
+.tk-bosqich{font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--urgu);
+  padding:0 11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk-nom{font-size:14px;font-weight:600;line-height:1.3;padding:2px 11px 0;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tk-brend{font-size:12px;color:var(--och);padding:1px 11px 0}
+.tk-narx{font-size:15px;font-weight:700;padding:5px 11px 0}
+
+/* «Nega aynan shu» qatorlari */
+.nega-satr{display:flex;gap:10px;align-items:flex-start;padding:11px 0;
+  border-bottom:1px solid var(--chiziq);font-size:14.5px;line-height:1.45;color:var(--kul)}
+.nega-satr:last-of-type{border-bottom:0}
+.nega-raqam{flex:0 0 auto;width:22px;height:22px;border-radius:11px;background:var(--urgu);
+  color:#fff;font-size:12.5px;font-weight:700;line-height:22px;text-align:center}

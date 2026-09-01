@@ -231,6 +231,96 @@ export async function adminRoutes(req, res, yol) {
     }
   }
 
+  // ══════════ Ko'p mahsulotni birdan qo'shish ══════════
+  //
+  // Admin bir necha rasm tanlaydi; har biri uchun AI kartochkani to'ldiradi
+  // va rasmning O'ZI mahsulot rasmi bo'lib qoladi. Adminga faqat narx va
+  // ombor qoladi. Bittalab qo'shishda 20 ta mahsulot yarim kun oladi.
+  if (yol === '/api/admin/recognize-toplam' && req.method === 'POST') {
+    const b = await tana(req);
+    const rasmlar = (Array.isArray(b.images) ? b.images : []).slice(0, 12);
+    if (!rasmlar.length) return xato(res, 400, 'Rasm yuborilmadi.');
+
+    // Ketma-ket: bir vaqtda 12 ta AI chaqiruvi kvotani yeb qo'yadi va
+    // provayder 429 qaytaradi. Bittasi yiqilsa qolganlari davom etadi.
+    const natijalar = [];
+    for (const xom of rasmlar) {
+      const rasm = rasmniOl(typeof xom === 'string' ? xom : xom?.image);
+      if (!rasm) { natijalar.push({ xato: 'Rasm o‘qilmadi yoki juda katta.' }); continue; }
+      try {
+        const tanilgan = await mahsulotniTani(rasm.base64, rasm.mime);
+        // Rasmni saqlaymiz — u mahsulot kartochkasining rasmi bo'ladi
+        const bayt = Buffer.from(rasm.base64, 'base64');
+        const m = await qator(
+          `insert into media (tur, mime, bayt, hajm, goya)
+           values ('poster', $1, $2, $3, $4) returning id`,
+          [rasm.mime, bayt, bayt.length, tanilgan.name.slice(0, 200) || 'Yangi mahsulot']);
+        natijalar.push({ ...tanilgan, media_id: m.id });
+      } catch (e) {
+        natijalar.push({ xato: e.foydalanuvchiga || 'AI tanimadi.' });
+      }
+    }
+    return ok(res, { natijalar });
+  }
+
+  // Tanilgan mahsulotlarni birdan saqlash
+  if (yol === '/api/admin/products-toplam' && req.method === 'POST') {
+    const royxat = (await tana(req)).mahsulotlar;
+    if (!Array.isArray(royxat) || !royxat.length) return xato(res, 400, 'Ro‘yxat bo‘sh.');
+
+    const qoshildi = [];
+    const xatolar = [];
+    for (const m of royxat.slice(0, 30)) {
+      const nom = String(m.name || '').trim().slice(0, 120);
+      const narx = Math.max(0, Number(m.price) || 0);
+      if (!nom)  { xatolar.push({ nom: '(nomsiz)', sabab: 'Nomi yo‘q' }); continue; }
+      if (!narx) { xatolar.push({ nom, sabab: 'Narx qo‘yilmagan' }); continue; }
+      try {
+        const r = await qator(
+          `insert into products (name,brand,category_id,step,price,cost_price,stock,volume,
+                  country,description,usage_text,ingredients,actives,concerns,skin_types,
+                  warnings,emoji,ai_filled,is_active,manba_url,manba,ogirlik,poster_id)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,true,$18,$19,$20,$21,$22)
+           returning id, name`,
+          [nom,
+           String(m.brand || '').trim().slice(0, 60) || null,
+           m.category_id ? Number(m.category_id) : null,
+           m.step || null,
+           narx,
+           Math.max(0, Number(m.cost_price) || 0),
+           Math.max(0, Number(m.stock) || 0),
+           String(m.volume || '').slice(0, 30) || null,
+           String(m.country || 'KR').slice(0, 4),
+           String(m.description || '').slice(0, 900) || null,
+           String(m.usage_text || '').slice(0, 900) || null,
+           String(m.ingredients || '').slice(0, 1200) || null,
+           (Array.isArray(m.actives) ? m.actives : []).slice(0, 12),
+           (Array.isArray(m.concerns) ? m.concerns : []).slice(0, 10),
+           (Array.isArray(m.skin_types) ? m.skin_types : []).slice(0, 8),
+           String(m.warnings || '').slice(0, 400) || null,
+           String(m.emoji || '🧴').slice(0, 4),
+           m.is_active !== false,
+           manbaUrl(m.manba_url),
+           manbaTuri(m.manba_url),
+           Math.max(0, Math.min(50000, Number(m.ogirlik) || 0)),
+           m.media_id || null]);
+
+        // Rasmni mahsulotga bog'laymiz: keyin mahsulot o'chsa rasm ham o'chadi
+        if (m.media_id) {
+          await sorov('update media set product_id = $1 where id = $2', [r.id, m.media_id])
+            .catch(() => {});
+        }
+        qoshildi.push(r);
+      } catch (e) {
+        xatolar.push({ nom,
+          sabab: /duplicate key|products_brend_nom_uniq/i.test(e.message)
+            ? 'Bunday mahsulot allaqachon bor' : 'Saqlanmadi' });
+      }
+    }
+    katalogYangilandi();
+    return ok(res, { qoshildi, xatolar });
+  }
+
   if (yol === '/api/admin/product' && req.method === 'POST') {
     const b = await tana(req);
     const m = {
@@ -654,6 +744,40 @@ export async function adminRoutes(req, res, yol) {
 
     keshniTashla('brend-logo');
     return ok(res, { id: m.id });
+  }
+
+  // «Yuz skaneri» ekranidagi NAMUNA surat.
+  // Odam qanday rasm kutilayotganini o'qib emas, KO'RIB tushunadi —
+  // shuning uchun to'g'ri va noto'g'ri rasmni ko'rsatgan yaxshiroq.
+  if (yol === '/api/admin/skaner-namuna' && req.method === 'POST') {
+    const b = await tana(req);
+    const r = rasmniOl(b.image);
+    if (!r) return xato(res, 400, 'Rasm yuborilmadi yoki juda katta.');
+
+    const bayt = Buffer.from(r.base64, 'base64');
+    const m = await qator(
+      `insert into media (tur, mime, bayt, hajm, goya)
+       values ('namuna', $1, $2, $3, 'Skaner namunasi') returning id`,
+      [r.mime, bayt, bayt.length]);
+
+    const eski = String(await sozlama('skaner_namuna_id', '') || '').replace(/"/g, '');
+    await sorov(
+      `insert into settings (key, value, updated_at) values ('skaner_namuna_id', $1, now())
+       on conflict (key) do update set value = excluded.value, updated_at = now()`,
+      [JSON.stringify(m.id)]);
+    if (eski && eski !== m.id) await sorov('delete from media where id = $1', [eski]).catch(() => {});
+
+    katalogYangilandi();
+    return ok(res, { id: m.id });
+  }
+
+  if (yol === '/api/admin/skaner-namuna' && req.method === 'DELETE') {
+    const eski = String(await sozlama('skaner_namuna_id', '') || '').replace(/"/g, '');
+    await sorov(`update settings set value = '""'::jsonb, updated_at = now()
+                  where key = 'skaner_namuna_id'`);
+    if (eski) await sorov('delete from media where id = $1', [eski]).catch(() => {});
+    katalogYangilandi();
+    return ok(res, { ok: true });
   }
 
   // Kanal ID to'g'rimi va bot unga yoza oladimi

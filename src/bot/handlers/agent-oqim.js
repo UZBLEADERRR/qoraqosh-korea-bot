@@ -6,8 +6,10 @@ import { esc } from '../format.js';
 import { config } from '../../config.js';
 import {
   rejaTuz, rejaniSaqla, postYoz, postRasmi, bandniOl, bandHolati,
-  rejalarniOl, rejaniOchir, rejaniYoq, tozalaHtml,
+  rejalarniOl, rejaniOchir, rejaniYoq, tozalaHtml, oldiQochdiTekshir,
+  reklamaPostiYoz, reklamaBandiYarat,
 } from '../../services/agent.js';
+import { postHavolasi } from '../../lib/post-korinish.js';
 
 export const HOLAT = {
   TOPSHIRIQ: 'admin_agent_topshiriq',
@@ -15,6 +17,7 @@ export const HOLAT = {
   SOAT:      'admin_agent_soat',
   TAHRIR:    'admin_agent_tahrir',   // postni qo'lda qayta yozish
   TUZATISH:  'admin_agent_tuzatish', // AI ga "shuni to'g'rila" deyish
+  REKLAMA_KANAL: 'admin_agent_reklama_kanal', // mahsulot reklamasi uchun kanal
 };
 
 const holatSaqla = (userId, holat, data = {}) => sorov(
@@ -126,6 +129,105 @@ export async function soatTanlandi(cq, user) {
   ].join('\n'));
 }
 
+
+// ══════════ /tanitish — mahsulot reklamasi ══════════
+
+/** Reklama qaysi kanalga ketishi: oxirgi faol rejaning kanali. */
+async function odatdagiKanal() {
+  const r = await qator(
+    `select kanal from rejalar where kanal <> '' order by faol desc, created_at desc limit 1`);
+  return r?.kanal || '';
+}
+
+/**
+ * /tanitish [qidiruv] — mahsulotni tanlash ro'yxati.
+ * Reklama matni KATALOGDAGI ma'lumotdan yoziladi, rasm — mahsulot posteri.
+ */
+export async function tanitishBoshla(chatId, argument = '') {
+  const q = String(argument || '').trim();
+  const mahsulotlar = await qatorlar(
+    `select id, name, brand, stock from products
+      where is_active
+        ${q ? `and (name ilike $1 or brand ilike $1)` : ''}
+      order by stock > 0 desc, sold_count desc nulls last, id desc
+      limit 10`, q ? [`%${q}%`] : []);
+
+  if (!mahsulotlar.length) {
+    return yubor(chatId, q
+      ? `🔍 «${esc(q)}» bo‘yicha mahsulot topilmadi.\n\n<i>Boshqacha yozib ko‘ring: /tanitish krem</i>`
+      : '📦 Katalogda faol mahsulot yo‘q.');
+  }
+
+  const kb = mahsulotlar.map((p) => [{
+    text: `${p.stock > 0 ? '' : '⚠️ '}${p.brand ? p.brand + ' · ' : ''}${p.name}`.slice(0, 60),
+    callback_data: `rk:${p.id}`,
+  }]);
+
+  return yubor(chatId, [
+    `📣 <b>Mahsulot reklamasi</b>`, ``,
+    `Qaysi mahsulotni kanalda tanitamiz?`,
+    `Matnni katalogdagi ma’lumotdan yozaman, rasm sifatida mahsulot`,
+    `posterini ishlataman. Tasdiqlamaguningizcha kanalga chiqmaydi.`, ``,
+    `<i>Qidirish: /tanitish krem</i>`,
+  ].join('\n'), { reply_markup: { inline_keyboard: kb } });
+}
+
+/** Mahsulot tanlandi — kanal ma'lum bo'lsa darhol yozamiz. */
+export async function tanitishMahsulot(cq, user) {
+  const id = Number(cq.data.split(':')[1]);
+  const mahsulot = await qator('select * from products where id = $1', [id]);
+  if (!mahsulot) return javobBer(cq.id, 'Mahsulot topilmadi', true);
+
+  const kanal = await odatdagiKanal();
+  if (!kanal) {
+    await javobBer(cq.id);
+    await holatSaqla(user.id, HOLAT.REKLAMA_KANAL, { mahsulotId: id });
+    return yubor(cq.message.chat.id, [
+      `📢 <b>Qaysi kanalga?</b>`, ``,
+      `Kanal nomini yozing: <code>@kanalim</code> yoki <code>-100…</code>`,
+      `Botni o‘sha kanalga admin qilib qo‘shishni unutmang.`, ``,
+      `<i>Bekor qilish: /bekor</i>`,
+    ].join('\n'));
+  }
+
+  await javobBer(cq.id, 'Tayyorlanmoqda…');
+  return reklamaniTayyorla(cq.message.chat.id, user, mahsulot, kanal);
+}
+
+/** Kanal qo'lda yozildi. */
+export async function tanitishKanal(msg, user) {
+  const kanal = (msg.text || '').trim();
+  if (!/^@[\w]{3,}$|^-?\d{5,}$/.test(kanal)) {
+    await yubor(msg.chat.id, 'Kanalni @nom yoki -100… ko‘rinishida yozing.');
+    return true;
+  }
+  const d = await holatData(user.id);
+  const mahsulot = await qator('select * from products where id = $1', [d.mahsulotId]);
+  await holatTozala(user.id);
+  if (!mahsulot) {
+    await yubor(msg.chat.id, 'Mahsulot topilmadi. Qaytadan: /tanitish');
+    return true;
+  }
+  await reklamaniTayyorla(msg.chat.id, user, mahsulot, kanal);
+  return true;
+}
+
+async function reklamaniTayyorla(chatId, user, mahsulot, kanal) {
+  await harakat(chatId);
+  const kutish = await yubor(chatId, '🤖 <b>Reklama yozilmoqda…</b>\n<i>10–20 soniya</i>');
+  try {
+    const band = await reklamaBandiYarat({ mahsulot, kanal, adminId: user.id });
+    await postniTayyorla(band, chatId);
+  } catch (e) {
+    console.error('REKLAMA:', e.message);
+    await yubor(chatId, `❌ Reklama tayyorlanmadi: ${esc(e.message)}`);
+  } finally {
+    if (kutish?.result?.message_id) {
+      await tg('deleteMessage', { chat_id: chatId, message_id: kutish.result.message_id });
+    }
+  }
+}
+
 // ══════════ Postni tasdiqlashga yuborish ══════════
 
 /** Bandni tayyorlab, adminga tasdiqlashga yuboradi. */
@@ -139,11 +241,25 @@ export async function postniTayyorla(band, adminChatId, tuzatish = '') {
     await sorov('delete from media where id = $1', [band.rasm_id]).catch(() => {});
   }
 
-  const { matn, rasmTavsifi } = await postYoz(band, band.mavzu, tuzatish, band.matn || '');
+  // Reklama posti bo'lsa mahsulot ma'lumotidan yoziladi va mahsulot
+  // rasmi ishlatiladi — AI chizgan xayoliy rasm emas.
+  const reklama = band.mahsulot_id
+    ? await qator('select * from products where id = $1', [band.mahsulot_id])
+    : null;
+
+  const { matn, rasmTavsifi, ogohlantirish } = reklama
+    ? await reklamaPostiYoz(reklama, tuzatish, band.matn || '')
+    : await postYoz(band, band.mavzu, tuzatish, band.matn || '');
+
   let rasmId = null;
   let bayt = null;
 
-  if (band.rasmli) {
+  if (reklama?.poster_id) {
+    // Mahsulotning o'z posteri — reklama uchun eng to'g'ri rasm
+    const m = await qator('select bayt, mime from media where id = $1', [reklama.poster_id]);
+    if (m?.bayt) { bayt = Buffer.from(m.bayt); rasmId = reklama.poster_id; }
+  }
+  if (!bayt && band.rasmli) {
     bayt = await postRasmi(rasmTavsifi);
     if (bayt) {
       const m = await qator(
@@ -154,7 +270,13 @@ export async function postniTayyorla(band, adminChatId, tuzatish = '') {
     }
   }
 
+  // Ko'rinish havolasi uchun band holati AVVAL yozilishi kerak: sahifa
+  // bazadan o'qiydi, aks holda eski matnni ko'rsatardi.
+  await bandHolati(band.id, 'tasdiq_kutilmoqda', { matn, rasmId });
+
+  const havola = postHavolasi(band.id);
   const kb = { inline_keyboard: [
+    ...(havola ? [[{ text: '👁 Ko‘rinishini ochish', url: havola }]] : []),
     [{ text: '✅ Kanalga joylash', callback_data: `pj:${band.id}` }],
     [{ text: '✏️ O‘zim yozaman', callback_data: `pt:${band.id}` },
      { text: '🤖 AI ga aytaman',  callback_data: `pf:${band.id}` }],
@@ -163,7 +285,10 @@ export async function postniTayyorla(band, adminChatId, tuzatish = '') {
   ] };
 
   const bosh = `🤖 <b>${esc(band.reja_nom)}</b> · ${esc(band.mavzu)}\n` +
-               `<i>Tasdiqlasangiz kanalga chiqadi.</i>\n\n${'─'.repeat(16)}\n\n`;
+               (ogohlantirish?.length
+                 ? `⚠️ <i>Tekshiring: ${esc(ogohlantirish.join(', '))}</i>\n`
+                 : '<i>Tasdiqlasangiz kanalga chiqadi.</i>\n') +
+               `\n${'─'.repeat(16)}\n\n`;
 
   let javob;
   if (bayt) {
@@ -176,7 +301,7 @@ export async function postniTayyorla(band, adminChatId, tuzatish = '') {
   }
 
   await bandHolati(band.id, 'tasdiq_kutilmoqda', {
-    matn, rasmId, msgId: javob?.result?.message_id ?? null, chatId: String(adminChatId),
+    msgId: javob?.result?.message_id ?? null, chatId: String(adminChatId),
   });
   return javob;
 }
@@ -384,6 +509,7 @@ export async function agentCallback(cq, user) {
     await rejaMenyusi(cq.message.chat.id); return true;
   }
   if (d.startsWith('rj:'))  { await rejaKarta(cq); return true; }
+  if (d.startsWith('rk:'))  { await tanitishMahsulot(cq, user); return true; }
   if (d.startsWith('pj:'))  { await postniJoylash(cq, user); return true; }
   if (d.startsWith('pb:'))  { await postniQaytaYoz(cq, user); return true; }
   if (d.startsWith('po:'))  { await postniOtkaz(cq); return true; }
@@ -400,6 +526,7 @@ export async function agentHolati(msg, user) {
     case HOLAT.KANAL:     await kanalQabul(msg, user); return true;
     case HOLAT.TAHRIR:    return Boolean(await tahrirQabul(msg, user));
     case HOLAT.TUZATISH:  return Boolean(await tuzatishQabul(msg, user));
+    case HOLAT.REKLAMA_KANAL: return Boolean(await tanitishKanal(msg, user));
     default: return false;
   }
 }

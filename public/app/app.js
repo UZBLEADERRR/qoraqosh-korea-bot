@@ -132,6 +132,7 @@ async function boshla() {
     holat.karta       = k.karta || { raqam: '', egasi: '' };
     holat.konsultatsiya = k.konsultatsiya || '';
     holat.menejer = k.menejer || { telefon: '', ish_vaqti: '' };
+    holat.namuna = k.skaner_namuna || '';
   } catch (e) { console.error(e); }
 
   try {
@@ -149,6 +150,7 @@ async function boshla() {
 
   kor($('#ilova'), true);
   kor($('#skaner-chaqiriq'), true);
+  namunaniChiz();
   filtrlarniChiz(); mahsulotlarniChiz(); limitniChiz();
   await Promise.all([savatniYangila(), draftniYukla()]);
 
@@ -192,6 +194,18 @@ function royxatEkrani() {
       location.reload();
     } catch (e) { xato.textContent = e.message; $('#t-roziman').disabled = false; }
   };
+}
+
+/** Skaner ekranidagi namuna surat — admin yuklagan bo'lsa ko'rsatiladi. */
+function namunaniChiz() {
+  const karta = $('#namuna-karta');
+  const rasm = $('#namuna-rasm');
+  if (!karta || !rasm) return;
+  if (!holat.namuna) return void kor(karta, false);
+  rasm.src = `/media/${holat.namuna}`;
+  // Rasm ochilmasa (o'chirilgan bo'lsa) bo'sh ramka qolmasin
+  rasm.onerror = () => kor(karta, false);
+  kor(karta, true);
 }
 
 // ---------------- Katalog ----------------
@@ -528,6 +542,7 @@ async function tahlilQil() {
       skin_type: j.tahlil.teri_turi, score: j.tahlil.ball,
       problems: j.tahlil.muammolar, forecast: j.tahlil.prognoz,
       routine: j.tahlil.tavsiya, raw: { xulosa: j.tahlil.xulosa }, is_offline: j.tahlil.oflayn,
+      yuz_rasm_id: j.yuz_rasm_id || null,
     };
     holat.limit = j.limit || holat.limit;
     kor($('#skaner-boshlash'), true);
@@ -611,10 +626,33 @@ function natijaniChiz() {
   const tavsiyalar = (t.routine || []).map((r) => ({ ...r, p: karta.get(r.product_id) })).filter((r) => r.p);
   const jami = tavsiyalar.reduce((s, r) => s + r.p.price, 0);
 
+  // Foydalanuvchi surati — muammolar aynan ko'ringan joyida belgilanadi.
+  // Odam «qayerda ekan?» deb izlamaydi: raqamlar quyidagi ro'yxat bilan bir xil.
+  const belgilar = (t.problems || [])
+    .map((m, i) => ({ ...m, raqam: i + 1 }))
+    .filter((m) => m.joy && m.joy.r > 0);
+
   el.innerHTML = `
   <div class="bosh"><div class="brend">🔬 Tahlil natijasi</div><h1>Sizning teringiz</h1></div>
 
   ${t.is_offline ? `<div class="karta"><div class="ogoh">⚠️ AI hozir mavjud emas — bazaviy tavsiya ko‘rsatilmoqda.</div></div>` : ''}
+
+  ${t.yuz_rasm_id ? `
+  <div class="karta">
+    <div class="yuz-quti">
+      <img src="/media/${esc(t.yuz_rasm_id)}" alt="Tahlil qilingan surat">
+      ${belgilar.map((m) => {
+        const d = m.daraja || ((m.foiz ?? 0) >= 70 ? 3 : (m.foiz ?? 0) >= 40 ? 2 : 1);
+        return `<span class="yuz-belgi d${d}" title="${esc(m.nom)}"
+          style="left:${m.joy.x}%;top:${m.joy.y}%;width:${m.joy.r * 2}%;
+                 aspect-ratio:1;margin-left:${-m.joy.r}%">
+          <i>${m.raqam}</i></span>`;
+      }).join('')}
+    </div>
+    ${belgilar.length
+      ? `<p class="ozgina" style="margin:12px 0 0">Raqamlar quyidagi ro‘yxat bilan bir xil.</p>`
+      : `<p class="ozgina" style="margin:12px 0 0">Suratda alohida belgilanadigan joy topilmadi.</p>`}
+  </div>` : ''}
 
   <div class="karta">
     <div class="karta-bosh"><h2>✨ Umumiy holat</h2></div>
@@ -634,13 +672,13 @@ function natijaniChiz() {
   ${(t.problems || []).length ? `
   <div class="karta">
     <div class="karta-bosh"><h2>🔍 Nima topdim</h2></div>
-    ${t.problems.map((m) => {
+    ${t.problems.map((m, i) => {
       const foiz = m.foiz ?? (m.daraja === 3 ? 80 : m.daraja === 2 ? 55 : 25);
       const d = m.daraja || (foiz >= 70 ? 3 : foiz >= 40 ? 2 : 1);
       return `
       <div class="muammo-blok">
         <div class="muammo-bosh">
-          <span class="nuqta">${NUQTA[Math.min(3, d)]}</span>
+          <span class="muammo-raqam d${d}">${i + 1}</span>
           <span class="nom">${esc(m.nom)}</span>
           <span class="yorliq ${DSINF[Math.min(3, d)]}">${DARAJA[Math.min(3, d)]}</span>
         </div>
@@ -677,29 +715,33 @@ function natijaniChiz() {
   </div>` : ''}
 
   ${tavsiyalar.length ? `
-  <div class="karta">
-    <div class="karta-bosh"><h2>💡 Sizga mos parvarish</h2></div>
-    <p class="mayda" style="margin-bottom:2px">Shu tartibda qo‘llang — ketma-ketlik natijaga ta’sir qiladi.</p>
+  <div class="satr-bosh"><h2 style="font-size:20px">💡 Sizga mos parvarish</h2>
+    <span class="ozgina">${tavsiyalar.length} ta</span></div>
+  <p class="ichki ozgina" style="margin:0 0 10px">Shu tartibda qo‘llang — ketma-ketlik natijaga ta’sir qiladi.</p>
+
+  <!-- Gorizontal lenta: kartochkalar kichik, rasmi bilan; ostida
+       nima uchun kerakligi 1-2 so'zda (Tozalash, Quyoshdan himoya…) -->
+  <div class="tavsiya-lenta">
     ${tavsiyalar.map((r, i) => `
-      <div class="bosqich">
-        <div class="raqam">${i + 1}</div>
-        <div style="flex:1;min-width:0">
-          <div class="qadam">${esc(BOSQICH[r.bosqich] || r.bosqich)}</div>
-          ${r.sabab ? `<div class="nega" style="margin-top:6px"><b>❓ Nega aynan shu:</b> ${esc(r.sabab)}</div>` : ''}
-          <button class="bosqich-mahsulot" data-tavsiya="${r.p.id}">
-            <span class="kichik-rasm" style="${r.p.poster_id ? '' :
-              `background:linear-gradient(135deg,${esc(r.p.gradient?.[0] || '#3a3330')},${esc(r.p.gradient?.[1] || '#6b5d55')})`}">
-              ${r.p.poster_id ? `<img src="/media/${esc(r.p.poster_id)}" alt="">` : esc(r.p.emoji || '🧴')}</span>
-            <span style="flex:1;min-width:0">
-              <span class="bnom" style="display:block">${esc(r.p.name)}</span>
-              <span class="bbrend" style="display:block">${esc(r.p.brand || '')}${r.p.volume ? ' · ' + esc(r.p.volume) : ''}
-                — <b style="color:var(--matn)">${narx(r.p.price)}</b></span>
-            </span>
-            <span class="oq">›</span>
-          </button>
-          ${r.p.usage_text ? `<div class="qollash">📖 ${esc(r.p.usage_text)}</div>` : ''}
-        </div>
-      </div>`).join('')}
+      <button class="tavsiya-karta" data-tavsiya="${r.p.id}">
+        <span class="tk-rasm" style="${r.p.poster_id ? '' :
+          `background:linear-gradient(135deg,${esc(r.p.gradient?.[0] || '#3a3330')},${esc(r.p.gradient?.[1] || '#6b5d55')})`}">
+          ${r.p.poster_id ? `<img src="/media/${esc(r.p.poster_id)}" alt="" loading="lazy">`
+                          : esc(r.p.emoji || '🧴')}
+          <i class="tk-raqam">${i + 1}</i></span>
+        <span class="tk-bosqich">${esc(BOSQICH[r.bosqich] || r.bosqich)}</span>
+        <span class="tk-nom">${esc(r.p.name)}</span>
+        <span class="tk-brend">${esc(r.p.brand || '')}</span>
+        <span class="tk-narx">${narx(r.p.price)}</span>
+      </button>`).join('')}
+  </div>
+
+  <div class="karta">
+    ${tavsiyalar.map((r, i) => r.sabab ? `
+      <div class="nega-satr">
+        <span class="nega-raqam">${i + 1}</span>
+        <span><b>${esc(BOSQICH[r.bosqich] || r.bosqich)}</b> — ${esc(r.sabab)}</span>
+      </div>` : '').join('')}
     <div class="qtr jami"><span class="k">🧾 To‘liq to‘plam</span><span class="v">${narx(jami)}</span></div>
     <button class="asosiy" id="t-hammasi" style="margin-top:12px">🛒 Hammasini savatga solish</button>
     <p class="ozgina" style="margin:10px 0 0">

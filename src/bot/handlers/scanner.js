@@ -1,6 +1,6 @@
 // Rasm keldi → sifat nazorati → tahlil → BITTA qisqa xabar + Mini App tugmasi.
 import { harakat, yubor, faylOl, tg, rasmYubor } from '../tg.js';
-import { natijaRasminiYarat, kanalgaTahlil } from '../../services/natija-rasm.js';
+import { natijaRasminiYarat, kanalgaTahlil, yuzniSaqla } from '../../services/natija-rasm.js';
 import { tahlilQil } from '../../services/analysis.js';
 import { radXabari, tahlilXabari, tavsiyaMatni } from '../render.js';
 import { natijaTugmalari, appUrl, ortga } from '../keyboards.js';
@@ -73,9 +73,11 @@ export async function rasmniQabulQil(msg, user) {
     // 1) Natija RASMI — foydalanuvchi suratining ustida tahlil.
     //    Rasm chizilmasa (motor yoki shrift yo'q) — matn baribir ketadi.
     const rasm = await natijaRasminiYarat({
-      analysisId: natija.analysisId, userId: user.id, ism: user.full_name,
+      analysisId: natija.analysisId, userId: user.id,
       rasmBase64: base64, mime, tahlil: natija.tahlil, mahsulotlar: natija.mahsulotlar,
     });
+    // Surat ilovadagi tahlil bo'limida belgilar bilan ko'rsatiladi
+    await yuzniSaqla({ analysisId: natija.analysisId, rasmBase64: base64, mime });
     if (rasm) {
       await rasmYubor(chatId, rasm.bayt, rasmIzohi(natija.tahlil));
       kanalgaTahlil(rasm.bayt, user, natija.tahlil).catch(() => {});

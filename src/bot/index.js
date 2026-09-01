@@ -129,6 +129,15 @@ async function malumotniOchir(chatId, user) {
     `update users set full_name=null, phone=null, address=null, age=null,
             agreed_at=null, state=null, state_data='{}'::jsonb, checkout_draft='{}'::jsonb
       where id=$1`, [user.id]);
+  // Tahlil rasmlarini ham o'chiramiz. media ga havola `on delete set null`
+  // bilan turibdi — tahlilni o'chirsak rasm bazada YETIM bo'lib qolardi,
+  // ya'ni «suratingizni o'chirasiz» va'dasi bajarilmasdi.
+  await sorov(
+    `delete from media where id in (
+       select yuz_rasm_id from analyses where user_id = $1 and yuz_rasm_id is not null
+       union all
+       select natija_rasm_id from analyses where user_id = $1 and natija_rasm_id is not null)`,
+    [user.id]);
   await sorov('delete from analyses where user_id = $1', [user.id]);
   await sorov('delete from cart_items where user_id = $1', [user.id]);
   await hodisa(user.id, 'delete_data');

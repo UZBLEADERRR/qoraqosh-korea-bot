@@ -456,8 +456,10 @@ async function mahsulotlar(qidiruv = '') {
 
     $('#tan').innerHTML = `
       <div class="bosh"><h1>Mahsulotlar</h1><span class="ozgina">${royxat.length} ta</span></div>
-      <div style="padding:0 16px 12px;display:flex;gap:8px">
-        <button class="tug asos" id="t-skrin" style="flex:1">📷 Skrinshotdan</button>
+      <div style="padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="tug asos" id="t-toplam" style="flex:1 1 100%">
+          📦 Ko‘p rasmdan birdan qo‘shish</button>
+        <button class="tug" id="t-skrin" style="flex:1">📷 Bitta rasmdan</button>
         <button class="tug" id="t-yangi" style="flex:1">+ Qo‘lda</button>
       </div>
       <div style="padding:0 16px 12px">
@@ -471,6 +473,7 @@ async function mahsulotlar(qidiruv = '') {
     };
     $('#t-yangi').onclick = () => mahsulotOyna(null);
     $('#t-skrin').onclick = skrinshotOyna;
+    $('#t-toplam').onclick = toplamOyna;
     $$('[data-mah]').forEach((b) => b.onclick = () =>
       mahsulotOyna(holat.kesh.mahsulotlar.find((p) => p.id === Number(b.dataset.mah))));
     $$('[data-poster]').forEach((b) => b.onclick = (e) => {
@@ -638,6 +641,137 @@ function mahsulotniOchirOyna(p) {
 
   $('#o-arxiv').onclick = (e) => yubor(false, e.currentTarget, '📦 Arxivga olish');
   $('#o-toliq').onclick = (e) => yubor(true,  e.currentTarget, '💥 Butunlay o‘chirish');
+}
+
+
+// ---------- Ko'p mahsulotni birdan qo'shish ----------
+//
+// Admin bir necha rasm tanlaydi, AI har birini tanib kartochkani to'ldiradi,
+// adminga faqat NARX (va xohlasa tannarx/ombor) qoladi. Bittalab qo'shishda
+// 20 ta mahsulot yarim kun oladi.
+function toplamOyna() {
+  modal('📦 Ko‘p mahsulot qo‘shish', `
+    <p class="mayda">Mahsulot qadoqlari yoki do‘kon skrinshotlarini <b>bir vaqtda</b>
+      tanlang (12 tagacha). AI har birini tanib, nomi, tarkibi va qo‘llash tartibini
+      to‘ldiradi — sizga faqat narx qo‘yish qoladi. Tanlagan rasm mahsulot rasmi
+      bo‘lib qoladi.</p>
+    <button class="tug keng" id="t-toplam-tanla" style="margin-top:14px;height:110px;border-style:dashed">
+      🖼 Rasmlarni tanlash</button>
+    <input type="file" id="f-toplam" accept="image/*" multiple hidden>
+    <div id="toplam-holat" style="margin-top:14px"></div>
+    <div id="toplam-royxat"></div>`, { keng: true });
+
+  $('#t-toplam-tanla').onclick = () => $('#f-toplam').click();
+  $('#f-toplam').onchange = async (e) => {
+    const fayllar = [...(e.target.files || [])].slice(0, 12);
+    if (!fayllar.length) return;
+    const h = $('#toplam-holat');
+    h.innerHTML = `<div class="mayda"><span class="aylana"></span>
+      ${fayllar.length} ta rasm tayyorlanmoqda…</div>`;
+    try {
+      const rasmlar = [];
+      for (const f of fayllar) rasmlar.push(await rasmniTayyorla(f, 1024));
+      h.innerHTML = `<div class="mayda"><span class="aylana"></span>
+        AI ${fayllar.length} ta mahsulotni o‘rganmoqda… <b>bu 1-2 daqiqa oladi</b></div>`;
+
+      const j = await api('/api/admin/recognize-toplam',
+        { method: 'POST', body: JSON.stringify({ images: rasmlar }) });
+      toplamRoyxat(j.natijalar || []);
+    } catch (err) {
+      h.innerHTML = `<div class="xato">${esc(err.message)}</div>`;
+    }
+  };
+}
+
+/** Tanilgan mahsulotlar ro'yxati — narx qo'yiladigan forma. */
+function toplamRoyxat(natijalar) {
+  const yaxshi = natijalar.filter((n) => !n.xato);
+  const yomon  = natijalar.filter((n) => n.xato);
+
+  $('#toplam-holat').innerHTML = `
+    <div class="xabar-quti ${yaxshi.length ? 'ok' : 'xato'}">
+      ${yaxshi.length} ta mahsulot tanildi${yomon.length ? ` · ${yomon.length} tasi tanilmadi` : ''}
+    </div>
+    ${yomon.length ? `<p class="mayda">Tanilmagan rasmlar tashlab yuborildi —
+      ularni «Bitta rasmdan» yoki «Qo‘lda» qo‘shing.</p>` : ''}`;
+
+  if (!yaxshi.length) return void ($('#toplam-royxat').innerHTML = '');
+
+  holat.kesh.toplam = yaxshi;
+
+  $('#toplam-royxat').innerHTML = `
+    ${yaxshi.map((n, i) => `
+      <div class="karta tor" style="margin:12px 0">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          ${n.media_id ? `<img src="/media/${esc(n.media_id)}" alt=""
+            style="width:64px;height:64px;border-radius:12px;object-fit:cover;flex:0 0 auto">` : ''}
+          <div style="flex:1;min-width:0">
+            <label>Nomi</label>
+            <input data-t="name" data-i="${i}" value="${esc(n.name)}">
+            <div class="ozgina" style="margin-top:4px">
+              ${esc(n.brand || '—')} · ishonch ${n.ishonch}%
+              ${n.ishonch < 60 ? ' ⚠️ tekshiring' : ''}</div>
+          </div>
+        </div>
+        <div class="forma-tor" style="margin-top:10px">
+          <div><label>Narx (so‘m) <span class="yordam">majburiy</span></label>
+            <input data-t="price" data-i="${i}" type="number" inputmode="numeric" placeholder="0"></div>
+          <div><label>Tannarx</label>
+            <input data-t="cost_price" data-i="${i}" type="number" inputmode="numeric" placeholder="0"></div>
+          <div><label>Ombor (dona)</label>
+            <input data-t="stock" data-i="${i}" type="number" inputmode="numeric" value="0"></div>
+          <div><label>Og‘irlik (gramm)</label>
+            <input data-t="ogirlik" data-i="${i}" type="number" inputmode="numeric" placeholder="0"></div>
+        </div>
+        <label>Manba havolasi <span class="yordam">Coupang / Daiso — ixtiyoriy</span></label>
+        <input data-t="manba_url" data-i="${i}" placeholder="https://...">
+        <details style="margin-top:10px">
+          <summary class="mayda">AI to‘ldirgan qolgan maydonlar</summary>
+          <p class="ozgina" style="margin-top:8px"><b>Bosqich:</b> ${esc(n.step || '—')} ·
+            <b>Hajm:</b> ${esc(n.volume || '—')}</p>
+          <p class="ozgina">${esc((n.description || '').slice(0, 220))}</p>
+          <p class="ozgina"><b>Qo‘llash:</b> ${esc((n.usage_text || '').slice(0, 220))}</p>
+        </details>
+      </div>`).join('')}
+    <div id="toplam-xato" class="xato"></div>
+    <button class="tug asos keng" id="t-toplam-saqla" style="margin-top:6px">
+      ✅ ${yaxshi.length} ta mahsulotni saqlash</button>`;
+
+  $('#t-toplam-saqla').onclick = async (ev) => {
+    const tugma = ev.currentTarget;
+    // AI kategoriyani slug bilan qaytaradi — bazaga id kerak
+    const katalar = holat.kesh.kategoriyalar || [];
+    const royxat = holat.kesh.toplam.map((n) => ({
+      ...n,
+      category_id: katalar.find((c) => c.slug === n.category)?.id ?? null,
+    }));
+    $$('[data-t]').forEach((el) => {
+      const n = royxat[Number(el.dataset.i)];
+      if (n) n[el.dataset.t] = el.value;
+    });
+
+    const narxsiz = royxat.filter((n) => !Number(n.price));
+    if (narxsiz.length) {
+      return void ($('#toplam-xato').textContent =
+        `${narxsiz.length} ta mahsulotda narx yo‘q — narxsiz saqlab bo‘lmaydi.`);
+    }
+
+    tugma.disabled = true; tugma.textContent = 'Saqlanmoqda…';
+    try {
+      const j = await api('/api/admin/products-toplam',
+        { method: 'POST', body: JSON.stringify({ mahsulotlar: royxat }) });
+      modalYop();
+      tost(`${j.qoshildi.length} ta mahsulot qo‘shildi`);
+      if (j.xatolar?.length) {
+        setTimeout(() => modal('⚠️ Ba‘zilari saqlanmadi',
+          j.xatolar.map((x) => `<p class="mayda">• <b>${esc(x.nom)}</b> — ${esc(x.sabab)}</p>`).join('')), 400);
+      }
+      holat.kesh.mahsulotlar = null; mahsulotlar();
+    } catch (err) {
+      tugma.disabled = false; tugma.textContent = '✅ Saqlash';
+      $('#toplam-xato').textContent = err.message;
+    }
+  };
 }
 
 // ---------- Skrinshotdan tanish ----------
@@ -1306,6 +1440,39 @@ async function sozlamalar() {
       </div>
 
       <div class="karta tor">
+        <div class="karta-bosh"><h2>📄 Ommaviy oferta</h2></div>
+        <p class="mayda" style="margin:0 0 10px">Bu matn <code>/oferta</code> sahifasida
+          va ro‘yxatdan o‘tishda ko‘rinadi. Bo‘sh qoldirsangiz koddagi namunaviy
+          shablon ishlaydi (unda <b>[kvadrat qavs]</b> joylari to‘ldirilmagan).
+          <b>Yuristingiz bergan matnni shu yerga qo‘ying.</b></p>
+        <p class="mayda" style="margin:0 0 10px">Belgilash: <code># Sarlavha</code> ·
+          <code>## Bo‘lim</code> · <code>- ro‘yxat bandi</code>. HTML yozish shart emas.</p>
+        <textarea id="s-oferta" rows="12" style="font-family:ui-monospace,monospace;font-size:13px"
+          placeholder="# Ommaviy oferta&#10;&#10;## 1. Umumiy qoidalar&#10;- Sotuvchi: ...">${esc(matn('oferta_matni'))}</textarea>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <a class="tug" href="/oferta" target="_blank">👁 Sahifani ko‘rish</a>
+        </div>
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>📸 Skaner namunasi</h2></div>
+        <p class="mayda" style="margin:0 0 10px">«Yuz skaneri» ochilganda ko‘rsatiladigan
+          namuna surat. Odam qanday rasm kutilayotganini o‘qib emas, <b>ko‘rib</b>
+          tushunadi — shuning uchun bu rad etilgan rasmlarni ancha kamaytiradi.
+          To‘g‘ri va noto‘g‘ri variantlar yonma-yon turgan rasm eng yaxshi ishlaydi.</p>
+        <div id="namuna-oldi" style="margin:8px 0">${
+          matn('skaner_namuna_id')
+            ? `<img src="/media/${esc(matn('skaner_namuna_id'))}" alt="namuna"
+                 style="max-width:180px;border-radius:14px;border:1px solid var(--chiziq)">`
+            : '<span class="mayda">Yuklanmagan — ilovada matnli ko‘rsatma ko‘rinadi</span>'}</div>
+        <input type="file" id="s-namuna" accept="image/png,image/jpeg" style="display:none">
+        <div style="display:flex;gap:8px">
+          <button class="tug" id="t-namuna">📷 Namuna yuklash</button>
+          ${matn('skaner_namuna_id') ? '<button class="tug xavf" id="t-namuna-och">🗑 Olib tashlash</button>' : ''}
+        </div>
+      </div>
+
+      <div class="karta tor">
         <div class="karta-bosh"><h2>🏷 Brend</h2></div>
         <label>Do‘kon nomi <span class="yordam">bot, ilova va rasmlarda ko‘rinadi</span></label>
         <input id="s-brend" value="${esc(matn('dokon_nomi'))}" placeholder="KiOVO">
@@ -1488,6 +1655,14 @@ async function sozlamalar() {
     $('#t-obuna-sina').onclick = obunaniSina;
     $('#t-logo').onclick = () => $('#s-logo').click();
     $('#s-logo').onchange = logoniYukla;
+    $('#t-namuna').onclick = () => $('#s-namuna').click();
+    $('#s-namuna').onchange = namunaniYukla;
+    const nOch = $('#t-namuna-och');
+    if (nOch) nOch.onclick = async () => {
+      if (!confirm('Namuna surat olib tashlansinmi?')) return;
+      await api('/api/admin/skaner-namuna', { method: 'DELETE' });
+      tost('Olib tashlandi'); sozlamalar();
+    };
     const lo = $('#t-logo-och');
     if (lo) lo.onclick = async () => {
       await api('/api/admin/settings', { method: 'POST',
@@ -1570,6 +1745,7 @@ async function sozlamalarniSaqla() {
       limit_bepul:        Math.max(0, Number($('#s-limit-bepul').value) || 0),
       limit_mijoz:        Math.max(0, Number($('#s-limit-mijoz').value) || 0),
       dokon_nomi:            $('#s-brend').value.trim() || 'KiOVO',
+      oferta_matni:          $('#s-oferta').value.trim(),
       kanal_buyurtma:        $('#s-kanal-buyurtma').value.trim(),
       kanal_tahlil:          $('#s-kanal-tahlil').value.trim(),
       kanal_tahlil_yoqilgan: $('#s-kanal-tahlil-yoq').checked,
@@ -1593,6 +1769,24 @@ async function sozlamalarniSaqla() {
     holatEl.innerHTML = `<div class="xabar-quti ok" style="margin:0 0 10px">✓ Saqlandi</div>`;
     tost('Sozlamalar saqlandi');
   } catch (e) { holatEl.innerHTML = `<div class="xabar-quti xato" style="margin:0 0 10px">${esc(e.message)}</div>`; }
+}
+
+/** Skaner namunasi — logotip bilan bir xil oqim. */
+async function namunaniYukla(e) {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  const t = $('#t-namuna');
+  t.disabled = true; t.textContent = 'Yuklanmoqda…';
+  try {
+    // Namuna ilovada ko'rsatiladi — 1024 px yetarli, bazani shishirmaymiz
+    const rasm = await rasmniTayyorla(f, 1024, 0.85);
+    await api('/api/admin/skaner-namuna', { method: 'POST', body: JSON.stringify({ image: rasm }) });
+    tost('Namuna saqlandi'); sozlamalar();
+  } catch (err) {
+    tost(err.message || 'Yuklab bo‘lmadi');
+  } finally {
+    t.disabled = false; t.textContent = '📷 Namuna yuklash';
+  }
 }
 
 async function logoniYukla(e) {

@@ -116,6 +116,19 @@ const { qator } = await import('../src/db.js');
 const saqlangan = await qator(
   `select natija_rasm_id from analyses where user_id = (select id from users where telegram_id = $1)
     order by created_at desc limit 1`, [TG]);
+// Muammo joyi saqlanganmi — ilovada va rasmda doira shundan chiziladi
+{
+  const { qator } = await import('../src/db.js');
+  const a = await qator(
+    `select problems, yuz_rasm_id from analyses
+      where user_id = (select id from users where telegram_id = $1)
+      order by created_at desc limit 1`, [TG]);
+  const joyli = (a?.problems || []).filter((m) => m.joy && m.joy.r > 0);
+  test('muammo joyi (doira koordinatasi) saqlandi', joyli.length === 2,
+    `${joyli.length} ta · ${JSON.stringify(joyli[0]?.joy || null)}`);
+  test('foydalanuvchi surati saqlandi', Boolean(a?.yuz_rasm_id));
+}
+
 test('rasm bazaga bog‘landi', Boolean(saqlangan?.natija_rasm_id));
 
 // ═══════════ KANALLAR ═══════════
@@ -135,6 +148,32 @@ const kanalga = yuborilgan.find((x) => String(x.chat_id) === '-100555');
 test('yoqilganda tahlil kanalga rasm bilan tushadi', Boolean(kanalga?.rasm));
 test('kanal izohida ball va muammo bor',
   /Ball/.test(kanalga?.text || '') && /Muammolar/.test(kanalga?.text || ''));
+
+
+// ═══════════ /ochir — surat ham o'chsin ═══════════
+// Ofertada «suratingizni /ochir bilan o'chirasiz» deb yozilgan. media ga
+// havola `on delete set null` — tahlilni o'chirsak rasm bazada YETIM
+// qolib ketardi, ya'ni va'da bajarilmasdi.
+console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
+{
+  const { qatorlar: qq, qiymat } = await import('../src/db.js');
+  const bogliq = await qq(
+    `select yuz_rasm_id, natija_rasm_id from analyses
+      where user_id = (select id from users where telegram_id = $1)`, [TG]);
+  const idlar = bogliq.flatMap((a) => [a.yuz_rasm_id, a.natija_rasm_id]).filter(Boolean);
+  test('tahlilga bog‘langan rasmlar bor', idlar.length > 0, `${idlar.length} ta`);
+
+  await yangilanish({ update_id: Math.random(), message: {
+    message_id: 99, date: Math.floor(Date.now() / 1000),
+    chat: { id: Number(TG), type: 'private' },
+    from: { id: Number(TG), first_name: 'Sinov' }, text: '/ochir' } });
+
+  test('tahlillar o‘chdi', (await qiymat(
+    `select count(*)::int from analyses
+      where user_id = (select id from users where telegram_id = $1)`, [TG])) === 0);
+  test('surat va natija rasmlari ham o‘chdi',
+    (await qiymat('select count(*)::int from media where id = any($1::uuid[])', [idlar])) === 0);
+}
 
 console.log(`\n${xato ? '❌' : '✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close();

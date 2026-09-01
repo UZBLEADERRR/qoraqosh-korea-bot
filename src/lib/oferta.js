@@ -9,13 +9,58 @@ const T = {
   epochta: '[email@example.uz]',
 };
 
-export function ofertaSahifasi() {
+/**
+ * Admin paneldan kelgan matnni HTML ga o'giradi.
+ *
+ * Admin oddiy matn yozadi (yurist bergan hujjatni ko'chirib qo'yadi),
+ * biz uni sahifa ko'rinishiga solamiz. HTML teglari QO'YILMAYDI: aks holda
+ * panelga tushgan har qanday matn sahifaga skript kiritishi mumkin bo'lardi.
+ *
+ *   # Sarlavha     -> h1
+ *   ## Bo'lim      -> h2
+ *   - band         -> ro'yxat
+ *   bo'sh qator    -> yangi xatboshi
+ */
+function matndanHtml(xom) {
+  const esc = (s) => String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const qatorlar = String(xom).split(/\r?\n/);
+  const chiqish = [];
+  let royxat = false;
+  const royxatniYop = () => { if (royxat) { chiqish.push('</ul>'); royxat = false; } };
+
+  for (const xomQator of qatorlar) {
+    const q = xomQator.trim();
+    if (!q) { royxatniYop(); continue; }
+    if (q.startsWith('## ')) { royxatniYop(); chiqish.push(`<h2>${esc(q.slice(3))}</h2>`); continue; }
+    if (q.startsWith('# '))  { royxatniYop(); chiqish.push(`<h1>${esc(q.slice(2))}</h1>`); continue; }
+    if (/^[-•*]\s+/.test(q)) {
+      if (!royxat) { chiqish.push('<ul>'); royxat = true; }
+      chiqish.push(`<li>${esc(q.replace(/^[-•*]\s+/, ''))}</li>`);
+      continue;
+    }
+    royxatniYop();
+    chiqish.push(`<p>${esc(q)}</p>`);
+  }
+  royxatniYop();
+  return chiqish.join('\n');
+}
+
+/**
+ * @param {string} [xomMatn]  admin paneldagi matn. Bo'sh bo'lsa quyidagi
+ *   standart shablon ko'rsatiladi.
+ * @param {string} [brend]
+ */
+export function ofertaSahifasi(xomMatn = '', brend = 'KiOVO') {
   const b = (s) => `<strong>${s}</strong>`;
+  const ozi = String(xomMatn || '').trim();
+  if (ozi) return ofertaQobigi(matndanHtml(ozi), brend);
   return `<!doctype html>
 <html lang="uz"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ommaviy oferta — KiOVO</title>
+<title>Ommaviy oferta — ${brend}</title>
 <style>
   :root{--fon:#fbfaf9;--matn:#1c1a19;--kul:#6b6663;--chiziq:#e6e1dd;--urgu:#8a5a3d}
   @media (prefers-color-scheme:dark){:root{--fon:#151312;--matn:#eceae8;--kul:#9b9490;--chiziq:#2c2826;--urgu:#c99a72}}
@@ -37,7 +82,7 @@ export function ofertaSahifasi() {
 </style></head><body><main>
 
 <h1>Ommaviy oferta</h1>
-<div class="sana">KiOVO — Koreya kosmetikasi · Tahrir 1.0</div>
+<div class="sana">${brend} — Koreya kosmetikasi · Tahrir 1.0</div>
 
 <p>Ushbu hujjat ${b(T.nom)} (keyingi o‘rinlarda — «Sotuvchi») tomonidan
 noma’lum shaxslar doirasiga qaratilgan ommaviy taklif (oferta) hisoblanadi.
@@ -70,11 +115,16 @@ rozilik bildiradi:</p>
   <li>ism-familiya, telefon raqami, yosh, yetkazib berish manzili;</li>
   <li>Telegram identifikatori va foydalanuvchi nomi;</li>
   <li>buyurtmalar tarixi;</li>
-  <li>yuz surati — ${b('faqat tahlil momentida')}.</li>
+  <li>yuz surati — ${b('faqat sizning tahlilingizni ko‘rsatish uchun')}.</li>
 </ul>
-<p>${b('Yuz surati serverda saqlanmaydi.')} Surat tahlil uchun qayta ishlanadi
-va darhol o‘chiriladi; bazada faqat tahlilning matnli natijasi (teri turi,
-aniqlangan muammolar, tavsiyalar) qoladi.</p>
+<p>${b('Yuz surati faqat Xaridorning o‘z tahliliga bog‘lanadi')} va ilovadagi
+«Tahlil natijasi» bo‘limida unga ko‘rsatiladi (aniqlangan belgilar surat
+ustida belgilanadi). Surat boshqa foydalanuvchilarga ko‘rinmaydi va
+reklamada ishlatilmaydi.</p>
+<p>Xaridor botdagi ${b('/ochir')} buyrug‘i bilan tahlillari va suratlarini
+istagan vaqtda o‘chirib tashlashi mumkin. Sotuvchi suratlarni saqlashni
+umuman o‘chirib qo‘yishi ham mumkin — u holda tahlil natijasi faqat matn
+va rasm-kartochka ko‘rinishida qoladi.</p>
 <p>Tahlil uchun surat Google LLC ning Gemini xizmatiga uzatiladi. Bu —
 ma’lumotlarning chegaradan tashqariga uzatilishi bo‘lib, Xaridor ofertani
 qabul qilish orqali bunga alohida rozilik bildiradi. Rozilik bermaslik uchun
@@ -122,5 +172,31 @@ erishilmasa — O‘zbekiston Respublikasi qonunchiligiga muvofiq hal etiladi.</
   Tel: ${T.telefon} · ${T.epochta}
 </footer>
 
+</main></body></html>`;
+}
+
+/** Admin yozgan matn uchun sahifa qobig'i — dizayn standart bilan bir xil. */
+function ofertaQobigi(ichi, brend) {
+  return `<!doctype html>
+<html lang="uz"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ommaviy oferta — ${brend}</title>
+<style>
+  :root{--fon:#fbfaf9;--matn:#1c1a19;--kul:#6b6663;--chiziq:#e6e1dd;--urgu:#8a5a3d}
+  @media (prefers-color-scheme:dark){:root{--fon:#151312;--matn:#eceae8;--kul:#9b9490;--chiziq:#2c2826;--urgu:#c99a72}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fon);color:var(--matn);
+       font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       padding:32px 20px 64px}
+  main{max-width:680px;margin:0 auto}
+  h1{font-size:26px;line-height:1.25;margin:0 0 18px}
+  h2{font-size:17px;margin:34px 0 10px;padding-top:18px;border-top:1px solid var(--chiziq)}
+  ul{padding-left:20px}
+  li{margin:6px 0}
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--chiziq);color:var(--kul);font-size:14px}
+</style></head><body><main>
+${ichi}
+<footer>${brend} — Koreya kosmetikasi</footer>
 </main></body></html>`;
 }

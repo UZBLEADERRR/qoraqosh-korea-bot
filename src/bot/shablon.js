@@ -47,9 +47,18 @@ export async function xabar(kalit, qiymatlar = {}, zaxira = '') {
   return tozala(toldir(shablon || zaxira, qiymatlar));
 }
 
-/** Ketma-ket bo'sh qatorlarni yig'ishtiradi (shablonda bo'sh joy qolsa). */
+/**
+ * Shablon qoldiqlarini yig'ishtiradi.
+ * O'rin egallovchi bo'sh bo'lsa (masalan zona aytilmagan) `<i></i>` kabi
+ * bo'sh teg va bo'sh qator qolib ketardi — ularni olib tashlaymiz.
+ */
 function tozala(matn) {
-  return matn.replace(/\n{3,}/g, '\n\n').replace(/[ \t]+$/gm, '').trim();
+  return matn
+    .replace(/<(b|i|u|s|code)>\s*<\/\1>/g, '')   // bo'sh teg
+    .replace(/^[ \t]*[·—-]?[ \t]*$/gm, '')        // faqat tinish qolgan qator
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+$/gm, '')
+    .trim();
 }
 
 // ---------------- Ko'rsatkichlar ----------------

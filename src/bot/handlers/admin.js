@@ -16,13 +16,14 @@ import {
 import { pochtaHujjati } from '../../services/pochta-hujjati.js';
 import { partiyaQollanmasi } from '../../services/qollanma-hujjati.js';
 import { broadcastBoshla } from '../../services/broadcast.js';
-import { agentCallback, agentHolati, rejaMenyusi } from './agent-oqim.js';
+import { agentCallback, agentHolati, rejaMenyusi, tanitishBoshla } from './agent-oqim.js';
 
 export const BUYRUQLAR = [
   ['/orders',   'Xarid ro‘yxati (Coupang/Daiso)'],
   ['/partiya',  'Partiyalar va pochta hujjati'],
   ['/reklama',  'Hammaga xabar yuborish'],
   ['/reja',     'Kanal rejasi (agent)'],
+  ['/tanitish', 'Mahsulotni kanalda reklama qilish'],
   ['/brend',    'Brend nomini o‘zgartirish'],
   ['/panel',    'Admin panelni ochish'],
 ];
@@ -387,6 +388,7 @@ export async function adminBuyrugi(msg, user) {
     case '/partiya': await partiyalarniKorsat(chatId); return true;
     case '/reklama': await reklamaBoshla(chatId, user); return true;
     case '/reja':    await rejaMenyusi(chatId); return true;
+    case '/tanitish': await tanitishBoshla(chatId, argument); return true;
     case '/panel':   await panelHavolasi(chatId); return true;
     case '/brend':   await brendBoshla(chatId, user, argument); return true;
     case '/bekor':   await holatTozala(user.id); await yubor(chatId, '❌ Bekor qilindi.'); return true;

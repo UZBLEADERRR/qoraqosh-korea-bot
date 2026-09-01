@@ -326,5 +326,113 @@ console.log('\n── MAHSULOTNI TO‘LIQ O‘CHIRISH ──');
 }
 
 
+// ═══════════ KO'P MAHSULOTNI BIRDAN QO'SHISH ═══════════
+console.log('\n── KO‘P MAHSULOT QO‘SHISH ──');
+{
+  const { adminRoutes } = await import('../src/api/admin.js');
+  const { issueAdminToken } = await import('../src/lib/auth.js');
+  const token = issueAdminToken({ rol: 'admin' });
+
+  // Kichkina haqiqiy PNG — rasmniOl uni qabul qilishi kerak
+  const { Resvg } = await import('@resvg/resvg-js');
+  // Rasm yetarlicha katta bo'lsin: rasmniOl 500 belgidan qisqa base64 ni
+  // «rasm emas» deb rad etadi (tasodifiy matn kelib qolmasin uchun)
+  const png = new Resvg(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
+       <rect width="400" height="400" fill="#8a5a3d"/>
+       ${Array.from({ length: 60 }, (_, i) =>
+         `<circle cx="${(i * 37) % 400}" cy="${(i * 61) % 400}" r="${5 + (i % 9)}"
+            fill="#${((i * 2654435761) >>> 8).toString(16).padStart(6, '0').slice(0, 6)}"/>`).join('')}
+     </svg>`, {}).render().asPng();
+  const rasm = `data:image/png;base64,${png.toString('base64')}`;
+
+  const { Readable } = await import('node:stream');
+  const chaqir = (yol, usul, tana) => new Promise((res) => {
+    const bayt = Buffer.from(JSON.stringify(tana));
+    const req = Object.assign(new Readable({
+      read() { this.push(bayt); this.push(null); } }), {
+      url: yol, method: usul,
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json',
+                 'content-length': String(bayt.length) },
+      socket: { remoteAddress: '127.0.0.1' },
+    });
+    const bolaklar = [];
+    const r = {
+      statusCode: 200, headersSent: false,
+      writeHead(k) { this.statusCode = k; return this; },
+      setHeader() {},
+      end(x) { if (x) bolaklar.push(x); res({ kod: this.statusCode,
+        tana: JSON.parse(Buffer.concat(bolaklar.map(Buffer.from)).toString() || '{}') }); },
+    };
+    adminRoutes(req, r, yol).catch((e) => res({ kod: 500, tana: { error: e.message } }));
+  });
+
+  const tanish = await chaqir('/api/admin/recognize-toplam', 'POST', { images: [rasm, rasm, rasm] });
+  test('3 ta rasm tanildi', tanish.tana.natijalar?.length === 3,
+    `${tanish.tana.natijalar?.length} ta`);
+  test('har biriga rasm saqlandi',
+    tanish.tana.natijalar?.every((n) => n.media_id));
+
+  // Narxsiz saqlab bo'lmasin
+  const narxsiz = await chaqir('/api/admin/products-toplam', 'POST', {
+    mahsulotlar: [{ ...tanish.tana.natijalar[0], name: 'Narxsiz mahsulot', price: 0 }] });
+  test('narxsiz mahsulot saqlanmaydi',
+    narxsiz.tana.qoshildi?.length === 0 && narxsiz.tana.xatolar?.length === 1,
+    narxsiz.tana.xatolar?.[0]?.sabab);
+
+  const oldin = await qiymat('select count(*)::int from products');
+  const saqlash = await chaqir('/api/admin/products-toplam', 'POST', {
+    mahsulotlar: tanish.tana.natijalar.map((n, i) => ({
+      ...n, name: `Toplam mahsulot ${i + 1}`, price: 100000 + i * 1000, stock: 5 })) });
+  test('3 tasi ham saqlandi', saqlash.tana.qoshildi?.length === 3,
+    `${saqlash.tana.qoshildi?.length} ta · xato: ${saqlash.tana.xatolar?.length || 0}`);
+  test('katalogda paydo bo‘ldi',
+    (await qiymat('select count(*)::int from products')) === oldin + 3);
+  test('rasm mahsulotga bog‘landi',
+    (await qiymat(`select count(*)::int from products
+                    where name like 'Toplam mahsulot%' and poster_id is not null`)) === 3);
+  test('narx va ombor o‘rnatildi',
+    (await qiymat(`select price from products where name = 'Toplam mahsulot 1'`)) === 100000);
+}
+
+// ═══════════ /tanitish — MAHSULOT REKLAMASI ═══════════
+console.log('\n── MAHSULOT REKLAMASI ──');
+{
+  await sorov(`update rejalar set kanal = '@meduza_kanal' where kanal = ''`);
+  yuborilgan.length = 0;
+  await yoz('700001', '/tanitish Toplam');
+  const royxat = oxirgi().reply_markup?.inline_keyboard || [];
+  test('mahsulot ro‘yxati chiqdi', royxat.length > 0, `${royxat.length} ta variant`);
+
+  const tugma = royxat.flat().find((b) => b.callback_data?.startsWith('rk:'));
+  test('tanlash tugmasi bor', Boolean(tugma), tugma?.text);
+
+  // Hali reja yo'q — agent qaysi kanalga yuborishni so'raydi
+  yuborilgan.length = 0;
+  await bos('700001', tugma.callback_data);
+  await kut(300);
+  test('kanal so‘raladi', /Qaysi kanalga/.test(oxirgi().text || ''));
+
+  yuborilgan.length = 0;
+  await yoz('700001', '@meduza_kanal');
+  await kut(700);
+  const reklama = yuborilgan.find((x) => /Reklama/i.test(x.text || '') || x.rasm);
+  test('reklama posti tayyorlandi', Boolean(reklama));
+  test('reklama mahsulot rasmi bilan', yuborilgan.some((x) => x.rasm));
+
+  const kb = (oxirgi().reply_markup?.inline_keyboard || []).flat();
+  test('«Ko‘rinishini ochish» tugmasi bor',
+    kb.some((b) => /Ko‘rinishini/.test(b.text || '') && b.url), kb.map((b) => b.text).join(' | '));
+  test('«Kanalga joylash» tugmasi bor', kb.some((b) => b.callback_data?.startsWith('pj:')));
+
+  const band = await qator(
+    `select b.*, r.turi from reja_bandlari b join rejalar r on r.id = b.reja_id
+      where b.mahsulot_id is not null order by b.id desc limit 1`);
+  test('reklama bandi mahsulotga bog‘langan', Boolean(band?.mahsulot_id));
+  test('reja turi «reklama»', band?.turi === 'reklama', band?.turi);
+  test('matn bazaga yozildi', (band?.matn || '').length > 20);
+}
+
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

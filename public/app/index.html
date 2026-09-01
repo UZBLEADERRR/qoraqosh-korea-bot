@@ -32,7 +32,8 @@
        style="margin-top:20px;text-decoration:none">📄 Shartnomani o‘qish</a>
     <button class="asosiy" id="t-roziman" style="margin-top:10px">✅ Roziman, boshladik</button>
     <div class="ogoh" style="margin-top:16px">
-      🔒 Yuz suratingiz saqlanmaydi — faqat tahlil paytida ishlatiladi.
+      🔒 Yuz suratingiz faqat sizning tahlilingiz uchun ishlatiladi —
+      botdagi <b>/ochir</b> bilan istagan vaqtda o‘chirasiz.
     </div>
   </div>
 </section>
@@ -95,6 +96,12 @@
           <p>Yuzingiz aniq ko‘rinsin</p>
         </div>
         <input id="fayl" type="file" accept="image/*" capture="user" hidden>
+      </div>
+      <!-- Namuna surat: admin panelidan yuklanadi. Odam qanday rasm
+           kutilayotganini o'qib emas, KO'RIB tushunadi. -->
+      <div class="karta yashirin" id="namuna-karta">
+        <h3 style="margin-bottom:10px">Mana shunday rasm kerak</h3>
+        <img id="namuna-rasm" class="namuna" alt="Namuna surat">
       </div>
       <div class="karta">
         <h3 style="margin-bottom:8px">Yaxshi rasm qanday bo‘ladi</h3>

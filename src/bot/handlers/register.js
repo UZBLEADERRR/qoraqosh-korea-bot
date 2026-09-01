@@ -77,7 +77,8 @@ export async function qadam(msg, user) {
       // Qisqa: uzun huquqiy matn tugmagacha yetib borishga xalaqit beradi.
       // To'liq shartlar «Shartnomani o'qish» tugmasi ostida.
       await yubor(chatId,
-        '🔒 Suratingiz <b>saqlanmaydi</b> — faqat tahlil paytida ishlatiladi.',
+        '🔒 Suratingiz faqat <b>sizning tahlilingiz</b> uchun ishlatiladi.\n'
+        + '<i>/ochir bilan istagan vaqtda o‘chirasiz.</i>',
         { reply_markup: shartnomaTugmalari() });
       return true;
     }

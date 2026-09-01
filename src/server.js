@@ -18,9 +18,11 @@ import { adminRoutes } from './api/admin.js';
 import { yangilanish } from './bot/index.js';
 import { tg } from './bot/tg.js';
 import { ofertaSahifasi } from './lib/oferta.js';
+import { postSahifasi, imzoTogrimi } from './lib/post-korinish.js';
 import { migratsiyalarniQoll } from './db/migrate.js';
 import { agentniIshgaTushir } from './services/agent-jadval.js';
-import { qator, ulanishniTekshir } from './db.js';
+import { qator, sozlama, ulanishniTekshir } from './db.js';
+import { brendNomi } from './lib/brend.js';
 import { verifyAdminToken } from './lib/auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -80,8 +82,36 @@ const server = http.createServer(async (req, res) => {
 
     // ---------- Ommaviy oferta ----------
     if (yol === '/oferta') {
-      const html = ofertaSahifasi();
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      // Matn admin paneldan olinadi; bo'sh bo'lsa koddagi shablon.
+      const [xom, brend] = await Promise.all([
+        sozlama('oferta_matni', ''), brendNomi(),
+      ]).catch(() => ['', 'KiOVO']);
+      const html = ofertaSahifasi(String(xom || '').replace(/^"|"$/g, ''), brend);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
+      return res.end(html);
+    }
+
+    // ---------- Post ko'rinishi ----------
+    // Agent tayyorlagan post kanalda qanday chiqishini oldindan ko'rsatadi.
+    // Havola imzolangan: qoralama tarqalib ketmasin.
+    const postMos = yol.match(/^\/post\/(\d+)$/);
+    if (postMos) {
+      const id = Number(postMos[1]);
+      const imzo = new URL(req.url, 'http://x').searchParams.get('i') || '';
+      if (!imzoTogrimi(id, imzo)) return notFound(res);
+
+      const band = await qator(
+        `select b.*, r.nom as reja_nom, r.kanal
+           from reja_bandlari b join rejalar r on r.id = b.reja_id
+          where b.id = $1`, [id]);
+      if (!band) return notFound(res);
+
+      const { oldiQochdiTekshir } = await import('./services/agent.js');
+      const html = postSahifasi({
+        band, brend: await brendNomi().catch(() => 'KiOVO'),
+        ogohlantirish: oldiQochdiTekshir(band.matn || ''),
+      });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(html);
     }
 

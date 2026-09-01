@@ -13,6 +13,7 @@ await migratsiyalarniQoll();
 const { sorov, qator, qatorlar, pool } = await import('../src/db.js');
 const { yangilanish } = await import('../src/bot/index.js');
 const { agentBirMarta } = await import('../src/services/agent-jadval.js');
+const { bugungiBandlar, oldiQochdiTekshir } = await import('../src/services/agent.js');
 
 let ok=0,xato=0;
 const test=(n,c,i='')=>{c?(console.log(`  ✓ ${n}${i?' — '+i:''}`),ok++):(console.log(`  ✗ ${n}${i?' — '+i:''}`),xato++)};
@@ -84,12 +85,62 @@ console.log('\n── AGENT: JADVAL ──');
 await sorov(`update rejalar set soat = 0`);
 await sorov(`update reja_bandlari set holat='rejada' where holat<>'joylandi'`);
 // Bugun joylangan postni KECHAGI kunga suramiz: aks holda agent
-// "bugun allaqachon post bor" deb to'g'ri ravishda yangisini tayyorlamaydi
-await sorov(`update reja_bandlari set created_at = now() - interval '1 day'
+// "bugun allaqachon post bor" deb to'g'ri ravishda yangisini tayyorlamaydi.
+// created_at EMAS, tayyorlandi_at — kunlik chegara shunga tayanadi.
+await sorov(`update reja_bandlari
+                set tayyorlandi_at = now() - interval '1 day'
               where holat = 'joylandi'`);
 yuborilgan.length=0;
 await agentBirMarta(); await kut(600);
 test('jadval postni o‘zi tayyorladi', yuborilgan.some(x=>x.rasm));
+
+// ── Kunlik chegara: 30 kunlik rejadan BITTA post ──
+// Ilgari `not exists` sharti butun so'rov uchun bir marta baholanardi va
+// 30 ta band birdan qaytardi — admin bir kunda o'ttizta tasdiq so'rovini
+// olardi. Endi `distinct on (reja_id)` va tayyorlandi_at ushlab turadi.
+console.log('\n── AGENT: KUNLIK CHEGARA ──');
+{
+  const r = await qator(
+    `insert into rejalar (nom, topshiriq, kanal, soat, rasmli, created_by)
+     values ('Chegara sinovi','har kuni post','@meduza_kanal',0,false,
+             (select id from users where telegram_id='700001')) returning id`);
+  for (let i = 0; i < 30; i++) {
+    await sorov(`insert into reja_bandlari (reja_id, tartib, mavzu) values ($1,$2,$3)`,
+      [r.id, i, `Mavzu ${i + 1}`]);
+  }
+  const bandlar = await bugungiBandlar();
+  const shuReja = bandlar.filter((b) => b.reja_id === r.id);
+  test('30 kunlik rejadan bir kunda BITTA band', shuReja.length === 1,
+    `${shuReja.length} ta qaytdi`);
+  test('birinchi mavzudan boshlanadi', shuReja[0]?.mavzu === 'Mavzu 1', shuReja[0]?.mavzu);
+
+  // Birinchisi tayyorlangach ikkinchisi bugun chiqmasin
+  await sorov(`update reja_bandlari set holat='tasdiq_kutilmoqda', tayyorlandi_at=now()
+                where reja_id=$1 and tartib=0`, [r.id]);
+  const keyin = (await bugungiBandlar()).filter((b) => b.reja_id === r.id);
+  test('tayyorlangach shu kuni boshqa band chiqmaydi', keyin.length === 0,
+    `${keyin.length} ta qaytdi`);
+
+  // Ertaga yana bitta
+  await sorov(`update reja_bandlari set tayyorlandi_at = now() - interval '1 day'
+                where reja_id=$1 and tartib=0`, [r.id]);
+  const ertaga = (await bugungiBandlar()).filter((b) => b.reja_id === r.id);
+  test('ertasiga keyingi mavzu chiqadi', ertaga.length === 1 && ertaga[0].mavzu === 'Mavzu 2',
+    `${ertaga.length} ta · ${ertaga[0]?.mavzu}`);
+
+  await sorov('delete from rejalar where id=$1', [r.id]);
+}
+
+// ── Fakt tekshiruvi ──
+console.log('\n── AGENT: FAKT TEKSHIRUVI ──');
+test('manbasiz foizni ushlaydi',
+  oldiQochdiTekshir('Tadqiqotlarga ko‘ra 87% ayol shu muammoga duch keladi').length > 0);
+test('kafolat va’dasini ushlaydi',
+  oldiQochdiTekshir('Bu krem 100 foiz natija beradi, kafolatlaymiz').length > 0);
+test('real bo‘lmagan muddatni ushlaydi',
+  oldiQochdiTekshir('Bir haftada dog‘lar butunlay yo‘qoladi').length > 0);
+test('foydali maslahatni O‘TKAZADI',
+  oldiQochdiTekshir('Tozalagichni iliq suv bilan 30 soniya aylantirib ishlating, keyin toner.').length === 0);
 yuborilgan.length=0;
 await agentBirMarta(); await kut(400);
 test('bir kunda IKKINCHI post tayyorlamaydi', !yuborilgan.some(x=>x.rasm),

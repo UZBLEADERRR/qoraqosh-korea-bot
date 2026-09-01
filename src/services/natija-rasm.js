@@ -1,8 +1,8 @@
 // Tahlil natijasining rasmini chizadi, saqlaydi va yuboradi.
 // Bot ham, Mini App ham shu yerdan foydalanadi — natija ikkalasida bir xil.
-import { qator, sorov, sozlama } from '../db.js';
+import { qator, qatorlar, sorov, sozlama } from '../db.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
-import { svgdanPng } from '../rasm/chiz.js';
+import { svgdanPng, rasmOlchami } from '../rasm/chiz.js';
 import { rasmYubor } from '../bot/tg.js';
 import { brendNomi, brendLogosi } from '../lib/brend.js';
 
@@ -18,9 +18,32 @@ export function tavsiyaRoyxati(tahlil, mahsulotlar = []) {
     .map((r) => {
       const p = karta.get(Number(r.product_id));
       if (!p) return null;
-      return { bosqich: BOSQICH_NOMI[r.bosqich] || r.bosqich || '', nom: p.name, brend: p.brand || '' };
+      return {
+        bosqich: BOSQICH_NOMI[r.bosqich] || r.bosqich || '',
+        nom: p.name, brend: p.brand || '', poster_id: p.poster_id || null,
+      };
     })
     .filter(Boolean);
+}
+
+/**
+ * Tavsiyalarga mahsulot rasmini qo'shadi.
+ * Rasmsiz kartochka bo'sh ko'rinadi — odam nimani sotib olayotganini
+ * ko'rmaydi. Bir so'rovda hammasini olamiz.
+ */
+async function tavsiyaRasmlari(tavsiyalar) {
+  const idlar = tavsiyalar.map((r) => r.poster_id).filter(Boolean);
+  if (!idlar.length) return tavsiyalar;
+
+  const m = await qatorlar(
+    'select id, mime, bayt from media where id = any($1::uuid[])', [idlar]);
+  const karta = new Map(m.map((r) => [String(r.id), r]));
+
+  return tavsiyalar.map((r) => {
+    const rasm = r.poster_id ? karta.get(String(r.poster_id)) : null;
+    if (!rasm?.bayt || !OCHILADI.has(String(rasm.mime || '').toLowerCase())) return r;
+    return { ...r, rasmBase64: Buffer.from(rasm.bayt).toString('base64'), rasmMime: rasm.mime };
+  });
 }
 
 // resvg <image> ichida faqat shu turlarni ocha oladi. iPhone HEIC yuborsa
@@ -31,17 +54,25 @@ const OCHILADI = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/gif']);
  * Rasmni chizadi va media jadvaliga saqlaydi.
  * @returns {Promise<{bayt:Buffer, mediaId:string}|null>} motor yo'q bo'lsa null
  */
-export async function natijaRasminiYarat({ analysisId, userId, ism, rasmBase64, mime, tahlil, mahsulotlar }) {
+export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime, tahlil, mahsulotlar }) {
   const mos = OCHILADI.has(String(mime || '').toLowerCase());
-  const [brend, logo] = await Promise.all([brendNomi(), brendLogosi()]);
+  const [brend, logo, tavsiyalar] = await Promise.all([
+    brendNomi(), brendLogosi(),
+    tavsiyaRasmlari(tavsiyaRoyxati(tahlil, mahsulotlar)),
+  ]);
+
+  // Muammo doiralarini yuzning to'g'ri joyiga qo'yish uchun asl surat
+  // o'lchami kerak: surat kvadrat ramkaga qirqib joylanadi.
+  const olcham = mos && rasmBase64
+    ? rasmOlchami(Buffer.from(rasmBase64, 'base64').subarray(0, 65536))
+    : null;
+
   const svg = natijaSvg({
     rasmBase64: mos ? rasmBase64 : null,
     mime: mos ? mime : 'image/jpeg',
-    // Ism rasmda surat yonida turadi. Faqat BIRINCHI so'z: familiya bilan
-    // birga rasm ijtimoiy tarmoqqa chiqsa keraksiz ma'lumot ulashiladi.
-    ism: String(ism || '').trim().split(/\s+/)[0] || '',
+    rasmOlchami: olcham,
     tahlil,
-    tavsiyalar: tavsiyaRoyxati(tahlil, mahsulotlar),
+    tavsiyalar,
     brend,
     logoBase64: logo && OCHILADI.has(logo.mime) ? logo.base64 : null,
     logoMime: logo?.mime || 'image/png',
@@ -66,6 +97,38 @@ export async function natijaRasminiYarat({ analysisId, userId, ism, rasmBase64, 
       .catch(() => {});
   }
   return { bayt, mediaId: m.id };
+}
+
+/**
+ * Foydalanuvchi suratini saqlaydi — ILOVADA ko'rsatish uchun.
+ *
+ * Surat faqat shu odamning o'z tahliliga bog'lanadi va /ochir bilan
+ * tahlillar bilan birga o'chadi. Admin `yuz_rasm_saqlansin` ni o'chirsa
+ * umuman saqlanmaydi (u holda ilovada surat o'rniga natija kartochkasi
+ * ko'rinadi). Surat qayta kodlanmaydi: klient allaqachon 1024 px gacha
+ * kichraytirib yuboradi.
+ */
+export async function yuzniSaqla({ analysisId, rasmBase64, mime }) {
+  if (!analysisId || !rasmBase64) return null;
+  if (!OCHILADI.has(String(mime || '').toLowerCase())) return null;
+  if (!(await sozlama('yuz_rasm_saqlansin', true))) return null;
+
+  try {
+    const bayt = Buffer.from(rasmBase64, 'base64');
+    // Juda katta suratni saqlamaymiz — bazani shishirmaslik uchun
+    if (bayt.length > 3 * 1024 * 1024) return null;
+
+    const m = await qator(
+      `insert into media (tur, mime, bayt, hajm, goya)
+       values ('yuz', $1, $2, $3, $4) returning id`,
+      [mime, bayt, bayt.length, `Tahlil #${analysisId}`]);
+    await sorov('update analyses set yuz_rasm_id = $1 where id = $2', [m.id, analysisId]);
+    return m.id;
+  } catch (e) {
+    // Surat saqlanmasa tahlil baribir ishlaydi — to'xtatmaymiz
+    console.error('YUZ RASMI SAQLANMADI:', e.message);
+    return null;
+  }
 }
 
 /** Saqlangan natija rasmini oladi. */

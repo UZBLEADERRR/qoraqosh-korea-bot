@@ -56,6 +56,11 @@ const SXEMA = {
           foiz:         { type: 'integer' },
           ishonch:      { type: 'integer' },
           zona:         { type: 'string' },
+          // Rasmda muammo ko'ringan joy — foizda (chapdan/tepadan) va radius.
+          // Shu koordinata bo'yicha yuz ustiga doira chiziladi.
+          joy_x:        { type: 'integer' },
+          joy_y:        { type: 'integer' },
+          joy_r:        { type: 'integer' },
           izoh:         { type: 'string' },
           sabab:        { type: 'string' },
           yechim:       { type: 'string' },
@@ -119,7 +124,12 @@ function aralashtir(royxat) {
 
 const KORSATMA = `Sen — professional kosmetolog-maslahatchi. Yuborilgan rasmni tahlil qilasan.
 
-QADAM 1 — SIFAT NAZORATI (eng muhim, avval shuni bajar):
+QADAM 1 — SIFAT NAZORATI (eng muhim, avval shuni bajar).
+
+ASOSIY QOIDA: IKKILANSANG — RAD ET. Yaroqsiz rasmni tahlil qilgandan ko'ra,
+yaxshi rasmni qayta so'ragan ming marta afzal: xira rasmdan chiqqan "tahlil"
+o'ylab topilgan bo'ladi va odam bizga boshqa ishonmaydi.
+
 Rasmni tahlilga yaroqli deb hisoblash uchun BARCHA shartlar bajarilishi kerak:
   - kadrda aniq bitta odam yuzi bor va u kadrning kamida 25% ini egallaydi;
   - yuz tiniq, fokusda, qimirlab ketmagan;
@@ -129,10 +139,22 @@ Rasmni tahlilga yaroqli deb hisoblash uchun BARCHA shartlar bajarilishi kerak:
   - rasm haqiqiy fotosurat — sun'iy intellekt chizgan, deepfake yoki boshqa
     ekrandan olingan surat emas.
 
-Sun'iylik belgilari: haddan tashqari silliq, teksturasiz teri; nosimmetrik yoki
-g'alati quloq/tish/soch chegaralari; fonning mantiqsiz buzilishi; g'ayritabiiy
-mukammal yoritish; barmoqlar yoki aksessuarlarning noto'g'ri shakli; teri
-teshiklarining butunlay yo'qligi.
+XIRALIK — eng ko'p uchraydigan sabab. Teri TEKSTURASI ko'rinmasa rasm xira
+hisoblanadi. Tekshir: teri teshiklari, mayda tuklar, ajin chiziqlari va teri
+donadorligi ajralib turadimi? Ko'z kiprigi va qosh tuklari alohida-alohida
+ko'rinadimi? Agar yo'q bo'lsa — sabab "xira", yaroqli = false. Yuz umumiy
+tanilsa ham bu yetarli EMAS: biz odamni emas, TERINI ko'rishimiz kerak.
+Rasm kichik (masalan 400 pikseldan tor) yoki kuchli siqilgan bo'lsa ham xira.
+
+SUN'IYLIK (AI, deepfake, filtr) belgilari: haddan tashqari silliq, teksturasiz
+teri; teri teshiklarining butunlay yo'qligi; g'alati yoki nosimmetrik
+quloq/tish/soch/ko'z chegaralari; fonning mantiqsiz buzilishi; g'ayritabiiy
+mukammal yoritish va soyalarning mos kelmasligi; barmoqlar yoki aksessuarlarning
+noto'g'ri shakli; plastikdek yaltiroq yuz; ko'zlarning bir xil aks etishi;
+sochning fonga "erib" ketishi. IKKITA yoki undan ko'p belgi bo'lsa — "sunday".
+Bitta kuchli belgi (masalan teri teshiklari umuman yo'q) ham yetarli.
+
+ishonch — rasm YAROQLI ekaniga qanchalik ishonasan, 0-100. Ikkilansang past ber.
 
 Agar kamida bitta shart bajarilmasa: sifat.yaroqli = false, mos sabab kalitini
 qo'y, va qolgan bo'limlarni BO'SH qoldir (muammolar: [], prognoz: [], tavsiya: [],
@@ -171,6 +193,18 @@ QADAM 3 — muammolar. ENG MUHIM QOIDA:
   zona    — teridagi ANIQ joyi: "burun qanotlari va peshona (T-zona)",
             "yonoqlarning yuqori qismi", "iyak va jag' chizig'i". Umumiy
             "yuz" deb yozma.
+  joy_x, joy_y, joy_r — shu muammo RASMDA ko'ringan joyning markazi va
+            radiusi, RASM O'LCHAMIGA nisbatan FOIZDA (0-100):
+              joy_x — chap chekkadan (0 = chap chekka, 100 = o'ng chekka)
+              joy_y — yuqori chekkadan (0 = tepa, 100 = past)
+              joy_r — doira radiusi, rasm KENGLIGIGA nisbatan foizda (3-25)
+            Bu raqamlar bo'yicha rasmda o'sha joyga doira chiziladi, shuning
+            uchun ANIQ bo'lsin — doira aynan muammo ko'rinadigan joyni
+            qamrasin. Masalan peshona markazi ~ (50, 22), burun ~ (50, 50),
+            chap yonoq ~ (33, 55), o'ng yonoq ~ (67, 55), iyak ~ (50, 78).
+            Rasmdagi yuzning haqiqiy joylashuviga qarab moslashtir.
+            Muammo bir nechta joyda bo'lsa eng kuchli ko'ringanini ber.
+            Joyni aniq ayta olmasang joy_r = 0 qo'y — doira chizilmaydi.
   izoh    — nima ko'rinayotgani, 1 jumla
   sabab   — nima uchun paydo bo'lgan bo'lishi mumkin, 1 jumla, sodda tilda
             (masalan "yog' bezlari faol ishlaydi va teshiklar tiqiladi")
@@ -226,6 +260,13 @@ Faqat boshqa mos variant umuman bo'lmasa, eskisini qoldirishing mumkin.`
     const sabab = RAD_SABABLARI[sifat.sabab] ? sifat.sabab : 'xira';
     return { yaroqli: false, sabab, izoh: String(sifat.izoh || '').slice(0, 300) };
   }
+  // Model "yaroqli" desa ham ikkilanib turgan bo'lsa qabul qilmaymiz.
+  // Chala rasmdan chiqqan tahlil ishonchni yo'qotadi — qayta so'ragan afzal.
+  const sifatIshonch = Number(sifat.ishonch);
+  if (Number.isFinite(sifatIshonch) && sifatIshonch < SIFAT_CHEGARASI) {
+    return { yaroqli: false, sabab: 'xira',
+             izoh: String(sifat.izoh || '').slice(0, 300) };
+  }
 
   return { yaroqli: true, natija: tozala(javob, products), oflayn: false };
 }
@@ -235,6 +276,23 @@ const BOSQICH_TARTIB = ['tozalash', 'toner', 'davolash', 'namlash', 'himoya', 'q
 
 // Model shu chegaradan past ishonch bilan aytgan muammo ko'rsatilmaydi.
 const ISHONCH_CHEGARASI = 60;
+
+// Rasm sifatiga shundan past ishonch bo'lsa tahlil qilinmaydi.
+const SIFAT_CHEGARASI = 70;
+
+/**
+ * Muammoning rasmdagi joyi (foizda). Chegaradan chiqqan yoki radiusi
+ * mantiqsiz qiymat null qaytaradi — doira chizilmaydi.
+ */
+function joyniTekshir(m) {
+  const x = Number(m.joy_x);
+  const y = Number(m.joy_y);
+  const r = Number(m.joy_r);
+  if (![x, y, r].every(Number.isFinite)) return null;
+  if (r < 3 || r > 30) return null;                 // 0 = "bilmayman"
+  if (x < 2 || x > 98 || y < 2 || y > 98) return null;
+  return { x: Math.round(x), y: Math.round(y), r: Math.round(r) };
+}
 
 /**
  * Biz kosmetika sotamiz, tashxis qo'ymaymiz. Model ko'rsatmaga qaramay
@@ -268,6 +326,10 @@ function tozala(javob, products) {
       // Daraja foizdan kelib chiqadi — ikkalasi hech qachon qarama-qarshi bo'lmaydi
       daraja: foiz >= 70 ? 3 : foiz >= 40 ? 2 : 1,
       zona:   String(m.zona || '').slice(0, 80),
+      // Rasmdagi joyi — doira chizish uchun. Chegaradan chiqqan yoki
+      // ma'nosiz qiymat (r = 0) belgilanmaydi: noto'g'ri joyga chizilgan
+      // doira umuman chizilmagandan yomonroq.
+      joy:    joyniTekshir(m),
       izoh:   String(m.izoh || '').slice(0, 200),
       sabab:  String(m.sabab || '').slice(0, 220),
       yechim: kasallikniOlib(String(m.yechim || '')).slice(0, 260),
