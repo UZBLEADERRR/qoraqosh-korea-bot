@@ -215,17 +215,35 @@ qo'llash tartibi, kimga mos, og'irligi, narxi) to'ldiradi, narx qoidaga
 ko'ra hisoblanadi va mahsulot **tasdiq navbatiga** tushadi.
 **Siz tasdiqlamaguningizcha katalogga tushmaydi.**
 
-Uch xil ishlatish:
+#### 🚀 Ommaviy import — yuzlab mahsulot bitta buyruq bilan
 
-1. **Havoladan olish** — bir nechta havolani birdan qo'yasiz (20 tagacha).
-2. **Havolalarni topish** — bo'lim yoki qidiruv sahifasini berasiz, undagi
-   mahsulot havolalari yig'iladi va ro'yxatga tushadi.
-3. **🤖 Agent o'zi yig'sin** — bo'lim havolasini va nechta kerakligini
-   berasiz, qolganini agent qiladi: har bir sahifani o'qiydi va **faqat
-   qoidaga to'g'ri kelganini** navbatga qo'yadi. Kosmetika bo'lmagani,
-   og'irligi chegaradan oshgani va narx oralig'iga tushmagani «rad etildi»
-   bo'lib, **sababi bilan** ro'yxatda qoladi (ko'pincha muammo mahsulotda
-   emas, chegarada bo'ladi). Agent hech qachon o'zi sotuvga qo'ymaydi.
+Asosiy yo'l shu: **havola qo'yib chiqilmaydi.** Bo'lim havolasini berasiz
+(sahifalash uchun ichida `{sahifa}` yozasiz), nechta mahsulot kerakligini
+aytasiz — va **«Importni boshlash»**. Qolganini server o'zi qiladi:
+sahifama-sahifa yuradi, har mahsulotni o'qiydi, qoidaga solib ko'radi va
+navbatga qo'yadi.
+
+- Ish **fonda** ketadi: yuzta mahsulot yarim soatdan ko'p oladi, shuning
+  uchun panelni yopsangiz ham to'xtamaydi. Vazifa bazada turadi, **server
+  qayta ishga tushsa yarim qolgan joyidan davom etadi**.
+- Panelda jonli holat: nechta yig'ildi, nechtasi qoidadan o'tmadi, qaysi
+  sahifada, **taxminan qancha vaqt qoldi**. **«To'xtatish»** istalgan
+  paytda — topilganlari saqlanib qoladi.
+- **Tanaffus** (sukut bo'yicha 1.5 soniya) — do'kon bizni bot deb
+  bloklamasligi uchun. Bir vaqtda **bitta** import yuradi.
+- Avval olingan havola qayta o'qilmaydi — AI hisobi bekorga yonmaydi.
+- **«Tasdiqni kutmasdan katalogga»** belgisini qo'ysangiz, filtrdan o'tgani
+  to'g'ridan-to'g'ri sotuvga tushadi. Qo'ymasangiz navbatda to'planadi va
+  **«Navbatdagi N tasini katalogga qo'shish»** tugmasi bilan bir bosishda
+  qo'shiladi.
+
+Qo'lda ishlash ham qoladi: **havoladan olish** (20 tagacha havola birdan),
+**havolalarni topish** (bo'limdagi havolalarni yig'ib beradi) va
+**🤖 agent o'zi yig'sin** (bitta sahifadan 30 tagacha).
+
+Filtrdan o'tmagani yo'qolmaydi: kosmetika bo'lmagani, og'irligi chegaradan
+oshgani va narx oralig'iga tushmagani «rad etildi» bo'lib, **sababi bilan**
+ro'yxatda qoladi — ko'pincha muammo mahsulotda emas, chegarada bo'ladi.
 
 **Avval API, keyin sahifa.** Daisomall kabi do'konlar sahifani brauzerda
 chizadi — serverga kelgan HTML da mahsulot **yo'q**, u keyin JSON so'rov
@@ -519,6 +537,7 @@ src/
     broadcast.js       reklama yuborish (tezlik cheklovi bilan)
     majburiy-kanal.js  obuna tekshiruvi
     marketplace.js     Daiso/Coupang dan mahsulot olish va filtrlash
+    marketplace-vazifa.js  ommaviy import: fonda, uzilib qolsa davom etadi
     dokon-api.js       do'kon JSON API si: qoidalar, id, rasm, ro'yxat
     agent.js           kanal rejasi va post yozish
     agent-jadval.js    kunlik jadval (advisory lock bilan)

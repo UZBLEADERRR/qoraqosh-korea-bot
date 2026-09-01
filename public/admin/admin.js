@@ -1213,6 +1213,8 @@ async function marketplace() {
         <div id="mk-holat" style="margin-top:10px"></div>
       </div>
 
+      <div class="karta tor" id="mk-import"></div>
+
       <div class="karta tor">
         <div class="karta-bosh"><h2>🔌 Do‘kon API si</h2></div>
         <p class="mayda" style="margin:0 0 10px">
@@ -1272,6 +1274,11 @@ async function marketplace() {
             ${k ? MARKET_HOLAT[k][0] : 'Hammasi'}${h[k] ? ` · ${h[k]}` : ''}</button>`).join('')}
       </div>
 
+      ${h.kutilmoqda ? `<div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="tug asos" id="mk-hammasi" style="flex:1">
+          ✅ Navbatdagi ${h.kutilmoqda} tasini katalogga qo‘shish</button>
+      </div>` : ''}
+
       ${j.royxat.length ? j.royxat.map(marketKarta).join('')
         : boshHolat('🔗', 'Bu ro‘yxat bo‘sh',
             '<p class="mayda">Yuqoriga havola qo‘yib «Olib kelish» ni bosing</p>')}`;
@@ -1280,6 +1287,8 @@ async function marketplace() {
     $('#mk-qidir').onclick = marketQidir;
     $('#mk-agent').onclick = marketAgent;
     $('#mk-api-saqla').onclick = marketApiSaqla;
+    if ($('#mk-hammasi')) $('#mk-hammasi').onclick = marketHammasi;
+    importChiz();
     $('#mk-api-sinov').onclick = marketApiSinov;
     $('#mk-qoida-saqla').onclick = marketQoidaSaqla;
     ['mk-kurs','mk-yetkazish','mk-foiz','mk-yaxlit','mk-foyda-min','mk-foyda-max']
@@ -1466,6 +1475,136 @@ async function marketAgent() {
   } catch (e) {
     h.innerHTML = `<div class="xato">${esc(e.message)}</div>`;
   } finally { t.disabled = false; }
+}
+
+// ──────────────── Ommaviy import ────────────────
+// Yuzta mahsulot yarim soat oladi, shuning uchun ish SERVERDA ketadi:
+// sahifa yopilsa ham to'xtamaydi. Panel faqat holatni so'rab turadi.
+
+let importTaymer = null;
+
+const IMPORT_HOLAT = {
+  ishlamoqda: ['Ketmoqda', 'ogoh'],
+  tugadi:     ['Tugadi', 'ok'],
+  toxtatildi: ['To‘xtatildi', 'kul'],
+  xato:       ['Xato', 'xato'],
+};
+
+/** Import kartasini chizadi va vazifa ketayotgan bo'lsa yangilab turadi. */
+async function importChiz() {
+  const quti = $('#mk-import');
+  if (!quti) { clearInterval(importTaymer); importTaymer = null; return; }
+  let j;
+  try { j = await api('/api/admin/marketplace/vazifa'); }
+  catch { return; }
+
+  const v = j.joriy || j.tarix?.[0] || null;
+  const ketmoqda = v?.holat === 'ishlamoqda';
+  const [nom, sinf] = IMPORT_HOLAT[v?.holat] || ['', 'kul'];
+  const bajarildi = v ? Math.min(100, Math.round(((v.qoshilgan + v.rad_etilgan) / (v.maqsad || 1)) * 100)) : 0;
+  // Qolgan vaqt: har mahsulot ~ kechikish + 8 soniya (sahifa va AI)
+  const qoldi = v ? Math.max(0, v.maqsad - v.qoshilgan - v.rad_etilgan) : 0;
+  const daqiqa = Math.round((qoldi * ((v?.kechikish_ms || 1500) + 8000)) / 60000);
+
+  quti.innerHTML = `
+    <div class="karta-bosh"><h2>🚀 Ommaviy import</h2>
+      ${v ? `<span class="yor ${sinf}">${nom}</span>` : ''}</div>
+
+    ${v ? `
+      <div class="qator-karta" style="margin-bottom:12px">
+        <div style="height:8px;background:var(--fon);border-radius:5px;overflow:hidden">
+          <div style="height:100%;width:${bajarildi}%;background:var(--urgu);
+            transition:width .4s"></div></div>
+        <div class="qator-satr" style="margin-top:8px"><span class="k">Katalog navbatiga</span>
+          <span class="v">${v.qoshilgan} / ${v.maqsad}</span></div>
+        <div class="qator-satr"><span class="k">Qoidaga to‘g‘ri kelmadi</span>
+          <span class="v">${v.rad_etilgan}</span></div>
+        <div class="qator-satr"><span class="k">Ko‘rilgan havola</span>
+          <span class="v">${v.korilgan}${v.takror ? ` · ${v.takror} takror` : ''}</span></div>
+        <div class="qator-satr"><span class="k">Sahifa</span>
+          <span class="v">${v.sahifa} / ${v.sahifagacha}</span></div>
+        ${ketmoqda ? `<div class="qator-satr"><span class="k">Taxminan qoldi</span>
+          <span class="v">${daqiqa} daqiqa</span></div>` : ''}
+        ${v.sabab ? `<div class="ozgina" style="margin-top:8px">⚠️ ${esc(v.sabab)}</div>` : ''}
+      </div>` : ''}
+
+    ${ketmoqda ? `
+      <p class="mayda" style="margin:0 0 10px">Import serverda ketmoqda — bu
+        sahifani yopsangiz ham davom etadi.</p>
+      <button class="tug keng xavf" id="mk-import-toxtat">■ To‘xtatish</button>`
+    : `
+      <p class="mayda" style="margin:0 0 10px">Bo‘lim havolasini bering va nechta
+        mahsulot kerakligini yozing — qolganini server o‘zi qiladi: sahifama-sahifa
+        yuradi, har mahsulotni o‘qiydi, qoidaga solib ko‘radi va navbatga qo‘yadi.
+        <b>Sahifalash uchun havolada <code>{sahifa}</code> yozing</b>, masalan
+        <code>...?ctgr=krem&amp;page={sahifa}</code>.</p>
+      <label>Bo‘lim havolalari (har qatorga bittadan)</label>
+      <textarea id="mk-im-havola" rows="3" spellcheck="false"
+        placeholder="https://www.daisomall.co.kr/api/...?ctgr=beauty&page={sahifa}"></textarea>
+      <div class="forma-tor" style="margin-top:8px">
+        <div><label>Nechta mahsulot</label>
+          <input id="mk-im-maqsad" type="number" min="1" max="1000" value="100"></div>
+        <div><label>Sahifadan</label>
+          <input id="mk-im-dan" type="number" min="1" value="1"></div>
+        <div><label>Sahifagacha</label>
+          <input id="mk-im-gacha" type="number" min="1" value="20"></div>
+        <div><label>Tanaffus (ms) <span class="yordam">do‘kon bloklamasligi uchun</span></label>
+          <input id="mk-im-kechikish" type="number" min="300" step="100" value="1500"></div>
+      </div>
+      <label class="belgi-qator" style="margin-top:10px">
+        <input type="checkbox" id="mk-im-avto">
+        <span>Tasdiqni kutmasdan to‘g‘ridan-to‘g‘ri katalogga qo‘shilsin</span></label>
+      <button class="tug asos keng" id="mk-import-boshla" style="margin-top:10px">
+        🚀 Importni boshlash</button>`}`;
+
+  if (ketmoqda) {
+    $('#mk-import-toxtat').onclick = importToxtat;
+    if (!importTaymer) importTaymer = setInterval(importChiz, 4000);
+  } else {
+    clearInterval(importTaymer); importTaymer = null;
+    $('#mk-import-boshla').onclick = importBoshla;
+  }
+}
+
+async function importBoshla() {
+  const havolalar = $('#mk-im-havola').value.trim();
+  if (!havolalar) return tost('Bo‘lim havolasini qo‘ying');
+  const t = $('#mk-import-boshla');
+  t.disabled = true;
+  try {
+    await api('/api/admin/marketplace/vazifa', { method: 'POST', body: JSON.stringify({
+      havolalar: havolalar.split('\n').map((x) => x.trim()).filter(Boolean),
+      maqsad: Number($('#mk-im-maqsad').value) || 100,
+      sahifadan: Number($('#mk-im-dan').value) || 1,
+      sahifagacha: Number($('#mk-im-gacha').value) || 1,
+      kechikish: Number($('#mk-im-kechikish').value) || 1500,
+      avto_tasdiq: $('#mk-im-avto').checked,
+    }) });
+    tost('Import boshlandi — sahifani yopsangiz ham davom etadi');
+    await importChiz();
+  } catch (e) { tost(e.message); t.disabled = false; }
+}
+
+async function importToxtat() {
+  try {
+    await api('/api/admin/marketplace/vazifa/toxtat', { method: 'POST', body: '{}' });
+    tost('To‘xtatildi');
+    await importChiz();
+    await marketplace();
+  } catch (e) { tost(e.message); }
+}
+
+/** Navbatdagi hammasini katalogga — bittalab tasdiqlash uchun vaqt yo'q. */
+async function marketHammasi() {
+  const t = $('#mk-hammasi');
+  t.disabled = true;
+  t.textContent = 'Qo‘shilmoqda…';
+  try {
+    const j = await api('/api/admin/marketplace/tasdiq-hammasi',
+      { method: 'POST', body: JSON.stringify({ limit: 500 }) });
+    await marketplace();
+    tost(`${j.qoshildi} ta qo‘shildi${j.otkazildi ? ` · ${j.otkazildi} tasi o‘tkazildi` : ''}`);
+  } catch (e) { tost(e.message); t.disabled = false; }
 }
 
 /** API qoidalarini saqlash — JSON xatosi bo'lsa aynan qayerdaligi aytiladi. */

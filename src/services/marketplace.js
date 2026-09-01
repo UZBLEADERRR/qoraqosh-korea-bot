@@ -621,6 +621,30 @@ export async function tasdiqla(id, ozgarish = {}) {
   return p;
 }
 
+/**
+ * Navbatdagi HAMMASINI katalogga qo'shadi.
+ *
+ * Yuzta mahsulotni bittalab tasdiqlash — soatlab ish. Filtrlar allaqachon
+ * ishlagan (kosmetika, og'irlik, narx oralig'i), shuning uchun navbatda
+ * qolgani ko'pincha shundoq ham to'g'ri. Nomi katalogda bor bo'lsa o'sha
+ * bittasi navbatda qoladi va sababi yoziladi.
+ *
+ * @returns {Promise<{qoshildi:number, otkazildi:number, xatolar:string[]}>}
+ */
+export async function hammasiniTasdiqla(limit = 500) {
+  const navbat = await qatorlar(
+    `select id from marketplace_topilgan where holat = 'kutilmoqda'
+      order by created_at limit $1`, [Math.max(1, Math.min(500, Number(limit) || 500))]);
+
+  let qoshildi = 0;
+  const xatolar = [];
+  for (const { id } of navbat) {
+    try { await tasdiqla(id, {}); qoshildi += 1; }
+    catch (e) { xatolar.push(e.message); }
+  }
+  return { qoshildi, otkazildi: xatolar.length, xatolar: xatolar.slice(0, 5) };
+}
+
 export const radEt = (id, sabab = 'Admin rad etdi') => sorov(
   `update marketplace_topilgan set holat = 'rad_etildi', sabab = $1, updated_at = now()
     where id = $2 and product_id is null`, [String(sabab).slice(0, 300), id]);

@@ -3,6 +3,7 @@ import http from 'node:http';
 import zlib from 'node:zlib';
 
 export const yuborilgan = [];   // botdan chiqqan xabarlar
+let mahsulotHisobi = 0;         // soxta AI qaytaradigan mahsulot nomlari uchun
 // Telegramdagi kabi haqiqiy message_id: ro'yxat tozalansa ham takrorlanmaydi,
 // shunda deleteMessage aynan o'sha xabarni topadi.
 let xabarId = 0;
@@ -50,7 +51,9 @@ function javobMatni(sxemaMatni) {
   // Marketplace: do'kon sahifasidan mahsulot o'qish
   if (sxemaMatni.includes('kosmetikami')) return JSON.stringify({
     kosmetikami: true, ishonch: 90, izoh: '',
-    name: 'Soothing Aloe Gel Cream', brand: 'Daiso',
+    // Har mahsulot boshqacha nomlanadi: katalogda nom+brend yagona bo'lishi
+    // kerak va ommaviy import shuni sinaydi
+    name: `Soothing Aloe Gel Cream ${++mahsulotHisobi}`, brand: 'Daiso',
     narx_qiymat: 5000, narx_valyuta: 'KRW',
     ogirlik_g: 120, volume: '100 ml',
     category: 'krem', step: 'namlash',
@@ -167,9 +170,13 @@ export function soxtaServer(port = 4444) {
           pdDesc: '알로에 성분이 피부를 진정시켜 줍니다. 100ml',
         } });
       }
-      // Bo'lim (kategoriya) API si — ro'yxat qaytaradi
+      // Bo'lim (kategoriya) API si — sahifalanadigan ro'yxat
       if (yol.startsWith('/api/list')) {
-        return j({ result: { items: [{ pdNo: 'a1' }, { pdNo: 'a2' }, { pdNo: 'a3' }] } });
+        const sahifa = Number(u.searchParams.get('page') || 1);
+        // Uchinchi sahifadan keyin mahsulot tugaydi — import ham to'xtashi kerak
+        const items = sahifa > 3 ? []
+          : Array.from({ length: 5 }, (_, i) => ({ pdNo: `p${sahifa}_${i + 1}` }));
+        return j({ result: { items } });
       }
 
       if (yol.startsWith('/dokon/')) {

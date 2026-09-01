@@ -606,12 +606,88 @@ console.log('\n── MARKETPLACE ──');
   // Bo'lim API si — agent ro'yxatni JSON dan oladi
   await sorov('delete from marketplace_topilgan');
   const api_royxat = await mp.agentYigish(`http://127.0.0.1:${PORT}/api/list?ctgr=krem`, { limit: 10 });
-  test('agent API ro‘yxatidan havola yasadi', api_royxat.havolalar.length === 3,
+  test('agent API ro‘yxatidan havola yasadi', api_royxat.havolalar.length === 5,
     api_royxat.havolalar.join(' '));
   test('yasalgan havola mahsulot sahifasiga qaraydi',
-    (api_royxat.havolalar[0] || '').includes('pdNo=a1'), api_royxat.havolalar[0]);
-  test('agent API orqali yig‘di', api_royxat.hisob.kutilmoqda === 3,
+    (api_royxat.havolalar[0] || '').includes('pdNo=p1_1'), api_royxat.havolalar[0]);
+  test('agent API orqali yig‘di', api_royxat.hisob.kutilmoqda === 5,
     JSON.stringify(api_royxat.hisob));
+
+  // ── Ommaviy import: yuzlab mahsulot bitta buyruq bilan ──
+  // Admin havola qo'yib chiqmaydi: bo'lim havolasi va son beriladi,
+  // qolganini server fonda qiladi.
+  const mpv = await import('../src/services/marketplace-vazifa.js');
+  const kut = (ms) => new Promise((r) => setTimeout(r, ms));
+  const vazifaniKut = async (id, chegara = 60_000) => {
+    const boshi = Date.now();
+    for (;;) {
+      const v = await qator('select * from marketplace_vazifa where id = $1', [id]);
+      if (v.holat !== 'ishlamoqda' || Date.now() - boshi > chegara) return v;
+      await kut(150);
+    }
+  };
+
+  await sorov('delete from marketplace_topilgan');
+  await sorov('delete from marketplace_vazifa');
+  const RO_YXAT = `http://127.0.0.1:${PORT}/api/list?ctgr=krem&page={sahifa}`;
+
+  const v1 = await mpv.vazifaBoshla({
+    havolalar: [RO_YXAT], sahifadan: 1, sahifagacha: 3,
+    maqsad: 6, kechikish: 300, avtoTasdiq: false });
+  test('import vazifasi boshlandi', v1.holat === 'ishlamoqda');
+
+  const ikkinchiImport = await mpv.vazifaBoshla({ havolalar: [RO_YXAT] })
+    .then(() => null).catch((e) => e.message);
+  test('bir vaqtda ikkita import ketmaydi', /allaqachon/.test(ikkinchiImport || ''),
+    ikkinchiImport);
+
+  const t1 = await vazifaniKut(v1.id);
+  test('import maqsadga yetib to‘xtadi', t1.holat === 'tugadi', `${t1.holat} · ${t1.sabab || ''}`);
+  test('kerakli sonda mahsulot yig‘ildi', t1.qoshilgan === 6,
+    `qoshilgan ${t1.qoshilgan}, rad ${t1.rad_etilgan}, xato ${t1.xato}`);
+  test('import bir nechta sahifadan yurdi', t1.sahifa >= 2, `sahifa ${t1.sahifa}`);
+  test('mahsulotlar navbatda turibdi',
+    (await qiymat(`select count(*)::int from marketplace_topilgan where holat = 'kutilmoqda'`)) === 6);
+
+  // Navbatdagi hammasini birdan katalogga
+  const oldingi = await qiymat('select count(*)::int from products');
+  const hammasi = await mp.hammasiniTasdiqla();
+  test('navbatdagi hammasi katalogga qo‘shildi', hammasi.qoshildi === 6,
+    JSON.stringify(hammasi));
+  test('katalog o‘sdi',
+    (await qiymat('select count(*)::int from products')) === oldingi + 6);
+
+  // Avto tasdiq: tasdiq kutmasdan katalogga
+  await sorov('delete from marketplace_topilgan');
+  await sorov('delete from marketplace_vazifa');
+  const oldin2 = await qiymat('select count(*)::int from products');
+  const v2 = await mpv.vazifaBoshla({
+    havolalar: [RO_YXAT], sahifagacha: 3, maqsad: 3, kechikish: 300, avtoTasdiq: true });
+  const t2 = await vazifaniKut(v2.id);
+  test('avto tasdiqda katalogga o‘zi tushdi',
+    (await qiymat('select count(*)::int from products')) === oldin2 + 3,
+    `${t2.holat} · qoshilgan ${t2.qoshilgan}`);
+
+  // To'xtatish
+  await sorov('delete from marketplace_topilgan');
+  await sorov('delete from marketplace_vazifa');
+  const v3 = await mpv.vazifaBoshla({
+    havolalar: [RO_YXAT], sahifagacha: 3, maqsad: 100, kechikish: 300 });
+  await kut(600);
+  await mpv.vazifaToxtat(v3.id);
+  const t3 = await vazifaniKut(v3.id, 10_000);
+  test('import to‘xtatildi', t3.holat === 'toxtatildi', t3.holat);
+  test('to‘xtaganda topilgani saqlanib qoladi',
+    (await qiymat('select count(*)::int from marketplace_topilgan')) >= 1);
+
+  // Mahsulot tugasa import o'zi tugaydi (cheksiz aylanmaydi)
+  await sorov('delete from marketplace_topilgan');
+  await sorov('delete from marketplace_vazifa');
+  const v4 = await mpv.vazifaBoshla({
+    havolalar: [RO_YXAT], sahifagacha: 2, maqsad: 500, kechikish: 300 });
+  const t4 = await vazifaniKut(v4.id, 90_000);
+  test('sahifalar tugaganda import yakunlanadi', t4.holat === 'tugadi', t4.holat);
+  test('bor mahsulotning hammasi olindi', t4.qoshilgan === 10, `${t4.qoshilgan}`);
 
   // Qoidalarni o'chirish — «faqat HTML» rejimi
   await mp.apiSaqla([]);

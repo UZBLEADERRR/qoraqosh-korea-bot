@@ -21,6 +21,7 @@ import { ofertaSahifasi } from './lib/oferta.js';
 import { postSahifasi, imzoTogrimi } from './lib/post-korinish.js';
 import { migratsiyalarniQoll } from './db/migrate.js';
 import { agentniIshgaTushir } from './services/agent-jadval.js';
+import { vazifaniTiklash } from './services/marketplace-vazifa.js';
 import { qator, sozlama, ulanishniTekshir } from './db.js';
 import { brendNomi } from './lib/brend.js';
 import { verifyAdminToken } from './lib/auth.js';
@@ -203,6 +204,11 @@ async function boshla() {
     console.log(`   Admin    : ${asos}/admin/\n`);
     botniUla().catch((e) => console.error('Botni ulashda xato:', e.message));
     agentniIshgaTushir();   // kanal rejasi bo'yicha kunlik postlar
+    // Yarim qolgan ommaviy import — deploy yoki qayta ishga tushishdan
+    // keyin o'zi davom etadi, admin qaytadan boshlamaydi
+    vazifaniTiklash()
+      .then((v) => v && console.log(`   Import davom etmoqda: #${v.id} (${v.qoshilgan}/${v.maqsad})`))
+      .catch((e) => console.error('Importni tiklashda xato:', e.message));
   });
 }
 

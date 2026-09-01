@@ -15,6 +15,7 @@ import { xabar, keshniTozala } from '../bot/shablon.js';
 import { STANDART, GURUHLAR, TAVSIF } from '../bot/shablonlar-standart.js';
 import { palitra, rangTozala, MAVZU_STANDART, TOPLAMLAR } from '../lib/mavzu.js';
 import * as mp from '../services/marketplace.js';
+import * as mpv from '../services/marketplace-vazifa.js';
 import { narxHisobla, qoidaniTozala } from '../lib/narx.js';
 import { keshniTashla } from '../lib/kesh.js';
 import { kanalniSina, kanalgaHolat } from '../services/kanal.js';
@@ -883,6 +884,40 @@ export async function adminRoutes(req, res, yol) {
       }, s.qoida),
       qoida: s.qoida,
     });
+  }
+
+  // ── Ommaviy import (fon vazifasi) ──
+  if (yol === '/api/admin/marketplace/vazifa' && req.method === 'GET') {
+    const [joriy, tarix] = await Promise.all([mpv.joriyVazifa(), mpv.vazifalar(5)]);
+    return ok(res, { joriy, tarix });
+  }
+
+  if (yol === '/api/admin/marketplace/vazifa' && req.method === 'POST') {
+    const b = await tana(req);
+    try {
+      return ok(res, { vazifa: await mpv.vazifaBoshla({
+        havolalar: b.havolalar,
+        sahifadan: b.sahifadan,
+        sahifagacha: b.sahifagacha,
+        maqsad: b.maqsad,
+        kechikish: b.kechikish,
+        avtoTasdiq: b.avto_tasdiq,
+      }) });
+    } catch (e) {
+      return xato(res, e.turi === 'band' ? 409 : 400, e.message);
+    }
+  }
+
+  if (yol === '/api/admin/marketplace/vazifa/toxtat' && req.method === 'POST') {
+    const b = await tana(req);
+    await mpv.vazifaToxtat(Number(b.id) || null);
+    return ok(res, { toxtatildi: true });
+  }
+
+  // Navbatdagi hammasini katalogga
+  if (yol === '/api/admin/marketplace/tasdiq-hammasi' && req.method === 'POST') {
+    const b = await tana(req);
+    return ok(res, await mp.hammasiniTasdiqla(Number(b.limit) || 500));
   }
 
   // Do'kon API qoidalari — saqlash va sinash
