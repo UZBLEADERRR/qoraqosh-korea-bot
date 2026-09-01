@@ -1,4 +1,4 @@
-import { soxtaServer, yuborilgan } from './soxta-server.mjs';
+import { soxtaServer, yuborilgan, aiHisobi } from './soxta-server.mjs';
 const PORT=4479; const srv=await soxtaServer(PORT);
 process.env.BOT_TOKEN='111111:TEST';
 process.env.ADMIN_LOGIN='a'; process.env.ADMIN_PASSWORD='parol12345';
@@ -687,6 +687,55 @@ console.log('\n── MARKETPLACE ──');
     test('import sahifasiz, ro‘yxatdan oldi',
       (await qiymat(`select count(*)::int from marketplace_topilgan
                       where malumot->>'usul' = 'royxat'`)) === 6);
+
+    // ── Arzon filtr: chegaradan chiqqani AI'GACHA YETMASIN ──
+    // AI chaqiruvi pul turadi. Narx ro'yxatda bor — demak uni tekshirish
+    // uchun token sarflash shart emas.
+    await sorov('delete from marketplace_topilgan');
+    await sorov(`update settings set value = '30000'::jsonb where key = 'marketplace_narx_gacha'`);
+    const aiOldin = aiHisobi.marketplace;
+    const qimmat = await mp.elementdanOl(elementlar[1], q);
+    test('qimmat mahsulot rad etildi', qimmat.holat === 'rad_etildi', qimmat.sabab);
+    test('rad etishga AI SARFLANMADI', aiHisobi.marketplace === aiOldin,
+      `${aiHisobi.marketplace - aiOldin} ta chaqiruv`);
+    test('kartochkada nomi ko‘rinadi', Boolean(qimmat.malumot?.name), qimmat.malumot?.name);
+    test('natijada ai=false belgisi bor', qimmat.ai === false);
+    await sorov(`update settings set value = '0'::jsonb where key = 'marketplace_narx_gacha'`);
+
+    // Chegara ichidagisi esa AI ga boradi
+    await sorov('delete from marketplace_topilgan');
+    const aiOldin2 = aiHisobi.marketplace;
+    const yaxshi = await mp.elementdanOl(elementlar[2], q);
+    test('chegara ichidagisi AI ga berildi', aiHisobi.marketplace === aiOldin2 + 1,
+      `${aiHisobi.marketplace - aiOldin2} ta chaqiruv`);
+    test('u navbatga tushdi', yaxshi.holat === 'kutilmoqda', yaxshi.sabab);
+    test('natijada ai=true belgisi bor', yaxshi.ai === true);
+
+    // Sotuvda yo'q mahsulot ham AI'siz chetlanadi
+    await sorov('delete from marketplace_topilgan');
+    const aiOldin3 = aiHisobi.marketplace;
+    const yoq = await mp.elementdanOl(
+      { ...elementlar[3], SOLD_OUT_YN: 'Y' }, q);
+    test('sotuvda yo‘q mahsulot rad etildi', yoq.holat === 'rad_etildi', yoq.sabab);
+    test('unga ham AI sarflanmadi', aiHisobi.marketplace === aiOldin3);
+
+    // Import hisobi: AI necha marta chaqirilgani yozib boriladi
+    await sorov('delete from marketplace_topilgan');
+    await sorov('delete from marketplace_vazifa');
+    await sorov(`update settings set value = '30000'::jsonb where key = 'marketplace_narx_gacha'`);
+    const vf = await mpv0.vazifaBoshla({
+      havolalar: ['크림'], sahifagacha: 2, maqsad: 4, kechikish: 300 });
+    for (let i = 0; i < 200; i++) {
+      const v = await qator('select holat from marketplace_vazifa where id = $1', [vf.id]);
+      if (v.holat !== 'ishlamoqda') break;
+      await kut0(150);
+    }
+    const tf = await qator('select * from marketplace_vazifa where id = $1', [vf.id]);
+    test('hammasi narx chegarasida rad etildi', tf.rad_etilgan > 0 && tf.qoshilgan === 0,
+      `qoshilgan ${tf.qoshilgan} · rad ${tf.rad_etilgan}`);
+    test('import AI chaqiruvini sanaydi va u NOLGA teng', tf.ai_soni === 0,
+      `ai_soni ${tf.ai_soni} · korilgan ${tf.korilgan}`);
+    await sorov(`update settings set value = '0'::jsonb where key = 'marketplace_narx_gacha'`);
 
     // Keyingi sinovlar uchun oldingi qoidani qaytaramiz
     await mp.apiSaqla(QOIDA);

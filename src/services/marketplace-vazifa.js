@@ -160,6 +160,7 @@ export async function ishlat(id) {
       `update marketplace_vazifa set
          navbat = $2::jsonb,
          korilgan = korilgan + 1,
+         ai_soni = ai_soni + $7,
          qoshilgan = qoshilgan + $3,
          rad_etilgan = rad_etilgan + $4,
          xato = xato + $5,
@@ -170,7 +171,9 @@ export async function ishlat(id) {
        natija?.takror ? 0 : (natija?.holat === 'kutilmoqda' ? 1 : 0),
        natija?.holat === 'rad_etildi' ? 1 : 0,
        natija?.holat === 'xato' ? 1 : 0,
-       natija?.takror ? 1 : 0]);
+       natija?.takror ? 1 : 0,
+       // AI chaqirilmagan bo'lsa (arzon filtr rad etgan) hisobga olinmaydi
+       natija?.ai === false ? 0 : 1]);
 
     await kut(v.kechikish_ms);
   }

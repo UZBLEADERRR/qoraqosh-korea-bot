@@ -4,6 +4,9 @@ import zlib from 'node:zlib';
 
 export const yuborilgan = [];   // botdan chiqqan xabarlar
 let mahsulotHisobi = 0;         // soxta AI qaytaradigan mahsulot nomlari uchun
+// AI necha marta chaqirilgani — «arzon filtr token tejaydimi» degan
+// savolni faqat shu bilan tekshirib bo'ladi
+export const aiHisobi = { marketplace: 0, jami: 0 };
 // Telegramdagi kabi haqiqiy message_id: ro'yxat tozalansa ham takrorlanmaydi,
 // shunda deleteMessage aynan o'sha xabarni topadi.
 let xabarId = 0;
@@ -46,6 +49,8 @@ const TAHLIL = {
 
 /** Sxemaga qarab mos soxta javob qaytaradi. */
 function javobMatni(sxemaMatni) {
+  aiHisobi.jami += 1;
+  if (sxemaMatni.includes('kosmetikami')) aiHisobi.marketplace += 1;
   if (sxemaMatni.includes('muammolar')) return JSON.stringify(TAHLIL);
   if (sxemaMatni.includes('goyalar'))   return JSON.stringify({ goyalar: [] });
   // Marketplace: do'kon sahifasidan mahsulot o'qish

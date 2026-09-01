@@ -1525,6 +1525,9 @@ async function importChiz() {
           <span class="v">${v.rad_etilgan}</span></div>
         <div class="qator-satr"><span class="k">Ko‘rilgan havola</span>
           <span class="v">${v.korilgan}${v.takror ? ` · ${v.takror} takror` : ''}</span></div>
+        <div class="qator-satr"><span class="k">AI chaqiruvi <span class="yordam">pul turadi</span></span>
+          <span class="v">${v.ai_soni ?? 0}${
+            v.korilgan > (v.ai_soni ?? 0) ? ` · ${v.korilgan - (v.ai_soni ?? 0)} tasi AI'siz rad etildi` : ''}</span></div>
         <div class="qator-satr"><span class="k">Sahifa</span>
           <span class="v">${v.sahifa} / ${v.sahifagacha}</span></div>
         ${ketmoqda ? `<div class="qator-satr"><span class="k">Taxminan qoldi</span>

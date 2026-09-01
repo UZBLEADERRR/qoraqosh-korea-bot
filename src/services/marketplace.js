@@ -297,6 +297,55 @@ export async function sozlamalar() {
   };
 }
 
+/**
+ * AI'GA BERISHDAN OLDINGI arzon filtr.
+ *
+ * Nega kerak: AI chaqiruvi pul turadi. Ro'yxat javobida narx va sotuvda
+ * bor-yo'qligi ALLAQACHON bor — shularni oldin tekshirsak, chegaradan
+ * chiqqan mahsulot uchun token umuman sarflanmaydi. Yuzta mahsulotning
+ * yarmi narx oralig'iga tushmasa, hisob ham yarmiga tushadi.
+ *
+ * Faqat ISHONCHLI narsalar tekshiriladi: narx va sotuv holati. Kosmetikami
+ * va og'irligi — bularni ro'yxatdan bilib bo'lmaydi, ularni AI aytadi.
+ *
+ * @returns {string|null} rad etish sababi yoki null (AI ga berilsin)
+ */
+export function oldindanFiltr(element, s) {
+  if (!element || typeof element !== 'object') return null;
+
+  // Sotuvda yo'q mahsulotni olib nima qilamiz
+  for (const [k, v] of Object.entries(element)) {
+    if (/sold_?out/i.test(k) && String(v).toUpperCase() === 'Y') {
+      return 'Do‘konda sotuvda yo‘q';
+    }
+  }
+
+  // Narx: ro'yxatdagi «...PRC», «price», «narx» kabi kalitdan
+  const narxKalit = Object.keys(element).find((k) =>
+    /(^|_)prc$|price|narx/i.test(k) && /^[\d\s,.]+$/.test(String(element[k] ?? '')));
+  if (!narxKalit) return null;
+
+  const krw = Number(String(element[narxKalit]).replace(/[^\d]/g, ''));
+  if (!krw) return null;
+
+  // Og'irlikni hali bilmaymiz — eng yengil holat bo'yicha hisoblaymiz.
+  // Shunda «juda qimmat» deb XATO rad etib qo'ymaymiz: og'irlik qo'shilsa
+  // narx faqat oshadi, kamaymaydi.
+  const eng = narxHisobla({ krw, gramm: 0 }, s.qoida);
+  if (s.narxGacha && eng.narx > s.narxGacha) {
+    return `Narxi ${eng.narx} so‘m — eng ko‘p ${s.narxGacha} so‘m (AI'siz aniqlandi)`;
+  }
+  // Eng past chegara uchun ham xuddi shunday: og'irlik qo'shilsa narx
+  // oshadi, shuning uchun bu yerda faqat ANIQ o'tmaydiganini rad etamiz —
+  // ya'ni hech qanday og'irlikda ham chegaraga yetmaydiganini. Yetkazish
+  // eng kamida bir bo'lak (100 g) qo'shilgani uchun uni ham hisoblaymiz.
+  const kop = narxHisobla({ krw, gramm: 100 }, s.qoida);
+  if (s.narxDan && kop.narx < s.narxDan) {
+    return `Narxi ${kop.narx} so‘m — eng kam ${s.narxDan} so‘m (AI'siz aniqlandi)`;
+  }
+  return null;
+}
+
 // ──────────────── Manbadan o'qish: avval API, keyin HTML ────────────────
 
 /**
@@ -563,9 +612,30 @@ export async function elementdanOl(element, qoida, { adminId = null } = {}) {
   let malumot = {};
   let narx = {};
   let rasmId = null;
+  let aiIshladi = false;
+
+  // AI GA BERISHDAN OLDIN: narx va sotuv holati ro'yxatda bor —
+  // chegaradan chiqqani uchun token sarflamaymiz
+  const erta = oldindanFiltr(element, s);
+  if (erta) {
+    const nomKalit = Object.keys(element).find((k) => /nm$|name|nom/i.test(k));
+    const r = await qator(
+      `insert into marketplace_topilgan (manba, manba_url, malumot, narx_izoh,
+              holat, sabab, created_by)
+       values ($1,$2,$3,'{}'::jsonb,'rad_etildi',$4,$5)
+       on conflict (manba_url) do update set
+         malumot = excluded.malumot, holat = 'rad_etildi',
+         sabab = excluded.sabab, updated_at = now()
+       returning *`,
+      [qoida.manba || manbaTuri(url), url,
+       JSON.stringify({ name: String(element[nomKalit] ?? '').slice(0, 120), usul: 'royxat' }),
+       erta, adminId]);
+    return { ...r, ai: false };
+  }
 
   try {
     malumot = await sahifaniOqi(jsonSiqish(element));
+    aiIshladi = true;
     malumot.usul = 'royxat';
 
     narx = narxHisobla(
@@ -583,7 +653,7 @@ export async function elementdanOl(element, qoida, { adminId = null } = {}) {
     sabab = e.message;
   }
 
-  return qator(
+  const r = await qator(
     `insert into marketplace_topilgan (manba, manba_url, malumot, narx_izoh, rasm_id,
             holat, sabab, created_by)
      values ($1,$2,$3,$4,$5,$6,$7,$8)
@@ -594,6 +664,7 @@ export async function elementdanOl(element, qoida, { adminId = null } = {}) {
      returning *`,
     [qoida.manba || manbaTuri(url), url, JSON.stringify(malumot), JSON.stringify(narx),
      rasmId, holat, sabab, adminId]);
+  return { ...r, ai: aiIshladi };
 }
 
 /** Mahsulot rasmini yuklab, media ga saqlaydi. */

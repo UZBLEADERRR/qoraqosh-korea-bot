@@ -235,6 +235,14 @@ bo'ladi (sahifalash uchun ichida `{sahifa}`).
 - **Tanaffus** (sukut bo'yicha 1.5 soniya) — do'kon bizni bot deb
   bloklamasligi uchun. Bir vaqtda **bitta** import yuradi.
 - Avval olingan mahsulot qayta o'qilmaydi — AI hisobi bekorga yonmaydi.
+- **AI qachon chaqiriladi.** Har mahsulot uchun bitta chaqiruv ketadi
+  (~1 500 kirish + ~500 chiqish tokeni, Gemini 2.5 Flash). Lekin
+  **arzon filtr avval ishlaydi**: narx va sotuvda bor-yo'qligi ro'yxat
+  javobida allaqachon bor, shuning uchun narx oralig'idan chiqqani va
+  sotuvda yo'g'i **AI'gacha yetmaydi** — ular uchun token sarflanmaydi.
+  Panelda «AI chaqiruvi» raqami turadi: nechtasi AI'siz rad etilgani ham
+  ko'rinadi. Kosmetikami va og'irligi ro'yxatdan bilinmaydi — ularni
+  faqat AI aytadi, shuning uchun bu ikkisi chaqiruvdan keyin tekshiriladi.
 - **Har mahsulot uchun alohida so'rov ketmaydi.** Daiso qidiruvi javobida
   nomi, narxi, brendi va rasmi allaqachon bor — yuzta mahsulot yuzta
   so'rov emas, bir necha so'rovda olinadi. Shuning uchun tez va do'kon
@@ -248,6 +256,10 @@ bo'ladi (sahifalash uchun ichida `{sahifa}`).
 Qo'lda ishlash ham qoladi: **havoladan olish** (20 tagacha havola birdan),
 **havolalarni topish** (bo'limdagi havolalarni yig'ib beradi) va
 **🤖 agent o'zi yig'sin** (bitta sahifadan 30 tagacha).
+
+Filtr ikki bosqichda: **AI'gacha** — narx oralig'i va sotuv holati
+(tekin); **AI'dan keyin** — kosmetikami, og'irligi chegarada-mi va
+sahifa qanchalik aniq o'qilgani.
 
 Filtrdan o'tmagani yo'qolmaydi: kosmetika bo'lmagani, og'irligi chegaradan
 oshgani va narx oralig'iga tushmagani «rad etildi» bo'lib, **sababi bilan**
