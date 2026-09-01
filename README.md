@@ -227,11 +227,33 @@ Uch xil ishlatish:
    bo'lib, **sababi bilan** ro'yxatda qoladi (ko'pincha muammo mahsulotda
    emas, chegarada bo'ladi). Agent hech qachon o'zi sotuvga qo'ymaydi.
 
-Sahifa **CSS selektorlar bilan emas**, ma'no bilan o'qiladi: sarlavha,
-`og:`/`product:` meta teglari, JSON-LD va ko'rinadigan matn AI ga beriladi.
-Do'kon dizaynini o'zgartirsa ham ishlashda davom etadi. Do'kon so'rovni rad
-etsa (HTTP 403 — bot himoyasi), sabab tushunarli yoziladi va mahsulotni
-skrinshotdan qo'shish taklif qilinadi.
+**Avval API, keyin sahifa.** Daisomall kabi do'konlar sahifani brauzerda
+chizadi — serverga kelgan HTML da mahsulot **yo'q**, u keyin JSON so'rov
+bilan tortiladi. Shuning uchun mos qoida bo'lsa avval do'konning **o'z JSON
+manzili** so'raladi, u javob bermasa jim sahifaga qaytiladi. Kartochkada
+qaysi yo'l ishlagani ko'rinadi: **🔌 API** yoki **📄 sahifa**.
+
+Daiso **rasmiy, hujjatlashtirilgan API bermaydi** — ishlatilayotgani
+saytning o'z ichki manzili va u o'zgarishi mumkin. Shuning uchun manzil
+kodda emas, **Sozlamalar → Do'kon API si** da turadi:
+
+- brauzerda mahsulotni ochib **F12 → Network → Fetch/XHR** da haqiqiy
+  manzilni ko'rasiz va qoidaga qo'yasiz — deploy shart emas;
+- **«Sinab ko'rish»** tugmasi qaysi manzil chaqirilgani, do'kon nima
+  qaytargani va javobning boshini ko'rsatadi;
+- qoidada `id_qolip` havoladan mahsulot raqamini ajratadi, `mahsulot_url`
+  API manzili (`{id}` o'rniga o'sha raqam qo'yiladi), `sahifa_url` esa
+  teskarisi, `id_kalit` — ro'yxat javobida mahsulot id si qaysi kalitda;
+- qoidalarni bo'sh massivga aylantirsangiz faqat HTML o'qiladi.
+
+Bo'lim havolasi o'rniga do'konning **ro'yxat API manzilini** bersangiz,
+agent mahsulot havolalarini o'sha JSON dan yasaydi — SPA kategoriya
+sahifasida havola bo'lmagani uchun bu ko'pincha yagona ishlaydigan yo'l.
+
+Sahifadan o'qiganda ham **CSS selektor ishlatilmaydi**, ma'no o'qiladi:
+sarlavha, `og:`/`product:` meta teglari, JSON-LD va ko'rinadigan matn AI ga
+beriladi. Do'kon so'rovni rad etsa (HTTP 403 — bot himoyasi), sabab
+tushunarli yoziladi va mahsulotni skrinshotdan qo'shish taklif qilinadi.
 
 **Og'irlik chegarasi** (sukut bo'yicha 600 g) va **narx oralig'i** —
 Sozlamalardagi maydonlar. Coupang'dan «shu narxdan shu narxgacha» deb
@@ -496,7 +518,8 @@ src/
     qollanma-hujjati.js mijozga qutiga qo'shiladigan parvarish qo'llanmasi
     broadcast.js       reklama yuborish (tezlik cheklovi bilan)
     majburiy-kanal.js  obuna tekshiruvi
-    marketplace.js     Daiso/Coupang sahifasidan mahsulot olish va filtrlash
+    marketplace.js     Daiso/Coupang dan mahsulot olish va filtrlash
+    dokon-api.js       do'kon JSON API si: qoidalar, id, rasm, ro'yxat
     agent.js           kanal rejasi va post yozish
     agent-jadval.js    kunlik jadval (advisory lock bilan)
 public/

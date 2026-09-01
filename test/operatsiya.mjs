@@ -564,6 +564,59 @@ console.log('\n── MARKETPLACE ──');
   try { await mp.tasdiqla(t.id, {}); } catch (e) { ikkinchi = e.message; }
   test('ikkinchi marta tasdiqlanmaydi', /allaqachon/.test(ikkinchi), ikkinchi);
 
+  // ── Do'kon API si: sahifa emas, JSON o'qiladi ──
+  // Daisomall kabi do'konda sahifa brauzerda chiziladi, HTML da mahsulot
+  // yo'q. Shuning uchun avval API urinib ko'riladi.
+  const QOIDA = [{
+    manba: 'daiso', nom: 'Soxta Daiso', host: '127.0.0.1',
+    id_qolip: 'pdNo=([0-9A-Za-z_-]+)',
+    mahsulot_url: `http://127.0.0.1:${PORT}/api/pd/pdd/pdDetail?pdNo={id}`,
+    sahifa_url: `http://127.0.0.1:${PORT}/dokon/product/pd?pdNo={id}`,
+    id_kalit: 'pdNo',
+  }];
+  await mp.apiSaqla(QOIDA);
+  const sozlash = await mp.sozlamalar();
+  test('API qoidasi saqlandi', sozlash.api.length === 1, JSON.stringify(sozlash.api[0] || {}));
+
+  const sinov = await mp.apiSinovi(`http://127.0.0.1:${PORT}/dokon/product/pd?pdNo=77`);
+  test('API sinovi ishladi', sinov.ishladi === true, sinov.sabab || '');
+  test('sinov chaqirgan manzil ko‘rinadi',
+    (sinov.api_url || '').includes('/api/pd/pdd/pdDetail?pdNo=77'), sinov.api_url);
+  test('API javobidan rasm topildi', /api-mahsulot\.png/.test(sinov.rasm || ''), sinov.rasm);
+
+  await sorov('delete from marketplace_topilgan');
+  const api1 = await mp.havoladanOl(`http://127.0.0.1:${PORT}/dokon/product/pd?pdNo=77`);
+  test('mahsulot API orqali olindi', api1.malumot?.usul === 'api', api1.malumot?.usul);
+  test('API dan olinganda ham narx hisoblanadi', api1.narx_izoh?.narx > 0,
+    String(api1.narx_izoh?.narx));
+  test('API rasmi saqlandi', Boolean(api1.rasm_id));
+
+  // API 404 bersa — jim HTML ga qaytadi, oqim to'xtamaydi
+  const zaxira = await mp.havoladanOl(`http://127.0.0.1:${PORT}/dokon/product/pd?pdNo=yoq`);
+  test('API ishlamasa HTML ga qaytadi', zaxira.malumot?.usul === 'html', zaxira.malumot?.usul);
+  test('qaytish sababi yozildi', /API javob bermadi/.test(zaxira.malumot?.usul_izoh || ''),
+    zaxira.malumot?.usul_izoh);
+  test('zaxira yo‘l bilan ham mahsulot tayyor', zaxira.holat === 'kutilmoqda', zaxira.sabab);
+
+  // JSON qaytarmasa ham HTML ga qaytadi
+  const jsonemas = await mp.havoladanOl(`http://127.0.0.1:${PORT}/dokon/product/pd?pdNo=html`);
+  test('API JSON bermasa ham HTML ga qaytadi', jsonemas.malumot?.usul === 'html',
+    jsonemas.malumot?.usul_izoh);
+
+  // Bo'lim API si — agent ro'yxatni JSON dan oladi
+  await sorov('delete from marketplace_topilgan');
+  const api_royxat = await mp.agentYigish(`http://127.0.0.1:${PORT}/api/list?ctgr=krem`, { limit: 10 });
+  test('agent API ro‘yxatidan havola yasadi', api_royxat.havolalar.length === 3,
+    api_royxat.havolalar.join(' '));
+  test('yasalgan havola mahsulot sahifasiga qaraydi',
+    (api_royxat.havolalar[0] || '').includes('pdNo=a1'), api_royxat.havolalar[0]);
+  test('agent API orqali yig‘di', api_royxat.hisob.kutilmoqda === 3,
+    JSON.stringify(api_royxat.hisob));
+
+  // Qoidalarni o'chirish — «faqat HTML» rejimi
+  await mp.apiSaqla([]);
+  test('qoidasiz rejim ham ishlaydi', (await mp.sozlamalar()).api.length === 0);
+
   // ── Agent topshirig'i: bo'limni o'zi aylanadi ──
   await sorov('delete from marketplace_topilgan');
   const y = await mp.agentYigish(`${DOKON}/category/kremlar`, { limit: 10 });

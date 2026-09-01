@@ -1214,6 +1214,28 @@ async function marketplace() {
       </div>
 
       <div class="karta tor">
+        <div class="karta-bosh"><h2>🔌 Do‘kon API si</h2></div>
+        <p class="mayda" style="margin:0 0 10px">
+          Daisomall kabi do‘konlar sahifani brauzerda chizadi — server olgan
+          HTML da mahsulot <b>yo‘q</b>. Shuning uchun avval do‘konning o‘z
+          <b>JSON manzili</b> so‘raladi, u ishlamasa sahifa o‘qiladi.
+          Daiso rasmiy API bermaydi, bu manzil <b>ichki</b> va o‘zgarishi
+          mumkin: brauzerda mahsulotni ochib <b>F12 → Network → Fetch/XHR</b>
+          da haqiqiy manzilni ko‘rib, shu yerga qo‘ying — dastur qayta
+          yig‘ilmaydi.</p>
+        <label>Qoidalar (JSON)</label>
+        <textarea id="mk-api" rows="12" spellcheck="false"
+          style="font:12.5px/1.5 ui-monospace,Menlo,monospace">${esc(JSON.stringify(s.api || [], null, 2))}</textarea>
+        <button class="tug keng" id="mk-api-saqla" style="margin-top:8px">Qoidalarni saqlash</button>
+
+        <label style="margin-top:14px">Sinash uchun mahsulot havolasi</label>
+        <input id="mk-api-url" spellcheck="false"
+          placeholder="https://www.daisomall.co.kr/pd/pdd/pdDetail?pdNo=...">
+        <button class="tug keng" id="mk-api-sinov" style="margin-top:8px">Sinab ko‘rish</button>
+        <div id="mk-api-holat" style="margin-top:10px"></div>
+      </div>
+
+      <div class="karta tor">
         <div class="karta-bosh"><h2>💰 Narx qoidasi</h2></div>
         <p class="mayda" style="margin:0 0 10px">
           Narx = <b>tannarx</b> + <b>yetkazish</b> + <b>sof foyda</b>.
@@ -1257,6 +1279,8 @@ async function marketplace() {
     $('#mk-ol').onclick = marketOl;
     $('#mk-qidir').onclick = marketQidir;
     $('#mk-agent').onclick = marketAgent;
+    $('#mk-api-saqla').onclick = marketApiSaqla;
+    $('#mk-api-sinov').onclick = marketApiSinov;
     $('#mk-qoida-saqla').onclick = marketQoidaSaqla;
     ['mk-kurs','mk-yetkazish','mk-foiz','mk-yaxlit','mk-foyda-min','mk-foyda-max']
       .forEach((id) => { const el = $('#' + id); if (el) el.oninput = marketNamuna; });
@@ -1284,7 +1308,8 @@ function marketKarta(t) {
           style="width:56px;height:56px;border-radius:10px;object-fit:cover;flex:0 0 auto">` : ''}
         <div style="min-width:0">
           <div class="nom">${esc(m.name || '(nomsiz)')}</div>
-          <div class="ozgina">${esc(m.brand || '')} · ${esc(t.manba)}</div>
+          <div class="ozgina">${esc(m.brand || '')} · ${esc(t.manba)}${
+            m.usul ? ` · ${m.usul === 'api' ? '🔌 API' : '📄 sahifa'}` : ''}</div>
         </div>
       </div>
       <span class="yor ${sinf}">${nom}</span>
@@ -1441,6 +1466,58 @@ async function marketAgent() {
   } catch (e) {
     h.innerHTML = `<div class="xato">${esc(e.message)}</div>`;
   } finally { t.disabled = false; }
+}
+
+/** API qoidalarini saqlash — JSON xatosi bo'lsa aynan qayerdaligi aytiladi. */
+async function marketApiSaqla() {
+  const xom = $('#mk-api').value.trim();
+  let qoidalar;
+  try { qoidalar = JSON.parse(xom || '[]'); }
+  catch (e) { return tost(`JSON xato: ${e.message}`); }
+  try {
+    const j = await api('/api/admin/marketplace/api',
+      { method: 'POST', body: JSON.stringify({ qoidalar }) });
+    $('#mk-api').value = JSON.stringify(j.qoidalar, null, 2);
+    tost(`${j.qoidalar.length} ta qoida saqlandi`);
+  } catch (e) { tost(e.message); }
+}
+
+/**
+ * Qoidani sinash: qaysi manzil chaqirilgani va nima kelgani ko'rsatiladi.
+ * Do'kon API sini o'zgartirganda birinchi kerak bo'ladigan narsa shu.
+ */
+async function marketApiSinov() {
+  const url = $('#mk-api-url').value.trim();
+  if (!url) return tost('Mahsulot havolasini qo‘ying');
+  const h = $('#mk-api-holat');
+  h.innerHTML = `<div class="mayda"><span class="aylana"></span> So‘ralmoqda…</div>`;
+  try {
+    const j = await api('/api/admin/marketplace/api-sinov',
+      { method: 'POST', body: JSON.stringify({ url }) });
+    h.innerHTML = `
+      <div class="xabar-quti ${j.ishladi ? 'ok' : 'ogoh'}" style="margin:0">
+        ${j.ishladi ? '✅ API javob berdi — mahsulot shu yerdan olinadi'
+                    : `⚠️ ${esc(j.sabab || 'API ishlamadi')} `
+                      + '<br>Mahsulot baribir sahifa HTML idan o‘qiladi.'}
+      </div>
+      <div class="qator-karta" style="margin-top:8px">
+        <div class="qator-satr"><span class="k">Qoida</span>
+          <span class="v">${esc(j.qoida || '—')}</span></div>
+        <div class="qator-satr"><span class="k">Chaqirilgan manzil</span>
+          <span class="v" style="word-break:break-all;font-size:12px">${esc(j.api_url || '—')}</span></div>
+        ${j.rasm ? `<div class="qator-satr"><span class="k">Rasm topildi</span>
+          <span class="v">✅</span></div>` : ''}
+        ${j.havolalar?.length ? `<div class="qator-satr"><span class="k">Ro‘yxatdan havola</span>
+          <span class="v">${j.havolalar.length} ta</span></div>` : ''}
+      </div>
+      ${j.korinish ? `<details style="margin-top:8px"><summary class="mayda">Javob boshi</summary>
+        <pre style="white-space:pre-wrap;word-break:break-all;font-size:11.5px;
+          background:var(--fon);border-radius:10px;padding:10px;margin-top:6px;
+          max-height:220px;overflow:auto">${esc(j.korinish)}</pre>
+      </details>` : ''}`;
+  } catch (e) {
+    h.innerHTML = `<div class="xato">${esc(e.message)}</div>`;
+  }
 }
 
 async function marketTasdiq(id) {

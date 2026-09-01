@@ -16,6 +16,10 @@
 import { qator, qatorlar, sorov, sozlama } from '../db.js';
 import { aiJson, aiBormi } from '../ai/index.js';
 import { narxHisobla, qoidaniTozala } from '../lib/narx.js';
+import {
+  API_STANDART, JSON_SARLAVHALAR, qoidalarniTozala, qoidaTop, apiHavolasi,
+  jsonRasm, jsonHavolalar, jsonSiqish,
+} from './dokon-api.js';
 
 // Sahifani brauzerdek so'raymiz: ko'p do'kon oddiy so'rovni rad etadi
 const SARLAVHALAR = {
@@ -50,11 +54,12 @@ export function havolaTogrimi(url) {
  * @returns {Promise<{html:string, url:string}>}
  * @throws {Error} do'kon rad etsa yoki tarmoq yopiq bo'lsa
  */
-export async function sahifaniOl(url) {
+export async function sahifaniOl(url, qoshimcha = {}) {
   const boshqaruv = AbortSignal.timeout ? AbortSignal.timeout(KUTISH_MS) : undefined;
   let javob;
   try {
-    javob = await fetch(url, { headers: SARLAVHALAR, redirect: 'follow', signal: boshqaruv });
+    javob = await fetch(url, {
+      headers: { ...SARLAVHALAR, ...qoshimcha }, redirect: 'follow', signal: boshqaruv });
   } catch (e) {
     // Tarmoq yopiq, DNS yo'q yoki vaqt tugadi
     const x = new Error(`Sahifaga ulanib bo‘lmadi: ${e.message}`);
@@ -71,8 +76,16 @@ export async function sahifaniOl(url) {
   }
 
   // Katta sahifani to'liq o'qimaymiz — birinchi bo'laklari yetarli
-  const xom = await javob.text();
-  return { html: xom.slice(0, MAX_HAJM), url: javob.url || url };
+  const xom = (await javob.text()).slice(0, MAX_HAJM);
+
+  // Javob JSON bo'lishi ham mumkin (do'kon API si). Sarlavhaga ishonmaymiz:
+  // ba'zi do'kon JSON ni text/html deb belgilaydi.
+  let json = null;
+  const boshi = xom.trimStart()[0];
+  if (boshi === '{' || boshi === '[') {
+    try { json = JSON.parse(xom); } catch { json = null; }
+  }
+  return { html: xom, json, url: javob.url || url };
 }
 
 /**
@@ -264,19 +277,118 @@ export async function sahifaniOqi(siqilgan) {
 // ──────────────── Sozlamalar va filtrlar ────────────────
 
 export async function sozlamalar() {
-  const [qoida, maksOgirlik, narxDan, narxGacha] = await Promise.all([
+  const [qoida, maksOgirlik, narxDan, narxGacha, api] = await Promise.all([
     sozlama('narx_qoidasi', {}),
     sozlama('marketplace_maks_ogirlik', 600),
     sozlama('marketplace_narx_dan', 0),
     sozlama('marketplace_narx_gacha', 0),
+    sozlama('marketplace_api', null),
   ]);
   const son = (v) => Math.max(0, Number(String(v ?? '').replace(/"/g, '')) || 0);
+  // Sozlamada qoida yo'q bo'lsa koddagi sukut ishlaydi; bo'sh MASSIV esa
+  // «API kerak emas» degani — u holda faqat HTML o'qiladi.
+  const apiQoidalari = qoidalarniTozala(Array.isArray(api) ? api : API_STANDART);
   return {
     qoida: qoidaniTozala(qoida && typeof qoida === 'object' ? qoida : {}),
     maksOgirlik: son(maksOgirlik) || 600,
     narxDan: son(narxDan),
     narxGacha: son(narxGacha),
+    api: apiQoidalari,
   };
+}
+
+// ──────────────── Manbadan o'qish: avval API, keyin HTML ────────────────
+
+/**
+ * Mahsulot ma'lumotini oladi: mos API qoidasi bo'lsa — do'kon API sidan,
+ * bo'lmasa yoki API javob bermasa — sahifa HTML idan.
+ *
+ * API afzal, chunki daisomall kabi saytlarda HTML da mahsulot YO'Q — u
+ * brauzerda JSON so'rov bilan tortiladi. Lekin API manzili ichki va
+ * o'zgarishi mumkin, shuning uchun xato bo'lsa jim HTML ga qaytamiz:
+ * bitta yo'l yopilgani butun oqimni to'xtatmasligi kerak.
+ *
+ * @returns {Promise<{usul:'api'|'html', siqilgan:string, rasm:string|null,
+ *                    url:string, api_url:string|null, ogoh:string|null}>}
+ */
+export async function manbadanOl(url, apiQoidalari = []) {
+  const qoida = qoidaTop(url, apiQoidalari);
+  const apiUrl = qoida ? apiHavolasi(url, qoida) : null;
+  let ogoh = null;
+
+  if (apiUrl) {
+    try {
+      const j = await sahifaniOl(apiUrl, JSON_SARLAVHALAR);
+      if (j.json) {
+        return {
+          usul: 'api', siqilgan: jsonSiqish(j.json), rasm: jsonRasm(j.json, apiUrl),
+          url, api_url: apiUrl, ogoh: null,
+        };
+      }
+      ogoh = 'API JSON qaytarmadi — sahifa o‘qildi.';
+    } catch (e) {
+      ogoh = `API javob bermadi (${e.message}) — sahifa o‘qildi.`;
+    }
+  } else if (qoida) {
+    ogoh = 'Havoladan mahsulot id si topilmadi — sahifa o‘qildi.';
+  }
+
+  const { html, url: oxirgi } = await sahifaniOl(url);
+  return {
+    usul: 'html', siqilgan: sahifaniSiqish(html), rasm: rasmHavolasi(html, oxirgi),
+    url: oxirgi, api_url: apiUrl, ogoh,
+  };
+}
+
+/**
+ * API qoidasini SINAB ko'radi — admin panelidagi «Sinash» tugmasi.
+ *
+ * Do'kon ichki API si o'zgarganda birinchi savol: qaysi manzil chaqirildi
+ * va u nima qaytardi. Shu ikkitasi ko'rinsa, admin brauzerdagi Network
+ * bo'limidan to'g'ri manzilni topib qo'yadi. Xato tashlamaydi — sinov
+ * natijasi ham javob.
+ */
+export async function apiSinovi(xomUrl) {
+  const url = havolaTogrimi(xomUrl);
+  if (!url) throw Object.assign(new Error('Havola noto‘g‘ri'), { turi: 'havola' });
+
+  const s = await sozlamalar();
+  const qoida = qoidaTop(url, s.api);
+  if (!qoida) {
+    return { qoida: null, ishladi: false,
+             sabab: 'Bu do‘konga API qoidasi yo‘q — sahifa HTML dan o‘qiladi.' };
+  }
+  const apiUrl = apiHavolasi(url, qoida);
+  if (!apiUrl) {
+    return { qoida: qoida.nom, api_url: null, ishladi: false,
+             sabab: 'Havoladan mahsulot id si ajratilmadi — «id_qolip» ni tekshiring.' };
+  }
+
+  try {
+    const { html, json } = await sahifaniOl(apiUrl, JSON_SARLAVHALAR);
+    return {
+      qoida: qoida.nom,
+      api_url: apiUrl,
+      ishladi: Boolean(json),
+      json: Boolean(json),
+      rasm: json ? jsonRasm(json, apiUrl) : null,
+      havolalar: json ? jsonHavolalar(json, qoida, 5) : [],
+      korinish: (json ? JSON.stringify(json) : html).slice(0, 1200),
+      sabab: json ? null : 'Javob JSON emas — manzil noto‘g‘ri bo‘lishi mumkin.',
+    };
+  } catch (e) {
+    return { qoida: qoida.nom, api_url: apiUrl, ishladi: false, sabab: e.message };
+  }
+}
+
+/** API qoidalarini saqlaydi. Bo'sh massiv — «faqat HTML o'qilsin». */
+export async function apiSaqla(xom) {
+  const tozalangan = qoidalarniTozala(Array.isArray(xom) ? xom : []);
+  await sorov(
+    `insert into settings (key, value) values ('marketplace_api', $1::jsonb)
+     on conflict (key) do update set value = excluded.value`,
+    [JSON.stringify(tozalangan)]);
+  return tozalangan;
 }
 
 /**
@@ -323,8 +435,12 @@ export async function havoladanOl(xomUrl, { adminId = null } = {}) {
   let rasmId = null;
 
   try {
-    const { html, url: oxirgi } = await sahifaniOl(url);
-    malumot = await sahifaniOqi(sahifaniSiqish(html));
+    const manba = await manbadanOl(url, s.api);
+    malumot = await sahifaniOqi(manba.siqilgan);
+    // Qaysi yo'l bilan olingani kartochkada ko'rinadi: API ishlamay
+    // qolganini admin darhol bilishi kerak
+    malumot.usul = manba.usul;
+    if (manba.ogoh) malumot.usul_izoh = manba.ogoh;
 
     // Narx faqat KRW da ishonchli: boshqa valyutada admin qo'lda kiritadi
     narx = narxHisobla(
@@ -336,7 +452,7 @@ export async function havoladanOl(xomUrl, { adminId = null } = {}) {
     sabab = filtrdanOtdimi(malumot, narx, s);
     if (sabab) holat = 'rad_etildi';
 
-    rasmId = await rasmniSaqla(rasmHavolasi(html, oxirgi), malumot.name);
+    rasmId = await rasmniSaqla(manba.rasm, malumot.name);
   } catch (e) {
     holat = 'xato';
     sabab = e.message;
@@ -377,11 +493,23 @@ export async function agentYigish(xomUrl, { limit = 10, adminId = null } = {}) {
   if (!url) throw Object.assign(new Error('Havola noto‘g‘ri'), { turi: 'havola' });
 
   const soni = Math.max(1, Math.min(30, Number(limit) || 10));
-  const { html, url: oxirgi } = await sahifaniOl(url);
-  const havolalar = mahsulotHavolalari(html, oxirgi, soni);
+  const s = await sozlamalar();
+  const qoida = qoidaTop(url, s.api);
+
+  // Bo'lim havolasi JSON qaytarsa (do'kon API si) — id lar shundan olinadi.
+  // Zamonaviy do'konda kategoriya sahifasining HTML ida havola YO'Q: ular
+  // brauzerda chiziladi. Shuning uchun API ro'yxati yagona ishonchli yo'l.
+  const { html, json, url: oxirgi } = await sahifaniOl(url, qoida ? JSON_SARLAVHALAR : {});
+  const havolalar = json
+    ? jsonHavolalar(json, qoida, soni)
+    : mahsulotHavolalari(html, oxirgi, soni);
+
   if (!havolalar.length) {
     return { havolalar: [], natijalar: [], hisob: bosh(),
-             sabab: 'Sahifada mahsulot havolasi topilmadi — bo‘lim havolasini tekshiring.' };
+             sabab: json
+               ? 'API javobida mahsulot id si topilmadi — qoidadagi «id_kalit» ni tekshiring.'
+               : 'Sahifada mahsulot havolasi topilmadi. Do‘kon sahifani brauzerda '
+                 + 'chizadigan bo‘lsa, bo‘lim o‘rniga do‘konning ro‘yxat API havolasini qo‘ying.' };
   }
 
   const natijalar = [];

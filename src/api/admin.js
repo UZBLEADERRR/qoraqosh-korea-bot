@@ -885,6 +885,27 @@ export async function adminRoutes(req, res, yol) {
     });
   }
 
+  // Do'kon API qoidalari — saqlash va sinash
+  if (yol === '/api/admin/marketplace/api' && req.method === 'POST') {
+    const b = await tana(req);
+    let xom = b.qoidalar;
+    if (typeof xom === 'string') {
+      try { xom = JSON.parse(xom); }
+      catch (e) { return xato(res, 400, `JSON xato: ${e.message}`); }
+    }
+    if (!Array.isArray(xom)) return xato(res, 400, 'Qoidalar massiv bo‘lishi kerak.');
+    return ok(res, { qoidalar: await mp.apiSaqla(xom) });
+  }
+
+  if (yol === '/api/admin/marketplace/api-sinov' && req.method === 'POST') {
+    const b = await tana(req);
+    try {
+      return ok(res, await mp.apiSinovi(b.url));
+    } catch (e) {
+      return xato(res, 400, e.message);
+    }
+  }
+
   // Kanal ID to'g'rimi va bot unga yoza oladimi
   if (yol === '/api/admin/kanal-sinov' && req.method === 'POST') {
     const [buyurtma, tahlil] = await Promise.all([

@@ -147,6 +147,31 @@ export function soxtaServer(port = 4444) {
 
       // ---- Google Gemini ----
       // ── Soxta do'kon sahifasi (marketplace sinovi uchun) ──
+      // Soxta do'kon API si: daisomall kabi SPA — sahifada mahsulot yo'q,
+      // u JSON so'rov bilan keladi.
+      if (yol.startsWith('/api/pd/')) {
+        const id = u.searchParams.get('pdNo') || '1';
+        if (id === 'yoq') { res.writeHead(404); return res.end('{"error":"not found"}'); }
+        if (id === 'html') {
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          return res.end('<html><body>Xato sahifa</body></html>');
+        }
+        return j({ result: {
+          pdNo: id,
+          pdNm: 'Soothing Aloe Gel Cream 100ml',
+          brndNm: 'Daiso',
+          salePrc: 5000,
+          currency: 'KRW',
+          wt: '120g',
+          pdImgUrl: `http://127.0.0.1:${port}/rasm/api-mahsulot.png`,
+          pdDesc: '알로에 성분이 피부를 진정시켜 줍니다. 100ml',
+        } });
+      }
+      // Bo'lim (kategoriya) API si — ro'yxat qaytaradi
+      if (yol.startsWith('/api/list')) {
+        return j({ result: { items: [{ pdNo: 'a1' }, { pdNo: 'a2' }, { pdNo: 'a3' }] } });
+      }
+
       if (yol.startsWith('/dokon/')) {
         const yoq = yol.includes('yoq');
         if (yoq) { res.writeHead(403); return res.end('Forbidden'); }
