@@ -8,7 +8,7 @@
 //
 // Vazifa BITTA bo'ladi: ikkita import bir vaqtda yursa do'kon bizni
 // bot deb bloklaydi va AI hisobi ham ikki barobar yonadi.
-import { qator, qatorlar, sorov } from '../db.js';
+import { qator, qatorlar, sorov, sozlama } from '../db.js';
 import {
   sahifaniOl, mahsulotHavolalari, havoladanOl, elementdanOl, tasdiqla, sozlamalar,
 } from './marketplace.js';
@@ -258,4 +258,94 @@ export async function havolalarniYig(qoliplar, sahifa, maxSoni = 100) {
     for (const h of havolalar) if (!topildi.some((t) => url_(t) === h)) topildi.push(h);
   }
   return topildi.slice(0, maxSoni);
+}
+
+// ──────────────── Avtomatik jadval ────────────────
+// Admin hech narsa bosmaydi: server belgilangan kunlarda o'zi qidiradi,
+// filtrlaydi va (ruxsat berilgan bo'lsa) katalogga qo'shadi.
+
+const SOAT = 60 * 60 * 1000;
+
+/** Jadval sozlamasi — noto'g'ri qiymatlardan himoyalangan. */
+export async function jadval() {
+  const j = await sozlama('marketplace_jadval', {});
+  const o = (j && typeof j === 'object') ? j : {};
+  return {
+    yoqilgan: Boolean(o.yoqilgan),
+    sozlar: (Array.isArray(o.sozlar) ? o.sozlar : [])
+      .map((x) => String(x).trim()).filter(Boolean).slice(0, 20),
+    kunlar: Math.max(1, Math.min(90, Number(o.kunlar) || 7)),
+    soat: Math.max(0, Math.min(23, Number(o.soat) || 4)),
+    maqsad: Math.max(1, Math.min(1000, Number(o.maqsad) || 40)),
+    sahifagacha: Math.max(1, Math.min(50, Number(o.sahifagacha) || 5)),
+    avtoTasdiq: o.avto_tasdiq !== false,
+    oxirgi: o.oxirgi ? new Date(o.oxirgi) : null,
+  };
+}
+
+/** Jadvalni saqlaydi. */
+export async function jadvalniSaqla(xom = {}) {
+  const eski = await jadval();
+  const yangi = {
+    yoqilgan: Boolean(xom.yoqilgan),
+    sozlar: (Array.isArray(xom.sozlar) ? xom.sozlar : eski.sozlar)
+      .map((x) => String(x).trim()).filter(Boolean).slice(0, 20),
+    kunlar: Math.max(1, Math.min(90, Number(xom.kunlar) || eski.kunlar)),
+    soat: Math.max(0, Math.min(23, Number(xom.soat ?? eski.soat))),
+    maqsad: Math.max(1, Math.min(1000, Number(xom.maqsad) || eski.maqsad)),
+    sahifagacha: Math.max(1, Math.min(50, Number(xom.sahifagacha) || eski.sahifagacha)),
+    avto_tasdiq: xom.avto_tasdiq !== false,
+    oxirgi: eski.oxirgi ? eski.oxirgi.toISOString() : null,
+  };
+  await sorov(
+    `insert into settings (key, value) values ('marketplace_jadval', $1::jsonb)
+     on conflict (key) do update set value = excluded.value`,
+    [JSON.stringify(yangi)]);
+  return yangi;
+}
+
+/**
+ * Vaqti kelgan bo'lsa importni boshlaydi.
+ *
+ * Vaqt Toshkent bo'yicha solishtiriladi: server qayerda turishidan
+ * qat'i nazar, admin kutgan soatda ishlashi kerak.
+ *
+ * @returns {Promise<object|null>} boshlangan vazifa yoki null
+ */
+export async function jadvalniTekshir(hozir = new Date()) {
+  const j = await jadval();
+  if (!j.yoqilgan || !j.sozlar.length) return null;
+  if (await joriyVazifa()) return null;          // allaqachon ish ketmoqda
+
+  const toshkent = new Date(hozir.getTime() + 5 * SOAT);   // UTC+5
+  if (toshkent.getUTCHours() !== j.soat) return null;
+
+  if (j.oxirgi) {
+    const kun = (hozir - j.oxirgi) / (24 * SOAT);
+    if (kun < j.kunlar) return null;
+  }
+
+  const v = await vazifaBoshla({
+    havolalar: j.sozlar,
+    sahifagacha: j.sahifagacha,
+    maqsad: j.maqsad,
+    avtoTasdiq: j.avtoTasdiq,
+  });
+  await sorov(
+    `update settings set value = jsonb_set(value, '{oxirgi}', to_jsonb($1::text))
+      where key = 'marketplace_jadval'`, [hozir.toISOString()]);
+  return v;
+}
+
+let jadvalTaymer = null;
+
+/** Soatiga bir marta jadvalni tekshirib turadi. */
+export function jadvalniIshgaTushir() {
+  if (jadvalTaymer) return;
+  const yur = () => jadvalniTekshir()
+    .then((v) => v && console.log(`   Avtomatik import boshlandi: #${v.id}`))
+    .catch((e) => console.error('Jadval xatosi:', e.message));
+  jadvalTaymer = setInterval(yur, SOAT);
+  if (jadvalTaymer.unref) jadvalTaymer.unref();
+  setTimeout(yur, 60_000).unref?.();   // ko'tarilgandan bir daqiqa keyin
 }

@@ -16,6 +16,7 @@
 import { qator, qatorlar, sorov, sozlama } from '../db.js';
 import { aiJson, aiBormi } from '../ai/index.js';
 import { narxHisobla, qoidaniTozala } from '../lib/narx.js';
+import { xaritadanKarta } from './mahsulot-xarita.js';
 import {
   API_STANDART, JSON_SARLAVHALAR, qoidalarniTozala, qoidaTop, apiHavolasi,
   jsonRasm, jsonHavolalar, jsonSiqish, jsonElementlar, elementId, qolipniToldir,
@@ -277,12 +278,13 @@ export async function sahifaniOqi(siqilgan) {
 // ──────────────── Sozlamalar va filtrlar ────────────────
 
 export async function sozlamalar() {
-  const [qoida, maksOgirlik, narxDan, narxGacha, api] = await Promise.all([
+  const [qoida, maksOgirlik, narxDan, narxGacha, api, aiRejim] = await Promise.all([
     sozlama('narx_qoidasi', {}),
     sozlama('marketplace_maks_ogirlik', 600),
     sozlama('marketplace_narx_dan', 0),
     sozlama('marketplace_narx_gacha', 0),
     sozlama('marketplace_api', null),
+    sozlama('marketplace_ai', 'tejamkor'),
   ]);
   const son = (v) => Math.max(0, Number(String(v ?? '').replace(/"/g, '')) || 0);
   // Sozlamada qoida yo'q bo'lsa koddagi sukut ishlaydi; bo'sh MASSIV esa
@@ -294,6 +296,9 @@ export async function sozlamalar() {
     narxDan: son(narxDan),
     narxGacha: son(narxGacha),
     api: apiQoidalari,
+    // yoq | tejamkor | toliq — AI qachon chaqirilishi
+    aiRejim: ['yoq', 'tejamkor', 'toliq'].includes(String(aiRejim).replace(/"/g, ''))
+      ? String(aiRejim).replace(/"/g, '') : 'tejamkor',
   };
 }
 
@@ -634,9 +639,17 @@ export async function elementdanOl(element, qoida, { adminId = null } = {}) {
   }
 
   try {
-    malumot = await sahifaniOqi(jsonSiqish(element));
-    aiIshladi = true;
-    malumot.usul = 'royxat';
+    // XARITA: nomi, narxi, brendi va rasmi ro'yxatda tayyor turibdi —
+    // ularni o'qish uchun AI shart emas. Nomidan toifa va og'irlik ham
+    // chiqsa, mahsulot AI'siz tugallanadi va token umuman ketmaydi.
+    const x = s.aiRejim === 'toliq' ? null : xaritadanKarta(element, qoida);
+    if (x && (s.aiRejim === 'yoq' || x.toliq)) {
+      malumot = x.karta;
+    } else {
+      malumot = await sahifaniOqi(jsonSiqish(element));
+      aiIshladi = true;
+      malumot.usul = 'royxat';
+    }
 
     narx = narxHisobla(
       malumot.narx_valyuta === 'KRW'

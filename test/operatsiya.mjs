@@ -660,7 +660,10 @@ console.log('\n── MARKETPLACE ──');
     const el = await mp.elementdanOl(elementlar[0], q);
     test('ro‘yxatdagi elementdan mahsulot yasaldi', el.holat === 'kutilmoqda',
       `${el.holat} · ${el.sabab || ''}`);
-    test('sahifasiz olingani belgilangan', el.malumot?.usul === 'royxat', el.malumot?.usul);
+    // «royxat» — AI ro'yxat elementini o'qigan, «xarita» — AI'siz yig'ilgan.
+    // Ikkalasida ham mahsulot sahifasi OCHILMAGAN — asosiy narsa shu.
+    test('sahifasiz olingani belgilangan',
+      ['royxat', 'xarita'].includes(el.malumot?.usul), el.malumot?.usul);
     test('elementdan narx hisoblandi', el.narx_izoh?.narx > 0, String(el.narx_izoh?.narx));
     test('mahsulot havolasi odam ochadigan sahifaga qaraydi',
       el.manba_url.includes('pdNo='), el.manba_url);
@@ -686,7 +689,7 @@ console.log('\n── MARKETPLACE ──');
       `${tq.holat} · qoshilgan ${tq.qoshilgan} · ${tq.sabab || ''}`);
     test('import sahifasiz, ro‘yxatdan oldi',
       (await qiymat(`select count(*)::int from marketplace_topilgan
-                      where malumot->>'usul' = 'royxat'`)) === 6);
+                      where malumot->>'usul' in ('royxat','xarita')`)) === 6);
 
     // ── Arzon filtr: chegaradan chiqqani AI'GACHA YETMASIN ──
     // AI chaqiruvi pul turadi. Narx ro'yxatda bor — demak uni tekshirish
@@ -702,14 +705,24 @@ console.log('\n── MARKETPLACE ──');
     test('natijada ai=false belgisi bor', qimmat.ai === false);
     await sorov(`update settings set value = '0'::jsonb where key = 'marketplace_narx_gacha'`);
 
-    // Chegara ichidagisi esa AI ga boradi
+    // «To'liq» rejimda chegara ichidagisi AI ga boradi
     await sorov('delete from marketplace_topilgan');
+    await sorov(`update settings set value = '"toliq"'::jsonb where key = 'marketplace_ai'`);
     const aiOldin2 = aiHisobi.marketplace;
     const yaxshi = await mp.elementdanOl(elementlar[2], q);
-    test('chegara ichidagisi AI ga berildi', aiHisobi.marketplace === aiOldin2 + 1,
+    test('to‘liq rejimda AI chaqiriladi', aiHisobi.marketplace === aiOldin2 + 1,
       `${aiHisobi.marketplace - aiOldin2} ta chaqiruv`);
     test('u navbatga tushdi', yaxshi.holat === 'kutilmoqda', yaxshi.sabab);
     test('natijada ai=true belgisi bor', yaxshi.ai === true);
+    await sorov(`update settings set value = '"tejamkor"'::jsonb where key = 'marketplace_ai'`);
+
+    // Tejamkor rejimda esa xuddi shu mahsulotga AI kerak emas
+    await sorov('delete from marketplace_topilgan');
+    const aiOldin2b = aiHisobi.marketplace;
+    const tejamkor = await mp.elementdanOl(elementlar[2], q);
+    test('tejamkor rejimda AI chaqirilmadi', aiHisobi.marketplace === aiOldin2b,
+      `${aiHisobi.marketplace - aiOldin2b} ta chaqiruv`);
+    test('lekin mahsulot baribir tayyor', tejamkor.holat === 'kutilmoqda', tejamkor.sabab);
 
     // Sotuvda yo'q mahsulot ham AI'siz chetlanadi
     await sorov('delete from marketplace_topilgan');
@@ -736,6 +749,63 @@ console.log('\n── MARKETPLACE ──');
     test('import AI chaqiruvini sanaydi va u NOLGA teng', tf.ai_soni === 0,
       `ai_soni ${tf.ai_soni} · korilgan ${tf.korilgan}`);
     await sorov(`update settings set value = '0'::jsonb where key = 'marketplace_narx_gacha'`);
+
+    // ── AI'SIZ rejim: kartochka ro'yxatdagi maydonlardan yig'iladi ──
+    const xar = await import('../src/services/mahsulot-xarita.js');
+    test('nomdan toifa aniqlanadi',
+      xar.toifaTop('선크림 SPF50 50g')?.category === 'quyosh');
+    test('nomdan og‘irlik chiqadi', xar.ogirlikTaxmin('수분 크림 100ml') === 120,
+      String(xar.ogirlikTaxmin('수분 크림 100ml')));
+    test('kosmetika bo‘lmagani xaritadan o‘tmaydi',
+      xar.toifaTop('스텐 국자') === null);
+
+    await sorov('delete from marketplace_topilgan');
+    await sorov(`update settings set value = '"yoq"'::jsonb where key = 'marketplace_ai'`);
+    const aiOldin4 = aiHisobi.marketplace;
+    const xsiz = await mp.elementdanOl(elementlar[0], q);
+    test('AI‘siz rejimda mahsulot to‘liq yig‘ildi', xsiz.holat === 'kutilmoqda',
+      `${xsiz.holat} · ${xsiz.sabab || ''}`);
+    test('AI‘siz rejimda token sarflanmadi', aiHisobi.marketplace === aiOldin4,
+      `${aiHisobi.marketplace - aiOldin4} ta chaqiruv`);
+    test('xaritadan olingani belgilangan', xsiz.malumot?.usul === 'xarita', xsiz.malumot?.usul);
+    test('narx xaritadan hisoblandi', xsiz.narx_izoh?.narx > 0, String(xsiz.narx_izoh?.narx));
+    test('toifa va bosqich to‘ldi',
+      Boolean(xsiz.malumot?.category && xsiz.malumot?.step),
+      `${xsiz.malumot?.category} · ${xsiz.malumot?.step}`);
+    await sorov(`update settings set value = '"tejamkor"'::jsonb where key = 'marketplace_ai'`);
+
+    // ── Avtomatik jadval ──
+    const jd = await mpv0.jadvalniSaqla({
+      yoqilgan: true, sozlar: ['크림'], kunlar: 7, soat: 4, maqsad: 3,
+      sahifagacha: 2, avto_tasdiq: true });
+    test('jadval saqlandi', jd.yoqilgan === true && jd.sozlar[0] === '크림');
+    test('jadval chegaralarni tekshiradi',
+      (await mpv0.jadvalniSaqla({ yoqilgan: true, kunlar: 999, soat: 99 })).kunlar === 90);
+
+    // Soati kelmagan bo'lsa ishlamaydi
+    await mpv0.jadvalniSaqla({ yoqilgan: true, sozlar: ['크림'], soat: 4, kunlar: 7, maqsad: 3 });
+    const notogri = new Date(Date.UTC(2026, 0, 1, 20, 0));   // Toshkentda 01:00
+    test('soati kelmasa import boshlanmaydi',
+      (await mpv0.jadvalniTekshir(notogri)) === null);
+
+    // Soati kelganda o'zi boshlaydi
+    await sorov('delete from marketplace_topilgan');
+    await sorov('delete from marketplace_vazifa');
+    const togri = new Date(Date.UTC(2026, 0, 1, 23, 0));     // Toshkentda 04:00
+    const avto = await mpv0.jadvalniTekshir(togri);
+    test('soati kelganda import O‘ZI boshlanadi', Boolean(avto?.id));
+    test('jadval avto tasdiqni uzatadi', avto?.avto_tasdiq === true);
+    for (let i = 0; i < 200; i++) {
+      const v = await qator('select holat from marketplace_vazifa where id = $1', [avto.id]);
+      if (v.holat !== 'ishlamoqda') break;
+      await kut0(150);
+    }
+    test('avtomatik import katalogga o‘zi qo‘shdi',
+      (await qiymat(`select count(*)::int from marketplace_topilgan
+                      where holat = 'tasdiqlandi'`)) === 3);
+    test('ikkinchi marta darhol takrorlanmaydi',
+      (await mpv0.jadvalniTekshir(togri)) === null);
+    await mpv0.jadvalniSaqla({ yoqilgan: false });
 
     // Keyingi sinovlar uchun oldingi qoidani qaytaramiz
     await mp.apiSaqla(QOIDA);

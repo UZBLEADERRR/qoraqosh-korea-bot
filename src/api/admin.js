@@ -888,8 +888,10 @@ export async function adminRoutes(req, res, yol) {
 
   // ── Ommaviy import (fon vazifasi) ──
   if (yol === '/api/admin/marketplace/vazifa' && req.method === 'GET') {
-    const [joriy, tarix] = await Promise.all([mpv.joriyVazifa(), mpv.vazifalar(5)]);
-    return ok(res, { joriy, tarix });
+    const [joriy, tarix, jadval, sozlash] = await Promise.all([
+      mpv.joriyVazifa(), mpv.vazifalar(5), mpv.jadval(), mp.sozlamalar(),
+    ]);
+    return ok(res, { joriy, tarix, jadval, ai_rejim: sozlash.aiRejim });
   }
 
   if (yol === '/api/admin/marketplace/vazifa' && req.method === 'POST') {
@@ -906,6 +908,21 @@ export async function adminRoutes(req, res, yol) {
     } catch (e) {
       return xato(res, e.turi === 'band' ? 409 : 400, e.message);
     }
+  }
+
+  if (yol === '/api/admin/marketplace/jadval' && req.method === 'POST') {
+    const b = await tana(req);
+    return ok(res, { jadval: await mpv.jadvalniSaqla(b) });
+  }
+
+  // AI rejimi: yoq | tejamkor | toliq
+  if (yol === '/api/admin/marketplace/ai-rejim' && req.method === 'POST') {
+    const b = await tana(req);
+    const r = ['yoq', 'tejamkor', 'toliq'].includes(b.rejim) ? b.rejim : 'tejamkor';
+    await sorov(
+      `insert into settings (key, value) values ('marketplace_ai', $1::jsonb)
+       on conflict (key) do update set value = excluded.value`, [JSON.stringify(r)]);
+    return ok(res, { rejim: r });
   }
 
   if (yol === '/api/admin/marketplace/vazifa/toxtat' && req.method === 'POST') {

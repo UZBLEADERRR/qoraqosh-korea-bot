@@ -235,7 +235,17 @@ bo'ladi (sahifalash uchun ichida `{sahifa}`).
 - **Tanaffus** (sukut bo'yicha 1.5 soniya) — do'kon bizni bot deb
   bloklamasligi uchun. Bir vaqtda **bitta** import yuradi.
 - Avval olingan mahsulot qayta o'qilmaydi — AI hisobi bekorga yonmaydi.
-- **AI qachon chaqiriladi.** Har mahsulot uchun bitta chaqiruv ketadi
+- **⏰ Avtomatik ishlash.** Jadvalni yoqasiz (qidiruv so'zlari, har necha
+  kunda, soat, har safar nechta) — server o'zi qidiradi, filtrlaydi va
+  katalogga qo'shadi. Hech narsa bosilmaydi. Ish serverda ketadi va
+  qayta ishga tushsa davom etadi.
+- **AI rejimi — uchta.** `Tekin`: AI umuman chaqirilmaydi, kartochka
+  ro'yxatdagi maydonlardan yig'iladi (nomi, narxi, brendi, rasmi
+  tayyor; og'irlik nomdagi `100ml`/`50g` dan; toifa nomdagi koreyscha
+  so'zdan: 크림 → krem, 선크림 → quyoshdan himoya). `Tejamkor` (sukut):
+  xaritadan chiqmagan mahsulot uchungina AI. `To'liq`: har mahsulotga AI
+  — tavsif chiroyliroq, lekin qimmat.
+- **AI qachon chaqiriladi.** To'liq rejimda har mahsulot uchun bitta chaqiruv ketadi
   (~1 500 kirish + ~500 chiqish tokeni, Gemini 2.5 Flash). Lekin
   **arzon filtr avval ishlaydi**: narx va sotuvda bor-yo'qligi ro'yxat
   javobida allaqachon bor, shuning uchun narx oralig'idan chiqqani va
@@ -571,7 +581,8 @@ src/
     broadcast.js       reklama yuborish (tezlik cheklovi bilan)
     majburiy-kanal.js  obuna tekshiruvi
     marketplace.js     Daiso/Coupang dan mahsulot olish va filtrlash
-    marketplace-vazifa.js  ommaviy import: fonda, uzilib qolsa davom etadi
+    marketplace-vazifa.js  ommaviy import: fonda, jadval bo'yicha, uzilsa davom etadi
+    mahsulot-xarita.js ro'yxat maydonlaridan AI'siz kartochka yig'ish
     dokon-api.js       do'kon JSON API si: qoidalar, id, rasm, ro'yxat
     agent.js           kanal rejasi va post yozish
     agent-jadval.js    kunlik jadval (advisory lock bilan)

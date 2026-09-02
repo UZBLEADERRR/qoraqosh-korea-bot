@@ -1568,6 +1568,44 @@ async function importChiz() {
       <button class="tug asos keng" id="mk-import-boshla" style="margin-top:10px">
         🚀 Importni boshlash</button>`}`;
 
+  // Avtomatik jadval — hech narsa bosmasdan ishlashi uchun
+  const jd = j.jadval || {};
+  quti.insertAdjacentHTML('beforeend', `
+    <hr style="border:0;border-top:1px solid var(--chiziq);margin:16px 0">
+    <h3 style="margin:0 0 6px;font-size:15px">⏰ Avtomatik ishlash</h3>
+    <p class="mayda" style="margin:0 0 10px">Yoqilgan bo‘lsa server o‘zi
+      belgilangan kunlarda qidiradi, filtrlaydi va katalogga qo‘shadi —
+      siz hech narsa bosmaysiz.</p>
+    <label class="belgi-qator">
+      <input type="checkbox" id="mk-jd-yoq" ${jd.yoqilgan ? 'checked' : ''}>
+      <span>Avtomatik import yoqilsin</span></label>
+    <label class="belgi-qator">
+      <input type="checkbox" id="mk-jd-avto" ${jd.avtoTasdiq !== false ? 'checked' : ''}>
+      <span>Topilgani to‘g‘ridan-to‘g‘ri katalogga</span></label>
+    <label style="margin-top:8px">Qidiruv so‘zlari</label>
+    <textarea id="mk-jd-sozlar" rows="2" spellcheck="false">${esc((jd.sozlar || []).join('\n'))}</textarea>
+    <div class="forma-tor" style="margin-top:8px">
+      <div><label>Har necha kunda</label>
+        <input id="mk-jd-kunlar" type="number" min="1" max="90" value="${jd.kunlar ?? 7}"></div>
+      <div><label>Soat (Toshkent)</label>
+        <input id="mk-jd-soat" type="number" min="0" max="23" value="${jd.soat ?? 4}"></div>
+      <div><label>Har safar nechta</label>
+        <input id="mk-jd-maqsad" type="number" min="1" max="1000" value="${jd.maqsad ?? 40}"></div>
+      <div><label>Sahifagacha</label>
+        <input id="mk-jd-sahifa" type="number" min="1" max="50" value="${jd.sahifagacha ?? 5}"></div>
+    </div>
+    <label style="margin-top:10px">AI rejimi <span class="yordam">tavsif yozish uchun</span></label>
+    <select id="mk-ai-rejim">
+      <option value="yoq">Tekin — AI umuman chaqirilmaydi</option>
+      <option value="tejamkor">Tejamkor — faqat kerak bo‘lganda (tavsiya)</option>
+      <option value="toliq">To‘liq — har mahsulotga AI (chiroyli tavsif, qimmat)</option>
+    </select>
+    <button class="tug keng" id="mk-jd-saqla" style="margin-top:10px">Jadvalni saqlash</button>
+    ${jd.oxirgi ? `<div class="ozgina" style="margin-top:8px">Oxirgi avtomatik ish:
+      ${esc(new Date(jd.oxirgi).toLocaleString('uz'))}</div>` : ''}`);
+  $('#mk-ai-rejim').value = j.ai_rejim || 'tejamkor';
+  $('#mk-jd-saqla').onclick = jadvalSaqla;
+
   if (ketmoqda) {
     $('#mk-import-toxtat').onclick = importToxtat;
     if (!importTaymer) importTaymer = setInterval(importChiz, 4000);
@@ -1586,6 +1624,24 @@ const IMPORT_NAMUNA = {
   kosmetika: ['크림', '토너', '세럼', '클렌징', '마스크팩', '선크림', '립밤', '수분크림'],
   ichki: ['콜라겐', '비타민', '홍삼', '유산균', '비오틴'],
 };
+
+async function jadvalSaqla() {
+  try {
+    await api('/api/admin/marketplace/ai-rejim',
+      { method: 'POST', body: JSON.stringify({ rejim: $('#mk-ai-rejim').value }) });
+    await api('/api/admin/marketplace/jadval', { method: 'POST', body: JSON.stringify({
+      yoqilgan: $('#mk-jd-yoq').checked,
+      avto_tasdiq: $('#mk-jd-avto').checked,
+      sozlar: $('#mk-jd-sozlar').value.split('\n').map((x) => x.trim()).filter(Boolean),
+      kunlar: Number($('#mk-jd-kunlar').value) || 7,
+      soat: Number($('#mk-jd-soat').value) || 0,
+      maqsad: Number($('#mk-jd-maqsad').value) || 40,
+      sahifagacha: Number($('#mk-jd-sahifa').value) || 5,
+    }) });
+    tost($('#mk-jd-yoq').checked ? 'Avtomatik import yoqildi' : 'Saqlandi');
+    await importChiz();
+  } catch (e) { tost(e.message); }
+}
 
 async function importBoshla() {
   const havolalar = $('#mk-im-havola').value.trim();
