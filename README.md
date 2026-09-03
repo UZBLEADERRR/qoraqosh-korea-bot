@@ -36,6 +36,23 @@ Google Gemini · Railway.
   keladi), Mini App'da ham. Admin panelidan yuklanadi; qo'yilmagan
   bo'lsa oddiy matn ketadi. Odam ko'rsatmani o'qib emas, ko'rib
   tushunadi.
+- **AI maslahatchi** (pastki menyudagi **Maslahat** bo'limi) — odam o'z
+  so'zi bilan yozadi: «oyog'im og'riyapti», «tuk oluvchi bormi», «yuzim
+  quruq». AI **faqat katalogdagi** mahsulotdan 1–4 tasini tanlab beradi,
+  har biriga *nega aynan shu* degan bir jumla yozadi. Kartadagi **+**
+  tugmasi bitta bosishda savatga soladi, karta ustiga bosilsa mahsulot
+  sahifasi ochiladi. Pastda 2–3 ta keyingi savol taklifi turadi.
+  - Model o'ylab topgan `product_id` **tashlanadi** — ilovada bosib
+    bo'lmaydigan mahsulot ko'rinmasligi kerak.
+  - Og'riq, jarohat, allergiya, teri kasalligi haqida so'ralsa javob
+    **«Sog'liq masalasi»** deb belgilanadi: dori tavsiya qilinmaydi,
+    tashxis qo'yilmaydi, shifokorga murojaat qilish aytiladi.
+  - Kosmetikaga aloqasi yo'q savol muloyim rad etiladi.
+  - Inputga bosilganda pastki menyu pastga sirg'alib ketadi — klaviatura
+    tepasida faqat yozish paneli qoladi.
+  - Cheklov: bitta odamga 10 daqiqada 12 ta savol (AI chaqiruvi pul turadi).
+  - Suhbat sessiya davomida saqlanadi va oxirgi 6 xabar kontekst sifatida
+    AI ga uzatiladi.
 - **Rasm sifati nazorati — qat'iy.** Uzoq, xira, qorong'i, yuzi yopiq, bir
   nechta odam, qalin pardoz, ekrandan olingan yoki **AI/deepfake** rasm rad
   etiladi. Qoida: **ikkilansa — rad etadi.** Teri TEKSTURASI (teshiklar,
@@ -566,6 +583,7 @@ src/
     faceAnalysis.js    sifat nazorati + tahlil + tavsiya (bitta chaqiruv)
     productEnrich.js   skrinshotdan mahsulotni tanish
     poster.js          poster g'oyalari va generatsiyasi
+    maslahat.js        AI maslahatchi: katalogdan mahsulot tavsiyasi
   bot/
     index.js           dispetcher
     render.js          tahlil natijasining Telegram ko'rinishi
@@ -624,7 +642,8 @@ Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing
 (`004_...sql`) — qo'llangan faylni tahrirlamang, u qayta bajarilmaydi.
 
 `npm run check` — deploy oldidan fayllar, sxema va koddagi kalitlarni tekshiradi.
-`npm test` — barcha sinovlar (EMU tarifi, bot oqimi, operatsiya, agent).
+`npm test` — barcha sinovlar (EMU tarifi, bot oqimi, operatsiya, agent,
+AI maslahatchi).
 
 ---
 

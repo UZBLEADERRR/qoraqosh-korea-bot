@@ -37,7 +37,8 @@ const oxirgi = () => yuborilgan[yuborilgan.length - 1] || {};
 const TG = '900001';
 await sorov(`insert into users (telegram_id, full_name, phone, age, agreed_at)
   values ($1,'Sinov','+998901112233',24, now())
-  on conflict (telegram_id) do update set agreed_at = now(), full_name = 'Sinov'`, [TG]);
+  on conflict (telegram_id) do update set agreed_at = now(), full_name = 'Sinov',
+    phone = '+998901112233', age = 24, is_blocked = false`, [TG]);
 await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
 await sorov(`update settings set value = '99'::jsonb where key = 'limit_bepul'`);
 

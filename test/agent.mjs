@@ -34,6 +34,13 @@ await sorov(`insert into users (telegram_id, full_name, phone, age, agreed_at)
   values ('800001','Malika','+998901112233',24,now())
   on conflict (telegram_id) do update set agreed_at=now()`);
 
+// Toza holatdan boshlaymiz: `npm test` da bu sinov operatsiya.mjs dan keyin
+// yuradi, u esa /tanitish oqimida bugungi kunga reja bandi qoldiradi —
+// agentning "kuniga bitta post" qoidasi shuni ushlab, post tayyorlanmaydi.
+await sorov(`delete from reja_bandlari`);
+await sorov(`delete from rejalar`);
+await sorov(`delete from media where tur = 'post'`);
+
 console.log('\n── AGENT: REJA TUZISH ──');
 await yoz('700001','/reja');
 test('reja menyusi ochildi', /Kanal agenti/.test(hammasi()));

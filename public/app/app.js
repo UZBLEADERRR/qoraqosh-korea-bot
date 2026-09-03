@@ -21,7 +21,7 @@ const holat = {
   kategoriya: 'hammasi', qidiruv: '', narxFiltr: 'hammasi', saralash: 'ommabop',
   yetkazish: { narx: 25000, bepul_chegara: 500000 },
   chegirmalar: [], donaChegirma: { narx: 0, dan: 1 }, minimal: 0,
-  karta: { raqam: '', egasi: '' }, konsultatsiya: '',
+  karta: { raqam: '', egasi: '' }, konsultatsiya: '', suhbat: [],
   draft: {}, tab: 'katalog',
 };
 
@@ -123,6 +123,7 @@ const SARALASH = {
 async function boshla() {
   // Statik razmetkadagi <i data-ik> larni chizma ikonga to'ldiramiz
   ikonlarniChiz();
+  suhbatniYukla();
   try {
     const k = await api('/api/catalog');
     holat.kategoriyalar = k.kategoriyalar;
@@ -1633,8 +1634,208 @@ function buyurtmalarniYangila() {
   yangilashTimer = setTimeout(() => buyurtmalarniChiz({ majburiy: true }), 60);
 }
 
+// ================= AI MASLAHATCHI =================
+// Odam o'z so'zi bilan yozadi ("oyog'im og'riyapti", "tuk oluvchi bormi"),
+// AI katalogdan mos mahsulot topib beradi. Suhbat sessiya davomida saqlanadi.
+
+const NAMUNA_SAVOL = [
+  { ik: 'tomchi', matn: 'Yuzim juda quruq, nima yordam beradi?' },
+  { ik: 'quyosh', matn: 'Yozda quyoshdan himoya uchun nima olay?' },
+  { ik: 'tozalik', matn: 'Aknega qarshi nima bor?' },
+  { ik: 'barg',   matn: 'Ichimdan ichadigan kollagen bormi?' },
+];
+
+function suhbatniYukla() {
+  try { holat.suhbat = JSON.parse(sessionStorage.getItem('qq_suhbat') || '[]'); }
+  catch { holat.suhbat = []; }
+  if (!Array.isArray(holat.suhbat)) holat.suhbat = [];
+}
+const suhbatniSaqla = () => {
+  // Faqat oxirgi 20 xabar — sessionStorage cheklangan
+  try { sessionStorage.setItem('qq_suhbat', JSON.stringify(holat.suhbat.slice(-20))); } catch {}
+};
+
+/** AI ga yuboriladigan qisqa tarix (server ham 6 tagacha oladi). */
+const suhbatTarixi = () => holat.suhbat
+  .filter((x) => x.matn)
+  .slice(-6)
+  .map((x) => ({ kim: x.kim, matn: x.matn }));
+
+/** Bitta tavsiya kartasi: rasm, nom, narx, "nega" va bitta bosishda savatga. */
+function tavsiyaKartasi(t) {
+  const p = t.mahsulot;
+  const yoq = !(p.stock > 0);
+  const rasm = p.poster_id
+    ? `<img src="/media/${esc(p.poster_id)}" alt="" loading="lazy">`
+    : ik('shisha', 26);
+  const eski = p.old_price && p.old_price > p.price ? `<s>${qisqaNarx(p.old_price)}</s>` : '';
+  // Savatda turgan mahsulot qayta chizilganda ham «qo'shildi» bo'lib qolsin
+  const savatda = holat.savat.some((r) => r.products.id === p.id);
+  return `
+    <div class="t-karta" data-mahsulot="${p.id}">
+      <div class="rasm">${rasm}</div>
+      <div class="t-ich">
+        ${p.brand ? `<div class="t-brend">${esc(p.brand)}</div>` : ''}
+        <div class="t-nom">${esc(p.name)}</div>
+        ${t.sabab ? `<div class="t-sabab">${esc(t.sabab)}</div>` : ''}
+        <div class="t-past">
+          <span class="t-narx">${narx(p.price)}${eski}</span>
+          ${yoq
+            ? '<span class="t-yoq">Tugagan</span>'
+            : `<button class="t-qosh ${savatda ? 'qoshildi' : ''}" data-qosh="${p.id}"
+                 aria-label="Savatga qo‘shish">${ik(savatda ? 'tasdiq' : 'plyus', 19)}</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+/** Bitta AI javobi: matn pufagi + tavsiyalar ro'yxati. */
+function aiXabarHtml(j) {
+  const tibbiy = j.turi === 'tibbiy';
+  const belgi = tibbiy
+    ? `<div class="pufak-belgi">${ik('tibbiy', 13)}Sog‘liq masalasi</div>`
+    : '';
+  const kartalar = (j.tavsiya || []).length
+    ? `<div class="tavsiyalar">
+         <div class="tavsiya-bosh">${ik('yulduz', 13)}Siz uchun ${j.tavsiya.length} ta mahsulot</div>
+         ${j.tavsiya.map(tavsiyaKartasi).join('')}
+       </div>`
+    : '';
+  return `
+    <div class="xabar ai">
+      <div class="pufak ${tibbiy ? 'tibbiy' : ''}">${belgi}${esc(j.javob)}</div>
+      ${kartalar}
+    </div>`;
+}
+
+function maslahatniChiz() {
+  const oqim = $('#maslahat-oqim');
+  kor($('#maslahat-tozala'), holat.suhbat.length > 0);
+
+  if (!holat.suhbat.length) {
+    oqim.innerHTML = `
+      <div class="suhbat-bosh-ekran">
+        <div class="halqa">${ik('robot', 34)}</div>
+        <h2>Nima bezovta qilyapti?</h2>
+        <p>O‘z so‘zingiz bilan yozing — men do‘kondagi mahsulotlardan mos kelganini topib beraman.</p>
+        <div class="namunalar">
+          ${NAMUNA_SAVOL.map((n) => `
+            <button data-savol="${esc(n.matn)}">${ik(n.ik, 19)}<span>${esc(n.matn)}</span>
+              <span class="strelka">${ik('keyingi', 16)}</span></button>`).join('')}
+        </div>
+      </div>`;
+    $('#maslahat-takliflar').innerHTML = '';
+    return;
+  }
+
+  oqim.innerHTML = holat.suhbat.map((x) => {
+    if (x.kim === 'odam') return `<div class="xabar men"><div class="pufak">${esc(x.matn)}</div></div>`;
+    if (x.kim === 'kutish') {
+      return `<div class="xabar ai"><div class="pufak"><div class="nuqtalar">
+        <span></span><span></span><span></span></div></div></div>`;
+    }
+    return aiXabarHtml(x.javob || { javob: x.matn, tavsiya: [] });
+  }).join('');
+
+  // Takliflar — faqat oxirgi javobniki
+  const oxirgi = [...holat.suhbat].reverse().find((x) => x.kim === 'ai');
+  const t = (oxirgi?.javob?.takliflar || []);
+  $('#maslahat-takliflar').innerHTML = holat.suhbat.at(-1)?.kim === 'kutish' ? '' :
+    t.map((x) => `<button data-savol="${esc(x)}">${esc(x)}</button>`).join('');
+}
+
+const pastgaTush = () => requestAnimationFrame(() =>
+  scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }));
+
+let maslahatBand = false;
+async function maslahatYubor(savol) {
+  savol = String(savol || '').trim().slice(0, 400);
+  if (!savol || maslahatBand) return;
+  maslahatBand = true;
+
+  const tarix = suhbatTarixi();
+  holat.suhbat.push({ kim: 'odam', matn: savol });
+  holat.suhbat.push({ kim: 'kutish' });
+  maslahatniChiz(); suhbatniSaqla(); pastgaTush(); titra();
+
+  const matn = $('#maslahat-matn');
+  matn.value = ''; matn.style.height = '40px';
+  $('#maslahat-yubor').disabled = true;
+  $('#maslahat-holat').textContent = 'O‘ylayapti…';
+  $('#maslahat-holat').classList.add('oylanmoqda');
+
+  try {
+    const j = await api('/api/maslahat', { method: 'POST', body: JSON.stringify({ savol, tarix }) });
+    holat.suhbat.pop();
+    holat.suhbat.push({ kim: 'ai', matn: j.javob, javob: j });
+  } catch (e) {
+    holat.suhbat.pop();
+    holat.suhbat.push({ kim: 'ai', matn: e.message, javob: { javob: e.message, turi: 'yoq', tavsiya: [], takliflar: [] } });
+  } finally {
+    maslahatBand = false;
+    $('#maslahat-holat').textContent = 'Har doim shu yerda';
+    $('#maslahat-holat').classList.remove('oylanmoqda');
+    maslahatniChiz(); suhbatniSaqla(); pastgaTush();
+  }
+}
+
+function maslahatniUla() {
+  const matn = $('#maslahat-matn');
+  const yubor = $('#maslahat-yubor');
+  yubor.innerHTML = ik('yuborish', 19);
+  yubor.disabled = true;
+
+  // Textarea o'zi o'sadi — uzun savol ham to'liq ko'rinsin
+  const olcham = () => {
+    yubor.disabled = !matn.value.trim() || maslahatBand;
+    // Ekran yopiq bo'lsa scrollHeight = 0 — o'lchamni buzmaymiz
+    if (!matn.offsetParent) return;
+    matn.style.height = 'auto';
+    matn.style.height = Math.max(40, Math.min(matn.scrollHeight, 120)) + 'px';
+  };
+  matn.addEventListener('input', olcham);
+  matn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); maslahatYubor(matn.value); }
+  });
+  yubor.onclick = () => maslahatYubor(matn.value);
+
+  // Input bosilganda pastki menyu berkiladi — klaviatura tepasida
+  // faqat yozish paneli qoladi
+  matn.addEventListener('focus', () => {
+    document.body.classList.add('yozilmoqda');
+    setTimeout(pastgaTush, 260);
+  });
+  matn.addEventListener('blur', () => document.body.classList.remove('yozilmoqda'));
+
+  // Namuna savol / taklif chiplari
+  const savolBos = (e) => {
+    const b = e.target.closest('[data-savol]');
+    if (b) { titra(); maslahatYubor(b.dataset.savol); }
+  };
+  $('#maslahat-oqim').addEventListener('click', (e) => {
+    if (e.target.closest('[data-savol]')) return savolBos(e);
+
+    // Savatga: karta ochilmasin
+    const q = e.target.closest('[data-qosh]');
+    if (q) {
+      e.stopPropagation();
+      const id = Number(q.dataset.qosh);
+      q.disabled = true; q.classList.add('qoshildi'); q.innerHTML = ik('tasdiq', 19);
+      savatga(id);
+      return;
+    }
+    const k = e.target.closest('[data-mahsulot]');
+    if (k) mahsulotOyna(Number(k.dataset.mahsulot));
+  });
+  $('#maslahat-takliflar').addEventListener('click', savolBos);
+
+  $('#maslahat-tozala').onclick = () => {
+    holat.suhbat = []; suhbatniSaqla(); maslahatniChiz(); titra();
+  };
+}
+
 // ---------------- Tablar ----------------
-const TABLAR = ['katalog','skaner','savat','profil','natija'];
+const TABLAR = ['katalog','skaner','maslahat','savat','profil','natija'];
 // Eski havolalar (botdagi «?tab=buyurtma») profilga olib boradi —
 // buyurtmalar ro'yxati endi shu yerda.
 const TAB_TAQMOQ = { buyurtma: 'profil' };
@@ -1646,11 +1847,14 @@ function tabOch(nom) {
   $$('.menyu button').forEach((b) =>
     b.classList.toggle('tanlangan', b.dataset.tab === nom || (nom === 'natija' && b.dataset.tab === 'skaner')));
   if (nom === 'profil') { profilniChiz(); buyurtmalarniChiz(); }
+  if (nom === 'maslahat') maslahatniChiz();
+  else document.body.classList.remove('yozilmoqda');
   if (nom === 'natija' && !holat.natijaKesh) natijaniChiz();
   scrollTo({ top: 0 });
 }
 $$('.menyu button').forEach((b) => b.onclick = () => { tabOch(b.dataset.tab); titra(); });
 $('#skaner-chaqiriq').onclick = () => { tabOch('skaner'); titra('medium'); };
+maslahatniUla();
 
 boshla();
 })();

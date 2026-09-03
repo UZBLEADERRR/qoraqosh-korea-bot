@@ -16,7 +16,8 @@
     "test:bot": "node test/bot-oqimi.mjs",
     "test:ops": "node test/operatsiya.mjs",
     "test:agent": "node test/agent.mjs",
-    "test": "npm run test:emu && npm run test:bot && npm run test:ops && npm run test:agent",
+    "test:maslahat": "node test/maslahat.mjs",
+    "test": "npm run test:emu && npm run test:bot && npm run test:ops && npm run test:agent && npm run test:maslahat",
     "test:emu": "node test/emu-tarif.mjs"
   },
   "dependencies": {

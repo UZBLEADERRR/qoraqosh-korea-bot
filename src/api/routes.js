@@ -4,6 +4,7 @@ import { verifyInitData } from '../lib/auth.js';
 import { ok, xato, tana, json, ipOl } from '../lib/http.js';
 import { faolMahsulotlar, tahlilQil, oxirgiTahlil, limitHolati } from '../services/analysis.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
+import { maslahatBer } from '../ai/maslahat.js';
 import { savatniOl, savatgaQosh, savatOzgartir, savatniTozala, buyurtmaYarat } from '../services/orders.js';
 import { yubor } from '../bot/tg.js';
 import { esc, narx } from '../bot/format.js';
@@ -132,6 +133,45 @@ export async function apiRoutes(req, res, yol) {
       }
       const x = xatoniTushuntir(e);
       console.error('SKAN XATOSI', x.log);
+      return xato(res, 502, x.matn);
+    }
+  }
+
+  // --- AI maslahatchi: odam savol yozadi, katalogdan javob topiladi ---
+  if (yol === '/api/maslahat' && req.method === 'POST') {
+    // AI chaqiruvi pul turadi — bitta odam kuniga cheksiz yozolmasin
+    const c = cheklov('maslahat:' + user.id, 12, 10 * 60_000);
+    if (!c.ruxsat) {
+      return json(res, 429,
+        { error: `Biroz sekinroq — ${Math.ceil(c.kutish / 60)} daqiqadan keyin davom etamiz.` });
+    }
+
+    const b = await tana(req);
+    const savol = String(b.savol || '').trim().slice(0, 400);
+    if (savol.length < 2) return xato(res, 400, 'Savolingizni yozing.');
+
+    const tarix = (Array.isArray(b.tarix) ? b.tarix : []).slice(-6).map((x) => ({
+      kim: x?.kim === 'ai' ? 'ai' : 'odam',
+      matn: String(x?.matn || '').slice(0, 300),
+    })).filter((x) => x.matn);
+
+    try {
+      const katalog = await kesh('katalog', KATALOG_KESH_MS, katalogniYig);
+      const j = await maslahatBer(savol, katalog.mahsulotlar || [], tarix);
+
+      // Mahsulotning to'liq kartochkasini qaytaramiz — klient katalogdan
+      // qidirib o'tirmasin (u sahifalab yuklanadi, mahsulot hali kelmagan
+      // bo'lishi mumkin)
+      const karta = new Map((katalog.mahsulotlar || []).map((p) => [p.id, p]));
+      return ok(res, {
+        ...j,
+        tavsiya: j.tavsiya
+          .map((t) => ({ ...t, mahsulot: karta.get(t.product_id) }))
+          .filter((t) => t.mahsulot),
+      });
+    } catch (e) {
+      const x = xatoniTushuntir(e);
+      console.error('MASLAHAT XATOSI', x.log);
       return xato(res, 502, x.matn);
     }
   }

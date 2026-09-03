@@ -71,6 +71,19 @@ async function buyurtma(no, mahsulotlar) {
       'Toshkent shahri','Chilonzor tumani',$3::jsonb,300000,0,0,300000,150000,'tasdiqlangan','tolangan')
     returning *`, [no, mijoz.id, items]);
 }
+// Sinov qayta-qayta ishga tushirilsa toza holatdan boshlansin: aks holda
+// order_no takrorlanadi va oldingi yurishdan qolgan buyurtmalar sanoqni buzadi.
+await sorov(`delete from partiyalar`);
+await sorov(`delete from orders`);
+// Marketplace importi katalogga qo'shgan sinov mahsulotlari: qolib ketsa
+// keyingi yurishda "bu mahsulot allaqachon bor" deb o'tkazib yuboriladi.
+await sorov(`delete from products where brand in ('TestBrand','Daiso')`);
+await sorov(`delete from marketplace_topilgan`);
+await sorov(`delete from marketplace_vazifa`);
+await sorov(`delete from settings where key = 'marketplace_jadval'`);
+await sorov(`delete from reja_bandlari`);
+await sorov(`delete from rejalar`);
+await sorov(`delete from media where tur = 'post'`);
 await buyurtma('QQ-001',[[1,'Cleansing Oil',2],[2,'Toner',1]]);
 await buyurtma('QQ-002',[[1,'Cleansing Oil',3]]);
 

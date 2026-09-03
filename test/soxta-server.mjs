@@ -52,6 +52,13 @@ function javobMatni(sxemaMatni) {
   aiHisobi.jami += 1;
   if (sxemaMatni.includes('kosmetikami')) aiHisobi.marketplace += 1;
   if (sxemaMatni.includes('muammolar')) return JSON.stringify(TAHLIL);
+  // AI maslahatchi: katalogdan mahsulot tavsiya qiladi
+  if (sxemaMatni.includes('takliflar')) return JSON.stringify({
+    javob: 'Quruq teri uchun avval namlikni tiklash kerak. Quyidagi ikki mahsulot shu ishni qiladi.',
+    turi: 'tavsiya', savol: 'quruq teri',
+    tavsiya: [{ product_id: 1, sabab: 'Gialuron kislotasi namlikni ushlab turadi.' },
+              { product_id: 999, sabab: 'Katalogda yo‘q — tashlanishi kerak.' }],
+    takliflar: ['Qishda nima mos?', 'Kechqurun tartib qanday?'] });
   if (sxemaMatni.includes('goyalar'))   return JSON.stringify({ goyalar: [] });
   // Marketplace: do'kon sahifasidan mahsulot o'qish
   if (sxemaMatni.includes('kosmetikami')) return JSON.stringify({

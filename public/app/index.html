@@ -146,6 +146,32 @@
     <div id="natija-tan"></div>
   </section>
 
+  <!-- ---------- AI MASLAHATCHI ----------
+       Odam o'z so'zi bilan yozadi ("oyog'im og'riyapti"), AI katalogdan
+       mos mahsulot topib beradi. Input bosilganda pastki menyu yashirinadi. -->
+  <section id="tab-maslahat" class="ekran yashirin">
+    <div class="suhbat-bosh">
+      <div class="suhbat-avatar"><i data-ik="robot" data-ik-olcham="19"></i></div>
+      <div>
+        <div class="suhbat-nom">KiOVO maslahatchi</div>
+        <div class="suhbat-holat" id="maslahat-holat">Har doim shu yerda</div>
+      </div>
+      <button class="suhbat-tozala yashirin" id="maslahat-tozala" title="Suhbatni tozalash">
+        <i data-ik="ochirish" data-ik-olcham="17"></i></button>
+    </div>
+
+    <div id="maslahat-oqim" class="suhbat"></div>
+    <div id="maslahat-takliflar" class="takliflar"></div>
+
+    <div class="yozish">
+      <div class="yozish-ich">
+        <textarea id="maslahat-matn" rows="1" maxlength="400" enterkeyhint="send"
+          placeholder="Savolingizni yozing…"></textarea>
+        <button id="maslahat-yubor" class="yozish-tugma" aria-label="Yuborish"></button>
+      </div>
+    </div>
+  </section>
+
   <!-- ---------- SAVAT ---------- -->
   <section id="tab-savat" class="ekran yashirin">
     <div class="bosh"><div class="brend">🛒 Buyurtma</div><h1>Savatim</h1></div>
@@ -167,6 +193,7 @@
   <nav class="menyu">
     <button data-tab="katalog" class="tanlangan"><span class="ikon"><i data-ik="dokon" data-ik-olcham="21"></i></span>Do‘kon</button>
     <button data-tab="skaner"><span class="ikon"><i data-ik="skaner" data-ik-olcham="21"></i></span>Skaner</button>
+    <button data-tab="maslahat"><span class="ikon"><i data-ik="robot" data-ik-olcham="21"></i></span>Maslahat</button>
     <button data-tab="savat"><span class="ikon"><i data-ik="savat" data-ik-olcham="21"></i></span>Savat<i id="savat-nishon" class="nishon yashirin">0</i></button>
     <button data-tab="profil"><span class="ikon"><i data-ik="profil" data-ik-olcham="21"></i></span>Profil</button>
   </nav>

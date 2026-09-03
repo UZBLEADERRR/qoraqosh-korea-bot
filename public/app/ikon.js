@@ -42,6 +42,7 @@ const YOL = {
   tahrir:     '<path d="m14.6 5.4 4 4L9 19H5v-4z"/><path d="M13 7 17 11"/>',
   yuklab:     '<path d="M12 4v11"/><path d="M8 11.5 12 15.5l4-4"/><path d="M5 19h14"/>',
   suhbat:     '<path d="M4.5 5.5h15v10h-9l-4 3.5z"/>',
+  yuborish:   '<path d="M20.5 3.5 3.5 10.2l6.6 2.6 2.6 6.6z"/><path d="M10.1 12.8 20.5 3.5"/>',
   yordam:     '<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.8-.9 1.4v.3"/><path d="M12 16.8h.01"/>',
   hujjat:     '<path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4"/><path d="M9 12h6M9 15.5h6"/>',
   telefon:    '<path d="M6.5 4h3l1.5 4-2 1.4a11 11 0 0 0 5.6 5.6L16 13l4 1.5v3a2 2 0 0 1-2.2 2C10.6 18.8 5.2 13.4 4.5 6.2A2 2 0 0 1 6.5 4z"/>',
