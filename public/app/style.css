@@ -447,24 +447,18 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
   color:#fff;font-size:12.5px;font-weight:700;line-height:22px;text-align:center}
 
 /* ---------- Bosh sahifadagi karusel ---------- */
-/* Rasm — atmosfera, tugma — asosiy amal. Matn rasm ustida turgani uchun
-   pastdan qoraygan parda qo'yiladi: har qanday rasmda ham o'qiladi. */
+/* Rasm o'zi gapiradi — ustiga matn yozilmaydi. Faqat kichik tugma
+   pastki o'ng chetda: rasmning asosiy qismini to'smaydi. */
 .karusel{position:relative;margin:4px 16px 16px;border-radius:var(--r-katta);
   overflow:hidden;background:var(--chiziq-och);aspect-ratio:16/10}
 .karusel-lenta{display:flex;height:100%;transition:transform .55s cubic-bezier(.4,0,.2,1)}
 .karusel-lenta img{flex:0 0 100%;width:100%;height:100%;object-fit:cover;display:block}
-.karusel-parda{position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(to top,rgba(12,9,7,.82) 0%,rgba(12,9,7,.34) 46%,rgba(12,9,7,.05) 100%)}
-.karusel-tan{position:absolute;left:0;right:0;bottom:0;padding:16px 16px 30px;color:#fff}
-.karusel-tan b{display:block;font-family:var(--serif);font-weight:400;
-  font-size:24px;line-height:1.1;letter-spacing:-.005em}
-.karusel-tan span{display:block;font-size:13px;line-height:1.4;opacity:.86;margin-top:3px}
-.karusel-tugma{margin-top:12px;display:inline-flex;align-items:center;gap:8px;
-  background:var(--urgu);color:#fff;border-radius:12px;padding:0 16px;height:44px;
-  font-size:14.5px;font-weight:700}
-.karusel-nuqtalar{position:absolute;left:0;right:0;bottom:12px;display:flex;
-  justify-content:center;gap:5px}
-.karusel-nuqtalar i{width:5px;height:5px;border-radius:99px;background:rgba(255,255,255,.4)}
+.karusel-tugma{position:absolute;right:12px;bottom:12px;display:inline-flex;
+  align-items:center;gap:6px;background:var(--urgu);color:#fff;border-radius:10px;
+  padding:0 13px;height:36px;font-size:13px;font-weight:700;
+  box-shadow:0 4px 14px rgba(0,0,0,.28)}
+.karusel-nuqtalar{position:absolute;left:12px;bottom:20px;display:flex;gap:5px}
+.karusel-nuqtalar i{width:5px;height:5px;border-radius:99px;background:rgba(255,255,255,.55)}
 .karusel-nuqtalar i.faol{width:16px;background:#fff}
 
 /* Muammo darajasi — emoji nuqta o'rniga */
@@ -475,3 +469,39 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
 /* Ikon va matn bir chiziqda tursin */
 .qtr .k,.satr-izoh,.yechim,.diqqat,.ogoh,.talab,.limit-satr{align-items:center}
 .ogoh .ik,.satr-izoh .ik,.yechim .ik,.diqqat .ik{display:inline-block;vertical-align:-3px}
+
+/* ---------- Mahsulot oynasi ---------- */
+/* Har ma'lumot alohida rangli plitka: muhimi ko'zga tashlanadi */
+.narx-satr{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.narx-katta{font-size:24px;font-weight:800;letter-spacing:-.02em}
+.narx-satr s{font-size:14px;color:var(--och);font-weight:400}
+.chegirma-nishon{background:var(--qizil-och);color:var(--qizil);font-size:12px;
+  font-weight:700;padding:4px 9px;border-radius:99px}
+.tavsif{margin-top:12px;font-size:14.5px;line-height:1.55;color:var(--kul)}
+
+.plitkalar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:16px}
+.plitka{border-radius:14px;padding:11px 13px;display:flex;flex-direction:column;gap:3px}
+.plitka-bosh{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;
+  letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.plitka-qiymat{font-size:14.5px;font-weight:700;line-height:1.3}
+.plitka.urgu{background:var(--urgu-och);color:var(--urgu)}
+.plitka.yashil{background:var(--yashil-och);color:var(--yashil)}
+.plitka.qizil{background:var(--qizil-och);color:var(--qizil)}
+.plitka.sariq{background:var(--sariq-och);color:var(--sariq)}
+.plitka.kul{background:var(--chiziq-och);color:var(--kul)}
+
+.bolim{margin-top:14px}
+.bolim-bosh{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;
+  letter-spacing:.02em;margin-bottom:7px}
+.bolim p{margin:0;font-size:14.5px;line-height:1.55}
+.bolim.quti-urgu,.bolim.quti-yashil,.bolim.quti-qizil{border-radius:14px;padding:13px 15px}
+.bolim.quti-urgu{background:var(--urgu-och)}
+.bolim.quti-urgu .bolim-bosh{color:var(--urgu)}
+.bolim.quti-yashil{background:var(--yashil-och)}
+.bolim.quti-yashil .bolim-bosh{color:var(--yashil)}
+.bolim.quti-yashil p{color:var(--yashil)}
+.bolim.quti-qizil{background:var(--qizil-och)}
+.bolim.quti-qizil .bolim-bosh,.bolim.quti-qizil p{color:var(--qizil)}
+.teglar{display:flex;flex-wrap:wrap;gap:6px}
+.teg{background:var(--panel);border:1px solid var(--chiziq);border-radius:99px;
+  padding:6px 11px;font-size:12.5px;font-weight:600;color:var(--kul)}

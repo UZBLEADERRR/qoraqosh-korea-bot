@@ -21,6 +21,29 @@ function xabarga(parts) {
   return [{ role: 'user', content: tarkib }];
 }
 
+/**
+ * Gemini'ga xos kalitlarni olib tashlaydi.
+ *
+ * `propertyOrdering` — Google kengaytmasi. OpenAI uslubidagi qat'iy
+ * (strict) json_schema tekshiruvi notanish kalitni ko'rsa BUTUN so'rovni
+ * 400 bilan rad etadi va skaner ishlamay qoladi.
+ */
+function sxemaniTozala(x) {
+  if (Array.isArray(x)) return x.map(sxemaniTozala);
+  if (!x || typeof x !== 'object') return x;
+  const chiqish = {};
+  for (const [k, v] of Object.entries(x)) {
+    if (k === 'propertyOrdering') continue;
+    chiqish[k] = sxemaniTozala(v);
+  }
+  // strict rejimda hamma xossa "required" bo'lishi va qo'shimchasi
+  // taqiqlanishi kerak
+  if (chiqish.type === 'object' && chiqish.properties && chiqish.additionalProperties === undefined) {
+    chiqish.additionalProperties = false;
+  }
+  return chiqish;
+}
+
 function xatoTashla(kod, matn) {
   const e = new Error(`OpenRouter HTTP ${kod}: ${String(matn).slice(0, 400)}`);
   e.turkum = kod === 401 || kod === 403 ? 'kalit'
@@ -39,6 +62,8 @@ function xatoTashla(kod, matn) {
 export async function openrouterJson(parts, schema, opts = {}) {
   const model = opts.orModel || config.openrouterModel;
   let oxirgi;
+
+  const tozaSxema = sxemaniTozala(schema);
 
   for (let urinish = 0; urinish < 3; urinish++) {
     const qattiqSxema = urinish === 0;
@@ -67,10 +92,12 @@ export async function openrouterJson(parts, schema, opts = {}) {
           temperature: opts.temperature ?? 0.4,
           max_tokens: opts.maxTokens ?? 8192,
           response_format: qattiqSxema
-            ? { type: 'json_schema', json_schema: { name: 'natija', strict: true, schema } }
+            ? { type: 'json_schema', json_schema: { name: 'natija', strict: true, schema: tozaSxema } }
             : { type: 'json_object' },
-          // Thinking modellarida o'ylashni o'chiramiz — javob byudjetini yemasin
-          reasoning: { max_tokens: 0, exclude: true },
+          // Thinking modellarida o'ylashni o'chiramiz — javob byudjetini
+          // yemasin. Ba'zi modellar `reasoning` ni umuman qabul qilmaydi va
+          // 400 qaytaradi, shuning uchun ikkinchi urinishdan uni yubormaymiz.
+          ...(urinish === 0 ? { reasoning: { max_tokens: 0, exclude: true } } : {}),
         }),
       });
     } catch (e) {
@@ -79,9 +106,12 @@ export async function openrouterJson(parts, schema, opts = {}) {
       continue;
     } finally { clearTimeout(timer); }
 
-    if (res.status === 400 && qattiqSxema) {
-      // Model json_schema ni qo'llab-quvvatlamadi — soddaroq rejimda qaytamiz
-      oxirgi = new Error('json_schema qo‘llab-quvvatlanmadi');
+    if (res.status === 400 && urinish < 2) {
+      // Model json_schema yoki reasoning ni qo'llab-quvvatlamadi —
+      // soddaroq rejimda qaytamiz. Haqiqiy sabab logda qolsin.
+      const matn = await res.text().catch(() => '');
+      console.warn(`OpenRouter 400 (urinish ${urinish}) → soddalashtiramiz: ${matn.slice(0, 300)}`);
+      oxirgi = new Error('json_schema/reasoning qo‘llab-quvvatlanmadi');
       continue;
     }
     if (res.status === 429 || res.status >= 500) {

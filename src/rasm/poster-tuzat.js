@@ -39,7 +39,7 @@ export function rasmOlchami(bayt) {
   return null;
 }
 
-const NISBAT_SON = { '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '16:9': 16 / 9 };
+const NISBAT_SON = { '1:1': 1, '3:4': 3 / 4, '4:3': 4 / 3, '9:16': 9 / 16, '16:9': 16 / 9 };
 
 /**
  * Rasmni kerakli nisbatga KESADI (markazdan) va ustiga yozuv qo'yadi.
@@ -47,13 +47,13 @@ const NISBAT_SON = { '1:1': 1, '4:5': 4 / 5, '9:16': 9 / 16, '16:9': 16 / 9 };
  * @param {object} p
  * @param {string} p.base64
  * @param {string} p.mime
- * @param {string} p.nisbat     '1:1' | '4:5' | '9:16' | '16:9'
+ * @param {string} p.nisbat     '1:1' | '3:4' | '4:3' | '9:16' | '16:9'
  * @param {string} [p.matnBosh] sarlavha — biz yozamiz, model emas
  * @param {string} [p.matnQosh] ostidagi qator
  * @returns {Promise<{base64:string, mime:string, kesildi:boolean}>}
  */
 export async function posterniTuzat({ base64, mime, nisbat, matnBosh = '', matnQosh = '' }) {
-  const maqsad = NISBAT_SON[nisbat] || NISBAT_SON['4:5'];
+  const maqsad = NISBAT_SON[nisbat] || NISBAT_SON['3:4'];
   const bayt = Buffer.from(base64, 'base64');
   const o = rasmOlchami(bayt);
   const yozuvBor = Boolean(String(matnBosh).trim() || String(matnQosh).trim());

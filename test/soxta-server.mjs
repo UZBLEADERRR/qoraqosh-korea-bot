@@ -239,15 +239,29 @@ export function soxtaServer(port = 4444) {
 
       if (yol.includes(':generateContent')) {
         const b = JSON.parse(await tana(req) || '{}');
-        // Rasm chizish so'rovi — JSON sxema bo'lmaydi, rasm qaytariladi
-        if (!b.generationConfig?.responseSchema) {
+        // Google ba'zi sozlamalarni qabul qilmay 400 qaytaradi. Server
+        // so'rovni SODDALASHTIRIB qayta urinishi kerak — shuni sinaymiz.
+        if (globalThis.AI_400 > 0) {
+          globalThis.AI_400 -= 1;
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: { code: 400,
+            message: 'Invalid JSON payload received. Unknown name "thinkingConfig".' } }));
+        }
+        // Rasm chizish so'rovi — responseModalities: ['IMAGE'] bilan keladi.
+        // (Sxema yo'qligiga qarab bo'lmaydi: server 400 dan keyin sxemani
+        // promptga ko'chirib, sxemasiz ham JSON so'raydi.)
+        if ((b.generationConfig?.responseModalities || []).includes('IMAGE')) {
           return j({ candidates: [{ finishReason: 'STOP', content: { parts: [
             { inline_data: { mime_type: 'image/png', data: png().toString('base64') } }] } }] });
         }
         const kichik = (b.generationConfig?.maxOutputTokens || 0) < 512;
         // Haqiqiy hayotdagi kabi: byudjet kichik bo'lsa o'ylash uni yeb qo'yadi
         if (kichik) return j({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [] } }] });
-        const sxema = JSON.stringify(b.generationConfig?.responseSchema || {});
+        // Sxema so'rovda bo'lmasa promptdan qidiramiz — soddalashtirilgan
+        // rejimda u matn bo'lib yuboriladi
+        const sxema = b.generationConfig?.responseSchema
+          ? JSON.stringify(b.generationConfig.responseSchema)
+          : (b.contents?.[0]?.parts || []).map((x) => x.text || '').join(' ');
         return j({ candidates: [{ content: { parts: [{ text: javobMatni(sxema) }] }, finishReason: 'STOP' }] });
       }
 

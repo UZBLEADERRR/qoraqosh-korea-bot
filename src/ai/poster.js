@@ -4,12 +4,19 @@
 import { aiJson, aiRasm, rasmPart, aiBormi } from './index.js';
 import { posterniTuzat } from '../rasm/poster-tuzat.js';
 
-/** Joylashuvga qarab o'lchamlar. */
+/**
+ * Joylashuvga qarab o'lchamlar.
+ *
+ * FAQAT model qo'llab-quvvatlaydigan nisbatlar. Ilgari 4:5 ham bor edi —
+ * model uni tanimay, rasmni o'z o'lchamida chizib, yon tomonlariga QORA
+ * chiziq qo'shib qaytarardi. Katalogda ana shu qora yo'l ko'rinardi.
+ */
 export const NISBATLAR = {
-  '1:1':  { nom: 'Kvadrat',        joy: 'Katalog kartochkasi, Instagram post', px: '1024×1024' },
-  '4:5':  { nom: 'Vertikal',       joy: 'Instagram lentasi (eng ko‘p joy egallaydi)', px: '1024×1280' },
-  '9:16': { nom: 'Story',          joy: 'Instagram/Telegram story, Reels', px: '1024×1820' },
-  '16:9': { nom: 'Gorizontal',     joy: 'Telegram kanal banneri, sayt sarlavhasi', px: '1820×1024' },
+  '1:1':  { nom: 'Kvadrat',    joy: 'Katalog kartochkasi, Instagram post', px: '1024×1024' },
+  '3:4':  { nom: 'Vertikal',   joy: 'Instagram lentasi, mahsulot kartochkasi', px: '1024×1365' },
+  '4:3':  { nom: 'Albom',      joy: 'Karusel va banner', px: '1365×1024' },
+  '9:16': { nom: 'Story',      joy: 'Instagram/Telegram story, Reels', px: '1024×1820' },
+  '16:9': { nom: 'Gorizontal', joy: 'Telegram kanal banneri, sayt sarlavhasi', px: '1820×1024' },
 };
 
 const GOYA_SXEMA = {
@@ -26,7 +33,7 @@ const GOYA_SXEMA = {
           kimga:     { type: 'string' },
           matn_bosh: { type: 'string' },
           matn_qosh: { type: 'string' },
-          nisbat:    { type: 'string', enum: ['1:1','4:5','9:16','16:9'] },
+          nisbat:    { type: 'string', enum: ['1:1','3:4','4:3','9:16','16:9'] },
           prompt:    { type: 'string' },
         },
         required: ['sarlavha','uslub','tavsif','kimga','matn_bosh','matn_qosh','nisbat','prompt'],
@@ -62,7 +69,8 @@ Har bir g'oya uchun:
 - kimga: qaysi auditoriyaga (masalan "18-25 yosh, akneli teri")
 - matn_bosh: posterdagi ASOSIY yozuv, o'zbekcha, 2-5 so'z, kuchli
 - matn_qosh: kichik qo'shimcha yozuv, o'zbekcha, 4-8 so'z
-- nisbat: qaysi o'lcham eng mos (1:1, 4:5, 9:16, 16:9)
+- nisbat: qaysi o'lcham eng mos (1:1, 3:4, 4:3, 9:16, 16:9).
+  Katalog kartochkasi uchun 1:1 yoki 3:4 ni tanla.
 - prompt: rasm chizuvchi modelga INGLIZ tilida batafsil ko'rsatma.
   Muhim qoidalar prompt uchun:
     * mahsulot qadog'i tayanch rasmdagidek AYNAN saqlansin (shakl, rang, etiketka)
@@ -95,7 +103,7 @@ export async function posterGoyalari(base64, mime, mahsulot) {
     kimga:     s(g.kimga, 80),
     matn_bosh: s(g.matn_bosh, 60),
     matn_qosh: s(g.matn_qosh, 120),
-    nisbat:    NISBATLAR[g.nisbat] ? g.nisbat : '4:5',
+    nisbat:    NISBATLAR[g.nisbat] ? g.nisbat : '3:4',
     prompt:    s(g.prompt, 1800),
   }));
 }
@@ -109,7 +117,7 @@ export async function posterGoyalari(base64, mime, mahsulot) {
  * qo'yamiz (repozitoriyadagi shrift bilan, imlo har doim to'g'ri).
  */
 export async function posterChiz({ base64, mime, prompt, nisbat, matn_bosh, matn_qosh }) {
-  const nis = NISBATLAR[nisbat] ? nisbat : '4:5';
+  const nis = NISBATLAR[nisbat] ? nisbat : '3:4';
 
   const yozuv = (matn_bosh || matn_qosh)
     ? `\n\nDo NOT render any text, letters, numbers, logos or watermarks in the
@@ -122,7 +130,9 @@ be placed there afterwards.`
 The product in the reference image must be reproduced faithfully — same bottle
 shape, same colours, same label layout. This is a commercial advertising poster:
 professional studio lighting, sharp focus on the product, magazine quality.
-Aspect ratio ${nis}.${yozuv}`;
+Aspect ratio ${nis} — the artwork must FILL the whole frame edge to edge.
+Never add black bars, white borders, letterboxing, framing or padding of any
+kind: no part of the canvas may be left empty.${yozuv}`;
 
   const parts = base64
     ? [{ text: toliq }, rasmPart(base64, mime || 'image/jpeg')]

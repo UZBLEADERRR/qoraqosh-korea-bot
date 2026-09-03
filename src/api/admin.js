@@ -450,7 +450,7 @@ export async function adminRoutes(req, res, yol) {
       const saqlangan = await qator(
         `insert into media (tur, mime, bayt, hajm, nisbat, product_id, prompt, goya)
          values ('poster',$1,$2,$3,$4,$5,$6,$7) returning id, nisbat, hajm, created_at`,
-        [chizilgan.mime, bayt, bayt.length, b.nisbat || '4:5',
+        [chizilgan.mime, bayt, bayt.length, b.nisbat || '3:4',
          b.product_id ? Number(b.product_id) : null,
          String(b.prompt).slice(0, 2000), String(b.goya || '').slice(0, 120)]);
 

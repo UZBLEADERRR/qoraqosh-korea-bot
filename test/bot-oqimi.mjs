@@ -66,8 +66,11 @@ test('izohda yosh va teri turi bor', /👤 .+ · /.test(botMatni));
 test('izohda teri rangi bor', /🎨 /.test(botMatni));
 test('izohda teri holati bali bor', /\d+\/100/.test(botMatni));
 test('izohda shkala bor', /■/.test(botMatni));
-test('muammolar foizi bilan ko‘rsatilgan', /— \d+%/.test(botMatni));
-test('muammo zonasi ko‘rsatilgan', /📍/.test(botMatni));
+test('nechta belgi topilgani aytilgan', /\d+ ta belgi<\/b> aniqlandi/.test(botMatni));
+test('eng kuchli belgi aytilgan', /eng kuchlisi/.test(botMatni));
+// Muammolar RO'YXATI botda YO'Q: u rasmda va ilovada — bot xabari
+// odamni tugmani bosishga olib borishi kerak
+test('muammolar ro‘yxati botda YO‘Q', !/📍/.test(botMatni));
 test('qalin va kursiv yozuv ishlatilgan',
   /<b>/.test(botMatni) && /<i>/.test(botMatni));
 // Prognoz, sabab va yechim ATAYLAB botda yo'q — ular ilovada
@@ -78,7 +81,7 @@ test('sabab va yechim botda YO‘Q — ular ilovada',
 // xabarni umuman yuborilmaydigan qiladi
 test('izoh Telegram chegarasiga sig‘adi', botMatni.length <= 1024,
   `${botMatni.length} belgi`);
-test('ilovaga chaqiriq bor', /tavsiyalarni ko‘ring/i.test(botMatni));
+test('ilovaga chaqiriq bor', /tugmani bosing/i.test(botMatni));
 test('tibbiy ogohlantirish bor', /tashxis emas/.test(botMatni));
 test('«Tavsiyani ochish» tugmasi bor',
   (oxirgi().reply_markup?.inline_keyboard || []).flat()
@@ -100,6 +103,23 @@ for (const [data, kutilgan] of [
   yuborilgan.length = 0;
   await bosish(data);
   test(`tugma «${data}» ishlaydi`, kutilgan.test(oxirgi().text || ''));
+}
+
+// ═══════════ AI 400 QAYTARSA ═══════════
+// Google ba'zan sozlamalardan birini qabul qilmay 400 beradi (masalan
+// thinkingConfig yoki sxemadagi kalit). Ilgari butun skaner ishlamay
+// qolardi va mijozga «JPG yuboring» deb noto'g'ri xabar ketardi.
+{
+  await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
+  globalThis.AI_400 = 2;                 // ikki marta 400, keyin ishlaydi
+  yuborilgan.length = 0;
+  await rasmYubor();
+  globalThis.AI_400 = 0;
+  test('AI 400 qaytarsa ham tahlil chiqadi',
+    korinadigan().some((x) => /Tahlil natijasi/.test(x.text || '')),
+    korinadigan().map((x) => (x.text || '').slice(0, 40)).join(' | '));
+  test('mijozga «JPG yuboring» deb noto‘g‘ri xabar ketmaydi',
+    !korinadigan().some((x) => /JPG yoki PNG/.test(x.text || '')));
 }
 
 // ═══════════ SKANER NAMUNASI ═══════════

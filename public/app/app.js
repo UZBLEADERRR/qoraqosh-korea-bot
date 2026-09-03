@@ -500,27 +500,66 @@ function mahsulotOyna(id) {
   if (!p) return;
   titra();
   const savatda = holat.savat.find((s) => s.products.id === id)?.quantity || 0;
+
+  // Har ma'lumot ALOHIDA rangli plitka: ilgari hammasi bir xil kulrang
+  // jadval bo'lib turardi va muhimi ko'zga tashlanmasdi.
+  const plitka = (ikon, sarlavha, qiymat, tus) => `
+    <div class="plitka ${tus}">
+      <span class="plitka-bosh">${ik(ikon, 14)}${sarlavha}</span>
+      <span class="plitka-qiymat">${qiymat}</span>
+    </div>`;
+
   $('#modal-tan').innerHTML = `
-    ${rasmHtml(p, 'aspect-ratio:1/1;font-size:64px')}
+    ${rasmHtml(p, p.poster_id ? 'aspect-ratio:1/1' : 'aspect-ratio:16/9')}
     <div style="padding:18px 18px 0">
       <div class="mbrend">${esc(p.brand || '')}</div>
       <h2 style="margin:5px 0 10px">${esc(p.name)}</h2>
-      <div style="font-size:23px;font-weight:700">${narx(p.price)}
-        ${p.old_price && p.old_price > p.price ? `<s style="font-size:15px;color:var(--och);font-weight:400">${narx(p.old_price)}</s>` : ''}</div>
-      ${p.description ? `<p class="mayda" style="margin-top:12px">${esc(p.description)}</p>` : ''}
-      <div style="margin-top:12px">
-        ${p.volume    ? qtr('Hajm', esc(p.volume)) : ''}
-        ${p.country   ? qtr('Ishlab chiqarilgan', esc(p.country === 'KR' ? 'Koreya' : p.country)) : ''}
-        ${p.skin_types?.length ? qtr('Teri turi', p.skin_types.map(esc).join(', ')) : ''}
-        ${p.concerns?.length   ? qtr('Yordam beradi', p.concerns.map(esc).join(', ')) : ''}
-        ${qtr('Omborda', p.stock > 0 ? `${p.stock} dona` : '<span style="color:var(--qizil)">tugagan</span>')}
+      <div class="narx-satr">
+        <span class="narx-katta">${narx(p.price)}</span>
+        ${p.old_price && p.old_price > p.price
+          ? `<s>${narx(p.old_price)}</s>
+             <span class="chegirma-nishon">−${Math.round((1 - p.price / p.old_price) * 100)}%</span>` : ''}
       </div>
-      ${p.usage_text ? `<div class="ogoh" style="margin-top:14px"><b>Qanday foydalanish</b><br>${esc(p.usage_text)}</div>` : ''}
-      ${p.ingredients ? `<div style="margin-top:12px"><h3>Tarkibi</h3>
-        <p class="mayda" style="margin-top:5px">${esc(p.ingredients)}</p></div>` : ''}
-      ${p.warnings ? `<div class="ogoh" style="margin-top:12px;background:var(--qizil-och);color:var(--qizil)">${esc(p.warnings)}</div>` : ''}
+      ${p.description ? `<p class="tavsif">${esc(p.description)}</p>` : ''}
+
+      <div class="plitkalar">
+        ${p.volume  ? plitka('shisha', 'Hajmi', esc(p.volume), 'urgu') : ''}
+        ${p.country ? plitka('quti', 'Ishlab chiqarilgan',
+            esc(p.country === 'KR' ? 'Koreya' : p.country), 'sariq') : ''}
+        ${plitka('quti', 'Omborda', p.stock > 0 ? `${p.stock} dona` : 'tugagan',
+            p.stock > 0 ? 'yashil' : 'qizil')}
+        ${p.skin_types?.length
+          ? plitka('tomchi', 'Teri turi', p.skin_types.map(esc).join(', '), 'kul') : ''}
+      </div>
+
+      ${p.concerns?.length ? `
+        <div class="bolim">
+          <div class="bolim-bosh">${ik('tozalik', 16)}Nimaga yordam beradi</div>
+          <div class="teglar">${p.concerns.map((c) => `<span class="teg">${esc(c)}</span>`).join('')}</div>
+        </div>` : ''}
+
+      ${p.usage_text ? `
+        <div class="bolim quti-urgu">
+          <div class="bolim-bosh">${ik('soat', 16)}Qanday foydalanish</div>
+          <p>${esc(p.usage_text)}</p>
+        </div>` : ''}
+
+      ${p.ingredients ? `
+        <div class="bolim quti-yashil">
+          <div class="bolim-bosh">${ik('barg', 16)}Tarkibi</div>
+          <p>${esc(p.ingredients)}</p>
+        </div>` : ''}
+
+      ${p.warnings ? `
+        <div class="bolim quti-qizil">
+          <div class="bolim-bosh">${ik('ogoh', 16)}Ehtiyot bo‘ling</div>
+          <p>${esc(p.warnings)}</p>
+        </div>` : ''}
+
       <button class="asosiy" style="margin-top:18px" id="t-savatga" ${p.stock > 0 ? '' : 'disabled'}>
-        ${p.stock > 0 ? (savatda ? `Savatda (${savatda}) · yana qo‘shish` : 'Savatga qo‘shish') : 'Omborda yo‘q'}
+        ${p.stock > 0
+          ? `${ik('savat', 18)}${savatda ? `Savatda (${savatda}) · yana qo‘shish` : 'Savatga qo‘shish'}`
+          : 'Omborda yo‘q'}
       </button>
     </div>`;
   modalOch();

@@ -67,12 +67,16 @@ export async function qisqaIzoh(a, tavsiyaSoni = 0, maxMuammo = 4) {
     const korsatilgan = qatorlar.slice(0, n);
     const qolgan = hammasi.length - korsatilgan.length;
     if (qolgan > 0) korsatilgan.push(`<i>…va yana ${qolgan} tasi ilovada</i>`);
+    const eng = hammasi.slice().sort((p, q) => (q.foiz ?? 0) - (p.foiz ?? 0))[0];
     return xabar('xabar_tahlil_qisqa', {
       yosh:       esc(a.taxminiy_yosh || '—'),
       teri_turi:  esc(a.teri_turi || '—'),
       teri_rangi: esc(rangMatni(a.teri_rangi)),
       ball:       a.ball ?? 0,
       shkala:     shkala(a.ball ?? 0),
+      muammo_soni: hammasi.length,
+      // Eng kuchli belgi — odam nimadan xavotirlanishini darrov ko'radi
+      eng_kuchli: eng ? `, eng kuchlisi — <b>${esc(eng.nom)}</b>` : '',
       muammolar:  korsatilgan.length ? korsatilgan.join('\n\n')
                                      : 'Sezilarli belgi topilmadi 👌',
       tavsiya_soni: tavsiyaSoni,
@@ -94,16 +98,13 @@ const IZOH_STANDART =
 🎨 {teri_rangi}
 
 ✨ Teri holati: <b>{ball}/100</b>
-
 {shkala}
 
-🔍 <b>Aniqlangan muammolar</b>
+🔍 <b>{muammo_soni} ta belgi</b> aniqlandi{eng_kuchli}
+💡 Sizga <b>{tavsiya_soni} ta mahsulot</b> tanlandi
 
-{muammolar}
-
-💡 Siz uchun <b>{tavsiya_soni} ta mahsulot</b> tanlandi
-
-<i>Teri muammolaringizga mos tavsiyalarni ko‘ring</i> 👇
+<i>Muammolar, sabablari va yechimi — ilovada.
+Pastdagi tugmani bosing</i> 👇
 
 ⚕️ <i>AI tahlili tibbiy tashxis emas.</i>`;
 

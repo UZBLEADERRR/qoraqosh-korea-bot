@@ -10,16 +10,31 @@ const kut = (ms) => new Promise((r) => setTimeout(r, ms));
  * Shuning uchun tuzilgan (JSON) javoblarda o'ylashni o'chiramiz va
  * byudjetni keng qo'yamiz.
  */
-function tana(parts, schema, opts) {
+/**
+ * So'rov tanasi.
+ *
+ * `rejim` — SODDALASHTIRISH bosqichi. Google 400 qaytarsa aybdor odatda
+ * qo'shimcha sozlama bo'ladi (sxemadagi biror kalit, thinkingConfig,
+ * safetySettings) — modeldan yoki API versiyasidan qat'i nazar ishlashi
+ * uchun ularni bosqichma-bosqich olib tashlaymiz:
+ *   0 — hammasi (sxema + o'ylash sozlamasi)
+ *   1 — o'ylash sozlamasisiz
+ *   2 — SXEMASIZ: sxema promptga matn bo'lib qo'shiladi
+ * Shunda bitta sozlama yoqmagani uchun butun skaner ishdan chiqmaydi.
+ */
+function tana(parts, schema, opts, rejim = 0) {
   const oylash = opts.oylash ?? 0;
+  const bolaklar = rejim >= 2
+    ? [{ text: `Javobni FAQAT shu JSON sxemasiga mos qaytar:\n${JSON.stringify(schema)}` }, ...parts]
+    : parts;
   return {
-    contents: [{ role: 'user', parts }],
+    contents: [{ role: 'user', parts: bolaklar }],
     generationConfig: {
       temperature: opts.temperature ?? 0.4,
       responseMimeType: 'application/json',
-      responseSchema: schema,
+      ...(rejim >= 2 ? {} : { responseSchema: schema }),
       maxOutputTokens: opts.maxTokens ?? 8192,
-      ...(oylash >= 0 ? { thinkingConfig: { thinkingBudget: oylash } } : {}),
+      ...(rejim >= 1 || oylash < 0 ? {} : { thinkingConfig: { thinkingBudget: oylash } }),
     },
     safetySettings: [
       'HARM_CATEGORY_HARASSMENT', 'HARM_CATEGORY_HATE_SPEECH',
@@ -41,11 +56,13 @@ function xatoTashla(kod, matn) {
 export async function googleJson(parts, schema, opts = {}) {
   const model = opts.model || config.geminiModel;
   let oxirgi;
+  // 400 kelganda so'rovni soddalashtiramiz (tana() dagi izohga qarang)
+  let rejim = 0;
 
-  for (let urinish = 0; urinish < 3; urinish++) {
+  for (let urinish = 0; urinish < 4; urinish++) {
     // Har qayta urinishda byudjetni IKKI BAROBAR oshiramiz:
     // 8192 → 16384 → 32768. Javob uzilib qolgan bo'lsa shu yordam beradi.
-    const maxTokens = (opts.maxTokens ?? 8192) * (1 << urinish);
+    const maxTokens = (opts.maxTokens ?? 8192) * (1 << Math.min(2, urinish));
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 60000);
     let res;
@@ -53,7 +70,7 @@ export async function googleJson(parts, schema, opts = {}) {
       res = await fetch(`${config.geminiApi}/${model}:generateContent?key=${config.geminiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(tana(parts, schema, { ...opts, maxTokens })),
+        body: JSON.stringify(tana(parts, schema, { ...opts, maxTokens }, rejim)),
         signal: ctrl.signal,
       });
     } catch (e) {
@@ -66,6 +83,15 @@ export async function googleJson(parts, schema, opts = {}) {
       oxirgi = Object.assign(new Error(`Google HTTP ${res.status}`),
         { turkum: res.status === 429 ? 'kvota' : 'band' });
       await kut(900 * (urinish + 1));
+      continue;
+    }
+    if (res.status === 400 && rejim < 2) {
+      // Sozlamalardan biri yoqmadi — soddalashtirib qayta urinamiz.
+      // Haqiqiy sababni logga yozamiz: mijozga "JPG yuboring" deb
+      // aytish noto'g'ri bo'lardi, muammo rasmda emas.
+      const matn = await res.text().catch(() => '');
+      console.warn(`Google 400 (rejim ${rejim}) → soddalashtiramiz: ${matn.slice(0, 300)}`);
+      rejim += 1;
       continue;
     }
     if (!res.ok) xatoTashla(res.status, await res.text().catch(() => ''));

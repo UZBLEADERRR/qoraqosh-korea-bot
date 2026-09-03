@@ -33,11 +33,12 @@ export const GURUHLAR = [
 export const TAVSIF = {
   xabar_tahlil_qisqa: {
     nom: 'Rasm ostidagi izoh',
-    izoh: 'ASOSIY xabar: tahlil rasmi bilan birga ketadi. Telegram izohni '
-        + '1024 belgida kesadi — uzaytirsangiz muammolar avtomatik kamayadi. '
-        + 'Sabab va yechim bu yerda YO‘Q: ular ilovada.',
-    orin: ['yosh', 'teri_turi', 'teri_rangi', 'ball', 'shkala', 'muammolar',
-           'tavsiya_soni'],
+    izoh: 'ASOSIY xabar: tahlil rasmi bilan birga ketadi. Qisqa bo‘lsin — '
+        + 'teri ma’lumoti va nechta belgi topilgani yetadi, qolgani ilovada. '
+        + '{muammolar} qo‘ysangiz ro‘yxat ham chiqadi (Telegram izohni 1024 '
+        + 'belgida kesadi, shuning uchun u avtomatik qisqaradi).',
+    orin: ['yosh', 'teri_turi', 'teri_rangi', 'ball', 'shkala', 'muammo_soni',
+           'eng_kuchli', 'tavsiya_soni', 'muammolar'],
   },
   xabar_tahlil_bosh: {
     nom: 'Tahlil sarlavhasi (zaxira)',
@@ -122,16 +123,13 @@ Suratingizni yuboring 📸
 🎨 {teri_rangi}
 
 ✨ Teri holati: <b>{ball}/100</b>
-
 {shkala}
 
-🔍 <b>Aniqlangan muammolar</b>
+🔍 <b>{muammo_soni} ta belgi</b> aniqlandi{eng_kuchli}
+💡 Sizga <b>{tavsiya_soni} ta mahsulot</b> tanlandi
 
-{muammolar}
-
-💡 Siz uchun <b>{tavsiya_soni} ta mahsulot</b> tanlandi
-
-<i>Teri muammolaringizga mos tavsiyalarni ko‘ring</i> 👇
+<i>Muammolar, sabablari va yechimi — ilovada.
+Pastdagi tugmani bosing</i> 👇
 
 ⚕️ <i>AI tahlili tibbiy tashxis emas.</i>`,
 

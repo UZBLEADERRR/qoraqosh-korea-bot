@@ -11,7 +11,11 @@ const TURKUM_MATNI = {
   json:        '🤖 AI javobi tushunarsiz chiqdi. Qayta urinib ko‘ring.',
   bosh:        '🤖 AI javob qaytarmadi. Qayta urinib ko‘ring.',
   uzilgan:     '🤖 AI javobi uzilib qoldi. Qayta urinib ko‘ring.',
-  sorov:       '🖼 Rasmni AI qabul qilmadi. Boshqa formatdagi surat yuboring (JPG yoki PNG).',
+  // 400 — deyarli har doim SO'ROV sozlamasida, rasmda emas. Mijozga
+  // "JPG yuboring" deb aytish noto'g'ri: u rasmni almashtirib ovora
+  // bo'ladi, muammo esa serverda. Aniq sabab logga yoziladi.
+  sorov:       '🤖 AI so‘rovni qabul qilmadi. Bir daqiqadan so‘ng qayta urinib ko‘ring — '
+             + 'takrorlansa administratorga xabar bering.',
   fayl:        '📥 Rasmni yuklab bo‘lmadi. Qayta yuboring.',
   fayl_katta:  '📦 Rasm juda katta. Kichikroq surat yuboring.',
   baza:        '🗄 Ma’lumotlar bazasiga ulanib bo‘lmadi. Bir ozdan so‘ng urinib ko‘ring.',
