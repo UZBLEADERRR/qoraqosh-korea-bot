@@ -18,16 +18,20 @@ Google Gemini · Railway.
   profil, konsultatsiya va yordam Mini App'ning **👤 Profil** bo'limiga
   ko'chirildi: oltita tugma orasida asosiy amal ko'zdan yo'qolardi.
 - **Yuz skaneri** — botda ham, Mini App ichida ham ishlaydi.
-  **Botdan BITTA xabar keladi:** natija rasmi + ~250 belgilik izoh (ball,
-  nechta belgi topilgani, eng kuchlisi, nechta mahsulot tanlangani va
-  tibbiy ogohlantirish) + **«💡 Tavsiyani ochish»** tugmasi. Belgilar
-  ro'yxati RASMDA, sabab-yechim-prognoz va parvarish tartibi esa ILOVADA.
-  Ilgari rasmdan keyin yana uzun matn ketardi va u rasmda ko'ringanni
-  takrorlardi: chat to'lib, tugma pastda qolib ketardi. Botning butun
-  vazifasi — ilovaga olib kirish.
+  **Botdan BITTA xabar keladi:** natija rasmi + izoh + **«💡 Tavsiyani
+  ochish»** tugmasi. Izohda: yosh va teri turi, teri rangi, ball va
+  shkala, topilgan belgilar (nomi qalin, foizi va 📍 zonasi), so'ng
+  ilovaga chaqiriq va tibbiy ogohlantirish kursivda. **Sabab, yechim,
+  prognoz va parvarish tartibi bu yerda YO'Q** — ular ilovada, chunki
+  xabarning vazifasi tugmani bostirish. Telegram rasm izohini 1024
+  belgida kesadi (kesilgan HTML teg xabarni umuman yuborilmaydigan
+  qiladi), shuning uchun matn uzayib ketsa muammolar avtomatik
+  kamayadi va «…va yana N tasi ilovada» deb yoziladi.
 - **Namuna surat** — «Yuz skaneri» ochilganda qanday rasm kutilayotgani
-  ko'rsatiladi (admin panelidan yuklanadi). Odam ko'rsatmani o'qib emas,
-  ko'rib tushunadi.
+  ko'rsatiladi: **botda ham** (ko'rsatma o'sha rasmning izohi bo'lib
+  keladi), Mini App'da ham. Admin panelidan yuklanadi; qo'yilmagan
+  bo'lsa oddiy matn ketadi. Odam ko'rsatmani o'qib emas, ko'rib
+  tushunadi.
 - **Rasm sifati nazorati — qat'iy.** Uzoq, xira, qorong'i, yuzi yopiq, bir
   nechta odam, qalin pardoz, ekrandan olingan yoki **AI/deepfake** rasm rad
   etiladi. Qoida: **ikkilansa — rad etadi.** Teri TEKSTURASI (teshiklar,

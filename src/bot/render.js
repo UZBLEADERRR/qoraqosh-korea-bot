@@ -1,7 +1,7 @@
 // Bot xabarlari. Matnlar bazadagi shablonlardan olinadi (admin panelida
 // tahrirlanadi), bu yerda faqat ular qanday to'ldirilishi yozilgan.
 import { esc, narx } from './format.js';
-import { xabar, shkala, darajaNuqta } from './shablon.js';
+import { xabar, shkala, darajaNuqta, darajaFoizdan } from './shablon.js';
 import { RAD_SABABLARI } from '../ai/faceAnalysis.js';
 import { brendNomi } from '../lib/brend.js';
 
@@ -24,34 +24,88 @@ const holatSozi = (b) =>
   b >= 80 ? 'a’lo 👏' : b >= 65 ? 'yaxshi 🙂' : b >= 50 ? "o‘rtacha 😌"
   : b >= 35 ? "e’tibor kerak 😕" : 'zaif 😟';
 
+/** «och bug'doyrang, sovuq ton» -> «Och bug'doyrang · Sovuq ton». */
+function rangMatni(xom) {
+  const bolaklar = String(xom || '').split(/\s*[,;·]\s*/).filter(Boolean)
+    .map((x) => x.charAt(0).toUpperCase() + x.slice(1));
+  return bolaklar.join(' · ');
+}
+
+// Telegram rasm izohini 1024 belgida kesadi. Kesilgan HTML teg xabarni
+// umuman yubormaslikka olib keladi, shuning uchun chegaraga yaqinlashsak
+// muammolarni bittalab kamaytiramiz — matn hech qachon o'rtasidan kesilmaydi.
+const IZOH_CHEGARA = 980;
+
 /**
- * Rasm ostidagi qisqa izoh — botdagi ASOSIY xabar.
+ * Rasm ostidagi izoh — botdagi ASOSIY xabar.
  *
- * Ilgari bot ikkita xabar yuborardi: rasm + uzun matn. Matn rasmda
- * ko'ringan narsani takrorlardi va chat to'lib ketardi. Endi bitta xabar:
- * rasm, ostida bir necha qator va tugmalar. Tafsilot rasmda, to'liq
- * ma'lumot ilovada.
+ * Tuzilishi: yosh va teri turi, rangi, ball va shkala, topilgan belgilar
+ * (nomi, foizi, zonasi), so'ng ilovaga chaqiriq. Sabab, yechim va
+ * bosqichma-bosqich parvarish ILOVADA — bu yerda ataylab yo'q: xabarning
+ * vazifasi «Tavsiyani ochish» tugmasini bostirish.
  *
  * @param {object} a            tahlil natijasi
  * @param {number} tavsiyaSoni
+ * @param {number} maxMuammo    izohda nechtasi ko'rsatilsin
  */
-export async function qisqaIzoh(a, tavsiyaSoni = 0) {
-  const muammolar = a.muammolar || [];
-  const eng = muammolar.slice().sort((x, y) => (y.foiz ?? 0) - (x.foiz ?? 0))[0];
+export async function qisqaIzoh(a, tavsiyaSoni = 0, maxMuammo = 4) {
+  const hammasi = a.muammolar || [];
 
-  return xabar('xabar_tahlil_qisqa', {
-    ball:        a.ball ?? 0,
-    yosh:        esc(a.taxminiy_yosh || ''),
-    teri_turi:   esc(a.teri_turi || ''),
-    muammo_soni: muammolar.length,
-    // Bitta ham belgi topilmasa «eng kuchlisi» degan qism umuman chiqmaydi
-    eng_kuchli:  eng ? ` — eng kuchlisi: <b>${esc(eng.nom)}</b> (${eng.foiz ?? 0}%)` : '',
-    tavsiya_soni: tavsiyaSoni,
-  }, '🔬 <b>Tahlil tayyor</b>\n\n✨ Teri holati: <b>{ball}/100</b>\n'
-   + '🔍 {muammo_soni} ta belgi topildi{eng_kuchli}\n\n'
-   + '💡 Siz uchun <b>{tavsiya_soni} ta mahsulot</b> tanlandi\nTavsiyalarni ko‘ring 👇\n\n'
-   + '⚕️ <i>AI tahlili tibbiy tashxis emas.</i>');
+  const qatorlar = [];
+  for (const m of hammasi.slice(0, maxMuammo)) {
+    const foiz = m.foiz ?? (m.daraja === 3 ? 80 : m.daraja === 2 ? 55 : 25);
+    qatorlar.push(await xabar('blok_muammo', {
+      nuqta: darajaNuqta(m.daraja || darajaFoizdan(foiz)),
+      nom:   esc(m.nom),
+      foiz,
+      zona:  esc(m.zona || ''),
+      shkala: shkala(foiz),
+    }, '{nuqta} <b>{nom}</b> — {foiz}%\n📍 {zona}'));
+  }
+
+  const yig = async (n) => {
+    const korsatilgan = qatorlar.slice(0, n);
+    const qolgan = hammasi.length - korsatilgan.length;
+    if (qolgan > 0) korsatilgan.push(`<i>…va yana ${qolgan} tasi ilovada</i>`);
+    return xabar('xabar_tahlil_qisqa', {
+      yosh:       esc(a.taxminiy_yosh || '—'),
+      teri_turi:  esc(a.teri_turi || '—'),
+      teri_rangi: esc(rangMatni(a.teri_rangi)),
+      ball:       a.ball ?? 0,
+      shkala:     shkala(a.ball ?? 0),
+      muammolar:  korsatilgan.length ? korsatilgan.join('\n\n')
+                                     : 'Sezilarli belgi topilmadi 👌',
+      tavsiya_soni: tavsiyaSoni,
+    }, IZOH_STANDART);
+  };
+
+  // Chegaraga sig'maguncha muammolarni kamaytiramiz
+  let matn = await yig(qatorlar.length);
+  for (let n = qatorlar.length - 1; n >= 0 && matn.length > IZOH_CHEGARA; n--) {
+    matn = await yig(n);
+  }
+  return matn;
 }
+
+const IZOH_STANDART =
+`🔬 <b>Tahlil natijasi</b>
+
+👤 {yosh} · {teri_turi}
+🎨 {teri_rangi}
+
+✨ Teri holati: <b>{ball}/100</b>
+
+{shkala}
+
+🔍 <b>Aniqlangan muammolar</b>
+
+{muammolar}
+
+💡 Siz uchun <b>{tavsiya_soni} ta mahsulot</b> tanlandi
+
+<i>Teri muammolaringizga mos tavsiyalarni ko‘ring</i> 👇
+
+⚕️ <i>AI tahlili tibbiy tashxis emas.</i>`;
 
 /**
  * TO'LIQ matnli tahlil — faqat RASM CHIZILMAGANDA ishlatiladi.

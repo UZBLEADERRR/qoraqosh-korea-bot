@@ -1,5 +1,6 @@
 // Rasm keldi → sifat nazorati → tahlil → BITTA qisqa xabar + Mini App tugmasi.
 import { harakat, yubor, faylOl, tg, rasmYubor } from '../tg.js';
+import { qator, sozlama } from '../../db.js';
 import { natijaRasminiYarat, kanalgaTahlil, yuzniSaqla } from '../../services/natija-rasm.js';
 import { tahlilQil } from '../../services/analysis.js';
 import { radXabari, tahlilXabari, tavsiyaMatni, qisqaIzoh } from '../render.js';
@@ -10,11 +11,37 @@ import { xatoniTushuntir } from '../../lib/xatolar.js';
 import { limitHolati } from '../../services/analysis.js';
 import { appTugma } from '../keyboards.js';
 
-/** Rasm ostidagi qisqa izoh (Telegram cheklovi — 1024 belgi). */
+/**
+ * «Yuz skaneri» bosilganda — ko'rsatma va NAMUNA SURAT.
+ *
+ * Odam ko'rsatmani o'qib emas, ko'rib tushunadi: «xuddi shunday oling»
+ * deb bitta surat ko'rsatilsa, xira va uzoqdan olingan rasmlar keskin
+ * kamayadi. Namuna admin panelidan yuklanadi; yo'q bo'lsa yoki
+ * yuborilmasa — oddiy matn ketadi va oqim to'xtamaydi.
+ */
 export async function skanerYordami(chatId) {
-  await yubor(chatId, await xabar('xabar_skaner', {},
-    '🔬 <b>Yuz skaneri</b>\n\nYuzingiz aniq ko‘ringan surat yuboring 📸'),
-    { reply_markup: ortga() });
+  const matn = await xabar('xabar_skaner', {},
+    '🔬 <b>Yuz skaneri</b>\n\nYuzingiz aniq ko‘ringan surat yuboring 📸');
+
+  const namuna = await skanerNamunasi();
+  if (namuna) {
+    try {
+      await rasmYubor(chatId, namuna.bayt, matn, { reply_markup: ortga() },
+        { mime: namuna.mime, nom: 'namuna.jpg' });
+      return;
+    } catch (e) {
+      console.error('Namuna surat yuborilmadi:', e.message);
+    }
+  }
+  await yubor(chatId, matn, { reply_markup: ortga() });
+}
+
+/** Admin yuklagan namuna surat (bo'lmasa null). */
+async function skanerNamunasi() {
+  const id = String(await sozlama('skaner_namuna_id', '') || '').replace(/"/g, '').trim();
+  if (!id) return null;
+  const m = await qator('select bayt, mime from media where id = $1', [id]);
+  return m?.bayt ? { bayt: Buffer.from(m.bayt), mime: m.mime || 'image/jpeg' } : null;
 }
 
 /** Kunlik limit tugaganda — sotuvga yo'naltiruvchi xabar. */

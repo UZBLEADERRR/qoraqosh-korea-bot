@@ -24,7 +24,7 @@ if (!process.env.DATABASE_URL) {
 
 const { migratsiyalarniQoll } = await import('../src/db/migrate.js');
 await migratsiyalarniQoll();
-const { sorov, pool } = await import('../src/db.js');
+const { sorov, qator, pool } = await import('../src/db.js');
 const { yangilanish } = await import('../src/bot/index.js');
 
 let ok = 0, xato = 0;
@@ -55,22 +55,30 @@ console.log('\n── BOT OQIMI ──');
 
 yuborilgan.length = 0;
 await rasmYubor();
-// Tahlil BITTA xabar bo'lib keladi: rasm + qisqa izoh. Tafsilot (muammo
-// nomi, zonasi, sababi, yechimi) RASMDA va ILOVADA — botda takrorlanmaydi.
+// Tahlil BITTA xabar bo'lib keladi: rasm + izoh. Izohda belgilar,
+// foizi va zonasi bor; SABAB va YECHIM esa ataylab yo'q — ular ilovada.
 // «Tahlil qilinmoqda…» xabari o'chiriladi — chatda faqat natija qoladi
 test('tahlil bitta xabar bo‘lib keladi', korinadigan().length === 1,
   `${korinadigan().length} ta xabar: ${korinadigan().map((x) => (x.text || '').slice(0, 24)).join(' | ')}`);
 const botMatni = korinadigan().map((x) => x.text || '').join('\n');
-test('rasmga tahlil qaytaradi', /Tahlil tayyor/.test(botMatni));
+test('rasmga tahlil qaytaradi', /Tahlil natijasi/.test(botMatni));
+test('izohda yosh va teri turi bor', /👤 .+ · /.test(botMatni));
+test('izohda teri rangi bor', /🎨 /.test(botMatni));
 test('izohda teri holati bali bor', /\d+\/100/.test(botMatni));
-test('izohda topilgan belgilar soni bor', /\d+ ta belgi topildi/.test(botMatni));
-// Prognoz, sabab, yechim va muammolar ro'yxati ATAYLAB botda yo'q
+test('izohda shkala bor', /■/.test(botMatni));
+test('muammolar foizi bilan ko‘rsatilgan', /— \d+%/.test(botMatni));
+test('muammo zonasi ko‘rsatilgan', /📍/.test(botMatni));
+test('qalin va kursiv yozuv ishlatilgan',
+  /<b>/.test(botMatni) && /<i>/.test(botMatni));
+// Prognoz, sabab va yechim ATAYLAB botda yo'q — ular ilovada
 test('prognoz botda YO‘Q — ilovada', !/e’tibor bermasangiz/i.test(botMatni));
 test('sabab va yechim botda YO‘Q — ular ilovada',
   !/Sababi|Yechimi/.test(botMatni));
-test('muammolar ro‘yxati botda YO‘Q — rasmda va ilovada',
-  !/📍/.test(botMatni));
-test('bot xabari juda qisqa', botMatni.length < 320, `${botMatni.length} belgi`);
+// Telegram rasm izohini 1024 belgida kesadi va kesilgan HTML teg
+// xabarni umuman yuborilmaydigan qiladi
+test('izoh Telegram chegarasiga sig‘adi', botMatni.length <= 1024,
+  `${botMatni.length} belgi`);
+test('ilovaga chaqiriq bor', /tavsiyalarni ko‘ring/i.test(botMatni));
 test('tibbiy ogohlantirish bor', /tashxis emas/.test(botMatni));
 test('«Tavsiyani ochish» tugmasi bor',
   (oxirgi().reply_markup?.inline_keyboard || []).flat()
@@ -92,6 +100,35 @@ for (const [data, kutilgan] of [
   yuborilgan.length = 0;
   await bosish(data);
   test(`tugma «${data}» ishlaydi`, kutilgan.test(oxirgi().text || ''));
+}
+
+// ═══════════ SKANER NAMUNASI ═══════════
+// «Yuz skaneri» bosilganda botda ham namuna surat kelishi kerak: odam
+// ko'rsatmani o'qib emas, ko'rib tushunadi.
+{
+  yuborilgan.length = 0;
+  await bosish('skaner');
+  test('namuna yo‘q bo‘lsa oddiy matn keladi',
+    !oxirgi().rasm && /Yuz skaneri/.test(oxirgi().text || ''));
+
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const m = await qator(
+    `insert into media (tur, mime, bayt, hajm, goya)
+     values ('namuna', 'image/jpeg', decode($1,'base64'), 68, 'Skaner namunasi')
+     returning id`, [png]);
+  await sorov(
+    `insert into settings (key, value) values ('skaner_namuna_id', $1::jsonb)
+     on conflict (key) do update set value = excluded.value`,
+    [JSON.stringify(m.id)]);
+
+  yuborilgan.length = 0;
+  await bosish('skaner');
+  test('namuna qo‘yilsa botda RASM bilan keladi', Boolean(oxirgi().rasm));
+  test('namuna izohida ko‘rsatma bor', /Yuz skaneri/.test(oxirgi().text || ''));
+  test('namuna ostida orqaga tugmasi bor',
+    (oxirgi().reply_markup?.inline_keyboard || []).flat().length > 0);
+
+  await sorov(`delete from settings where key = 'skaner_namuna_id'`);
 }
 
 // Limit
@@ -119,7 +156,6 @@ test('rasmdan keyin qo‘shimcha matn YUBORILMAYDI',
   korinadigan().filter((x) => !x.rasm).length === 0,
   `${korinadigan().filter((x) => !x.rasm).length} ta ortiqcha xabar`);
 
-const { qator } = await import('../src/db.js');
 const saqlangan = await qator(
   `select natija_rasm_id from analyses where user_id = (select id from users where telegram_id = $1)
     order by created_at desc limit 1`, [TG]);

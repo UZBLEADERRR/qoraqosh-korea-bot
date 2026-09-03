@@ -32,10 +32,12 @@ export const GURUHLAR = [
 /** Har bir shablon: nomi, tushuntirishi va ishlatsa bo'ladigan o'rin egallovchilar. */
 export const TAVSIF = {
   xabar_tahlil_qisqa: {
-    nom: 'Rasm ostidagi qisqa izoh',
-    izoh: 'ASOSIY xabar: tahlil rasmi bilan birga ketadi. Qisqa bo‘lsin — '
-        + 'tafsilot rasmda, to‘liq ma’lumot ilovada.',
-    orin: ['ball', 'muammo_soni', 'eng_kuchli', 'tavsiya_soni', 'teri_turi', 'yosh'],
+    nom: 'Rasm ostidagi izoh',
+    izoh: 'ASOSIY xabar: tahlil rasmi bilan birga ketadi. Telegram izohni '
+        + '1024 belgida kesadi — uzaytirsangiz muammolar avtomatik kamayadi. '
+        + 'Sabab va yechim bu yerda YO‘Q: ular ilovada.',
+    orin: ['yosh', 'teri_turi', 'teri_rangi', 'ball', 'shkala', 'muammolar',
+           'tavsiya_soni'],
   },
   xabar_tahlil_bosh: {
     nom: 'Tahlil sarlavhasi (zaxira)',
@@ -114,13 +116,22 @@ Suratingizni yuboring 📸
   // Botda RASM bilan birga ketadigan qisqa izoh — asosiy xabar shu.
   // Batafsili rasmda ko'rinadi, to'liq tafsilot ilovada.
   xabar_tahlil_qisqa:
-`🔬 <b>Tahlil tayyor</b>
+`🔬 <b>Tahlil natijasi</b>
+
+👤 {yosh} · {teri_turi}
+🎨 {teri_rangi}
 
 ✨ Teri holati: <b>{ball}/100</b>
-🔍 {muammo_soni} ta belgi topildi{eng_kuchli}
+
+{shkala}
+
+🔍 <b>Aniqlangan muammolar</b>
+
+{muammolar}
 
 💡 Siz uchun <b>{tavsiya_soni} ta mahsulot</b> tanlandi
-Tavsiyalarni ko‘ring 👇
+
+<i>Teri muammolaringizga mos tavsiyalarni ko‘ring</i> 👇
 
 ⚕️ <i>AI tahlili tibbiy tashxis emas.</i>`,
 

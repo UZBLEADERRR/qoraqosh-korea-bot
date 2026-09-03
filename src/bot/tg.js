@@ -56,13 +56,13 @@ export async function tgFayl(method, maydonlar = {}, fayllar = {}) {
 }
 
 /** Rasm + izoh. Izoh 1024 belgidan uzun bo'lolmaydi. */
-export const rasmYubor = (chat_id, bayt, caption = '', extra = {}) =>
+export const rasmYubor = (chat_id, bayt, caption = '', extra = {}, fayl = {}) =>
   tgFayl('sendPhoto', {
     chat_id,
     caption: caption.slice(0, 1024),
     parse_mode: 'HTML',
     ...extra,
-  }, { photo: { bayt, mime: 'image/png', nom: 'natija.png' } });
+  }, { photo: { bayt, mime: fayl.mime || 'image/png', nom: fayl.nom || 'natija.png' } });
 
 /** Telegram'dagi mavjud rasmni (file_id) qayta yuborish — qayta yuklamaymiz. */
 export const rasmniUzat = (chat_id, file_id, caption = '', extra = {}) =>
