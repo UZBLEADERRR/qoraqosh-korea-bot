@@ -214,7 +214,12 @@ QADAM 5 — tavsiya: quyidagi katalogdan mahsulot tanla.
   har doim bo'lishi kerak: tozalash, namlash, himoya va muammoga qarab
   davolash. Yarim to'plam parvarish emas — odam nimadan boshlashni
   bilmay qoladi.
-  Har bosqichdan ko'pi bilan 1 ta mahsulot, jami 4-6 ta.
+  SONI TERI HOLATIGA QARAB bo'lsin, oldindan belgilangan emas: yengil
+  holatda 3-4 ta yetadi, ko'p muammo topilsa 6-8, og'ir holatda 10 tagacha.
+  Kam qilib qisqartirma — odam yetishmagan bosqichni o'zi topa olmaydi.
+  Bir bosqichda ikkita mahsulot faqat ular BIR-BIRINI TO'LDIRSA bo'ladi
+  (masalan kunduzgi va kechki krem, yoki nuqtaviy vosita + umumiy krem);
+  bir xil vazifani bajaradigan ikkita mahsulotni qo'shma.
   "himoya" (SPF) bosqichini deyarli har doim qo'sh — bu eng muhim bosqich.
 
   "ichki" — ICHKI QABUL qilinadigan qo'shimcha (kollagen, jenshen, vitamin,
@@ -223,6 +228,7 @@ QADAM 5 — tavsiya: quyidagi katalogdan mahsulot tanla.
     - katalogda "ichki" bosqichdagi mahsulot bor;
     - topilgan muammo unga mantiqan bog'liq (ajin va elastiklik yo'qolishi
       — kollagen; xiralik va charchoq — vitamin; quruqlik — ichimlik rejimi).
+  Bir nechta ichki qabul mahsuloti mos kelsa, ikkitasigacha qo'shsa bo'ladi.
   Bog'lanmasa qo'shma. Va sababda uni DAVO deb atama: "parvarishni ichkaridan
   qo'llab-quvvatlaydi" degan ma'noda yoz — biz shifokor emasmiz.
 
@@ -298,7 +304,7 @@ function kasallikniOlib(matn) {
 function tozala(javob, products) {
   const karta = new Map(products.map((p) => [p.id, p]));
 
-  const muammolar = (javob.muammolar || []).slice(0, 6).map((m) => {
+  const muammolar = (javob.muammolar || []).slice(0, 8).map((m) => {
     const foiz = Math.min(95, Math.max(5, Number(m.foiz) || 30));
     return {
       kalit:  String(m.kalit || '').slice(0, 24),
@@ -367,7 +373,8 @@ function tozala(javob, products) {
     teri_turi:     String(u.teri_turi || 'normal').slice(0, 20),
     ball:          Math.min(100, Math.max(0, Number(u.ball) || 60)),
     xulosa:        String(u.xulosa || '').slice(0, 400),
-    muammolar, prognoz, tavsiya: tavsiya.slice(0, 6),
+    // Tavsiya soni TERI HOLATIGA qarab: 10 tagacha to'liq to'plam
+    muammolar, prognoz, tavsiya: tavsiya.slice(0, 10),
   };
 }
 

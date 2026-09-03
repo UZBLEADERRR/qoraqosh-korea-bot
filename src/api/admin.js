@@ -16,6 +16,7 @@ import { STANDART, GURUHLAR, TAVSIF } from '../bot/shablonlar-standart.js';
 import { palitra, rangTozala, MAVZU_STANDART, TOPLAMLAR } from '../lib/mavzu.js';
 import * as mp from '../services/marketplace.js';
 import * as mpv from '../services/marketplace-vazifa.js';
+import { qollanmaYubor } from '../services/mijoz-qollanma.js';
 import { narxHisobla, qoidaniTozala } from '../lib/narx.js';
 import { keshniTashla } from '../lib/kesh.js';
 import { kanalniSina, kanalgaHolat } from '../services/kanal.js';
@@ -149,7 +150,12 @@ export async function adminRoutes(req, res, yol) {
       if (o.telegram_id) {
         xabar('xabar_tolov_tasdiq', { raqam: esc(o.order_no) },
           '✅ <b>{raqam}</b> — to‘lovingiz tasdiqlandi.')
-          .then((m) => yubor(o.telegram_id, m)).catch(() => {});
+          .then((m) => yubor(o.telegram_id, m))
+          // To'lov tasdiqlangach parvarish qo'llanmasi ketadi: rasm
+          // (tartib, qachon, qanchadan) va to'liq Word hujjati. Odam
+          // mahsulotni to'g'ri ishlatsa natija ko'radi va qaytib keladi.
+          .then(() => qollanmaYubor(o, o.telegram_id))
+          .catch((e) => console.error('Qo‘llanma yuborilmadi:', e.message));
       }
     }
     return ok(res, { ok: true });

@@ -113,9 +113,18 @@ export async function googleRasm(parts, { nisbat, model, timeoutMs = 90000 } = {
     });
   };
 
+  // Nisbat SAQLANADI. Ilgari 400 yoki 429 da imageConfig tashlab
+  // yuborilardi va model o'z sukutini — keng gorizontal rasmni —
+  // qaytarardi. Endi qayta urinishda ham nisbat beriladi; faqat
+  // imageConfig ni MODEL tushunmagan holatdagina u olib tashlanadi
+  // (aks holda rasm umuman kelmaydi).
   let res = await yubor(true);
-  if (res.status === 400 && nisbat) res = await yubor(false);
-  if (res.status === 429 || res.status >= 500) { await kut(1200); res = await yubor(false); }
+  if (res.status === 429 || res.status >= 500) { await kut(1200); res = await yubor(true); }
+  if (res.status === 400 && nisbat) {
+    const matn = await res.clone().text().catch(() => '');
+    // 400 imageConfig sababli bo'lsagina nisbatsiz urinamiz
+    if (/imageConfig|aspectRatio|aspect_ratio/i.test(matn)) res = await yubor(false);
+  }
   if (!res.ok) xatoTashla(res.status, await res.text().catch(() => ''));
 
   const data = await res.json();

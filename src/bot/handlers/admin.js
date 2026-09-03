@@ -15,6 +15,7 @@ import {
 } from '../../services/partiya.js';
 import { pochtaHujjati } from '../../services/pochta-hujjati.js';
 import { partiyaQollanmasi } from '../../services/qollanma-hujjati.js';
+import { qollanmaYubor } from '../../services/mijoz-qollanma.js';
 import { broadcastBoshla } from '../../services/broadcast.js';
 import { agentCallback, agentHolati, rejaMenyusi, tanitishBoshla } from './agent-oqim.js';
 
@@ -144,6 +145,9 @@ async function tolovTasdiq(cq, user, tasdiqmi) {
     const m = await xabar('xabar_tolov_tasdiq', { raqam: esc(o.order_no) },
       '✅ <b>{raqam}</b> — to‘lovingiz tasdiqlandi.');
     await yubor(o.telegram_id, m).catch(() => {});
+    // Qo'llanma: rasm (tartib, qachon, qanchadan) + to'liq Word hujjati
+    qollanmaYubor(o, o.telegram_id)
+      .catch((e) => console.error('Qo‘llanma yuborilmadi:', e.message));
   }
 
   // Kanalga eslatma: endi /orders da chiqadi

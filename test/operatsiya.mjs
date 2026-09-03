@@ -488,6 +488,38 @@ console.log('\n── MAVZU ──');
 }
 
 
+// ═══════════ MIJOZGA QO'LLANMA ═══════════
+// To'lov tasdiqlangach mijoz mahsulotni QANDAY ishlatishni bilishi kerak:
+// aks holda natija ko'rmaydi va qaytib kelmaydi.
+console.log('\n── MIJOZGA QO‘LLANMA ──');
+{
+  const mq = await import('../src/services/mijoz-qollanma.js');
+  const o = await qator(`select * from orders where order_no = 'QQ-001'`);
+
+  const royxat = await mq.buyurtmaMahsulotlari(o);
+  test('buyurtmadagi mahsulotlar topildi', royxat.length === 2, `${royxat.length} ta`);
+  test('parvarish tartibida saralangan',
+    royxat[0].bosqich === 'tozalash' || royxat[0].bosqich === 'toner',
+    royxat.map((r) => r.bosqich).join(' → '));
+
+  yuborilgan.length = 0;
+  const n = await mq.qollanmaYubor(o, '800001');
+  test('qo‘llanma yuborildi', n.yuborildi === true, JSON.stringify(n));
+  test('RASM bilan keldi', yuborilgan.some((x) => x.rasm),
+    yuborilgan.map((x) => (x.rasm ? 'rasm' : x.hujjat ? 'hujjat' : 'matn')).join(', '));
+  test('rasm bo‘sh emas', (yuborilgan.find((x) => x.rasm)?.hajm || 0) > 20000,
+    `${((yuborilgan.find((x) => x.rasm)?.hajm || 0) / 1024).toFixed(0)} KB`);
+  test('WORD hujjati ham keldi', yuborilgan.some((x) => x.hujjat));
+  test('izohda tartib haqida aytilgan',
+    /Tartibni buzmang/.test(yuborilgan.find((x) => x.rasm)?.text || ''));
+
+  // Mahsulotsiz buyurtmada yiqilmasligi kerak
+  const bosh = await mq.qollanmaYubor({ id: 0, order_no: 'YOQ', items: [] }, '800001');
+  test('mahsulotsiz buyurtmada yiqilmaydi', bosh.yuborildi === false, bosh.sabab);
+  test('chat id bo‘lmasa ham yiqilmaydi',
+    (await mq.qollanmaYubor(o, null)).yuborildi === false);
+}
+
 // ═══════════ MARKETPLACE ═══════════
 // Haqiqiy Daiso/Coupang sahifasi o'rniga soxta do'kon ishlatiladi:
 // oqim bir xil — sahifa o'qiladi, AI kartochkani to'ldiradi, narx

@@ -2,6 +2,7 @@
 // Ikki bosqich: (1) AI bir necha g'oya taklif qiladi, (2) admin tanlaganini chizadi.
 // Admin hech qanday "prompt" yozmaydi — faqat g'oyani tanlaydi.
 import { aiJson, aiRasm, rasmPart, aiBormi } from './index.js';
+import { posterniTuzat } from '../rasm/poster-tuzat.js';
 
 /** Joylashuvga qarab o'lchamlar. */
 export const NISBATLAR = {
@@ -99,17 +100,21 @@ export async function posterGoyalari(base64, mime, mahsulot) {
   }));
 }
 
-/** Tanlangan g'oyani chizadi. Tayanch rasm mahsulot qadog'ini saqlash uchun. */
+/**
+ * Tanlangan g'oyani chizadi. Tayanch rasm mahsulot qadog'ini saqlash uchun.
+ *
+ * MATNNI MODEL YOZMAYDI. U o'zbekcha yozuvni doim buzadi ("Tabiatdan
+ * ilhom" o'rniga tanib bo'lmaydigan harflar) — bu brendni arzonlashtiradi.
+ * Shuning uchun rasm YOZUVSIZ chiziladi, sarlavhani esa ustiga o'zimiz
+ * qo'yamiz (repozitoriyadagi shrift bilan, imlo har doim to'g'ri).
+ */
 export async function posterChiz({ base64, mime, prompt, nisbat, matn_bosh, matn_qosh }) {
   const nis = NISBATLAR[nisbat] ? nisbat : '4:5';
 
   const yozuv = (matn_bosh || matn_qosh)
-    ? `\n\nText to render on the poster, exactly as written, in Uzbek Latin script,
-spelled correctly, using a clean modern sans-serif:
-  HEADLINE: "${matn_bosh || ''}"
-  SUBLINE:  "${matn_qosh || ''}"
-Place the text so it never covers the product. Do not add any other words,
-watermarks, logos or invented brand names.`
+    ? `\n\nDo NOT render any text, letters, numbers, logos or watermarks in the
+image. Leave the lower third visually calm and uncluttered — a caption will
+be placed there afterwards.`
     : '\n\nDo not render any text on the image.';
 
   const toliq = `${prompt}
@@ -123,5 +128,18 @@ Aspect ratio ${nis}.${yozuv}`;
     ? [{ text: toliq }, rasmPart(base64, mime || 'image/jpeg')]
     : [{ text: toliq }];
 
-  return await aiRasm(parts, { nisbat: nis });
+  const rasm = await aiRasm(parts, { nisbat: nis });
+
+  // Model nisbatni har doim ham hurmat qilmaydi — o'zimiz kesamiz,
+  // va yozuvni ham o'zimiz qo'yamiz
+  try {
+    return await posterniTuzat({
+      base64: rasm.base64, mime: rasm.mime, nisbat: nis,
+      matnBosh: matn_bosh || '', matnQosh: matn_qosh || '',
+    });
+  } catch (e) {
+    // Tuzatib bo'lmasa (motor yo'q) — model bergani baribir qaytadi
+    console.error('Posterni tuzatib bo‘lmadi:', e.message);
+    return rasm;
+  }
 }

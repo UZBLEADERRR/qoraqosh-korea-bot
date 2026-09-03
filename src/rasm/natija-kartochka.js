@@ -164,7 +164,9 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   q.push(matn('Teri holati', oy + 40, { x: ONG, olcham: 44, ogirlik: 700, rang: oq }));
   oy += 66;
 
-  const yorliqlar = [yosh ? `${yosh} yosh` : '', teriTuri ? `${teriTuri} teri` : ''].filter(Boolean);
+  // AI ba'zan «18-22 yosh» deb qaytaradi — «yosh» ikki marta yozilmasin
+  const soz = (v, q) => (v && !new RegExp(q, 'i').test(v) ? `${v} ${q}` : v);
+  const yorliqlar = [soz(yosh, 'yosh'), soz(teriTuri, 'teri')].filter(Boolean);
   let yx = ONG;
   for (const s of yorliqlar) {
     const ken = Math.round(s.length * 13.4) + 34;
@@ -315,38 +317,54 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     q.push(matn('Sizga mos parvarish', y + 30, { olcham: 32, ogirlik: 700, rang: R.matn }));
     y += 52;
 
-    const royxat = tavsiyalar.slice(0, 3);
+    // Tavsiya soni teri holatiga qarab o'zgaradi: qatorga uchtadan,
+    // ko'pi bilan ikki qator (6 ta). Qolgani ilovada — rasmni cheksiz
+    // uzaytirib bo'lmaydi, Telegram uni siqib yuboradi.
+    const royxat = tavsiyalar.slice(0, 6);
     const oraliq = 16;
-    const kartaEni = Math.floor((ENI - CHET * 2 - oraliq * (royxat.length - 1)) / royxat.length);
+    const ustun = Math.min(3, royxat.length);
+    const kartaEni = Math.floor((ENI - CHET * 2 - oraliq * (ustun - 1)) / ustun);
     const rasmH = Math.round(kartaEni * 0.74);
     const kartaH = rasmH + 104;
 
     royxat.forEach((r, i) => {
-      const kx = CHET + i * (kartaEni + oraliq);
-      const rang = TARTIB_RANG[i] || R.urgu;
-      q.push(`<rect x="${kx}" y="${y}" width="${kartaEni}" height="${kartaH}" rx="18"
+      const qator = Math.floor(i / ustun);
+      const ustunda = i % ustun;
+      const kx = CHET + ustunda * (kartaEni + oraliq);
+      const ky = y + qator * (kartaH + oraliq);
+      const rang = TARTIB_RANG[i % TARTIB_RANG.length] || R.urgu;
+      q.push(`<rect x="${kx}" y="${ky}" width="${kartaEni}" height="${kartaH}" rx="18"
         fill="${R.plitka}" stroke="${R.chiziq}"/>`);
 
       if (r.rasmBase64) {
-        q.push(`<clipPath id="m${i}"><rect x="${kx + 1}" y="${y + 1}"
+        q.push(`<clipPath id="m${i}"><rect x="${kx + 1}" y="${ky + 1}"
             width="${kartaEni - 2}" height="${rasmH}" rx="17"/></clipPath>
           <image href="data:${r.rasmMime || 'image/png'};base64,${r.rasmBase64}"
-            x="${kx + 1}" y="${y + 1}" width="${kartaEni - 2}" height="${rasmH}"
+            x="${kx + 1}" y="${ky + 1}" width="${kartaEni - 2}" height="${rasmH}"
             clip-path="url(#m${i})" preserveAspectRatio="xMidYMid slice"/>`);
       } else {
-        q.push(belgiChiz('tomchi', kx + kartaEni / 2, y + rasmH / 2, 74, R.och, { qalin: 1.5 }));
+        q.push(belgiChiz('tomchi', kx + kartaEni / 2, ky + rasmH / 2, 74, R.och, { qalin: 1.5 }));
       }
 
-      q.push(raqamNishoni(kx + 32, y + 32, 19, i + 1, rang));
+      q.push(raqamNishoni(kx + 32, ky + 32, 19, i + 1, rang));
 
-      q.push(matn(kes(r.bosqich || 'Parvarish', kartaEni - 28, 22, 700), y + rasmH + 34,
+      q.push(matn(kes(r.bosqich || 'Parvarish', kartaEni - 28, 22, 700), ky + rasmH + 34,
         { x: kx + 16, olcham: 22, ogirlik: 700, rang }));
 
       const nomQat = qatorlarga(r.nom, kartaEni - 28, 22, 600).slice(0, 2);
-      nomQat.forEach((s, k) => q.push(matn(s, y + rasmH + 64 + k * 28,
+      nomQat.forEach((s, k) => q.push(matn(s, ky + rasmH + 64 + k * 28,
         { x: kx + 16, olcham: 22, ogirlik: 600, rang: R.matn })));
     });
-    y += kartaH + 30;
+
+    const qatorlarSoni = Math.ceil(royxat.length / ustun);
+    y += qatorlarSoni * kartaH + (qatorlarSoni - 1) * oraliq + 30;
+
+    const qolgan = tavsiyalar.length - royxat.length;
+    if (qolgan > 0) {
+      q.push(matn(`va yana ${qolgan} ta mahsulot — ilovada`, y - 6,
+        { olcham: 22, rang: R.kul }));
+      y += 26;
+    }
   }
 
   // ── Pastki qism ──

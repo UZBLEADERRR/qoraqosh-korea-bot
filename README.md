@@ -27,6 +27,10 @@ Google Gemini · Railway.
   belgida kesadi (kesilgan HTML teg xabarni umuman yuborilmaydigan
   qiladi), shuning uchun matn uzayib ketsa muammolar avtomatik
   kamayadi va «…va yana N tasi ilovada» deb yoziladi.
+- **Bosh sahifada karusel** — ilova ochilganda eng yuqorida aylanib
+  turadigan rasmlar (admin panelidan 10 tagacha yuklanadi), ustida
+  **«Yuzni tahlil qilish»** tugmasi — bosilsa skanerga o'tadi. Barmoq
+  bilan suriladi. Rasm qo'yilmasa oddiy chaqiriq kartasi ko'rinadi.
 - **Namuna surat** — «Yuz skaneri» ochilganda qanday rasm kutilayotgani
   ko'rsatiladi: **botda ham** (ko'rsatma o'sha rasmning izohi bo'lib
   keladi), Mini App'da ham. Admin panelidan yuklanadi; qo'yilmagan
@@ -58,10 +62,18 @@ Google Gemini · Railway.
   ro'yxati — har biri rangli chiziq, raqam, foiz chizig'i bilan — va tavsiya
   etilgan mahsulotlar **rasmi bilan kichik kartochkalarda**, har birida nima
   uchun kerakligi bir-ikki so'zda (Tozalash, Quyoshdan himoya…).
+  Tavsiya soni TERI HOLATIGA qarab: yengil holatda 3-4 ta, ko'p muammo
+  topilsa 6-8, og'ir holatda 10 tagacha. Rasmda 6 tasi ikki qatorda
+  ko'rinadi, qolgani «va yana N ta — ilovada» deb yoziladi.
   **Ism yozilmaydi:** bitta telefondan bir necha odam surat yuklashi mumkin.
   **Suratga doira chizilmaydi:** belgi qayerdaligi ro'yxatdagi «📍 zona»
   matnida turadi, doira esa suratni bulg'ab, raqamlarni ko'zdan qochirardi.
   Ranglar mavzudan olinadi (pastga qarang).
+- **To'lov tasdiqlangach parvarish qo'llanmasi keladi** — ikki ko'rinishda:
+  **rasm** (mahsulot surati, qaysi tartibda, qachon — ertalab/kechqurun,
+  qanchadan) va **Word hujjati** (to'liq tavsif, tarkib, ehtiyot choralari).
+  Odam mahsulotni noto'g'ri ishlatsa natija ko'rmaydi va qaytib kelmaydi;
+  qutidagi qog'oz esa yo'qoladi, Telegramdagi doim qo'l ostida turadi.
 - **«Rasm qilib olish»** — Mini App'dagi tugma rasmni Telegram chatiga yuboradi.
   (WebView ichida brauzerning yuklab olish va ulashish oynasi ishonchli
   ishlamaydi; chatdan saqlash esa har telefonda ishlaydi.)
@@ -561,6 +573,8 @@ src/
     handlers/          ro'yxat, skaner, do'kon
   rasm/
     natija-kartochka.js tahlil natijasining SVG ko'rinishi
+    qollanma-kartochka.js mijozga boradigan rasmli parvarish qo'llanmasi
+    poster-tuzat.js    posterni nisbatga kesish va yozuvni o'zimiz yozish
     chiz.js            SVG -> PNG (resvg + repozitoriyadagi shriftlar)
   api/
     routes.js          Mini App API (initData imzosi bilan)
@@ -582,6 +596,7 @@ src/
     yetkazish.js       og'irlik bo'yicha narx (API yoki tarif jadvali)
     pochta-hujjati.js  pochta uchun manzillar hujjati
     qollanma-hujjati.js mijozga qutiga qo'shiladigan parvarish qo'llanmasi
+    mijoz-qollanma.js  to'lovdan keyin qo'llanmani yuborish (rasm + Word)
     broadcast.js       reklama yuborish (tezlik cheklovi bilan)
     majburiy-kanal.js  obuna tekshiruvi
     marketplace.js     Daiso/Coupang dan mahsulot olish va filtrlash
