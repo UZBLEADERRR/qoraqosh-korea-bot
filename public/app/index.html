@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <title>KiOVO — Koreya kosmetikasi</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#b3161c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KiOVO">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="ikon-192.png">
 <link rel="stylesheet" href="style.css">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -41,13 +47,40 @@
 <!-- ============ ASOSIY ============ -->
 <div id="ilova" class="yashirin">
 
-  <!-- ---------- DO'KON ---------- -->
+  <!-- ---------- DO'KON ----------
+       Qizil shapka: logotip, xabarnoma va qidiruv. Bo'lim nomi ("Do'kon")
+       ataylab yo'q — ekranning eng qimmat joyi sarlavhaga emas, mahsulotga
+       berilishi kerak. -->
   <section id="tab-katalog" class="ekran">
-    <div class="bosh">
-      <div class="brend"><i data-ik="brend" data-ik-olcham="15"></i>KiOVO</div>
-      <h1>Do‘kon</h1>
-      <div class="izoh">Koreyadan original</div>
-    </div>
+    <header class="shapka">
+      <div class="shapka-tepa">
+        <div class="logo">
+          <svg class="logo-belgi" viewBox="0 0 22 12" aria-hidden="true">
+            <circle cx="6.2" cy="2.6" r="1.7"/><circle cx="15.8" cy="2.6" r="1.7"/>
+            <path d="M3.6 5.6c1.7 3.4 4.3 5.1 7.4 5.1s5.7-1.7 7.4-5.1"
+                  fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
+          </svg>
+          <span>KiOVO</span>
+        </div>
+        <div class="shapka-amal">
+          <button id="t-xabarlar" aria-label="Xabarlar">
+            <i data-ik="qongiroq" data-ik-olcham="21"></i>
+            <i class="nishon yashirin" id="xabar-nishon">0</i>
+          </button>
+        </div>
+      </div>
+
+      <div class="qidiruv-satr">
+        <div class="qidiruv">
+          <i data-ik="qidiruv" data-ik-olcham="18"></i>
+          <input id="qidiruv" type="text" inputmode="search" enterkeyhint="search"
+                 autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+                 placeholder="Nomi yoki muammo: «penka»">
+          <button class="tozala yashirin" id="qidiruv-tozala" aria-label="Tozalash"><i data-ik="yopish" data-ik-olcham="16"></i></button>
+        </div>
+        <button class="uch-nuqta" id="filtr-tugma" aria-label="Filtr"><i data-ik="filtr"></i><i class="belgi-nuqta yashirin" id="filtr-belgi"></i></button>
+      </div>
+    </header>
 
     <!-- Karusel: admin panelidan yuklangan rasmlar aylanadi, chetida
          skanerga o'tish tugmasi. Rasm yo'q bo'lsa oddiy chaqiriq karta. -->
@@ -58,29 +91,20 @@
       <div class="karusel-nuqtalar" id="karusel-nuqtalar"></div>
     </div>
 
-    <button class="chaqiriq" id="skaner-chaqiriq">
-      <span class="belgi"><i data-ik="skaner" data-ik-olcham="22"></i></span>
-      <span style="flex:1"><b>Yuzingizni tekshiring</b>
-        <span>Rasm yuboring — sizga nima kerakligini aytamiz</span></span>
-      <span class="oq"><i data-ik="keyingi" data-ik-olcham="18"></i></span>
-    </button>
-
-    <div class="qidiruv-quti" id="qidiruv-quti">
-      <div class="qidiruv-satr">
-        <div class="qidiruv">
-          <i data-ik="qidiruv" data-ik-olcham="17"></i>
-          <input id="qidiruv" type="text" inputmode="search" enterkeyhint="search"
-                 autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
-                 placeholder="Nomi yoki muammo: «quyoshdan himoya»">
-          <button class="tozala yashirin" id="qidiruv-tozala" aria-label="Tozalash"><i data-ik="yopish" data-ik-olcham="16"></i></button>
-        </div>
-        <button class="uch-nuqta" id="filtr-tugma" aria-label="Filtr"><i data-ik="filtr"></i><i class="belgi-nuqta yashirin" id="filtr-belgi"></i></button>
-      </div>
-    </div>
+    <!-- Toifa kartalari: rasmdagidek oq, ikonli, gorizontal siriladi -->
+    <div class="toifalar" id="toifalar"></div>
 
     <div class="filtr-satr" id="filtr-satr"></div>
-    <div class="ichki ozgina" id="natija-soni" style="padding-bottom:8px"></div>
-    <div class="tor" id="mahsulotlar"></div>
+
+    <!-- Toifa bo'yicha bo'limlar (qidiruv yo'q paytda) -->
+    <div id="bolimlar"></div>
+
+    <!-- Qidiruv/filtr natijasi -->
+    <div id="royxat-holat" class="yashirin">
+      <div class="ichki ozgina" id="natija-soni" style="padding-bottom:8px"></div>
+      <div class="tor" id="mahsulotlar"></div>
+    </div>
+
     <div id="katalog-bosh" class="bosh-holat yashirin">
       <div class="belgi"><i data-ik="qidiruv" data-ik-olcham="46"></i></div>
       <p id="bosh-matn">Bunday mahsulot topilmadi</p>
@@ -89,45 +113,32 @@
     </div>
   </section>
 
-  <!-- ---------- SKANER ---------- -->
+  <!-- ---------- SKANER ----------
+       Uchta narsa, shu tartibda: qanday rasm kerak (KO'RSATIB), bitta
+       qatorlik maslahat, tugma. Ilgari bu yerda to'rt talab, ogohlantirish
+       va uzun matn bor edi — odam o'qimay pastga sirg'ardi. -->
   <section id="tab-skaner" class="ekran yashirin">
-    <div class="bosh">
-      <div class="brend"><i data-ik="robot" data-ik-olcham="15"></i>AI tahlil</div>
-      <h1>Yuz skaneri</h1>
-      <div class="izoh">Teri holatini aniqlab, parvarish tuzib beramiz</div>
-    </div>
-
     <div id="skaner-boshlash">
-      <div class="karta">
+      <div class="skaner-namuna">
+        <img id="namuna-rasm" alt="Namuna surat">
+        <div class="namuna-yoq" id="namuna-yoq"><i data-ik="selfi" data-ik-olcham="52"></i></div>
+        <span class="namuna-teg">Mana shunday</span>
+      </div>
+
+      <p class="skaner-maslahat">
+        Yorug‘ joyda, pardozsiz, yuz ekranni to‘ldirsin.</p>
+
+      <div class="ichki">
         <button class="asosiy" id="tushirish">
-          <i data-ik="kamera" data-ik-olcham="20"></i>Suratni tanlang</button>
-        <p class="mayda" style="text-align:center;margin:10px 0 0">
-          Kamerada oling yoki galereyadan yuklang</p>
+          <i data-ik="kamera" data-ik-olcham="20"></i>Suratga olish</button>
         <input id="fayl" type="file" accept="image/*" capture="user" hidden>
-      </div>
-      <!-- Namuna surat: admin panelidan yuklanadi. Odam qanday rasm
-           kutilayotganini o'qib emas, KO'RIB tushunadi. -->
-      <div class="karta yashirin" id="namuna-karta">
-        <h3 style="margin-bottom:10px">Mana shunday rasm kerak</h3>
-        <img id="namuna-rasm" class="namuna" alt="Namuna surat">
-      </div>
-      <div class="karta">
-        <h3 style="margin-bottom:8px">Yaxshi rasm qanday bo‘ladi</h3>
-        <div class="talab"><span class="b"><i data-ik="quyosh" data-ik-olcham="19"></i></span><div><b>Yorug‘ joyda</b> — deraza oldida turing</div></div>
-        <div class="talab"><span class="b"><i data-ik="selfi" data-ik-olcham="19"></i></span><div><b>Yaqindan</b> — yuz ekranni to‘ldirsin</div></div>
-        <div class="talab"><span class="b"><i data-ik="koz" data-ik-olcham="19"></i></span><div><b>To‘g‘riga qarang</b> — kamera yuz balandligida</div></div>
-        <div class="talab"><span class="b"><i data-ik="tozalik" data-ik-olcham="19"></i></span><div><b>Pardozsiz</b> — teri o‘z holida ko‘rinsin</div></div>
-      </div>
-      <div class="karta" style="background:none;border:0;box-shadow:none;padding:0 16px">
-        <div class="ogoh"><i data-ik="ogoh" data-ik-olcham="15"></i> Xira, uzoqdan olingan, ekrandan suratga olingan yoki
-          sun’iy intellekt chizgan rasm qabul qilinmaydi.</div>
       </div>
     </div>
 
     <div id="skaner-oldindan" class="yashirin">
-      <div class="karta">
-        <img id="oldindan-rasm" class="oldindan" alt="Tanlangan rasm">
-        <button class="asosiy" id="t-tahlil" style="margin-top:14px"><i data-ik="skaner" data-ik-olcham="19"></i>Tahlil qilish</button>
+      <div class="skaner-namuna"><img id="oldindan-rasm" alt="Tanlangan rasm"></div>
+      <div class="ichki" style="margin-top:14px">
+        <button class="asosiy" id="t-tahlil"><i data-ik="skaner" data-ik-olcham="19"></i>Tahlil qilish</button>
         <button class="ikkilamchi" id="t-boshqa" style="margin-top:9px">Boshqa rasm tanlash</button>
       </div>
     </div>
@@ -164,29 +175,34 @@
     <div id="maslahat-takliflar" class="takliflar"></div>
 
     <div class="yozish">
+      <!-- Biriktirilgan surat: AI toshma yoki qizarishni KO'RIB maslahat beradi -->
+      <div class="chat-rasm yashirin" id="chat-rasm"></div>
       <div class="yozish-ich">
+        <button id="chat-biriktir" class="yozish-biriktir" aria-label="Rasm biriktirish"></button>
         <textarea id="maslahat-matn" rows="1" maxlength="400" enterkeyhint="send"
-          placeholder="Savolingizni yozing…"></textarea>
+          placeholder="Muammongizni yozing…"></textarea>
         <button id="maslahat-yubor" class="yozish-tugma" aria-label="Yuborish"></button>
       </div>
+      <input id="chat-fayl" type="file" accept="image/*" hidden>
     </div>
   </section>
 
   <!-- ---------- SAVAT ---------- -->
   <section id="tab-savat" class="ekran yashirin">
-    <div class="bosh"><div class="brend">🛒 Buyurtma</div><h1>Savatim</h1></div>
     <div id="savat-tan"></div>
   </section>
 
   <!-- ---------- PROFIL ----------
-       Botdagi menyu ikki tugmagacha qisqardi: buyurtmalar, konsultatsiya,
-       yordam va shaxsiy ma'lumot shu bo'limga ko'chdi. -->
+       Hamma bo'lim YOPIQ turadi va bosilganda ochiladi: ilgari bittasiga
+       kirish uchun uzun sahifani sirg'atish kerak edi. -->
   <section id="tab-profil" class="ekran yashirin">
-    <div class="bosh"><div class="brend"><i data-ik="profil" data-ik-olcham="15"></i>Profil</div><h1 id="profil-ism">Profilim</h1>
-      <div class="izoh" id="profil-tel"></div></div>
+    <div class="profil-bosh">
+      <div class="avatar" id="profil-avatar"></div>
+      <div class="profil-ism" id="profil-ism">Profilim</div>
+      <div class="profil-tel" id="profil-tel"></div>
+      <div class="profil-stat" id="profil-stat"></div>
+    </div>
     <div id="profil-tan"></div>
-    <div class="satr-bosh"><h3>Buyurtmalarim</h3></div>
-    <div id="buyurtma-tan"></div>
   </section>
 
   <!-- ---------- PASTKI MENYU ---------- -->

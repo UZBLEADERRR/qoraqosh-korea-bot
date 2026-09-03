@@ -17,6 +17,7 @@ import { qator, qatorlar, sorov, sozlama } from '../db.js';
 import { aiJson, aiBormi } from '../ai/index.js';
 import { narxHisobla, qoidaniTozala } from '../lib/narx.js';
 import { xaritadanKarta } from './mahsulot-xarita.js';
+import { kalitlarniQosh } from './kalit-sozlar.js';
 import {
   API_STANDART, JSON_SARLAVHALAR, qoidalarniTozala, qoidaTop, apiHavolasi,
   jsonRasm, jsonHavolalar, jsonSiqish, jsonElementlar, elementId, qolipniToldir,
@@ -763,6 +764,13 @@ export async function tasdiqla(id, ozgarish = {}) {
   await sorov(
     `update marketplace_topilgan set holat = 'tasdiqlandi', product_id = $1, updated_at = now()
       where id = $2`, [p.id, id]);
+
+  // Qidiruv kalit so'zlari: nom koreyscha yoki inglizcha bo'ladi, odam esa
+  // "penka" deb qidiradi. Qoida bo'yicha so'zlar darrov yoziladi, AI so'zi
+  // bo'lsa qo'shiladi. Xatosi importni to'xtatmaydi.
+  kalitlarniQosh(p.id).catch((e) =>
+    console.warn('kalit so‘zlar:', e.message?.slice(0, 100)));
+
   return p;
 }
 

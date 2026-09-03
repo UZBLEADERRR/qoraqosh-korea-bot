@@ -21,7 +21,7 @@ if (!process.env.DATABASE_URL) { console.error('DATABASE_URL kerak.'); process.e
 
 const { migratsiyalarniQoll } = await import('../src/db/migrate.js');
 await migratsiyalarniQoll();
-const { sorov, qator, pool } = await import('../src/db.js');
+const { sorov, qator, qiymat, pool } = await import('../src/db.js');
 const { apiRoutes } = await import('../src/api/routes.js');
 const { Readable } = await import('node:stream');
 
@@ -83,8 +83,38 @@ test('tavsiyaga to‘liq kartochka qo‘shildi',
   Boolean(r.tana.tavsiya?.[0]?.mahsulot?.name && r.tana.tavsiya[0].mahsulot.price > 0),
   r.tana.tavsiya?.[0]?.mahsulot?.name || '—');
 test('sabab bor', Boolean(r.tana.tavsiya?.[0]?.sabab));
+test('qanday ishlatish aytilgan', Boolean(r.tana.tavsiya?.[0]?.qanday));
 test('keyingi savol takliflari bor', (r.tana.takliflar || []).length >= 1,
   (r.tana.takliflar || []).join(' / '));
+
+// --- TO'PLAM ---
+test('to‘plam qaytdi', Boolean(r.tana.toplam?.nom), r.tana.toplam?.nom || '—');
+test('to‘plamda bir nechta mahsulot', (r.tana.tavsiya || []).length > 1,
+  `${r.tana.tavsiya?.length} ta`);
+test('bosqichlar tartib bilan',
+  (r.tana.tavsiya || []).every((t, i, a) => i === 0 || a[i - 1].tartib <= t.tartib),
+  (r.tana.tavsiya || []).map((t) => `${t.tartib}.${t.bosqich}`).join(' → '));
+
+// --- ANIQLASHTIRUVCHI SAVOL ---
+globalThis.AI_SAVOL = true;
+const sv = await chaqir('/api/maslahat', 'POST', { savol: 'Krem kerak' });
+test('AI aniqlashtiruvchi savol berdi', sv.tana.turi === 'savol', sv.tana.turi);
+test('savol matni bor', Boolean(sv.tana.savol?.matn), sv.tana.savol?.matn);
+test('tayyor variantlar berildi', (sv.tana.savol?.variantlar || []).length >= 2,
+  (sv.tana.savol?.variantlar || []).join(' / '));
+test('rasm so‘raldi', sv.tana.savol?.rasm_kerak === true);
+test('savol paytida tavsiya BO‘SH', (sv.tana.tavsiya || []).length === 0);
+
+// --- RASM BILAN SAVOL ---
+const rasmB64 = Buffer.alloc(400, 7).toString('base64');
+const rs = await chaqir('/api/maslahat', 'POST',
+  { savol: 'Shu toshma nima?', rasm: rasmB64, mime: 'image/jpeg' });
+test('rasm bilan ham javob keldi', rs.kod === 200, `kod=${rs.kod} ${rs.tana.error || ''}`);
+
+// --- KONTEKST ---
+const kt = await chaqir('/api/maslahat', 'POST', { savol: 'Yana nima?',
+  tarix: [{ kim: 'odam', matn: 'Terim quruq' }, { kim: 'ai', matn: 'Namlash kerak' }] });
+test('tarix bilan ham ishlaydi', kt.kod === 200, `kod=${kt.kod}`);
 
 const bosh = await chaqir('/api/maslahat', 'POST', { savol: 'a' });
 test('bo‘sh savol rad etildi', bosh.kod === 400, `kod=${bosh.kod}`);
@@ -94,10 +124,45 @@ test('imzosiz so‘rov rad etildi', imzosiz.kod === 401, `kod=${imzosiz.kod}`);
 
 // Cheklov: 10 daqiqada 12 ta. 13-si to'xtatilishi kerak.
 let oxirgiKod = 200;
-for (let i = 0; i < 13 && oxirgiKod === 200; i++) {
+for (let i = 0; i < 25 && oxirgiKod === 200; i++) {
   oxirgiKod = (await chaqir('/api/maslahat', 'POST', { savol: 'yana bir savol' })).kod;
 }
-test('cheklov ishlaydi (12 tadan keyin 429)', oxirgiKod === 429, `kod=${oxirgiKod}`);
+test('cheklov ishlaydi (20 tadan keyin 429)', oxirgiKod === 429, `kod=${oxirgiKod}`);
+
+
+// ================= QIDIRUV KALIT SO'ZLARI =================
+// Odam "penka" deb ham, "пенка" deb ham, "foam cleanser" deb ham qidiradi.
+console.log('\n== KALIT SO‘ZLAR ==');
+{
+  const { kalitlarniToldir, qoidadanSozlar } = await import('../src/services/kalit-sozlar.js');
+
+  const q = qoidadanSozlar({ toifa: 'tozalash', step: 'tozalash', concerns: ['akne'] });
+  test('tozalagichga «penka» qo‘shildi', q.includes('penka'));
+  test('kirill «пенка» ham bor', q.includes('пенка'));
+  test('inglizcha «foam cleanser» ham bor', q.includes('foam cleanser'));
+  test('muammo so‘zlari ham tushdi (акне)', q.includes('акне'));
+
+  const n = await kalitlarniToldir({ hammasi: true, chegara: 60 });
+  test('kalit so‘zlar bazaga yozildi', n.jami > 0, `${n.jami} ta mahsulot, AI: ${n.ai}`);
+
+  const bor = await qiymat(`select count(*)::int from products
+                             where is_active and array_length(kalit_sozlar,1) > 0`);
+  test('katalogda kalit so‘zli mahsulot bor', bor > 0, `${bor} ta`);
+
+  // Klientdagi translit bilan bir xil ishlashini tekshiramiz
+  const KIRILL = { а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ж:'j',з:'z',и:'i',й:'y',к:'k',
+    л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'h',ц:'ts',ч:'ch',
+    ш:'sh',щ:'sh',ъ:'',ы:'i',ь:'',э:'e',ю:'yu',я:'ya',ў:'o',қ:'q',ғ:'g',ҳ:'h' };
+  const tr = (x) => x.replace(/[\u0400-\u04FF]/g, (c) => KIRILL[c] ?? c);
+  test('translit: пенка → penka', tr('пенка') === 'penka', tr('пенка'));
+  test('translit: крем → krem', tr('крем') === 'krem', tr('крем'));
+
+  // Katalog 30 soniya keshlanadi — yangi yozilgan so'zlar ko'rinishi uchun tashlaymiz
+  (await import('../src/lib/kesh.js')).keshniTashla('katalog');
+  const kat = await chaqir('/api/catalog', 'GET');
+  test('katalog kalit_sozlar ni qaytaradi',
+    (kat.tana.mahsulotlar || []).some((p) => (p.kalit_sozlar || []).length > 0));
+}
 
 console.log(`\n${xato ? '✗' : '✓'} ${ok} o‘tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close();

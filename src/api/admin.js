@@ -3,6 +3,7 @@ import { qator, qatorlar, sorov, qiymat, sozlama, tranzaksiya } from '../db.js';
 import { issueAdminToken, verifyAdminToken, loginBloklanganmi, loginXato, loginTozala } from '../lib/auth.js';
 import { ok, xato, tana, ipOl } from '../lib/http.js';
 import { verifyInitData } from '../lib/auth.js';
+import { kalitlarniToldir } from '../services/kalit-sozlar.js';
 import { mahsulotniTani } from '../ai/productEnrich.js';
 import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
 import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi } from '../ai/index.js';
@@ -274,6 +275,23 @@ export async function adminRoutes(req, res, yol) {
   }
 
   // Tanilgan mahsulotlarni birdan saqlash
+  // Qidiruv kalit so'zlarini to'ldirish: odam "penka" deb ham, "пенка"
+  // deb ham qidiradi, katalogdagi nom esa "Perfect Whip". Qoida bo'yicha
+  // so'zlar darrov, AI so'zlari partiyalab qo'shiladi.
+  if (yol === '/api/admin/kalit-sozlar' && req.method === 'POST') {
+    const b = await tana(req);
+    try {
+      const n = await kalitlarniToldir({
+        hammasi: b.hammasi === true,
+        aiSiz:   b.ai === false,
+        chegara: Math.max(1, Math.min(2000, Number(b.chegara) || 300)),
+      });
+      return ok(res, { natija: n });
+    } catch (e) {
+      return xato(res, 502, e.message);
+    }
+  }
+
   if (yol === '/api/admin/products-toplam' && req.method === 'POST') {
     const royxat = (await tana(req)).mahsulotlar;
     if (!Array.isArray(royxat) || !royxat.length) return xato(res, 400, 'Ro‘yxat bo‘sh.');

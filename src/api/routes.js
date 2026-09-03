@@ -71,6 +71,10 @@ export async function apiRoutes(req, res, yol) {
         id: user.id, full_name: user.full_name, phone: user.phone,
         age: user.age, address: user.address,
         viloyat: user.viloyat, tuman: user.tuman,
+        // Profildagi tahrirlanadigan qismlar. Allergiya va kasallik AI
+        // tavsiyasiga ta'sir qiladi — mos kelmaydigan mahsulot berilmasin.
+        teri_turi: user.teri_turi || '', allergiya: user.allergiya || '',
+        kasallik: user.kasallik || '',
         royxatdan_otgan: Boolean(user.phone && user.full_name && user.agreed_at),
       },
       oxirgi_tahlil: await oxirgiTahlil(user.id),
@@ -140,7 +144,7 @@ export async function apiRoutes(req, res, yol) {
   // --- AI maslahatchi: odam savol yozadi, katalogdan javob topiladi ---
   if (yol === '/api/maslahat' && req.method === 'POST') {
     // AI chaqiruvi pul turadi — bitta odam kuniga cheksiz yozolmasin
-    const c = cheklov('maslahat:' + user.id, 12, 10 * 60_000);
+    const c = cheklov('maslahat:' + user.id, 20, 10 * 60_000);
     if (!c.ruxsat) {
       return json(res, 429,
         { error: `Biroz sekinroq — ${Math.ceil(c.kutish / 60)} daqiqadan keyin davom etamiz.` });
@@ -148,16 +152,26 @@ export async function apiRoutes(req, res, yol) {
 
     const b = await tana(req);
     const savol = String(b.savol || '').trim().slice(0, 400);
-    if (savol.length < 2) return xato(res, 400, 'Savolingizni yozing.');
+    const rasm = typeof b.rasm === 'string' && b.rasm.length > 100 ? b.rasm : null;
+    if (savol.length < 2 && !rasm) return xato(res, 400, 'Savolingizni yozing.');
 
-    const tarix = (Array.isArray(b.tarix) ? b.tarix : []).slice(-6).map((x) => ({
+    // Kontekst: oldingi 8 xabar. Modelning "allaqachon so'radim" ni
+    // bilishi uchun shart — aks holda bir savolni ikki marta beradi.
+    const tarix = (Array.isArray(b.tarix) ? b.tarix : []).slice(-8).map((x) => ({
       kim: x?.kim === 'ai' ? 'ai' : 'odam',
-      matn: String(x?.matn || '').slice(0, 300),
+      matn: String(x?.matn || '').slice(0, 400),
     })).filter((x) => x.matn);
 
     try {
       const katalog = await kesh('katalog', KATALOG_KESH_MS, katalogniYig);
-      const j = await maslahatBer(savol, katalog.mahsulotlar || [], tarix);
+      const j = await maslahatBer(savol || 'Mana shu rasmga qarab maslahat bering',
+        katalog.mahsulotlar || [], {
+          tarix,
+          rasm, mime: String(b.mime || 'image/jpeg'),
+          // Yosh, teri turi, allergiya — tavsiya shularga moslashadi
+          profil: { age: user.age, teri_turi: user.teri_turi,
+                    allergiya: user.allergiya, kasallik: user.kasallik },
+        });
 
       // Mahsulotning to'liq kartochkasini qaytaramiz — klient katalogdan
       // qidirib o'tirmasin (u sahifalab yuklanadi, mahsulot hali kelmagan
@@ -174,6 +188,29 @@ export async function apiRoutes(req, res, yol) {
       console.error('MASLAHAT XATOSI', x.log);
       return xato(res, 502, x.matn);
     }
+  }
+
+  // --- Profilni tahrirlash ---
+  if (yol === '/api/profil' && req.method === 'POST') {
+    const b = await tana(req);
+    const matn = (v, n) => String(v ?? '').trim().slice(0, n) || null;
+    const yosh = Number(b.age);
+    const u = await qator(
+      `update users set
+          full_name = coalesce($2, full_name),
+          age       = coalesce($3, age),
+          teri_turi = $4, allergiya = $5, kasallik = $6
+        where id = $1 returning *`,
+      [user.id,
+       matn(b.full_name, 80),
+       Number.isFinite(yosh) && yosh >= 12 && yosh <= 90 ? Math.round(yosh) : null,
+       matn(b.teri_turi, 20), matn(b.allergiya, 300), matn(b.kasallik, 300)]);
+    return ok(res, { user: {
+      full_name: u.full_name, phone: u.phone, age: u.age,
+      viloyat: u.viloyat, tuman: u.tuman,
+      teri_turi: u.teri_turi || '', allergiya: u.allergiya || '', kasallik: u.kasallik || '',
+      royxatdan_otgan: Boolean(u.phone && u.full_name && u.agreed_at),
+    } });
   }
 
   if (yol === '/api/cart' && req.method === 'GET') {

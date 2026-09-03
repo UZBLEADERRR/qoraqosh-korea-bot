@@ -52,13 +52,37 @@ function javobMatni(sxemaMatni) {
   aiHisobi.jami += 1;
   if (sxemaMatni.includes('kosmetikami')) aiHisobi.marketplace += 1;
   if (sxemaMatni.includes('muammolar')) return JSON.stringify(TAHLIL);
-  // AI maslahatchi: katalogdan mahsulot tavsiya qiladi
-  if (sxemaMatni.includes('takliflar')) return JSON.stringify({
-    javob: 'Quruq teri uchun avval namlikni tiklash kerak. Quyidagi ikki mahsulot shu ishni qiladi.',
-    turi: 'tavsiya', savol: 'quruq teri',
-    tavsiya: [{ product_id: 1, sabab: 'Gialuron kislotasi namlikni ushlab turadi.' },
-              { product_id: 999, sabab: 'Katalogda yo‘q — tashlanishi kerak.' }],
-    takliflar: ['Qishda nima mos?', 'Kechqurun tartib qanday?'] });
+  // AI maslahatchi. Ikki rejim: odatda TO'PLAM, globalThis.AI_SAVOL
+  // qo'yilgan bo'lsa aniqlashtiruvchi SAVOL.
+  if (sxemaMatni.includes('savol_variantlar')) {
+    if (globalThis.AI_SAVOL) {
+      globalThis.AI_SAVOL = false;
+      return JSON.stringify({
+        javob: 'Sizga to‘g‘ri mahsulot tanlash uchun bitta narsani bilishim kerak.',
+        turi: 'savol',
+        savol_matn: 'Teringiz qanday?',
+        savol_variantlar: ['Quruq', 'Yog‘li', 'Aralash', 'Bilmayman'],
+        rasm_kerak: true,
+        toplam_nom: '', toplam_izoh: '',
+        tavsiya: [], takliflar: [] });
+    }
+    return JSON.stringify({
+      javob: '## Nega shunday bo‘ladi\nQuruq teri **himoya to‘sig‘i** zaiflashganda paydo bo‘ladi.\n'
+           + '## Nima qilamiz\n• Yumshoq tozalash\n• Namlikni qulflash',
+      turi: 'tavsiya',
+      savol_matn: '', savol_variantlar: [], rasm_kerak: false,
+      toplam_nom: 'Quruq teri uchun 2 bosqichli parvarish',
+      toplam_izoh: 'Avval yumshoq tozalash, keyin namlikni qulflash.',
+      tavsiya: [
+        { product_id: 1, tartib: 1, bosqich: 'tozalash',
+          sabab: 'Yog‘ to‘sig‘ini buzmaydi.', qanday: 'Ertalab va kechqurun.' },
+        { product_id: 21, tartib: 2, bosqich: 'namlash',
+          sabab: 'Gialuron kislotasi namlikni ushlab turadi.', qanday: 'Nam yuzga surting.' },
+        { product_id: 999, tartib: 3, bosqich: 'himoya',
+          sabab: 'Katalogda yo‘q — tashlanishi kerak.', qanday: '-' },
+      ],
+      takliflar: ['Qishda nima mos?', 'Kechqurun tartib qanday?'] });
+  }
   if (sxemaMatni.includes('goyalar'))   return JSON.stringify({ goyalar: [] });
   // Marketplace: do'kon sahifasidan mahsulot o'qish
   if (sxemaMatni.includes('kosmetikami')) return JSON.stringify({

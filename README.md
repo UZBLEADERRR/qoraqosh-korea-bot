@@ -38,21 +38,68 @@ Google Gemini · Railway.
   tushunadi.
 - **AI maslahatchi** (pastki menyudagi **Maslahat** bo'limi) — odam o'z
   so'zi bilan yozadi: «oyog'im og'riyapti», «tuk oluvchi bormi», «yuzim
-  quruq». AI **faqat katalogdagi** mahsulotdan 1–4 tasini tanlab beradi,
-  har biriga *nega aynan shu* degan bir jumla yozadi. Kartadagi **+**
-  tugmasi bitta bosishda savatga soladi, karta ustiga bosilsa mahsulot
-  sahifasi ochiladi. Pastda 2–3 ta keyingi savol taklifi turadi.
+  quruq». AI **faqat katalogdagi** mahsulotni tavsiya qiladi.
+  - **Ma'lumot yetmasa TAXMIN QILMAYDI, SAVOL BERADI.** «Krem kerak»
+    degan odamdan teri turini so'raydi va tayyor variantlarni tugma
+    qilib beradi — odam yozib o'tirmaydi, bosadi. Kerak bo'lsa **rasm
+    so'raydi** (toshma, qizarish, dog' — ko'rgan yaxshiroq), odam esa
+    chatdagi kamera tugmasi bilan surat biriktiradi.
+  - **Bir mahsulot yetmasa TO'PLAM beradi**: «Akne uchun 3 bosqichli
+    parvarish» — har mahsulotga tartib raqami, bosqichi (tozalash →
+    davolash → namlash), nega kerakligi va qanday ishlatilishi. Pastda
+    jami narx va **«Hammasini savatga»** — bitta bosishda hammasi savatga
+    tushadi. Tizza og'rig'i kabi bitta narsa yetadigan holatda esa bitta
+    mahsulot chiqadi.
+  - Javob **formatlangan**: kichik sarlavhalar, ro'yxat, qalin so'zlar.
+    Avval «nega shunday bo'ladi» tushuntiriladi, keyin «nima qilamiz».
+  - **Kontekstni saqlaydi** — oxirgi 8 xabar modelga uzatiladi, shuning
+    uchun bir savolni ikki marta bermaydi.
+  - **Profilni hisobga oladi**: yosh, teri turi, allergiya va kasallik
+    (profilda kiritiladi) tavsiyaga ta'sir qiladi.
   - Model o'ylab topgan `product_id` **tashlanadi** — ilovada bosib
     bo'lmaydigan mahsulot ko'rinmasligi kerak.
-  - Og'riq, jarohat, allergiya, teri kasalligi haqida so'ralsa javob
+  - Og'riq, jarohat, allergiya, teri kasalligi haqidagi savol
     **«Sog'liq masalasi»** deb belgilanadi: dori tavsiya qilinmaydi,
-    tashxis qo'yilmaydi, shifokorga murojaat qilish aytiladi.
-  - Kosmetikaga aloqasi yo'q savol muloyim rad etiladi.
-  - Inputga bosilganda pastki menyu pastga sirg'alib ketadi — klaviatura
-    tepasida faqat yozish paneli qoladi.
-  - Cheklov: bitta odamga 10 daqiqada 12 ta savol (AI chaqiruvi pul turadi).
-  - Suhbat sessiya davomida saqlanadi va oxirgi 6 xabar kontekst sifatida
-    AI ga uzatiladi.
+    tashxis qo'yilmaydi, shifokorga borish aytiladi.
+  - Inputga bosilganda pastki menyu pastga sirg'alib ketadi.
+  - Cheklov: bitta odamga 10 daqiqada 20 ta savol.
+- **Bosh sahifa** — qizil shapka (logotip, qo'ng'iroq, qidiruv), karusel,
+  toifa kartalari va **toifa bo'yicha bo'limlar**. Bo'limlar almashinib
+  keladi: biri gorizontal siriladi, keyingisi vertikal to'r bo'lib
+  tushadi — bir xil ritm ekranni zeriktiradi. Oxirida «Barcha
+  mahsulotlar». Toifa tanlansa yoki qidiruv yozilsa bo'limlar o'rnini
+  natijalar to'ri egallaydi.
+- **Qidiruv har tilda ishlaydi.** Katalogdagi nom koreyscha yoki
+  inglizcha («Perfect Whip», «수분 크림»), odam esa o'z tilida yozadi.
+  Har mahsulotga **kalit so'zlar** saqlanadi: `penka`, `пенка`,
+  `gel dlya umyvaniya`, `foam cleanser`. Ikki manbadan:
+  - **qoida** — toifa, bosqich va muammodan kelib chiqadi, token
+    sarflamaydi, AI kaliti bo'lmasa ham ishlaydi;
+  - **AI** — mahsulotning o'ziga xos so'zlari, 25 tadan partiyalab.
+  Import paytida avtomatik to'ldiriladi; mavjud katalog uchun admin
+  panelidan `POST /api/admin/kalit-sozlar`. Klientda kirill→lotin
+  translit ham bor, shuning uchun «пенка» va «penka» bir xil natija
+  beradi.
+- **Ilovani telefonga o'rnatish (PWA).** Profildagi **«Ilovani
+  o'rnatish»** tugmasi ilovani telefon ekraniga chiqaradi: KiOVO
+  ikonkasi bosiladi va do'kon to'g'ridan-to'g'ri ochiladi — Telegramni
+  ochish, botni topish, tugmani bosish bosqichlari yo'qoladi.
+  Brauzer o'rnatish taklifini bermasa (iPhone, Telegram ichidagi
+  brauzer) qo'lda o'rnatish yo'riqnomasi ko'rsatiladi.
+  Service worker faqat QOBIQNI keshlaydi (HTML/CSS/JS/ikonka) —
+  katalog, savat va buyurtma har doim tarmoqdan olinadi, eski narx
+  ko'rsatilmaydi.
+- **Profil** — Telegram avatari, ism va statistika. Bo'limlar YOPIQ
+  turadi va bosilganda ochiladi: shaxsiy ma'lumot (tahrirlanadi),
+  **terim va sog'ligim** (teri turi, allergiya, kasallik — AI shularni
+  hisobga oladi), buyurtmalar tarixi, aloqa va yordam.
+- **Skaner sahifasi sodda**: yuqorida qanday rasm kerakligi KO'RSATILADI,
+  ostida bitta qatorlik maslahat, ostida tugma. Ilgari bu yerda to'rtta
+  talab va ogohlantirish bor edi — odam o'qimay pastga sirg'ardi.
+- **Arzonroq variant.** Tahlil natijasida AI eng MOS mahsulotni beradi,
+  lekin u qimmat bo'lishi mumkin. **«Arzonroq variant»** tugmasi har
+  bosqichni o'sha bosqichdagi arzonroq (va imkon qadar shu muammoga
+  ishlaydigan) mahsulotga almashtiradi va qancha tejalishini ko'rsatadi.
 - **Rasm sifati nazorati — qat'iy.** Uzoq, xira, qorong'i, yuzi yopiq, bir
   nechta odam, qalin pardoz, ekrandan olingan yoki **AI/deepfake** rasm rad
   etiladi. Qoida: **ikkilansa — rad etadi.** Teri TEKSTURASI (teshiklar,
@@ -583,7 +630,8 @@ src/
     faceAnalysis.js    sifat nazorati + tahlil + tavsiya (bitta chaqiruv)
     productEnrich.js   skrinshotdan mahsulotni tanish
     poster.js          poster g'oyalari va generatsiyasi
-    maslahat.js        AI maslahatchi: katalogdan mahsulot tavsiyasi
+    maslahat.js        AI maslahatchi: savol, to'plam, tavsiya
+    kalit-sozlar.js    qidiruv kalit so'zlari (partiyalab)
   bot/
     index.js           dispetcher
     render.js          tahlil natijasining Telegram ko'rinishi
@@ -615,6 +663,7 @@ src/
     pochta-hujjati.js  pochta uchun manzillar hujjati
     qollanma-hujjati.js mijozga qutiga qo'shiladigan parvarish qo'llanmasi
     mijoz-qollanma.js  to'lovdan keyin qo'llanmani yuborish (rasm + Word)
+    kalit-sozlar.js    qoida + AI dan kalit so'zlarni to'ldirish
     broadcast.js       reklama yuborish (tezlik cheklovi bilan)
     majburiy-kanal.js  obuna tekshiruvi
     marketplace.js     Daiso/Coupang dan mahsulot olish va filtrlash
@@ -626,6 +675,9 @@ src/
 public/
   index.html           qo'nish sahifasi
   app/                 Mini App
+    manifest.json      PWA: telefon ekraniga o'rnatish
+    sw.js              service worker (faqat qobiqni keshlaydi)
+    ikon-*.png         o'rnatilgan ilovaning ikonkasi (scripts/ikon-yarat.mjs)
   admin/               admin panel
 migrations/
   001_schema.sql       jadvallar, RLS, place_order()
@@ -636,6 +688,7 @@ migrations/
   006_limit_aloqa.sql  kunlik skan limiti, menejer aloqasi
   007_ombor_admin.sql  omborlar, viloyat/tuman, Telegram admin
   008_omborda_holati…  «Omborda» holati va uning xabari
+  025_kalit_sozlar…    qidiruv kalit so'zlari + profil (allergiya)
 ```
 
 Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing

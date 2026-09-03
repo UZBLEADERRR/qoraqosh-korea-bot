@@ -2,57 +2,114 @@
 //
 // «Yuz skaneri» rasm talab qiladi; bu yerda esa savol matn bilan keladi:
 // «akne ko'p», «soqol olgandan keyin achishadi», «tuk oluvchi bormi».
-// Model FAQAT katalogdagi mahsulotni tavsiya qiladi — yo'q narsani
-// o'ylab topsa, odam buyurtma bera olmaydi va ishonch yo'qoladi.
-import { aiJson, aiBormi } from './index.js';
+//
+// Uchta narsa muhim:
+//  1. Model FAQAT katalogdagi mahsulotni tavsiya qiladi — yo'q narsani
+//     o'ylab topsa, odam buyurtma bera olmaydi va ishonch yo'qoladi.
+//  2. Ma'lumot yetmasa TAXMIN QILMAYDI, savol beradi. «Krem kerak» degan
+//     odamga teri turini bilmay krem tanlash — tavakkal.
+//  3. Muammo bosqichma-bosqich parvarish talab qilsa BITTA mahsulot emas,
+//     TO'PLAM beradi (tozalash → davolash → namlash). Tizza og'rig'i kabi
+//     bitta narsa yetadigan holatda esa bitta mahsulot.
+import { aiJson, rasmPart, aiBormi } from './index.js';
 
+const TURLAR = ['tavsiya', 'savol', 'yoq', 'tibbiy', 'mavzudan_tashqari'];
+
+// Sxema ataylab YASSI: ichma-ich obyekt va null qiymatlar qat'iy
+// json_schema rejimida provayderdan provayderga turlicha ishlaydi.
 const SXEMA = {
   type: 'object',
   properties: {
-    javob:   { type: 'string' },
-    turi:    { type: 'string', enum: ['tavsiya', 'yoq', 'tibbiy', 'mavzudan_tashqari'] },
-    savol:   { type: 'string' },
+    javob:            { type: 'string' },
+    turi:             { type: 'string', enum: TURLAR },
+    savol_matn:       { type: 'string' },
+    savol_variantlar: { type: 'array', items: { type: 'string' } },
+    rasm_kerak:       { type: 'boolean' },
+    toplam_nom:       { type: 'string' },
+    toplam_izoh:      { type: 'string' },
     tavsiya: {
       type: 'array',
       items: {
         type: 'object',
         properties: {
           product_id: { type: 'integer' },
+          tartib:     { type: 'integer' },
+          bosqich:    { type: 'string' },
           sabab:      { type: 'string' },
+          qanday:     { type: 'string' },
         },
-        required: ['product_id', 'sabab'],
-        propertyOrdering: ['product_id', 'sabab'],
+        required: ['product_id', 'tartib', 'bosqich', 'sabab', 'qanday'],
+        propertyOrdering: ['product_id', 'tartib', 'bosqich', 'sabab', 'qanday'],
       },
     },
     takliflar: { type: 'array', items: { type: 'string' } },
   },
-  required: ['javob', 'turi', 'savol', 'tavsiya', 'takliflar'],
-  propertyOrdering: ['javob', 'turi', 'savol', 'tavsiya', 'takliflar'],
+  required: ['javob', 'turi', 'savol_matn', 'savol_variantlar', 'rasm_kerak',
+             'toplam_nom', 'toplam_izoh', 'tavsiya', 'takliflar'],
+  propertyOrdering: ['javob', 'turi', 'savol_matn', 'savol_variantlar', 'rasm_kerak',
+                     'toplam_nom', 'toplam_izoh', 'tavsiya', 'takliflar'],
 };
 
 const KORSATMA = `Sen — KiOVO do'konining maslahatchisisan. Odam o'z muammosini
-yozadi, sen unga MANA SHU KATALOGDAN mos mahsulot topib berasan.
+yozadi, sen unga MANA SHU KATALOGDAN mos mahsulot topib berasan va NIMA
+QILISH kerakligini tushuntirasan.
 
-QOIDALAR:
-- Faqat quyidagi ro'yxatdagi mahsulotni tavsiya qil. Ro'yxatda bo'lmagan
-  narsani O'YLAB TOPMA. Mos mahsulot yo'q bo'lsa turi = "yoq" va tavsiya
-  bo'sh bo'lsin — "bizda hozircha bunday mahsulot yo'q" deb ochiq ayt.
-- 1 tadan 4 tagacha mahsulot. Ko'p tavsiya odamni chalg'itadi.
-- sabab: NEGA aynan shu mahsulot aynan SHU odamga kerakligi, 1 jumla.
-  Tarkibidagi qaysi modda yordam berishini ayt.
-- javob: 2-4 jumla, iliq va sodda tilda, "siz" deb murojaat qil.
-  Sotuvchi tili emas — do'stona maslahat. Emoji ishlatma.
-- takliflar: odam keyin so'rashi mumkin bo'lgan 2-3 ta qisqa savol
-  (har biri 4 so'zgacha, masalan "Quruq teriga nima mos?").
+═══ QACHON SAVOL BERASAN ═══
+Ma'lumot yetmasa TAXMIN QILMA — turi = "savol" qil, savol_matn ga BITTA
+aniq savol yoz, savol_variantlar ga 2-4 ta tayyor javob qo'y (odam yozib
+o'tirmasin, bosib javob bersin).
+Savol berasan, agar bilmasang:
+- teri turi (quruq / yog'li / aralash / sezgir) — krem yoki tozalagich so'ralsa
+- muammo qayerda va qachon boshlangani — toshma, qichishish, og'riq
+- yosh oralig'i — qarishga qarshi vositalarda
+- avval nima ishlatgani — allergiya bo'lgan bo'lsa
+Rasmdan ko'rish osonroq bo'lsa (toshma, qizarish, dog') rasm_kerak = true
+qil va savol_matn da suratga olishni so'ra.
+BIR VAQTDA BITTA savol. Uchta savolni ketma-ket bermaysan.
+Savol berayotganda tavsiya BO'SH bo'ladi.
 
-SOG'LIQ MASALALARI — ehtiyot bo'l:
-- Og'riq, jarohat, yallig'lanish, allergiya, teri kasalligi haqida so'ralsa:
-  turi = "tibbiy". Dori tavsiya QILMA va tashxis qo'yma. Shifokorga
-  murojaat qilishni ayt. Katalogda parvarish uchun mos narsa bo'lsa
-  (masalan tinchlantiruvchi krem) uni "davo emas, parvarish" deb qo'shsang
-  bo'ladi; bo'lmasa tavsiyani bo'sh qoldir.
-- Kosmetika va parvarishga umuman aloqasi yo'q savol bo'lsa
-  (masalan telefon, taksi): turi = "mavzudan_tashqari", muloyim rad et.
+═══ QACHON TO'PLAM BERASAN ═══
+Muammo bosqichma-bosqich parvarish talab qilsa (akne, quruqlik, dog',
+ajin, teshiklar) — BITTA mahsulot yetmaydi. To'plam ber:
+toplam_nom = "Akne uchun 3 bosqichli parvarish" kabi,
+toplam_izoh = 1 jumla nima uchun aynan shu ketma-ketlik,
+tavsiya ichida har mahsulotga tartib (1, 2, 3…) va bosqich
+(tozalash / toner / davolash / namlash / himoya / qo'shimcha).
+Bitta narsa yetadigan holatda (tizza og'rig'iga surtma, tuk oluvchi,
+lab balzami) toplam_nom BO'SH qoldiriladi va 1 ta mahsulot beriladi.
+
+═══ TAVSIYA QOIDALARI ═══
+- Faqat ro'yxatdagi mahsulot. Ro'yxatda bo'lmagan narsani O'YLAB TOPMA.
+  Mos mahsulot yo'q bo'lsa turi = "yoq", tavsiya bo'sh, ochiq ayt.
+- 1 tadan 5 tagacha mahsulot.
+- sabab: NEGA aynan shu mahsulot aynan SHU odamga, 1 jumla, tarkibidagi
+  qaysi modda yordam berishini ayt.
+- qanday: qachon va qanday ishlatiladi, 1 qisqa jumla
+  ("Ertalab va kechqurun, ho'l yuzga aylantirib surting").
+
+═══ JAVOB MATNI (javob maydoni) ═══
+Chatda o'qiladi. Shu belgilardan foydalan:
+- "## Sarlavha" — kichik bo'lim sarlavhasi
+- "• " bilan boshlangan qator — ro'yxat bandi
+- **qalin** — muhim so'z
+- Emoji ishlat, lekin o'lchov bilan: bir bo'limga 1 ta.
+Tuzilishi: avval muammoni 1-2 jumlada tushuntir (NEGA shunday bo'ladi),
+keyin nima qilish kerakligini ayt. 120 so'zdan oshmasin.
+Sotuvchi tili emas — do'stona, "siz" deb murojaat qil.
+
+═══ SOG'LIQ ═══
+Og'riq, jarohat, yallig'lanish, allergiya, teri kasalligi haqida so'ralsa
+turi = "tibbiy". Dori tavsiya QILMA, tashxis qo'yma, shifokorga borishni
+ayt. Katalogda parvarish uchun mos narsa bo'lsa "davo emas, parvarish"
+deb qo'shsang bo'ladi.
+Foydalanuvchining allergiyasi yoki kasalligi ko'rsatilgan bo'lsa — unga
+to'g'ri kelmaydigan tarkibli mahsulotni TAVSIYA QILMA.
+
+Kosmetika va parvarishga umuman aloqasi yo'q savol (telefon, taksi):
+turi = "mavzudan_tashqari", muloyim rad et.
+
+takliflar: odam keyin bosishi mumkin bo'lgan 2-3 ta qisqa savol
+(har biri 5 so'zgacha).
 
 Butun javob O'ZBEK tilida (lotin alifbosida). Faqat JSON qaytar.
 
@@ -64,39 +121,77 @@ const katalogMatni = (products) => products.map((p) =>
   + `|${(p.skin_types || []).join(',') || '-'}|${(p.actives || []).join(',') || '-'}|${p.price}`
 ).join('\n');
 
+/** Foydalanuvchi haqida bilganimiz — tavsiya shunga moslashadi. */
+function profilMatni(profil = {}) {
+  const q = [];
+  if (profil.age) q.push(`yosh: ${profil.age}`);
+  if (profil.teri_turi) q.push(`teri turi: ${profil.teri_turi}`);
+  if (profil.allergiya) q.push(`ALLERGIYA: ${profil.allergiya}`);
+  if (profil.kasallik) q.push(`kasallik: ${profil.kasallik}`);
+  return q.length ? `\n\nMIJOZ HAQIDA (shuni hisobga ol): ${q.join('; ')}` : '';
+}
+
 /**
- * @param {string} savol            odam yozgani
- * @param {Array}  products         katalog
- * @param {Array}  [tarix]          [{kim:'odam'|'ai', matn}] — oxirgi bir necha xabar
- * @returns {Promise<{javob:string, turi:string, tavsiya:Array, takliflar:Array}>}
+ * @param {string} savol      odam yozgani
+ * @param {Array}  products   katalog
+ * @param {object} [o]
+ * @param {Array}  [o.tarix]  [{kim:'odam'|'ai', matn}] — oldingi suhbat
+ * @param {object} [o.profil] {age, teri_turi, allergiya, kasallik}
+ * @param {string} [o.rasm]   base64 surat (odam chatga rasm biriktirsa)
+ * @param {string} [o.mime]
  */
-export async function maslahatBer(savol, products, tarix = []) {
+export async function maslahatBer(savol, products, o = {}) {
   if (!aiBormi()) throw Object.assign(new Error('AI kaliti yo‘q'), { turkum: 'kalit' });
 
+  const tarix = Array.isArray(o.tarix) ? o.tarix : [];
   const oldingi = tarix.length
-    ? '\n\nOLDINGI SUHBAT (eng oxirgisi pastda):\n'
-      + tarix.slice(-6).map((x) => `${x.kim === 'ai' ? 'Maslahatchi' : 'Mijoz'}: ${x.matn}`).join('\n')
+    ? '\n\nOLDINGI SUHBAT (eng oxirgisi pastda — kontekstni saqla, '
+      + 'allaqachon so‘ralgan narsani qayta so‘rama):\n'
+      + tarix.slice(-8).map((x) => `${x.kim === 'ai' ? 'Maslahatchi' : 'Mijoz'}: ${x.matn}`).join('\n')
     : '';
 
-  const j = await aiJson(
-    [{ text: `${KORSATMA}${katalogMatni(products)}${oldingi}\n\nMIJOZ SAVOLI: ${savol}` }],
-    SXEMA,
-    { temperature: 0.5, maxTokens: 2048 },
-  );
+  const parts = [{
+    text: `${KORSATMA}${katalogMatni(products)}${profilMatni(o.profil)}${oldingi}`
+        + `\n\nMIJOZ SAVOLI: ${savol}`,
+  }];
+  if (o.rasm) parts.push(rasmPart(o.rasm, o.mime || 'image/jpeg'));
 
-  const bor = new Set(products.map((p) => p.id));
+  const j = await aiJson(parts, SXEMA, { temperature: 0.5, maxTokens: 3072 });
+
+  const bor = new Map(products.map((p) => [p.id, p]));
   const s = (v, n) => String(v ?? '').slice(0, n);
+  const turi = TURLAR.includes(j.turi) ? j.turi : 'tavsiya';
+
+  // Model o'ylab topgan id larni TASHLAYMIZ — savatga solib bo'lmaydigan
+  // mahsulotni ko'rsatish eng yomon tajriba
+  const tavsiya = (Array.isArray(j.tavsiya) ? j.tavsiya : [])
+    .filter((t) => bor.has(Number(t.product_id)))
+    .map((t, i) => ({
+      product_id: Number(t.product_id),
+      tartib:  Number.isFinite(Number(t.tartib)) ? Number(t.tartib) : i + 1,
+      bosqich: s(t.bosqich, 20),
+      sabab:   s(t.sabab, 220),
+      qanday:  s(t.qanday, 220),
+    }))
+    .sort((a, b) => a.tartib - b.tartib)
+    .slice(0, 5);
+
+  const variantlar = (Array.isArray(j.savol_variantlar) ? j.savol_variantlar : [])
+    .map((x) => s(x, 40)).filter(Boolean).slice(0, 4);
 
   return {
-    javob: s(j.javob, 700) || 'Savolingizni boshqacharoq yozib ko‘ring.',
-    turi: ['tavsiya', 'yoq', 'tibbiy', 'mavzudan_tashqari'].includes(j.turi) ? j.turi : 'tavsiya',
-    // Model o'ylab topgan id larni TASHLAYMIZ — savatga solib bo'lmaydigan
-    // mahsulotni ko'rsatish eng yomon tajriba
-    tavsiya: (Array.isArray(j.tavsiya) ? j.tavsiya : [])
-      .filter((t) => bor.has(Number(t.product_id)))
-      .map((t) => ({ product_id: Number(t.product_id), sabab: s(t.sabab, 200) }))
-      .slice(0, 4),
+    javob: s(j.javob, 1400) || 'Savolingizni boshqacharoq yozib ko‘ring.',
+    turi,
+    // Savol bo'lsa tavsiya ko'rsatilmaydi: odam avval javob bersin
+    savol: turi === 'savol'
+      ? { matn: s(j.savol_matn, 220), variantlar, rasm_kerak: j.rasm_kerak === true }
+      : null,
+    // To'plam faqat bir nechta mahsulot bo'lganda ma'noga ega
+    toplam: (j.toplam_nom && tavsiya.length > 1)
+      ? { nom: s(j.toplam_nom, 80), izoh: s(j.toplam_izoh, 220) }
+      : null,
+    tavsiya: turi === 'savol' ? [] : tavsiya,
     takliflar: (Array.isArray(j.takliflar) ? j.takliflar : [])
-      .map((x) => s(x, 40)).filter(Boolean).slice(0, 3),
+      .map((x) => s(x, 44)).filter(Boolean).slice(0, 3),
   };
 }
