@@ -311,7 +311,7 @@ function hududniTekshir(xomViloyat, xomTuman) {
 /** Katalog ma'lumotini bir marta yig'adi — kesh shu funksiyani chaqiradi. */
 async function katalogniYig() {
   const [mahsulotlar, kategoriyalar, fee, bepul, pogonalar, karta, egasi, konsult,
-         menejerTel, ishVaqti, donaChegirma, donaDan, minimal, namunaId, mavzu] =
+         menejerTel, ishVaqti, donaChegirma, donaDan, minimal, namunaId, karusel, mavzu] =
     await Promise.all([
       faolMahsulotlar(),
       qatorlar('select * from categories order by sort'),
@@ -327,6 +327,7 @@ async function katalogniYig() {
       sozlama('mahsulot_chegirma_dan', 1),
       sozlama('minimal_buyurtma', 0),
       sozlama('skaner_namuna_id', ''),
+      sozlama('karusel_rasmlar', []),
       sozlama('mavzu', {}),
     ]);
   const son = (v) => {
@@ -345,6 +346,9 @@ async function katalogniYig() {
     menejer: { telefon: String(menejerTel || ''), ish_vaqti: String(ishVaqti || '') },
     // «Yuz skaneri» ekranidagi namuna surat (bo'sh bo'lsa matnli ko'rsatma)
     skaner_namuna: String(namunaId || '').replace(/"/g, ''),
+    // Bosh sahifadagi karusel: admin yuklagan rasmlar (media id lari)
+    karusel: (Array.isArray(karusel) ? karusel : [])
+      .map((x) => String(x || '').replace(/"/g, '').trim()).filter(Boolean).slice(0, 10),
     // Ilova ranglari — admin panelda tanlanadi
     mavzu: palitra((mavzu && typeof mavzu === 'object') ? mavzu : {}),
   };

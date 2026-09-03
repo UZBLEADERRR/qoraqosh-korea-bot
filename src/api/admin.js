@@ -784,6 +784,42 @@ export async function adminRoutes(req, res, yol) {
     return ok(res, { ok: true });
   }
 
+  // ---- Bosh sahifadagi karusel rasmlari ----
+  // Ilova ochilganda birinchi ko'rinadigan joy: admin bir nechta rasm
+  // qo'yadi, ular aylanadi va ustidagi tugma skanerga olib boradi.
+  if (yol === '/api/admin/karusel' && req.method === 'GET') {
+    return ok(res, { rasmlar: await karuselRoyxati() });
+  }
+
+  if (yol === '/api/admin/karusel' && req.method === 'POST') {
+    const b = await tana(req);
+    const r = rasmniOl(b.image);
+    if (!r) return xato(res, 400, 'Rasm yuborilmadi yoki juda katta.');
+
+    const royxat = await karuselRoyxati();
+    if (royxat.length >= 10) return xato(res, 400, 'Ko‘pi bilan 10 ta rasm.');
+
+    const bayt = Buffer.from(r.base64, 'base64');
+    const m = await qator(
+      `insert into media (tur, mime, bayt, hajm, goya)
+       values ('karusel', $1, $2, $3, 'Karusel') returning id`,
+      [r.mime, bayt, bayt.length]);
+
+    await karuselSaqla([...royxat, m.id]);
+    katalogYangilandi();
+    return ok(res, { id: m.id, rasmlar: await karuselRoyxati() });
+  }
+
+  if (yol === '/api/admin/karusel' && req.method === 'DELETE') {
+    const url = new URL(req.url, 'http://x');
+    const id = String(url.searchParams.get('id') || '');
+    const royxat = await karuselRoyxati();
+    await karuselSaqla(royxat.filter((x) => x !== id));
+    if (id) await sorov('delete from media where id = $1', [id]).catch(() => {});
+    katalogYangilandi();
+    return ok(res, { rasmlar: await karuselRoyxati() });
+  }
+
   // ================= MARKETPLACE =================
   // Daiso / Coupang dan mahsulotni olish. Havola beriladi, server sahifani
   // o'qiydi, AI kartochkani to'ldiradi, narx qoida bo'yicha hisoblanadi.
@@ -1330,3 +1366,15 @@ async function mijozgaXabar(buyurtma, holat, sabab) {
   const matn = await xabar(`xabar_holat_${holat}`, qiymatlar, '');
   if (matn) await yubor(chatId, matn);
 }
+
+/** Karusel rasmlari ro'yxati (media id lari). */
+async function karuselRoyxati() {
+  const x = await sozlama('karusel_rasmlar', []);
+  return (Array.isArray(x) ? x : [])
+    .map((v) => String(v || '').replace(/"/g, '').trim()).filter(Boolean).slice(0, 10);
+}
+
+const karuselSaqla = (royxat) => sorov(
+  `insert into settings (key, value, updated_at) values ('karusel_rasmlar', $1::jsonb, now())
+   on conflict (key) do update set value = excluded.value, updated_at = now()`,
+  [JSON.stringify(royxat)]);

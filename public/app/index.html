@@ -13,26 +13,26 @@
 <!-- ============ RO'YXATDAN O'TISH ============ -->
 <section id="ekran-royxat" class="ekran yashirin">
   <div class="bosh">
-    <div class="brend">🌸 KiOVO</div>
+    <div class="brend"><i data-ik="brend" data-ik-olcham="15"></i>KiOVO</div>
     <h1>Tanishib olamiz</h1>
     <div class="izoh">3 ta savol — yarim daqiqa</div>
   </div>
   <div class="karta">
-    <label for="f-ism">👤 Ismingiz</label>
+    <label for="f-ism">Ismingiz</label>
     <input id="f-ism" type="text" placeholder="Aliyeva Malika" autocomplete="name">
 
-    <label for="f-tel">📱 Telefon raqamingiz</label>
+    <label for="f-tel">Telefon raqamingiz</label>
     <input id="f-tel" type="tel" placeholder="+998 90 123 45 67" inputmode="tel" autocomplete="tel">
 
-    <label for="f-yosh">🎂 Yoshingiz</label>
+    <label for="f-yosh">Yoshingiz</label>
     <input id="f-yosh" type="number" placeholder="24" inputmode="numeric" min="12" max="90">
 
     <div id="royxat-xato" class="xato-matn"></div>
     <a class="tugma ikkilamchi" id="t-oferta" href="/oferta" target="_blank"
-       style="margin-top:20px;text-decoration:none">📄 Shartnomani o‘qish</a>
-    <button class="asosiy" id="t-roziman" style="margin-top:10px">✅ Roziman, boshladik</button>
+       style="margin-top:20px;text-decoration:none"><i data-ik="hujjat" data-ik-olcham="18"></i>Shartnomani o‘qish</a>
+    <button class="asosiy" id="t-roziman" style="margin-top:10px"><i data-ik="tasdiq" data-ik-olcham="18"></i>Roziman, boshladik</button>
     <div class="ogoh" style="margin-top:16px">
-      🔒 Yuz suratingiz faqat sizning tahlilingiz uchun ishlatiladi —
+      <i data-ik="qulf" data-ik-olcham="15"></i> Yuz suratingiz faqat sizning tahlilingiz uchun ishlatiladi —
       botdagi <b>/ochir</b> bilan istagan vaqtda o‘chirasiz.
     </div>
   </div>
@@ -44,28 +44,42 @@
   <!-- ---------- DO'KON ---------- -->
   <section id="tab-katalog" class="ekran">
     <div class="bosh">
-      <div class="brend">🌸 KiOVO</div>
+      <div class="brend"><i data-ik="brend" data-ik-olcham="15"></i>KiOVO</div>
       <h1>Do‘kon</h1>
       <div class="izoh">Koreyadan original</div>
     </div>
 
+    <!-- Karusel: admin panelidan yuklangan rasmlar aylanadi, chetida
+         skanerga o'tish tugmasi. Rasm yo'q bo'lsa oddiy chaqiriq karta. -->
+    <div class="karusel yashirin" id="karusel">
+      <div class="karusel-lenta" id="karusel-lenta"></div>
+      <div class="karusel-parda"></div>
+      <div class="karusel-tan">
+        <b id="karusel-sarlavha">Yuzingizni tekshiring</b>
+        <span id="karusel-izoh">Rasm yuboring — sizga nima kerakligini aytamiz</span>
+        <button class="karusel-tugma" id="karusel-tugma">
+          <i data-ik="skaner" data-ik-olcham="18"></i>Yuzni tahlil qilish</button>
+      </div>
+      <div class="karusel-nuqtalar" id="karusel-nuqtalar"></div>
+    </div>
+
     <button class="chaqiriq" id="skaner-chaqiriq">
-      <span class="belgi">🔬</span>
+      <span class="belgi"><i data-ik="skaner" data-ik-olcham="22"></i></span>
       <span style="flex:1"><b>Yuzingizni tekshiring</b>
         <span>Rasm yuboring — sizga nima kerakligini aytamiz</span></span>
-      <span class="oq">›</span>
+      <span class="oq"><i data-ik="keyingi" data-ik-olcham="18"></i></span>
     </button>
 
     <div class="qidiruv-quti" id="qidiruv-quti">
       <div class="qidiruv-satr">
         <div class="qidiruv">
-          <span>🔍</span>
+          <i data-ik="qidiruv" data-ik-olcham="17"></i>
           <input id="qidiruv" type="text" inputmode="search" enterkeyhint="search"
                  autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
                  placeholder="Nomi yoki muammo: «quyoshdan himoya»">
-          <button class="tozala yashirin" id="qidiruv-tozala" aria-label="Tozalash">✕</button>
+          <button class="tozala yashirin" id="qidiruv-tozala" aria-label="Tozalash"><i data-ik="yopish" data-ik-olcham="16"></i></button>
         </div>
-        <button class="uch-nuqta" id="filtr-tugma" aria-label="Filtr">⋯<i class="belgi-nuqta yashirin" id="filtr-belgi"></i></button>
+        <button class="uch-nuqta" id="filtr-tugma" aria-label="Filtr"><i data-ik="filtr"></i><i class="belgi-nuqta yashirin" id="filtr-belgi"></i></button>
       </div>
     </div>
 
@@ -73,7 +87,7 @@
     <div class="ichki ozgina" id="natija-soni" style="padding-bottom:8px"></div>
     <div class="tor" id="mahsulotlar"></div>
     <div id="katalog-bosh" class="bosh-holat yashirin">
-      <div class="belgi">🔍</div>
+      <div class="belgi"><i data-ik="qidiruv" data-ik-olcham="46"></i></div>
       <p id="bosh-matn">Bunday mahsulot topilmadi</p>
       <button class="ikkilamchi" id="t-filtr-tozala" style="max-width:240px;margin:14px auto 0">
         Filtrlarni tozalash</button>
@@ -83,18 +97,17 @@
   <!-- ---------- SKANER ---------- -->
   <section id="tab-skaner" class="ekran yashirin">
     <div class="bosh">
-      <div class="brend">🤖 AI tahlil</div>
+      <div class="brend"><i data-ik="robot" data-ik-olcham="15"></i>AI tahlil</div>
       <h1>Yuz skaneri</h1>
       <div class="izoh">Teri holatini aniqlab, parvarish tuzib beramiz</div>
     </div>
 
     <div id="skaner-boshlash">
       <div class="karta">
-        <div class="tushirish" id="tushirish">
-          <div class="belgi">📸</div>
-          <b>Rasm tanlang yoki suratga oling</b>
-          <p>Yuzingiz aniq ko‘rinsin</p>
-        </div>
+        <button class="asosiy" id="tushirish">
+          <i data-ik="kamera" data-ik-olcham="20"></i>Suratni tanlang</button>
+        <p class="mayda" style="text-align:center;margin:10px 0 0">
+          Kamerada oling yoki galereyadan yuklang</p>
         <input id="fayl" type="file" accept="image/*" capture="user" hidden>
       </div>
       <!-- Namuna surat: admin panelidan yuklanadi. Odam qanday rasm
@@ -105,13 +118,13 @@
       </div>
       <div class="karta">
         <h3 style="margin-bottom:8px">Yaxshi rasm qanday bo‘ladi</h3>
-        <div class="talab"><span class="b">☀️</span><div><b>Yorug‘ joyda</b> — deraza oldida turing</div></div>
-        <div class="talab"><span class="b">🤳</span><div><b>Yaqindan</b> — yuz ekranni to‘ldirsin</div></div>
-        <div class="talab"><span class="b">👀</span><div><b>To‘g‘riga qarang</b> — kamera yuz balandligida</div></div>
-        <div class="talab"><span class="b">🧼</span><div><b>Pardozsiz</b> — teri o‘z holida ko‘rinsin</div></div>
+        <div class="talab"><span class="b"><i data-ik="quyosh" data-ik-olcham="19"></i></span><div><b>Yorug‘ joyda</b> — deraza oldida turing</div></div>
+        <div class="talab"><span class="b"><i data-ik="selfi" data-ik-olcham="19"></i></span><div><b>Yaqindan</b> — yuz ekranni to‘ldirsin</div></div>
+        <div class="talab"><span class="b"><i data-ik="koz" data-ik-olcham="19"></i></span><div><b>To‘g‘riga qarang</b> — kamera yuz balandligida</div></div>
+        <div class="talab"><span class="b"><i data-ik="tozalik" data-ik-olcham="19"></i></span><div><b>Pardozsiz</b> — teri o‘z holida ko‘rinsin</div></div>
       </div>
       <div class="karta" style="background:none;border:0;box-shadow:none;padding:0 16px">
-        <div class="ogoh">⚠️ Xira, uzoqdan olingan, ekrandan suratga olingan yoki
+        <div class="ogoh"><i data-ik="ogoh" data-ik-olcham="15"></i> Xira, uzoqdan olingan, ekrandan suratga olingan yoki
           sun’iy intellekt chizgan rasm qabul qilinmaydi.</div>
       </div>
     </div>
@@ -119,7 +132,7 @@
     <div id="skaner-oldindan" class="yashirin">
       <div class="karta">
         <img id="oldindan-rasm" class="oldindan" alt="Tanlangan rasm">
-        <button class="asosiy" id="t-tahlil" style="margin-top:14px">🔬 Tahlil qilish</button>
+        <button class="asosiy" id="t-tahlil" style="margin-top:14px"><i data-ik="skaner" data-ik-olcham="19"></i>Tahlil qilish</button>
         <button class="ikkilamchi" id="t-boshqa" style="margin-top:9px">Boshqa rasm tanlash</button>
       </div>
     </div>
@@ -148,19 +161,19 @@
        Botdagi menyu ikki tugmagacha qisqardi: buyurtmalar, konsultatsiya,
        yordam va shaxsiy ma'lumot shu bo'limga ko'chdi. -->
   <section id="tab-profil" class="ekran yashirin">
-    <div class="bosh"><div class="brend">👤 Profil</div><h1 id="profil-ism">Profilim</h1>
+    <div class="bosh"><div class="brend"><i data-ik="profil" data-ik-olcham="15"></i>Profil</div><h1 id="profil-ism">Profilim</h1>
       <div class="izoh" id="profil-tel"></div></div>
     <div id="profil-tan"></div>
-    <div class="satr-bosh"><h3>📋 Buyurtmalarim</h3></div>
+    <div class="satr-bosh"><h3>Buyurtmalarim</h3></div>
     <div id="buyurtma-tan"></div>
   </section>
 
   <!-- ---------- PASTKI MENYU ---------- -->
   <nav class="menyu">
-    <button data-tab="katalog" class="tanlangan"><span class="ikon">🛍</span>Do‘kon</button>
-    <button data-tab="skaner"><span class="ikon">🔬</span>Skaner</button>
-    <button data-tab="savat"><span class="ikon">🛒</span>Savat<i id="savat-nishon" class="nishon yashirin">0</i></button>
-    <button data-tab="profil"><span class="ikon">👤</span>Profil</button>
+    <button data-tab="katalog" class="tanlangan"><span class="ikon"><i data-ik="dokon" data-ik-olcham="21"></i></span>Do‘kon</button>
+    <button data-tab="skaner"><span class="ikon"><i data-ik="skaner" data-ik-olcham="21"></i></span>Skaner</button>
+    <button data-tab="savat"><span class="ikon"><i data-ik="savat" data-ik-olcham="21"></i></span>Savat<i id="savat-nishon" class="nishon yashirin">0</i></button>
+    <button data-tab="profil"><span class="ikon"><i data-ik="profil" data-ik-olcham="21"></i></span>Profil</button>
   </nav>
 </div>
 
@@ -176,6 +189,7 @@
 </div>
 
 <script src="hududlar.js"></script>
+<script src="ikon.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

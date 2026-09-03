@@ -2088,6 +2088,17 @@ async function sozlamalar() {
       </div>
 
       <div class="karta tor">
+        <div class="karta-bosh"><h2>🖼 Bosh sahifa karuseli</h2></div>
+        <p class="mayda" style="margin:0 0 10px">Ilova ochilganda eng yuqorida
+          ko‘rinadigan rasmlar — aylanib turadi va ustidagi tugma yuz skaneriga
+          olib boradi. <b>Kengroq rasm qo‘ying</b> (16:10 ga yaqin);
+          ko‘pi bilan 10 ta. Rasm qo‘yilmasa oddiy chaqiriq kartasi ko‘rinadi.</p>
+        <div id="karusel-royxat" class="karusel-royxat"></div>
+        <input type="file" id="s-karusel" accept="image/png,image/jpeg" style="display:none">
+        <button class="tug keng" id="t-karusel" style="margin-top:8px">🖼 Rasm qo‘shish</button>
+      </div>
+
+      <div class="karta tor">
         <div class="karta-bosh"><h2>📸 Skaner namunasi</h2></div>
         <p class="mayda" style="margin:0 0 10px">«Yuz skaneri» ochilganda ko‘rsatiladigan
           namuna surat. Odam qanday rasm kutilayotganini o‘qib emas, <b>ko‘rib</b>
@@ -2290,6 +2301,9 @@ async function sozlamalar() {
     $('#t-logo').onclick = () => $('#s-logo').click();
     $('#s-logo').onchange = logoniYukla;
     $('#t-namuna').onclick = () => $('#s-namuna').click();
+  $('#t-karusel').onclick = () => $('#s-karusel').click();
+  $('#s-karusel').onchange = karuselYukla;
+  karuselniChiz();
     $('#s-namuna').onchange = namunaniYukla;
     const nOch = $('#t-namuna-och');
     if (nOch) nOch.onclick = async () => {
@@ -2534,6 +2548,46 @@ async function sozlamalarniSaqla() {
     holatEl.innerHTML = `<div class="xabar-quti ok" style="margin:0 0 10px">✓ Saqlandi</div>`;
     tost('Sozlamalar saqlandi');
   } catch (e) { holatEl.innerHTML = `<div class="xabar-quti xato" style="margin:0 0 10px">${esc(e.message)}</div>`; }
+}
+
+/** Karusel rasmlari — ro'yxat, qo'shish va o'chirish. */
+async function karuselniChiz() {
+  const quti = $('#karusel-royxat');
+  if (!quti) return;
+  try {
+    const j = await api('/api/admin/karusel');
+    quti.innerHTML = j.rasmlar.length
+      ? j.rasmlar.map((id) => `
+          <div class="karusel-katak">
+            <img src="/media/${esc(id)}" alt="">
+            <button class="karusel-och" data-karusel-och="${esc(id)}"
+              aria-label="O‘chirish">✕</button>
+          </div>`).join('')
+      : '<span class="mayda">Rasm yo‘q — ilovada oddiy chaqiriq kartasi ko‘rinadi</span>';
+    $$('[data-karusel-och]').forEach((b) => b.onclick = () => karuselOchir(b.dataset.karuselOch));
+  } catch { quti.innerHTML = '<span class="mayda">Ro‘yxat olinmadi</span>'; }
+}
+
+async function karuselYukla(e) {
+  const f = e.target.files?.[0];
+  if (!f) return;
+  const t = $('#t-karusel');
+  t.disabled = true; t.textContent = 'Yuklanmoqda…';
+  try {
+    // Karusel keng va katta ko'rinadi — 1600 px yetarli
+    const rasm = await rasmniTayyorla(f, 1600, 0.85);
+    await api('/api/admin/karusel', { method: 'POST', body: JSON.stringify({ image: rasm }) });
+    tost('Rasm qo‘shildi');
+    await karuselniChiz();
+  } catch (err) { tost(err.message || 'Yuklab bo‘lmadi'); }
+  finally { t.disabled = false; t.textContent = '🖼 Rasm qo‘shish'; e.target.value = ''; }
+}
+
+async function karuselOchir(id) {
+  try {
+    await api(`/api/admin/karusel?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await karuselniChiz();
+  } catch (e) { tost(e.message); }
 }
 
 /** Skaner namunasi — logotip bilan bir xil oqim. */

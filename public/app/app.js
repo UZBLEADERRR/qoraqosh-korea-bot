@@ -6,6 +6,7 @@ const tg = window.Telegram?.WebApp;
 tg?.ready(); tg?.expand();
 try { tg?.disableVerticalSwipes?.(); } catch {}
 
+const { ik, ikonlarniChiz } = window.IK;
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
@@ -107,19 +108,21 @@ function ball(p, sorov) {
 }
 
 const NARX_FILTR = {
-  hammasi: { nom: '💰 Barcha narx', tekshir: () => true },
+  hammasi: { nom: 'Barcha narx', tekshir: () => true },
   arzon:   { nom: '100 mingacha',   tekshir: (p) => p.price < 100000 },
   orta:    { nom: '100–150 ming',   tekshir: (p) => p.price >= 100000 && p.price <= 150000 },
   qimmat:  { nom: '150 mingdan',    tekshir: (p) => p.price > 150000 },
 };
 const SARALASH = {
-  ommabop:  { nom: '🔥 Ommabop',  cmp: (a, b) => (b.sold_count || 0) - (a.sold_count || 0) },
-  arzondan: { nom: '↑ Arzondan',  cmp: (a, b) => a.price - b.price },
-  qimmatdan:{ nom: '↓ Qimmatdan', cmp: (a, b) => b.price - a.price },
+  ommabop:  { nom: 'Ommabop',  cmp: (a, b) => (b.sold_count || 0) - (a.sold_count || 0) },
+  arzondan: { nom: 'Arzondan',  cmp: (a, b) => a.price - b.price },
+  qimmatdan:{ nom: 'Qimmatdan', cmp: (a, b) => b.price - a.price },
 };
 
 // ---------------- Ishga tushirish ----------------
 async function boshla() {
+  // Statik razmetkadagi <i data-ik> larni chizma ikonga to'ldiramiz
+  ikonlarniChiz();
   try {
     const k = await api('/api/catalog');
     holat.kategoriyalar = k.kategoriyalar;
@@ -133,6 +136,7 @@ async function boshla() {
     holat.konsultatsiya = k.konsultatsiya || '';
     holat.menejer = k.menejer || { telefon: '', ish_vaqti: '' };
     holat.namuna = k.skaner_namuna || '';
+    holat.karusel = Array.isArray(k.karusel) ? k.karusel : [];
     mavzuniQoll(k.mavzu);
   } catch (e) { console.error(e); }
 
@@ -145,12 +149,13 @@ async function boshla() {
     if (!me.user.royxatdan_otgan) return royxatEkrani();
   } catch {
     kor($('#ilova'), true);              // Telegram tashqarisida — faqat katalog
+    karuselniChiz();
     filtrlarniChiz(); mahsulotlarniChiz();
     return;
   }
 
   kor($('#ilova'), true);
-  kor($('#skaner-chaqiriq'), true);
+  karuselniChiz();
   namunaniChiz();
   filtrlarniChiz(); mahsulotlarniChiz(); limitniChiz();
   await Promise.all([savatniYangila(), draftniYukla()]);
@@ -181,11 +186,11 @@ function royxatEkrani() {
       age:       Number($('#f-yosh').value),
       agreed:    true,           // manzil bu yerda emas — buyurtma paytida so'raladi
     };
-    if (tana.full_name.length < 3) return xato.textContent = '✍️ Ismingizni to‘liq yozing.';
+    if (tana.full_name.length < 3) return xato.textContent = 'Ismingizni to‘liq yozing.';
     if (!/^\+?998\d{9}$/.test(tana.phone.replace(/[\s()-]/g, '')))
-      return xato.textContent = '📱 Telefon: +998901234567 ko‘rinishida.';
+      return xato.textContent = 'Telefon: +998901234567 ko‘rinishida.';
     if (!tana.age || tana.age < 12 || tana.age > 90)
-      return xato.textContent = '🎂 Yoshni 12–90 oralig‘ida kiriting.';
+      return xato.textContent = 'Yoshni 12–90 oralig‘ida kiriting.';
 
     $('#t-roziman').disabled = true;
     try {
@@ -230,6 +235,62 @@ function mavzuniQoll(m) {
   } catch {}
 }
 
+/**
+ * Bosh sahifadagi karusel.
+ *
+ * Admin bir nechta rasm yuklaydi — ular avtomatik aylanadi va ustida
+ * skanerga olib boruvchi tugma turadi. Rasm YO'Q bo'lsa eski chaqiriq
+ * kartasi ko'rinadi: bo'sh joy qolmaydi.
+ */
+let karuselTaymer = null;
+function karuselniChiz() {
+  const quti = $('#karusel');
+  const chaqiriq = $('#skaner-chaqiriq');
+  const rasmlar = (holat.karusel || []).filter(Boolean);
+
+  if (!quti || !rasmlar.length) {
+    kor(quti, false);
+    kor(chaqiriq, true);
+    return;
+  }
+  kor(chaqiriq, false);
+  kor(quti, true);
+
+  const lenta = $('#karusel-lenta');
+  lenta.innerHTML = rasmlar
+    .map((id) => `<img src="/media/${esc(id)}" alt="" loading="lazy">`).join('');
+  $('#karusel-nuqtalar').innerHTML = rasmlar.length > 1
+    ? rasmlar.map((_, i) => `<i class="${i ? '' : 'faol'}"></i>`).join('') : '';
+
+  // Rasm ochilmasa (o'chirilgan bo'lsa) karusel ham yopiladi
+  lenta.querySelectorAll('img').forEach((im) => {
+    im.onerror = () => { if (!lenta.querySelector('img:not([data-xato])')) {
+      kor(quti, false); kor(chaqiriq, true); } im.dataset.xato = '1'; im.remove(); };
+  });
+
+  let joriy = 0;
+  const kor_ = () => {
+    lenta.style.transform = `translateX(-${joriy * 100}%)`;
+    $$('#karusel-nuqtalar i').forEach((n, i) => n.classList.toggle('faol', i === joriy));
+  };
+  clearInterval(karuselTaymer);
+  if (rasmlar.length > 1) {
+    karuselTaymer = setInterval(() => { joriy = (joriy + 1) % rasmlar.length; kor_(); }, 4500);
+  }
+  // Barmoq bilan surish
+  let boshX = 0;
+  quti.ontouchstart = (e) => { boshX = e.touches[0].clientX; clearInterval(karuselTaymer); };
+  quti.ontouchend = (e) => {
+    const farq = e.changedTouches[0].clientX - boshX;
+    if (Math.abs(farq) > 40) {
+      joriy = (joriy + (farq < 0 ? 1 : rasmlar.length - 1)) % rasmlar.length;
+      kor_();
+    }
+  };
+  $('#karusel-tugma').onclick = () => $('[data-tab=skaner]')?.click();
+  kor_();
+}
+
 /** Skaner ekranidagi namuna surat — admin yuklagan bo'lsa ko'rsatiladi. */
 function namunaniChiz() {
   const karta = $('#namuna-karta');
@@ -255,7 +316,7 @@ function filtrlarniChiz() {
 
   const el = $('#filtr-satr');
   el.innerHTML = yorliqlar.map((y) =>
-    `<span class="filtr-yorliq">${esc(y.matn)}<button data-och="${y.tur}" aria-label="Olib tashlash">✕</button></span>`).join('');
+    `<span class="filtr-yorliq">${esc(y.matn)}<button data-och="${y.tur}" aria-label="Olib tashlash">${ik('yopish',14)}</button></span>`).join('');
   $$('[data-och]', el).forEach((b) => b.onclick = () => {
     const t = b.dataset.och;
     if (t === 'kat')  holat.kategoriya = 'hammasi';
@@ -271,25 +332,25 @@ function filtrlarniChiz() {
 
 /** ⋯ tugmasi — filtr oynasi. Ekranni band qilmasin. */
 function filtrOyna() {
-  const kat = [{ slug:'hammasi', name:'Hammasi', emoji:'✨' }, ...holat.kategoriyalar];
+  const kat = [{ slug:'hammasi', name:'Hammasi' }, ...holat.kategoriyalar];
   $('#modal-tan').innerHTML = `
     <div style="padding:16px 18px 0">
       <div class="karta-bosh"><h2>Filtr va tartib</h2>
         <button class="filtr-yorliq" id="f-tozala" style="border:0;cursor:pointer">Tozalash</button></div>
 
-      <label style="margin-top:6px">🗂 Kategoriya</label>
+      <label style="margin-top:6px">Kategoriya</label>
       <div class="lenta" style="padding:2px 0 4px;flex-wrap:wrap;overflow:visible">
         ${kat.map((k) => `<button data-kat="${esc(k.slug)}"
           class="${k.slug === holat.kategoriya ? 'tanlangan' : ''}">${esc(k.emoji || '')} ${esc(k.name)}</button>`).join('')}
       </div>
 
-      <label>💰 Narx</label>
+      <label>Narx</label>
       <div class="lenta" style="padding:2px 0 4px;flex-wrap:wrap;overflow:visible">
         ${Object.entries(NARX_FILTR).map(([k, v]) => `<button data-narx="${k}"
           class="${k === holat.narxFiltr ? 'tanlangan' : ''}">${esc(v.nom)}</button>`).join('')}
       </div>
 
-      <label>↕️ Tartib</label>
+      <label>Tartib</label>
       <div class="lenta" style="padding:2px 0 4px;flex-wrap:wrap;overflow:visible">
         ${Object.entries(SARALASH).map(([k, v]) => `<button data-sara="${k}"
           class="${k === holat.saralash ? 'tanlangan' : ''}">${esc(v.nom)}</button>`).join('')}
@@ -322,10 +383,12 @@ function saralangan() {
 }
 
 function rasmHtml(p, uslub = '', nishonlar = '') {
-  const fon = `background:linear-gradient(135deg,${esc(p.gradient?.[0] || '#333')},${esc(p.gradient?.[1] || '#666')})`;
+  // Rasm yo'q bo'lsa TINCH neytral fon: ilgari har mahsulotga tasodifiy
+  // to'q gradient qo'yilardi va katalog rang-barang bo'lib ketardi.
+  const fon = '';
   const ich = p.poster_id
     ? `<img src="/media/${esc(p.poster_id)}" alt="${esc(p.name)}" loading="lazy">`
-    : esc(p.emoji || '🧴');
+    : ik('shisha', 44);
   return `<div class="rasm" style="${p.poster_id ? '' : fon};${uslub}">${ich}${nishonlar}</div>`;
 }
 
@@ -446,18 +509,18 @@ function mahsulotOyna(id) {
         ${p.old_price && p.old_price > p.price ? `<s style="font-size:15px;color:var(--och);font-weight:400">${narx(p.old_price)}</s>` : ''}</div>
       ${p.description ? `<p class="mayda" style="margin-top:12px">${esc(p.description)}</p>` : ''}
       <div style="margin-top:12px">
-        ${p.volume    ? qtr('📏 Hajm', esc(p.volume)) : ''}
-        ${p.country   ? qtr('🌏 Ishlab chiqarilgan', esc(p.country === 'KR' ? 'Koreya 🇰🇷' : p.country)) : ''}
-        ${p.skin_types?.length ? qtr('🧴 Teri turi', p.skin_types.map(esc).join(', ')) : ''}
-        ${p.concerns?.length   ? qtr('🎯 Yordam beradi', p.concerns.map(esc).join(', ')) : ''}
-        ${qtr('📦 Omborda', p.stock > 0 ? `${p.stock} dona` : '<span style="color:var(--qizil)">tugagan</span>')}
+        ${p.volume    ? qtr('Hajm', esc(p.volume)) : ''}
+        ${p.country   ? qtr('Ishlab chiqarilgan', esc(p.country === 'KR' ? 'Koreya' : p.country)) : ''}
+        ${p.skin_types?.length ? qtr('Teri turi', p.skin_types.map(esc).join(', ')) : ''}
+        ${p.concerns?.length   ? qtr('Yordam beradi', p.concerns.map(esc).join(', ')) : ''}
+        ${qtr('Omborda', p.stock > 0 ? `${p.stock} dona` : '<span style="color:var(--qizil)">tugagan</span>')}
       </div>
-      ${p.usage_text ? `<div class="ogoh" style="margin-top:14px">📖 <b>Qanday foydalanish</b><br>${esc(p.usage_text)}</div>` : ''}
-      ${p.ingredients ? `<div style="margin-top:12px"><h3>🧪 Tarkibi</h3>
+      ${p.usage_text ? `<div class="ogoh" style="margin-top:14px"><b>Qanday foydalanish</b><br>${esc(p.usage_text)}</div>` : ''}
+      ${p.ingredients ? `<div style="margin-top:12px"><h3>Tarkibi</h3>
         <p class="mayda" style="margin-top:5px">${esc(p.ingredients)}</p></div>` : ''}
-      ${p.warnings ? `<div class="ogoh" style="margin-top:12px;background:var(--qizil-och);color:var(--qizil)">⚠️ ${esc(p.warnings)}</div>` : ''}
+      ${p.warnings ? `<div class="ogoh" style="margin-top:12px;background:var(--qizil-och);color:var(--qizil)">${esc(p.warnings)}</div>` : ''}
       <button class="asosiy" style="margin-top:18px" id="t-savatga" ${p.stock > 0 ? '' : 'disabled'}>
-        ${p.stock > 0 ? (savatda ? `🛒 Savatda (${savatda}) · yana qo‘shish` : '🛒 Savatga qo‘shish') : '😔 Omborda yo‘q'}
+        ${p.stock > 0 ? (savatda ? `Savatda (${savatda}) · yana qo‘shish` : 'Savatga qo‘shish') : 'Omborda yo‘q'}
       </button>
     </div>`;
   modalOch();
@@ -513,9 +576,9 @@ function limitniChiz() {
   }
   el.classList.toggle('tugadi', L.qolgan === 0);
   el.innerHTML = L.qolgan === 0
-    ? `⏳ <span>Bugungi limit tugadi. ${L.mijoz ? 'Ertaga yana ochiladi.'
+    ? `<span>Bugungi limit tugadi. ${L.mijoz ? 'Ertaga yana ochiladi.'
         : '<b>Xarid qilsangiz limit oshadi.</b>'}</span>`
-    : `🔬 <span>Bugun yana <b>${L.qolgan} ta</b> tahlil qilishingiz mumkin
+    : `<span>Bugun yana <b>${L.qolgan} ta</b> tahlil qilishingiz mumkin
         <span class="ozgina">(${L.ishlatilgan}/${L.limit})</span></span>`;
 }
 
@@ -600,8 +663,8 @@ function limitOyna(L) {
       ${L.mijoz ? `<div class="ogoh" style="margin-top:16px;text-align:left">
           Ertaga yana ${L.limit} ta tahlil ochiladi.</div>`
         : `<div class="ogoh yashil" style="margin-top:16px;text-align:left">
-          🎁 <b>Bizdan xarid qilsangiz</b> kunlik limit oshadi — tahlilni ko‘proq qilasiz.</div>`}
-      <button class="asosiy" id="t-limit-dokon" style="margin-top:18px">🛍 Do‘konga o‘tish</button>
+          ${ik('sovga',16)} <b>Bizdan xarid qilsangiz</b> kunlik limit oshadi — tahlilni ko‘proq qilasiz.</div>`}
+      <button class="asosiy" id="t-limit-dokon" style="margin-top:18px">${ik('dokon',18)}Do‘konga o‘tish</button>
       <button class="ikkilamchi" id="t-limit-yop" style="margin-top:9px">Yopish</button>
     </div>`;
   modalOch();
@@ -610,45 +673,46 @@ function limitOyna(L) {
 }
 
 const RAD = {
-  yuz_yoq:['🙈','Rasmda yuz topilmadi'], uzoq:['🔭','Yuz juda uzoqda'],
-  xira:['🌫','Rasm xira yoki qimirlagan'], qorongi:['🌑','Yorug‘lik yetarli emas'],
-  yopiq:['🧣','Yuz yopilgan'], bir_nechta:['👥','Kadrda bir nechta odam'],
-  pardoz:['💄','Qalin pardoz yoki filtr'], sunday:['🤖','Rasm sun’iy ko‘rinadi'],
-  ekran:['📺','Ekrandan olingan surat'], yuz_emas:['🖼','Bu yuz surati emas'],
+  yuz_yoq:['Rasmda yuz topilmadi'], uzoq:['Yuz juda uzoqda'],
+  xira:['Rasm xira yoki qimirlagan'], qorongi:['Yorug‘lik yetarli emas'],
+  yopiq:['Yuz yopilgan'], bir_nechta:['Kadrda bir nechta odam'],
+  pardoz:['Qalin pardoz yoki filtr'], sunday:['Rasm sun’iy ko‘rinadi'],
+  ekran:['Ekrandan olingan surat'], yuz_emas:['Bu yuz surati emas'],
 };
 function radOyna(j) {
-  const [em, matn] = RAD[j.sabab] || RAD.xira;
+  const [matn] = RAD[j.sabab] || RAD.xira;
   $('#modal-tan').innerHTML = `
     <div style="padding:24px 18px 0;text-align:center">
-      <div style="font-size:54px">${em}</div>
+      <div style="color:var(--qizil);display:grid;place-items:center">${ik('ogoh', 48)}</div>
       <h2 style="margin:10px 0 6px">Bu rasm to‘g‘ri kelmadi</h2>
       <p style="color:var(--qizil);font-weight:600">${esc(matn)}</p>
       ${j.izoh ? `<p class="mayda">${esc(j.izoh)}</p>` : ''}
       <div style="text-align:left;margin-top:16px">
-        <div class="talab"><span class="b">☀️</span><div>Yorug‘ joyda turing</div></div>
-        <div class="talab"><span class="b">🤳</span><div>Yuz ekranni to‘ldirsin</div></div>
-        <div class="talab"><span class="b">🧼</span><div>Pardozsiz, filtrsiz, haqiqiy surat</div></div>
+        <div class="talab"><span class="b">${ik('quyosh',19)}</span><div>Yorug‘ joyda turing</div></div>
+        <div class="talab"><span class="b">${ik('selfi',19)}</span><div>Yuz ekranni to‘ldirsin</div></div>
+        <div class="talab"><span class="b">${ik('tozalik',19)}</span><div>Pardozsiz, filtrsiz, haqiqiy surat</div></div>
       </div>
-      <button class="asosiy" id="t-rad-yop" style="margin-top:18px">📸 Boshqa rasm tanlash</button>
+      <button class="asosiy" id="t-rad-yop" style="margin-top:18px">${ik('kamera',18)}Boshqa rasm tanlash</button>
     </div>`;
   modalOch();
   $('#t-rad-yop').onclick = () => { modalYop(); $('#fayl').click(); };
 }
 
 // ---------------- Tahlil natijasi ----------------
-const NUQTA = ['', '🟢', '🟡', '🔴'];
+// Daraja rangi CSS dan keladi — emoji har telefonda boshqacha chiziladi
+const NUQTA = ['', '<span class="daraja d1"></span>', '<span class="daraja d2"></span>', '<span class="daraja d3"></span>'];
 const DARAJA = ['', 'yengil', 'o‘rtacha', 'kuchli'];
 const DSINF  = ['', 'yengil', 'ortacha', 'kuchli'];
-const BOSQICH = { tozalash:'🫧 Tozalash', toner:'💧 Toner', davolash:'🧪 Davolash',
-                  namlash:'🫙 Namlash', himoya:'☀️ Quyoshdan himoya', qoshimcha:'🎭 Qo‘shimcha',
-                  ichki:'💊 Ichki qabul' };
+const BOSQICH = { tozalash:'Tozalash', toner:'Toner', davolash:'Davolash',
+                  namlash:'Namlash', himoya:'Quyoshdan himoya', qoshimcha:'Qo‘shimcha',
+                  ichki:'Ichki qabul' };
 
 function natijaniChiz() {
   const t = holat.tahlil;
   const el = $('#natija-tan');
   holat.natijaKesh = true;   // qayta chizmaslik uchun belgi
   if (!t) {
-    el.innerHTML = `<div class="bosh-holat"><div class="belgi">🔬</div>
+    el.innerHTML = `<div class="bosh-holat"><div class="belgi">${ik('skaner',46)}</div>
       <p>Hali tahlil qilinmagan</p>
       <button class="asosiy" style="max-width:260px;margin:16px auto 0" onclick="document.querySelector('[data-tab=skaner]').click()">
         Yuz skanerini ochish</button></div>`;
@@ -656,15 +720,15 @@ function natijaniChiz() {
   }
   const karta = new Map(holat.mahsulotlar.map((p) => [p.id, p]));
   const ball = t.score ?? 0;
-  const holatSoz = ball >= 80 ? 'a’lo 👏' : ball >= 65 ? 'yaxshi 🙂' : ball >= 50 ? 'o‘rtacha 😌'
-                 : ball >= 35 ? 'e’tibor kerak 😕' : 'zaif 😟';
+  const holatSoz = ball >= 80 ? 'a’lo' : ball >= 65 ? 'yaxshi' : ball >= 50 ? 'o‘rtacha'
+                 : ball >= 35 ? 'e’tibor kerak' : 'zaif';
   const tavsiyalar = (t.routine || []).map((r) => ({ ...r, p: karta.get(r.product_id) })).filter((r) => r.p);
   const jami = tavsiyalar.reduce((s, r) => s + r.p.price, 0);
 
   el.innerHTML = `
-  <div class="bosh"><div class="brend">🔬 Tahlil natijasi</div><h1>Sizning teringiz</h1></div>
+  <div class="bosh"><div class="brend">Tahlil natijasi</div><h1>Sizning teringiz</h1></div>
 
-  ${t.is_offline ? `<div class="karta"><div class="ogoh">⚠️ AI hozir mavjud emas — bazaviy tavsiya ko‘rsatilmoqda.</div></div>` : ''}
+  ${t.is_offline ? `<div class="karta"><div class="ogoh">AI hozir mavjud emas — bazaviy tavsiya ko‘rsatilmoqda.</div></div>` : ''}
 
   ${t.yuz_rasm_id ? `
   <div class="karta">
@@ -672,23 +736,23 @@ function natijaniChiz() {
   </div>` : ''}
 
   <div class="karta">
-    <div class="karta-bosh"><h2>✨ Umumiy holat</h2></div>
+    <div class="karta-bosh"><h2>Umumiy holat</h2></div>
     <div style="display:flex;align-items:baseline;gap:10px">
       <div class="ball">${ball}<small>/100</small></div>
       <div class="mayda">${holatSoz}</div>
     </div>
     <div class="shkala"><i style="width:${ball}%"></i></div>
     <div style="margin-top:16px">
-      ${qtr('👤 Taxminiy yosh', esc(t.age_estimate || '—'))}
-      ${qtr('🎨 Teri rangi',   esc(t.skin_tone || '—'))}
-      ${qtr('🧴 Teri turi',    esc(t.skin_type || '—'))}
+      ${qtr('Taxminiy yosh', esc(t.age_estimate || '—'))}
+      ${qtr('Teri rangi',   esc(t.skin_tone || '—'))}
+      ${qtr('Teri turi',    esc(t.skin_type || '—'))}
     </div>
     ${t.raw?.xulosa ? `<p class="mayda" style="margin:14px 0 0">${esc(t.raw.xulosa)}</p>` : ''}
   </div>
 
   ${(t.problems || []).length ? `
   <div class="karta">
-    <div class="karta-bosh"><h2>🔍 Nima topdim</h2></div>
+    <div class="karta-bosh"><h2>Nima topdim</h2></div>
     ${t.problems.map((m, i) => {
       const foiz = m.foiz ?? (m.daraja === 3 ? 80 : m.daraja === 2 ? 55 : 25);
       const d = m.daraja || (foiz >= 70 ? 3 : foiz >= 40 ? 2 : 1);
@@ -703,36 +767,36 @@ function natijaniChiz() {
           <div class="olchov-chiziq"><i class="d${Math.min(3, d)}" style="width:${foiz}%"></i></div>
           <span class="olchov-foiz">${foiz}%</span>
         </div>
-        ${m.zona   ? `<div class="satr-izoh">📍 <span>${esc(m.zona)}</span></div>` : ''}
-        ${m.izoh   ? `<div class="satr-izoh">👁 <span>${esc(m.izoh)}</span></div>` : ''}
-        ${m.sabab  ? `<div class="satr-izoh">🔎 <span><b>Sababi:</b> ${esc(m.sabab)}</span></div>` : ''}
-        ${m.yechim ? `<div class="yechim">✅ <span><b>Yechimi:</b> ${esc(m.yechim)}</span></div>` : ''}
-        ${m.ogohlantirish ? `<div class="diqqat">⚠️ <span>${esc(m.ogohlantirish)}</span></div>` : ''}
+        ${m.zona   ? `<div class="satr-izoh"><span>${esc(m.zona)}</span></div>` : ''}
+        ${m.izoh   ? `<div class="satr-izoh"><span>${esc(m.izoh)}</span></div>` : ''}
+        ${m.sabab  ? `<div class="satr-izoh"><span><b>Sababi:</b> ${esc(m.sabab)}</span></div>` : ''}
+        ${m.yechim ? `<div class="yechim"><span><b>Yechimi:</b> ${esc(m.yechim)}</span></div>` : ''}
+        ${m.ogohlantirish ? `<div class="diqqat"><span>${esc(m.ogohlantirish)}</span></div>` : ''}
       </div>`; }).join('')}
   </div>` : ''}
 
   ${(t.forecast || []).length ? `
   <div class="karta">
-    <div class="karta-bosh"><h2>⏳ E’tibor bermasangiz</h2></div>
+    <div class="karta-bosh"><h2>E’tibor bermasangiz</h2></div>
     ${[...t.forecast].sort((a, b) => b.ehtimol - a.ehtimol).map((p) => `
       <div class="muammo-blok">
         <div class="muammo-bosh">
           <span class="nom">${esc(p.muammo)}</span>
-          <span class="ozgina" style="margin-left:auto;white-space:nowrap">⏱ ${esc(p.muddat || '')}</span>
+          <span class="ozgina" style="margin-left:auto;white-space:nowrap">${esc(p.muddat || '')}</span>
         </div>
         <div class="olchov">
           <div class="olchov-chiziq"><i class="prognoz-rang" style="width:${p.ehtimol}%"></i></div>
           <span class="olchov-foiz">${p.ehtimol}%</span>
         </div>
-        <div class="satr-izoh">→ <span>${esc(p.natija)}</span></div>
+        <div class="satr-izoh"><span>${esc(p.natija)}</span></div>
       </div>`).join('')}
     <div class="ogoh" style="margin-top:12px">
-      ⚕️ Bu ehtimollik baholari, tibbiy tashxis emas. Jiddiy belgilarda dermatologga murojaat qiling.
+      ${ik('tibbiy',15)} Bu ehtimollik baholari, tibbiy tashxis emas. Jiddiy belgilarda dermatologga murojaat qiling.
     </div>
   </div>` : ''}
 
   ${tavsiyalar.length ? `
-  <div class="satr-bosh"><h2 style="font-size:20px">💡 Sizga mos parvarish</h2>
+  <div class="satr-bosh"><h2 style="font-size:20px">Sizga mos parvarish</h2>
     <span class="ozgina">${tavsiyalar.length} ta</span></div>
   <p class="ichki ozgina" style="margin:0 0 10px">Shu tartibda qo‘llang — ketma-ketlik natijaga ta’sir qiladi.</p>
 
@@ -744,7 +808,7 @@ function natijaniChiz() {
         <span class="tk-rasm" style="${r.p.poster_id ? '' :
           `background:linear-gradient(135deg,${esc(r.p.gradient?.[0] || '#3a3330')},${esc(r.p.gradient?.[1] || '#6b5d55')})`}">
           ${r.p.poster_id ? `<img src="/media/${esc(r.p.poster_id)}" alt="" loading="lazy">`
-                          : esc(r.p.emoji || '🧴')}
+                          : ik('shisha', 26)}
           <i class="tk-raqam">${i + 1}</i></span>
         <span class="tk-bosqich">${esc(BOSQICH[r.bosqich] || r.bosqich)}</span>
         <span class="tk-nom">${esc(r.p.name)}</span>
@@ -759,20 +823,20 @@ function natijaniChiz() {
         <span class="nega-raqam">${i + 1}</span>
         <span><b>${esc(BOSQICH[r.bosqich] || r.bosqich)}</b> — ${esc(r.sabab)}</span>
       </div>` : '').join('')}
-    <div class="qtr jami"><span class="k">🧾 To‘liq to‘plam</span><span class="v">${narx(jami)}</span></div>
-    <button class="asosiy" id="t-hammasi" style="margin-top:12px">🛒 Hammasini savatga solish</button>
+    <div class="qtr jami"><span class="k">To‘liq to‘plam</span><span class="v">${narx(jami)}</span></div>
+    <button class="asosiy" id="t-hammasi" style="margin-top:12px">${ik('savat',18)}Hammasini savatga solish</button>
     <p class="ozgina" style="margin:10px 0 0">
       Hammasini birdan olish shart emas — tozalash, namlash va SPF dan boshlang.</p>
   </div>` : ''}
 
   <div class="karta">
     <button class="asosiy" id="t-ulash" style="margin-bottom:9px">
-      📸 Natijani rasm qilib olish</button>
-    <button class="ikkilamchi" id="t-qayta">🔄 Boshqa rasm bilan qayta tahlil</button>
+      ${ik('yuklab',18)}Natijani rasm qilib olish</button>
+    <button class="ikkilamchi" id="t-qayta">${ik('kamera',18)}Boshqa rasm bilan qayta tahlil</button>
     ${holat.konsultatsiya ? `<a class="tugma ikkilamchi" style="margin-top:9px;text-decoration:none"
-       href="https://t.me/${esc(holat.konsultatsiya)}" target="_blank">💬 Telegramda yozish</a>` : ''}
+       href="https://t.me/${esc(holat.konsultatsiya)}" target="_blank">Telegramda yozish</a>` : ''}
     ${holat.menejer?.telefon ? `<a class="tugma ikkilamchi" style="margin-top:9px;text-decoration:none"
-       href="tel:${esc(String(holat.menejer.telefon).replace(/[^+\d]/g, ''))}">📞 ${esc(holat.menejer.telefon)}</a>
+       href="tel:${esc(String(holat.menejer.telefon).replace(/[^+\d]/g, ''))}">${esc(holat.menejer.telefon)}</a>
        <p class="ozgina" style="margin:8px 0 0;text-align:center">${esc(holat.menejer.ish_vaqti || '')}</p>` : ''}
   </div>`;
 
@@ -821,15 +885,15 @@ async function natijaniTelegramgaYubor(tugma) {
       body: JSON.stringify({ analysis_id: holat.tahlil?.id || null }),
     });
     titra('medium');
-    tugma.textContent = '✅ Chatga yuborildi';
+    tugma.textContent = 'Chatga yuborildi';
     $('#modal-tan').innerHTML = `
       <div style="padding:18px 18px 0">
-        <h2 style="margin-bottom:10px">📸 Natija yuborildi</h2>
+        <h2 style="margin-bottom:10px">Natija yuborildi</h2>
         <p style="margin:0 0 12px">Tahlil rasmi Telegram chatingizga tushdi.</p>
         <p class="ozgina" style="margin:0 0 18px">
           Uni o‘sha yerdan galereyaga saqlashingiz yoki do‘stlaringizga
           ulashishingiz mumkin.</p>
-        <button class="asosiy" id="t-chatga">💬 Chatni ochish</button>
+        <button class="asosiy" id="t-chatga">${ik('suhbat',18)}Chatni ochish</button>
         <button class="ikkilamchi" id="t-chat-yop" style="margin-top:9px">Yopish</button>
       </div>`;
     modalOch();
@@ -913,10 +977,10 @@ function savatniChiz() {
   $('#yopishqoq-savat')?.remove();
 
   if (!holat.savat.length) {
-    el.innerHTML = `<div class="bosh-holat"><div class="belgi">🛒</div>
+    el.innerHTML = `<div class="bosh-holat"><div class="belgi">${ik('savat',46)}</div>
       <p>Savatingiz bo‘sh</p>
       <button class="asosiy" style="max-width:240px;margin:16px auto 0"
-        onclick="document.querySelector('[data-tab=katalog]').click()">🛍 Do‘konga o‘tish</button></div>`;
+        onclick="document.querySelector('[data-tab=katalog]').click()">Do‘konga o‘tish</button></div>`;
     return;
   }
 
@@ -946,14 +1010,14 @@ function savatniChiz() {
   el.innerHTML = `
   <div class="satr-bosh">
     <span class="mayda">${holat.savat.length} xil mahsulot</span>
-    <button class="matn-tugma" id="t-savat-tozala">🗑 Savatni tozalash</button>
+    <button class="matn-tugma" id="t-savat-tozala">${ik('ochirish',16)}Savatni tozalash</button>
   </div>
   <div class="karta">
     ${holat.savat.map(({ products: p, quantity }) => `
       <div class="savat-qator">
         <div class="savat-rasm" style="${p.poster_id ? '' :
           `background:linear-gradient(135deg,#3a3330,#6b5d55)`}">
-          ${p.poster_id ? `<img src="/media/${esc(p.poster_id)}" alt="">` : esc(p.emoji || '🧴')}</div>
+          ${p.poster_id ? `<img src="/media/${esc(p.poster_id)}" alt="">` : ik('shisha', 44)}</div>
         <div class="savat-tan">
           <div class="savat-nom">${esc(p.name)}</div>
           <div class="savat-brend">${esc(p.brand || '')}${p.volume ? ' · ' + esc(p.volume) : ''}</div>
@@ -970,25 +1034,25 @@ function savatniChiz() {
   </div>
 
   <div class="karta">
-    ${qtr('🧾 Mahsulotlar', narx(oraliq))}
-    ${donaCh ? `<div class="qtr"><span class="k">🎁 ${dona} ta mahsulot uchun
+    ${qtr('Mahsulotlar', narx(oraliq))}
+    ${donaCh ? `<div class="qtr"><span class="k">${dona} ta mahsulot uchun
         (${qisqaNarx(d.narx)} × ${dona})</span>
         <span class="v chegirma">−${narx(donaCh)}</span></div>` : ''}
-    ${chegirma - donaCh > 0 ? `<div class="qtr"><span class="k">🎁 Summa chegirmasi</span>
+    ${chegirma - donaCh > 0 ? `<div class="qtr"><span class="k">Summa chegirmasi</span>
         <span class="v chegirma">−${narx(chegirma - donaCh)}</span></div>` : ''}
     <div class="qtr jami"><span class="k">Mahsulotlar jami</span><span class="v">${narx(jami)}</span></div>
     <p class="ozgina" style="margin:10px 0 0">
-      🚚 Yetkazish narxi manzilingizga qarab hisoblanadi — rasmiylashtirishda ko‘rasiz.</p>
+      ${ik('yetkazish',15)} Yetkazish narxi manzilingizga qarab hisoblanadi — rasmiylashtirishda ko‘rasiz.</p>
     ${yetibKelmagan ? `<div class="ogoh yashil" style="margin-top:12px">
-        🎁 Yana <b>${yetibKelmagan} ta</b> mahsulot olsangiz har biriga
+        ${ik('sovga',15)} Yana <b>${yetibKelmagan} ta</b> mahsulot olsangiz har biriga
         <b>${qisqaNarx(d.narx)} so‘m</b> chegirma boshlanadi</div>`
       : donaCh ? `<div class="ogoh yashil" style="margin-top:12px">
-        🎁 Yana <b>1 ta</b> mahsulot — chegirma <b>${qisqaNarx(d.narx)} so‘m</b>ga oshadi</div>` : ''}
+        ${ik('sovga',15)} Yana <b>1 ta</b> mahsulot — chegirma <b>${qisqaNarx(d.narx)} so‘m</b>ga oshadi</div>` : ''}
     ${keyingi ? `<div class="ogoh yashil" style="margin-top:12px">
-        🎁 Yana <b>${narx(keyingi.dan - oraliq)}</b> qo‘shsangiz
+        ${ik('sovga',15)} Yana <b>${narx(keyingi.dan - oraliq)}</b> qo‘shsangiz
         <b>${narx(keyingi.ch)}</b> chegirma olasiz</div>` : ''}
     ${yetmaydi ? `<div class="ogoh" style="margin-top:12px">
-        ⚠️ Minimal buyurtma — <b>${narx(holat.minimal)}</b>.
+        ${ik('ogoh',15)} Minimal buyurtma — <b>${narx(holat.minimal)}</b>.
         Yana <b>${narx(holat.minimal - oraliq)}</b>lik mahsulot qo‘shing.</div>` : ''}
   </div>
 
@@ -996,7 +1060,7 @@ function savatniChiz() {
   <div class="yopishqoq" id="yopishqoq-savat">
     <div class="satr"><span class="mayda">Mahsulotlar</span><b>${narx(jami)}</b></div>
     <button class="asosiy" id="t-rasmiylashtir" ${yetmaydi ? 'disabled' : ''}>
-      ${yetmaydi ? `Minimal ${qisqaNarx(holat.minimal)} so‘m` : 'Buyurtmani rasmiylashtirish →'}</button>
+      ${yetmaydi ? `Minimal ${qisqaNarx(holat.minimal)} so‘m` : 'Buyurtmani rasmiylashtirish'}</button>
   </div>`;
 
   $$('[data-kam]', el).forEach((b) => b.onclick = () => ozgartir(Number(b.dataset.kam), -1));
@@ -1007,7 +1071,7 @@ function savatniChiz() {
   if (tz) tz.onclick = () => {
     $('#modal-tan').innerHTML = `
       <div style="padding:18px 18px 0">
-        <h2 style="margin-bottom:10px">🗑 Savatni tozalash</h2>
+        <h2 style="margin-bottom:10px">Savatni tozalash</h2>
         <p style="margin:0 0 18px">Savatdagi barcha mahsulotlar olib tashlanadi.</p>
         <button class="asosiy" id="t-tozala-ha">Ha, tozalansin</button>
         <button class="ikkilamchi" id="t-tozala-yoq" style="margin-top:9px">Bekor</button>
@@ -1110,45 +1174,45 @@ function checkoutOch() {
   const chegirma = chegirmaHisobla(oraliq);
   $('#modal-tan').innerHTML = `
     <div style="padding:16px 18px 0">
-      <h2>📦 Buyurtmani rasmiylashtirish</h2>
+      <h2>Buyurtmani rasmiylashtirish</h2>
       <p class="ozgina" style="margin-top:4px">Yozganingiz avtomatik saqlanadi — chiqib ketsangiz ham yo‘qolmaydi.</p>
 
-      <label for="b-ism">👤 Ism-familiya</label>
+      <label for="b-ism">Ism-familiya</label>
       <input id="b-ism" value="${esc(d.name || holat.user?.full_name || '')}">
 
-      <label for="b-tel">📱 Telefon</label>
+      <label for="b-tel">Telefon</label>
       <input id="b-tel" type="tel" inputmode="tel" value="${esc(d.phone || holat.user?.phone || '')}">
 
-      <label>📍 Viloyat</label>
+      <label>Viloyat</label>
       <button class="tanlov-tugma" id="b-viloyat-tugma">
         <span id="b-viloyat-matn">${esc(viloyat || 'Tanlang')}</span><span class="oq">›</span></button>
 
-      <label>🏘 Tuman</label>
+      <label>Tuman</label>
       <button class="tanlov-tugma" id="b-tuman-tugma" ${viloyat ? '' : 'disabled'}>
         <span id="b-tuman-matn">${esc(tuman || (viloyat ? 'Tanlang' : 'Avval viloyatni tanlang'))}</span>
         <span class="oq">›</span></button>
 
-      <label for="b-manzil">🏠 Ko‘cha, uy va xonadon
+      <label for="b-manzil">Ko‘cha, uy va xonadon
         <span class="yordam">Kuryer topa olishi uchun aniq yozing</span></label>
       <textarea id="b-manzil" placeholder="5-mavze, 12-uy, 34-xonadon">${esc(manzilQiymati(d))}</textarea>
 
-      <label>🚚 Yetkazib berish</label>
+      <label>Yetkazib berish</label>
       <div id="b-yetkazish">
         <p class="ozgina" style="margin:2px 0 0">Manzilni tanlang — narx hisoblanadi.</p>
       </div>
 
-      <label for="b-izoh">💬 Izoh <span class="yordam">Ixtiyoriy</span></label>
+      <label for="b-izoh">Izoh <span class="yordam">Ixtiyoriy</span></label>
       <input id="b-izoh" placeholder="Masalan: kechqurun qo‘ng‘iroq qiling" value="${esc(d.note || '')}">
 
       <div class="ogoh" style="margin-top:18px">
-        💳 <b>To‘lov kartaga o‘tkazma orqali.</b> Buyurtmani tasdiqlagach karta raqami
+        ${ik('karta',15)} <b>To‘lov kartaga o‘tkazma orqali.</b> Buyurtmani tasdiqlagach karta raqami
         chiqadi — to‘lab, chek rasmini yuklaysiz.
       </div>
 
       <div class="karta" id="b-summa" style="margin:16px 0 0;padding:14px"></div>
 
       <div id="checkout-xato" class="xato-matn"></div>
-      <button class="asosiy" id="t-yubor" style="margin-top:16px">✅ Buyurtmani tasdiqlash</button>
+      <button class="asosiy" id="t-yubor" style="margin-top:16px">${ik('tasdiq',18)}Buyurtmani tasdiqlash</button>
     </div>`;
   modalOch();
 
@@ -1160,7 +1224,7 @@ function checkoutOch() {
   bogla('b-manzil', 'kocha'); bogla('b-izoh', 'note');
 
   $('#b-viloyat-tugma').onclick = () => royxatOyna(
-    '📍 Viloyatni tanlang', window.VILOYATLAR || [], viloyat,
+    'Viloyatni tanlang', window.VILOYATLAR || [], viloyat,
     (tanlangan) => {
       holat.draft.viloyat = tanlangan;
       holat.draft.tuman = '';       // viloyat o'zgarsa tuman bekor bo'ladi
@@ -1170,7 +1234,7 @@ function checkoutOch() {
   $('#b-tuman-tugma').onclick = () => {
     const v = viloyat;
     if (!v) return;
-    royxatOyna('🏘 Tumanni tanlang', window.tumanlarniOl(v), tuman,
+    royxatOyna('Tumanni tanlang', window.tumanlarniOl(v), tuman,
       (tanlangan) => { holat.draft.tuman = tanlangan; draftniSaqla(); checkoutOch(); });
   };
 
@@ -1198,10 +1262,10 @@ async function yetkazishniHisobla(oraliq, chegirma) {
         </span>
         <span class="yt-narx">${bepul ? 'bepul' : narx(t.narx)}</span>
       </button>`).join('') +
-      `<p class="ozgina" style="margin:8px 0 0">📦 Jo‘natma og‘irligi: ~${(ogirlik / 1000).toFixed(1)} kg
+      `<p class="ozgina" style="margin:8px 0 0">Jo‘natma og‘irligi: ~${(ogirlik / 1000).toFixed(1)} kg
         <span class="yordam">(qadoqlash bilan)</span></p>` +
       (holat.yetkazishIzoh?.manba === 'emu'
-        ? `<p class="ozgina" style="margin:4px 0 0">🚚 EMU Express tarifi ·
+        ? `<p class="ozgina" style="margin:4px 0 0">EMU Express tarifi ·
             ${esc(holat.yetkazishIzoh.zona_izoh || '')} ·
             ${esc(holat.yetkazishIzoh.masofa_izoh || '')}</p>`
         : '');
@@ -1229,7 +1293,7 @@ async function yetkazishniHisobla(oraliq, chegirma) {
   const { viloyat, tuman } = hududTanlovi();
   if (!viloyat) {
     quti.innerHTML = `<p class="ozgina" style="margin:2px 0 0">
-      📍 Avval viloyat va tumanni tanlang — narx shundan keyin hisoblanadi.</p>`;
+      ${ik('joy',15)} Avval viloyat va tumanni tanlang — narx shundan keyin hisoblanadi.</p>`;
     return;
   }
 
@@ -1268,7 +1332,7 @@ function royxatOyna(sarlavha, royxat, joriy, tanlandi) {
     <div style="padding:14px 18px 0">
       <div class="karta-bosh"><h2>${esc(sarlavha)}</h2></div>
       <div class="qidiruv" style="margin-bottom:10px">
-        <span>🔍</span><input id="r-qidiruv" type="search" placeholder="Qidirish…">
+        ${ik('qidiruv',17)}<input id="r-qidiruv" type="search" placeholder="Qidirish…">
       </div>
       <div class="royxat" id="r-royxat">${chiz()}</div>
     </div>`;
@@ -1292,12 +1356,12 @@ async function buyurtmaYubor() {
     // Bazaga to'liq manzil boradi, lekin ko'cha qoralamada alohida qoladi
     address: [viloyat, tuman, kocha].filter(Boolean).join(', '),
   };
-  if (tana.name.length < 3) return xato.textContent = '✍️ Ismni to‘liq yozing.';
+  if (tana.name.length < 3) return xato.textContent = 'Ismni to‘liq yozing.';
   if (!/^\+?998\d{9}$/.test(tana.phone.replace(/[\s()-]/g, '')))
-    return xato.textContent = '📱 Telefon raqamini tekshiring.';
-  if (!viloyat) return xato.textContent = '📍 Viloyatni tanlang.';
-  if (!tuman)   return xato.textContent = '🏘 Tumanni tanlang.';
-  if (kocha.length < 5) return xato.textContent = '🏠 Ko‘cha, uy va xonadonni yozing.';
+    return xato.textContent = 'Telefon raqamini tekshiring.';
+  if (!viloyat) return xato.textContent = 'Viloyatni tanlang.';
+  if (!tuman)   return xato.textContent = 'Tumanni tanlang.';
+  if (kocha.length < 5) return xato.textContent = 'Ko‘cha, uy va xonadonni yozing.';
 
   const t = $('#t-yubor'); t.disabled = true; t.textContent = 'Yuborilmoqda…';
   try {
@@ -1307,14 +1371,14 @@ async function buyurtmaYubor() {
     tolovOyna(j.buyurtma);          // to'lov faqat karta orqali
   } catch (e) {
     xato.textContent = e.message;
-    t.disabled = false; t.textContent = '✅ Buyurtmani tasdiqlash';
+    t.disabled = false; t.textContent = 'Buyurtmani tasdiqlash';
   }
 }
 
 function tolovOyna(o) {
   $('#modal-tan').innerHTML = `
     <div style="padding:20px 18px 0">
-      <div style="text-align:center"><div style="font-size:50px">💳</div>
+      <div style="text-align:center"><div style="color:var(--urgu)">${ik('karta',46)}</div>
         <h2 style="margin-top:8px">To‘lov qiling</h2>
         <p class="mayda"><b>${esc(o.order_no)}</b> · ${narx(o.total)}</p></div>
 
@@ -1322,17 +1386,17 @@ function tolovOyna(o) {
         <div class="ozgina" style="color:rgba(255,255,255,.8)">Karta raqami</div>
         <div class="raqam" id="karta-raqam">${esc(holat.karta.raqam || '—')}</div>
         <div class="egasi">${esc(holat.karta.egasi || '')}</div>
-        <button id="t-nusxa">📋 Raqamdan nusxa olish</button>
+        <button id="t-nusxa">${ik('hujjat',17)}Raqamdan nusxa olish</button>
       </div>
 
       <div class="ogoh" style="margin-top:14px">
-        1️⃣ Yuqoridagi kartaga <b>${narx(o.total)}</b> o‘tkazing<br>
-        2️⃣ To‘lov chekini rasmga oling<br>
-        3️⃣ Quyidan yuklang — menejer tasdiqlaydi
+        <b>1.</b> Yuqoridagi kartaga <b>${narx(o.total)}</b> o‘tkazing<br>
+        <b>2.</b> To‘lov chekini rasmga oling<br>
+        <b>3.</b> Quyidan yuklang — menejer tasdiqlaydi
       </div>
 
       <input type="file" id="chek-fayl" accept="image/*" hidden>
-      <button class="asosiy" id="t-chek" style="margin-top:16px">📸 Chek rasmini yuklash</button>
+      <button class="asosiy" id="t-chek" style="margin-top:16px">${ik('kamera',18)}Chek rasmini yuklash</button>
       <button class="ikkilamchi" id="t-keyin" style="margin-top:9px">Keyinroq yuboraman</button>
       <div id="chek-holat" style="margin-top:12px"></div>
     </div>`;
@@ -1341,7 +1405,7 @@ function tolovOyna(o) {
   $('#t-nusxa').onclick = async () => {
     const raqam = String(holat.karta.raqam || '').replace(/\s/g, '');
     try { await navigator.clipboard.writeText(raqam); } catch {}
-    $('#t-nusxa').textContent = '✅ Nusxa olindi';
+    $('#t-nusxa').textContent = 'Nusxa olindi';
     titra('medium');
   };
   $('#t-chek').onclick = () => $('#chek-fayl').click();
@@ -1363,21 +1427,21 @@ function tolovOyna(o) {
 function tayyorOyna(o, chekBor = false) {
   $('#modal-tan').innerHTML = `
     <div style="padding:30px 22px 0;text-align:center">
-      <div style="font-size:56px">🎉</div>
+      <div style="color:var(--yashil)">${ik('tasdiq',52)}</div>
       <h2 style="margin:12px 0 6px">Buyurtmangiz qabul qilindi!</h2>
       <p class="mayda">Raqam: <b>${esc(o.order_no)}</b></p>
       <div class="karta" style="margin:18px 0 0;text-align:left">
-        ${qtr('🧾 Mahsulotlar', narx(o.subtotal))}
-        ${o.discount ? `<div class="qtr"><span class="k">🎁 Chegirma</span><span class="v chegirma">−${narx(o.discount)}</span></div>` : ''}
-        ${qtr('🚚 Yetkazish', o.delivery_fee ? narx(o.delivery_fee) : '<span style="color:var(--yashil)">bepul</span>')}
+        ${qtr('Mahsulotlar', narx(o.subtotal))}
+        ${o.discount ? `<div class="qtr"><span class="k">Chegirma</span><span class="v chegirma">−${narx(o.discount)}</span></div>` : ''}
+        ${qtr('Yetkazish', o.delivery_fee ? narx(o.delivery_fee) : '<span style="color:var(--yashil)">bepul</span>')}
         <div class="qtr jami"><span class="k">Jami</span><span class="v">${narx(o.total)}</span></div>
       </div>
       <div class="ogoh ${chekBor ? 'yashil' : ''}" style="margin-top:14px;text-align:left">
-        ${chekBor ? '✅ Chek qabul qilindi. Menejer tekshirib, tasdiqlaydi.'
+        ${chekBor ? 'Chek qabul qilindi. Menejer tekshirib, tasdiqlaydi.'
           : o.payment_method === 'karta'
-            ? '💳 To‘lovni amalga oshirib, chekni «Buyurtmalarim» bo‘limidan yuklang.'
-            : '💵 To‘lov yetkazib berishda naqd pulda.'}<br>
-        📞 Menejer tez orada bog‘lanadi.
+            ? 'To‘lovni amalga oshirib, chekni «Buyurtmalarim» bo‘limidan yuklang.'
+            : 'To‘lov yetkazib berishda naqd pulda.'}<br>
+        ${ik('telefon',15)} Menejer tez orada bog‘lanadi.
       </div>
       <button class="asosiy" id="t-tayyor" style="margin-top:18px">Yaxshi</button>
     </div>`;
@@ -1410,31 +1474,31 @@ function profilniChiz() {
     </div>
 
     <div class="karta">
-      ${qtr('👤 Ism', esc(ism || '—'))}
-      ${qtr('📱 Telefon', esc(u.phone || '—'))}
-      ${qtr('🎂 Yosh', u.age ? u.age + ' yosh' : '—')}
-      ${u.viloyat ? qtr('📍 Hudud', esc([u.viloyat, u.tuman].filter(Boolean).join(', '))) : ''}
+      ${qtr('Ism', esc(ism || '—'))}
+      ${qtr('Telefon', esc(u.phone || '—'))}
+      ${qtr('Yosh', u.age ? u.age + ' yosh' : '—')}
+      ${u.viloyat ? qtr('Hudud', esc([u.viloyat, u.tuman].filter(Boolean).join(', '))) : ''}
     </div>
 
     <div class="ichki">
       ${tgNom ? `<a class="tanlov-tugma" href="https://t.me/${esc(tgNom)}" target="_blank">
-        <span>💬 Konsultatsiya${m.ish_vaqti ? ` · <span class="ozgina">${esc(m.ish_vaqti)}</span>` : ''}</span>
+        <span>Konsultatsiya${m.ish_vaqti ? ` · <span class="ozgina">${esc(m.ish_vaqti)}</span>` : ''}</span>
         <span class="oq">›</span></a>` : ''}
       ${tel ? `<a class="tanlov-tugma" href="tel:${esc(tel.replace(/[^+\d]/g, ''))}">
-        <span>📞 ${esc(tel)}</span><span class="oq">›</span></a>` : ''}
+        <span>${esc(tel)}</span><span class="oq">›</span></a>` : ''}
       <button class="tanlov-tugma" id="t-profil-yordam">
-        <span>ℹ️ Yordam va tez-tez so‘raladigan savollar</span><span class="oq">›</span></button>
+        <span>${ik('yordam',17)} Yordam va tez-tez so‘raladigan savollar</span><span class="oq">›</span></button>
       <a class="tanlov-tugma" href="/oferta" target="_blank">
-        <span>📄 Ommaviy oferta</span><span class="oq">›</span></a>
+        <span>Ommaviy oferta</span><span class="oq">›</span></a>
       <button class="tanlov-tugma" id="t-profil-ochir">
-        <span style="color:var(--qizil)">🗑 Ma’lumotlarimni o‘chirish</span><span class="oq">›</span></button>
+        <span style="color:var(--qizil)">Ma’lumotlarimni o‘chirish</span><span class="oq">›</span></button>
     </div>`;
 
   $('#t-profil-yordam').onclick = yordamOyna;
   $('#t-profil-ochir').onclick = () => {
     $('#modal-tan').innerHTML = `
       <div style="padding:18px 18px 0">
-        <h2 style="margin-bottom:10px">🗑 Ma’lumotlarni o‘chirish</h2>
+        <h2 style="margin-bottom:10px">Ma’lumotlarni o‘chirish</h2>
         <p>Tahlillaringiz va savatingiz o‘chiriladi. Buni botda tasdiqlaysiz:
           botga <b>/ochir</b> buyrug‘ini yuboring.</p>
         <p class="ozgina">Buyurtmalar hisobi qonun talabi bilan saqlanadi,
@@ -1449,15 +1513,15 @@ function profilniChiz() {
 function yordamOyna() {
   $('#modal-tan').innerHTML = `
     <div style="padding:18px 18px 0">
-      <h2 style="margin-bottom:12px">ℹ️ Yordam</h2>
+      <h2 style="margin-bottom:12px">Yordam</h2>
       <div class="karta" style="margin:0 0 12px">
-        ${qtr('🔬 Yuz skaneri', 'Rasm yuboring — terini tahlil qilamiz')}
-        ${qtr('🛍 Do‘kon', 'Katalog, qidiruv va narx filtri')}
-        ${qtr('🛒 Savat', 'Buyurtma berish va chek yuklash')}
-        ${qtr('📋 Buyurtmalarim', 'Shu profil sahifasida, pastda')}
+        ${qtr('Yuz skaneri', 'Rasm yuboring — terini tahlil qilamiz')}
+        ${qtr('Do‘kon', 'Katalog, qidiruv va narx filtri')}
+        ${qtr('Savat', 'Buyurtma berish va chek yuklash')}
+        ${qtr('Buyurtmalarim', 'Shu profil sahifasida, pastda')}
       </div>
       <p class="ozgina">Botdagi buyruqlar: /start · /skaner · /qayta · /ochir</p>
-      <p class="ozgina">⚕️ Tahlil — AI bahosi, tibbiy tashxis emas.</p>
+      <p class="ozgina">Tahlil — AI bahosi, tibbiy tashxis emas.</p>
       <button class="ikkilamchi" id="t-yordam-yop" style="margin-top:8px">Yopish</button>
     </div>`;
   modalOch();
@@ -1466,8 +1530,8 @@ function yordamOyna() {
 
 // ---------------- Buyurtmalar ----------------
 const HOLAT_Y = {
-  yangi:['🆕 Yangi',''], tasdiqlangan:['✅ Tasdiqlangan','yengil'], yolda:['🚚 Yo‘lda','ortacha'],
-  yetkazildi:['📦 Yetkazildi','yengil'], bekor:['❌ Bekor qilingan','kuchli'],
+  yangi:['Yangi',''], tasdiqlangan:['Tasdiqlangan','yengil'], yolda:['Yo‘lda','ortacha'],
+  yetkazildi:['Yetkazildi','yengil'], bekor:['Bekor qilingan','kuchli'],
 };
 
 async function buyurtmalarniChiz({ majburiy = false } = {}) {
@@ -1483,7 +1547,7 @@ async function buyurtmalarniChiz({ majburiy = false } = {}) {
   try {
     const j = await api('/api/orders');
     if (!j.buyurtmalar.length) {
-      holat.buyurtmaKesh = `<div class="bosh-holat"><div class="belgi">📋</div>
+      holat.buyurtmaKesh = `<div class="bosh-holat"><div class="belgi">${ik('hujjat',46)}</div>
         <p>Hozircha buyurtmangiz yo‘q</p></div>`;
       el.innerHTML = holat.buyurtmaKesh;
       return;
@@ -1500,13 +1564,13 @@ async function buyurtmalarniChiz({ majburiy = false } = {}) {
         </div>
         ${o.items.map((i) => `<div class="qtr"><span class="k">${esc(i.name)} × ${i.qty}</span>
           <span class="v">${qisqaNarx(i.price * i.qty)}</span></div>`).join('')}
-        ${o.discount ? `<div class="qtr"><span class="k">🎁 Chegirma</span>
+        ${o.discount ? `<div class="qtr"><span class="k">Chegirma</span>
           <span class="v chegirma">−${narx(o.discount)}</span></div>` : ''}
         <div class="qtr jami"><span class="k">Jami</span><span class="v">${narx(o.total)}</span></div>
         ${o.payment_status === 'chek_yuborilgan' ? `<div class="ogoh yashil" style="margin-top:12px">
-          ✅ Chek yuborildi — menejer tekshirmoqda</div>` : ''}
+          ${ik('tasdiq',15)} Chek yuborildi — menejer tekshirmoqda</div>` : ''}
         ${chekKerak ? `<button class="asosiy" style="margin-top:12px" data-chek="${esc(o.order_no)}"
-            data-total="${o.total}">💳 To‘lov qilish va chek yuborish</button>` : ''}
+            data-total="${o.total}">To‘lov qilish va chek yuborish</button>` : ''}
       </div>`;
     }).join('');
     el.innerHTML = holat.buyurtmaKesh;
