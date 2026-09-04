@@ -1,6 +1,8 @@
 // Mini App API. Har bir so'rov Telegram initData imzosi bilan tekshiriladi.
 import { qator, qatorlar, sorov, hodisa, sozlama } from '../db.js';
 import { verifyInitData } from '../lib/auth.js';
+import { sorovYarat, sorovHolati, seansdanUser, seansniYop, seanslarSoni }
+  from '../services/ilova-kirish.js';
 import { ok, xato, tana, json, ipOl } from '../lib/http.js';
 import { faolMahsulotlar, tahlilQil, oxirgiTahlil, limitHolati } from '../services/analysis.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
@@ -21,15 +23,25 @@ import { rasmYubor } from '../bot/tg.js';
 // 30 soniyalik kesh bazaga ketadigan bir xil so'rovlarni yig'ib bitta qiladi.
 const KATALOG_KESH_MS = 30_000;
 
-/** initData ni tekshirib, bazadagi foydalanuvchini qaytaradi. */
+/**
+ * So'rov kimdan kelganini aniqlaydi. Ikki yo'l:
+ *
+ *   1. Telegram Mini App — initData imzosi (asosiy yo'l);
+ *   2. Brauzer seansi — telefon raqami botdan tasdiqlangach berilgan
+ *      token. Shu tufayli ilova Chrome'da ham, bosh ekrandagi PWA
+ *      yorlig'idan ham Telegramsiz ishlaydi.
+ */
 async function kim(req) {
   const tgUser = verifyInitData(req.headers['x-init-data']);
-  if (!tgUser) return null;
-  const bor = await qator('select * from users where telegram_id = $1', [String(tgUser.id)]);
-  if (bor) return bor.is_blocked ? null : bor;
-  return await qator(
-    `insert into users (telegram_id, username, source) values ($1,$2,'miniapp') returning *`,
-    [String(tgUser.id), tgUser.username || null]);
+  if (tgUser) {
+    const bor = await qator('select * from users where telegram_id = $1', [String(tgUser.id)]);
+    if (bor) return bor.is_blocked ? null : bor;
+    return await qator(
+      `insert into users (telegram_id, username, source) values ($1,$2,'miniapp') returning *`,
+      [String(tgUser.id), tgUser.username || null]);
+  }
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  return token ? seansdanUser(token) : null;
 }
 
 export async function apiRoutes(req, res, yol) {
@@ -42,9 +54,35 @@ export async function apiRoutes(req, res, yol) {
     return ok(res, await kesh('katalog', KATALOG_KESH_MS, katalogniYig));
   }
 
+  // --- Telegramsiz kirish: telefon + botdan tasdiqlash ---
+  // Bu yo'llar imzosiz, chunki imzo aynan shu yerda olinadi.
+  if (yol === '/api/kirish/sorov' && req.method === 'POST') {
+    const ip = ipOl(req);
+    // Bitta IP dan 15 daqiqada 5 ta: birovning Telegramiga xabar
+    // yog'dirish uchun ishlatib bo'lmasin
+    const c = cheklov('kir:' + ip, 5, 15 * 60_000);
+    if (!c.ruxsat) {
+      return json(res, 429, { error: 'Juda ko‘p urinish. 15 daqiqadan keyin qayta urining.' });
+    }
+    const b = await tana(req);
+    const r = await sorovYarat(b.telefon, {
+      ip, qurilma: String(req.headers['user-agent'] || '').slice(0, 120) });
+    if (r.xato) return xato(res, 400, r.xato);
+    return ok(res, r);
+  }
+
+  if (yol === '/api/kirish/holat' && req.method === 'GET') {
+    const kalit = new URL(req.url, 'http://x').searchParams.get('kalit');
+    // So'rab turish tez-tez bo'ladi (2 soniyada bir) — cheklov keng
+    const c = cheklov('kirh:' + ipOl(req), 200, 10 * 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: 'Juda ko‘p so‘rov.' });
+    return ok(res, await sorovHolati(kalit, {
+      qurilma: String(req.headers['user-agent'] || '').slice(0, 120) }));
+  }
+
   // --- Bundan keyingi hammasi imzo talab qiladi ---
   const user = await kim(req);
-  if (!user) return xato(res, 401, 'Ruxsat yo‘q. Ilovani Telegram orqali oching.');
+  if (!user) return xato(res, 401, 'Ruxsat yo‘q. Ilovaga qayta kiring.');
 
   // Umumiy tinchlantirgich: normal ishlatishda hech qachon urilmaydi,
   // lekin buzilgan klient yoki skript tizimni bosib qo'yolmaydi.
@@ -304,6 +342,18 @@ export async function apiRoutes(req, res, yol) {
   }
 
   // --- Profilni tahrirlash ---
+  // Brauzer seansidan chiqish. Telegram ichida ma'nosi yo'q —
+  // u yerda seans yo'q, imzo har safar yangidan keladi.
+  if (yol === '/api/chiqish' && req.method === 'POST') {
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    if (token) await seansniYop(token);
+    return ok(res, { chiqildi: true });
+  }
+
+  if (yol === '/api/seanslar' && req.method === 'GET') {
+    return ok(res, { soni: await seanslarSoni(user.id) });
+  }
+
   if (yol === '/api/profil' && req.method === 'POST') {
     const b = await tana(req);
     const matn = (v, n) => String(v ?? '').trim().slice(0, n) || null;

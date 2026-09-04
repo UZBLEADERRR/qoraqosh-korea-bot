@@ -16,6 +16,7 @@ const { yangilanish } = await import('../src/bot/index.js');
 // Admin API sini to'g'ridan-to'g'ri chaqirish — server ko'tarmasdan.
 // HTTP so'rovi va javobi taqlid qilinadi, marshrutlash haqiqiy kod bilan.
 const { adminRoutes } = await import('../src/api/admin.js');
+const { apiRoutes } = await import('../src/api/routes.js');
 const { issueAdminToken } = await import('../src/lib/auth.js');
 const { Readable } = await import('node:stream');
 const adminToken = issueAdminToken({ rol: 'admin' });
@@ -60,6 +61,27 @@ const chaqirXom = (yol) => new Promise((res) => {
   };
   adminRoutes(req, javob, yol.split('?')[0])
     .catch((e) => res({ kod: 500, sarlavhalar, tana: e.message }));
+});
+
+// Mini App API si — Telegram imzosi yoki brauzer seansi tokeni bilan
+const chaqirIlova = (yol, usul, tana, token) => new Promise((res) => {
+  const bayt = Buffer.from(JSON.stringify(tana ?? {}));
+  const req = Object.assign(new Readable({ read() { this.push(bayt); this.push(null); } }), {
+    url: yol, method: usul,
+    headers: { 'content-type': 'application/json', 'content-length': String(bayt.length),
+               ...(token ? { authorization: `Bearer ${token}` } : {}) },
+    socket: { remoteAddress: '127.0.0.1' },
+  });
+  const bolaklar = [];
+  const javob = {
+    statusCode: 200, headersSent: false,
+    writeHead(k) { this.statusCode = k; return this; },
+    setHeader() {},
+    end(x) { if (x) bolaklar.push(x); res({ kod: this.statusCode,
+      tana: JSON.parse(Buffer.concat(bolaklar.map(Buffer.from)).toString() || '{}') }); },
+  };
+  apiRoutes(req, javob, yol.split('?')[0])
+    .catch((e) => res({ kod: 500, tana: { error: e.message } }));
 });
 
 let ok=0,xato=0;
@@ -1033,6 +1055,102 @@ console.log('\n── MARKETPLACE ──');
   await sorov(`update settings set value = '600'::jsonb where key = 'marketplace_maks_ogirlik'`);
 }
 
+
+// ═══════════ TELEGRAMSIZ KIRISH ═══════════
+// Bosh ekrandagi yorliq Telegramni ochishga majbur qilardi. Endi odam
+// raqamini kiritadi, botga tasdiqlash keladi, tasdiqlagach brauzerda
+// ham xuddi oddiy ilovadek ishlaydi.
+console.log('\n── TELEGRAMSIZ KIRISH ──');
+{
+  const K = await import('../src/services/ilova-kirish.js');
+
+  test('raqam har xil yozilsa ham bir xil tushuniladi',
+    K.raqamTozala('90 123 45 67') === '+998901234567'
+    && K.raqamTozala('+998901234567') === '+998901234567'
+    && K.raqamTozala('998901234567') === '+998901234567');
+  test('chala raqam rad etiladi', K.raqamTozala('90 123') === null);
+  test('raqam niqoblanadi', K.raqamYashir('+998901234567') === '+998 90 *** ** 67',
+    K.raqamYashir('+998901234567'));
+
+  const u = await qator(`select id, telegram_id from users where telegram_id = '800001'`);
+  await sorov(`update users set phone = '+998901234567' where id = $1`, [u.id]);
+  await sorov('delete from kirish_sorovlari');
+  await sorov('delete from ilova_seanslar');
+
+  // Ro'yxatda yo'q raqam — begona odam birovga xabar yog'dira olmasin
+  const yoq = await K.sorovYarat('+998900000000');
+  test('ro‘yxatda yo‘q raqam rad etiladi', Boolean(yoq.xato), yoq.xato?.slice(0, 40));
+
+  // Haqiqiy raqam — botga tasdiqlash keladi
+  yuborilgan.length = 0;
+  const s = await K.sorovYarat('90 123 45 67', { ip: '1.2.3.4', qurilma: 'Chrome' });
+  test('so‘rov yaratildi', Boolean(s.kalit) && /^\d{4}$/.test(s.kod || ''), s.kod);
+  test('botga tasdiqlash xabari bordi',
+    yuborilgan.some((x) => String(x.chat_id) === '800001' && /kirish/i.test(x.text || '')));
+  test('xabarda ekrandagi kod bor', (oxirgi().text || '').includes(s.kod), s.kod);
+  test('tasdiqlash tugmalari bor', tugmalar().length === 2,
+    tugmalar().map((b) => b.text).join(' / '));
+  test('raqam to‘liq ko‘rsatilmaydi', !/901234567/.test(s.raqam || ''), s.raqam);
+
+  test('tasdiqlanmaguncha token yo‘q',
+    (await K.sorovHolati(s.kalit)).holat === 'kutilmoqda');
+
+  // Botdagi «Ha, bu men»
+  const ha = tugmalar().find((b) => /Ha, bu men/.test(b.text));
+  await bos('800001', ha.callback_data);
+  // Tugma bosilgach xabar TAHRIRLANADI (yangi xabar yuborilmaydi) —
+  // shuning uchun natijani bazadan tekshiramiz
+  const holat = await qiymat(`select holat from kirish_sorovlari where kalit = $1`, [s.kalit]);
+  test('bot tasdig‘i qabul qilindi', holat === 'tasdiqlandi', holat);
+
+  const h = await K.sorovHolati(s.kalit, { qurilma: 'Chrome' });
+  test('token berildi', h.holat === 'tasdiqlandi' && Boolean(h.token), h.holat);
+
+  const uu = await K.seansdanUser(h.token);
+  test('token bilan foydalanuvchi topildi', uu?.id === u.id, uu?.full_name);
+
+  // TOKEN BIR MARTALIK: kalitni bilgan odam ikkinchi token ololmasin
+  test('so‘rov takror ishlatilmaydi', (await K.sorovHolati(s.kalit)).holat === 'yoq');
+  test('soxta token ishlamaydi', (await K.seansdanUser('yolgon-token')) === null);
+
+  // Ilova API si token bilan ishlaydi
+  const bilan = await chaqirIlova('/api/me', 'GET', null, h.token);
+  test('API token bilan ishlaydi', bilan.kod === 200, `kod=${bilan.kod}`);
+  const tokensiz = await chaqirIlova('/api/me', 'GET', null, '');
+  test('tokensiz API rad etadi', tokensiz.kod === 401, `kod=${tokensiz.kod}`);
+
+  // Chiqish
+  await K.seansniYop(h.token);
+  test('chiqqandan keyin token o‘lik', (await K.seansdanUser(h.token)) === null);
+
+  // Rad etish
+  yuborilgan.length = 0;
+  const s2 = await K.sorovYarat('+998901234567');
+  const yq = tugmalar().find((b) => /Men emas/.test(b.text));
+  await bos('800001', yq.callback_data);
+  test('rad etilgan so‘rovdan token chiqmaydi',
+    (await K.sorovHolati(s2.kalit)).holat === 'rad');
+
+  // Muddati o'tgan so'rov
+  const s3 = await K.sorovYarat('+998901234567');
+  await sorov(`update kirish_sorovlari set expires_at = now() - interval '1 minute'
+                where kalit = $1`, [s3.kalit]);
+  test('muddati o‘tgan so‘rov', (await K.sorovHolati(s3.kalit)).holat === 'muddati_otdi');
+  const id3 = (await qator('select id from kirish_sorovlari where kalit = $1', [s3.kalit])).id;
+  test('muddati o‘tganini tasdiqlab bo‘lmaydi', (await K.sorovJavobi(id3, true)) === null);
+
+  // Bloklangan foydalanuvchi
+  const s4 = await K.sorovYarat('+998901234567');
+  const id4 = (await qator('select id from kirish_sorovlari where kalit = $1', [s4.kalit])).id;
+  await K.sorovJavobi(id4, true);
+  const h4 = await K.sorovHolati(s4.kalit);
+  await sorov('update users set is_blocked = true where id = $1', [u.id]);
+  test('bloklangan foydalanuvchi kirolmaydi', (await K.seansdanUser(h4.token)) === null);
+  await sorov('update users set is_blocked = false where id = $1', [u.id]);
+
+  await sorov('delete from kirish_sorovlari');
+  await sorov('delete from ilova_seanslar');
+}
 
 // ═══════════ XARID RO'YXATI (admin panel) ═══════════
 // Botdagi /orders bitta partiya uchun. Panelda esa istalgan oraliq:

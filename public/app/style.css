@@ -1133,12 +1133,36 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 .tavsiya-ich .t-karta{border:0;padding:2px}
 .tavsiya-ich .t-karta+.t-karta{border-top:1px solid var(--chiziq-och);padding-top:11px}
 
-/* Telegramdan tashqarida ochilgan ilova — yorliq bosilganda ko'rinadi */
-.tashqarida { min-height: 100vh; display: flex; align-items: center;
+/* Telegramsiz kirish ekrani — brauzerda va bosh ekrandagi yorliqda */
+.kirish-fon { min-height: 100dvh; display: flex; align-items: center;
   justify-content: center; padding: 24px; background: var(--fon); }
-.tashqarida-ichi { max-width: 340px; text-align: center; }
-.tashqarida-belgi { font-weight: 800; letter-spacing: 5px; font-size: 15px;
-  color: var(--urgu); margin-bottom: 18px; }
-.tashqarida h2 { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
-.tashqarida p { color: var(--kul); line-height: 1.5; margin-bottom: 22px; }
-.tashqarida .asosiy { display: block; text-decoration: none; text-align: center; }
+.kirish-quti { width: 100%; max-width: 340px; text-align: center; }
+.kirish-belgi { font-weight: 800; letter-spacing: 5px; font-size: 15px;
+  color: var(--urgu); margin-bottom: 20px; }
+.kirish-quti h2 { font-size: 23px; font-weight: 800; margin: 0 0 8px; }
+.kirish-quti p { color: var(--kul); line-height: 1.5; margin: 0 0 18px; font-size: 15px; }
+.kirish-quti input { width: 100%; padding: 15px 16px; font-size: 18px; font-weight: 600;
+  text-align: center; letter-spacing: .5px; border: 1.5px solid var(--chiziq);
+  border-radius: 14px; background: var(--karta); color: var(--matn); }
+.kirish-quti input:focus { outline: 2.5px solid var(--urgu); outline-offset: -1px; }
+.kirish-quti .asosiy { width: 100%; margin-top: 14px; }
+.kirish-quti .matnli { width: 100%; margin-top: 10px; background: none; border: 0;
+  color: var(--kul); font: inherit; font-size: 15px; font-weight: 600; padding: 12px;
+  cursor: pointer; }
+.kirish-xato { color: var(--urgu); font-size: 14px; font-weight: 600;
+  margin-top: 10px; line-height: 1.45; }
+
+/* Kod: brauzerdagi va botdagi kod MOS kelishi kerak — shu tekshiruv
+   begonaning so'rovini adashib tasdiqlashdan saqlaydi. */
+.kirish-kod { background: var(--karta); border: 1.5px solid var(--chiziq);
+  border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+.kirish-kod span { display: block; font-size: 12px; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--och); font-weight: 700; }
+.kirish-kod b { display: block; font-size: 38px; font-weight: 800; letter-spacing: 7px;
+  color: var(--urgu); margin-top: 6px; }
+.kirish-ogoh { font-size: 13.5px !important; color: var(--och) !important; }
+.kirish-kutish { display: flex; align-items: center; justify-content: center; gap: 10px;
+  color: var(--kul); font-size: 14.5px; font-weight: 600; margin-top: 6px; }
+.kirish-kutish .aylana { width: 18px; height: 18px; border: 2.5px solid var(--chiziq);
+  border-top-color: var(--urgu); border-radius: 50%; animation: kayl .8s linear infinite; }
+@keyframes kayl { to { transform: rotate(360deg) } }

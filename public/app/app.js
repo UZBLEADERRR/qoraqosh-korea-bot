@@ -28,11 +28,19 @@ const holat = {
 
 // ---------------- API ----------------
 async function api(yol, opt = {}) {
+  const token = seansToken();
   const res = await fetch(yol, {
     ...opt,
-    headers: { 'Content-Type': 'application/json', 'X-Init-Data': tg?.initData || '', ...(opt.headers || {}) },
+    headers: { 'Content-Type': 'application/json',
+               'X-Init-Data': tg?.initData || '',
+               // Telegramdan tashqarida: botdan tasdiqlangan seans
+               ...(token && !tg?.initData ? { Authorization: `Bearer ${token}` } : {}),
+               ...(opt.headers || {}) },
   });
   const data = await res.json().catch(() => ({}));
+  // Seans tugagan yoki bekor qilingan — qaytadan kirish so'raymiz
+  if (res.status === 401 && token && !tg?.initData) { seansOchir(); kirishEkrani();
+    throw new Error(data.error || 'Sessiya tugadi'); }
   if (!res.ok) throw new Error(data.error || 'Xatolik yuz berdi');
   return data;
 }
@@ -134,6 +142,105 @@ const SARALASH = {
   qimmatdan:{ nom: 'Qimmatdan', cmp: (a, b) => b.price - a.price },
 };
 
+// ================= TELEGRAMSIZ KIRISH =================
+// Bosh ekrandagi yorliq Telegramni ochishga majbur qilardi. Endi odam
+// telefon raqamini kiritadi, botga tasdiqlash so'rovi keladi, tasdiqlagach
+// brauzerda ham xuddi oddiy ilovadek ishlaydi.
+//
+// Parol yo'q — u yo'qoladi, o'g'irlanadi va tiklashni talab qiladi.
+// Tasdiq esa allaqachon telefonida turgan Telegramdan keladi.
+
+const TOKEN_KALIT = 'kiovo_seans';
+const seansToken = () => { try { return localStorage.getItem(TOKEN_KALIT) || ''; } catch { return ''; } };
+const seansSaqla = (t) => { try { localStorage.setItem(TOKEN_KALIT, t); } catch {} };
+const seansOchir = () => { try { localStorage.removeItem(TOKEN_KALIT); } catch {} };
+
+/** Raqamni yozilayotgan paytda formatlaydi: +998 90 123 45 67 */
+function raqamFormat(xom) {
+  const r = String(xom).replace(/\D/g, '').replace(/^998/, '').slice(0, 9);
+  const b = [r.slice(0, 2), r.slice(2, 5), r.slice(5, 7), r.slice(7, 9)].filter(Boolean);
+  return r ? `+998 ${b.join(' ')}` : '';
+}
+
+let kirishTimer = null;
+
+function kirishEkrani() {
+  clearInterval(kirishTimer);
+  document.body.innerHTML = `
+    <div class="kirish-fon">
+      <div class="kirish-quti" id="kirish-quti"></div>
+    </div>`;
+  kirishQadam1();
+}
+
+function kirishQadam1(xato = '') {
+  $('#kirish-quti').innerHTML = `
+    <div class="kirish-belgi">KiOVO</div>
+    <h2>Telefon raqamingiz</h2>
+    <p>Botga tasdiqlash so‘rovi keladi. Parol kerak emas.</p>
+    <input id="k-raqam" type="tel" inputmode="numeric" autocomplete="tel"
+           placeholder="+998 90 123 45 67" value="+998 ">
+    ${xato ? `<div class="kirish-xato">${esc(xato)}</div>` : ''}
+    <button class="asosiy" id="k-yubor">Davom etish</button>
+    <button class="matnli" id="k-telegram">Telegramda ochish</button>`;
+
+  const inp = $('#k-raqam');
+  inp.oninput = () => { inp.value = raqamFormat(inp.value); };
+  inp.onkeydown = (e) => { if (e.key === 'Enter') $('#k-yubor').click(); };
+  setTimeout(() => { inp.focus(); inp.setSelectionRange(99, 99); }, 100);
+
+  $('#k-telegram').onclick = () => { location.href = '/app/ochish'; };
+  $('#k-yubor').onclick = async () => {
+    const t = $('#k-yubor');
+    t.disabled = true; t.textContent = 'Yuborilmoqda…';
+    try {
+      const r = await api('/api/kirish/sorov', { method: 'POST',
+        body: JSON.stringify({ telefon: inp.value }) });
+      kirishQadam2(r);
+    } catch (e) {
+      t.disabled = false; t.textContent = 'Davom etish';
+      kirishQadam1(e.message);
+    }
+  };
+}
+
+function kirishQadam2({ kalit, kod, raqam, muddat }) {
+  const tugash = Date.now() + (muddat || 180000);
+  $('#kirish-quti').innerHTML = `
+    <div class="kirish-belgi">KiOVO</div>
+    <h2>Telegramni oching</h2>
+    <p>${esc(raqam || '')} raqamiga bog‘langan Telegramga
+       tasdiqlash so‘rovi yuborildi.</p>
+    <div class="kirish-kod"><span>Ekrandagi kod</span><b>${esc(kod)}</b></div>
+    <p class="kirish-ogoh">Botdagi kod SHU raqamga mos kelsagina tasdiqlang.</p>
+    <div class="kirish-kutish"><span class="aylana"></span>
+      <span id="k-qoldi">Kutilmoqda…</span></div>
+    <button class="matnli" id="k-ortga">Boshqa raqam</button>`;
+
+  $('#k-ortga').onclick = () => { clearInterval(kirishTimer); kirishQadam1(); };
+
+  kirishTimer = setInterval(async () => {
+    const qoldi = Math.max(0, Math.ceil((tugash - Date.now()) / 1000));
+    const q = $('#k-qoldi');
+    if (q) q.textContent = qoldi ? `Kutilmoqda… ${qoldi} s` : 'Muddat tugadi';
+    if (!qoldi) { clearInterval(kirishTimer); return kirishQadam1('Muddat tugadi. Qayta urining.'); }
+    try {
+      const r = await api(`/api/kirish/holat?kalit=${encodeURIComponent(kalit)}`);
+      if (r.holat === 'tasdiqlandi' && r.token) {
+        clearInterval(kirishTimer);
+        seansSaqla(r.token);
+        location.reload();
+      } else if (r.holat === 'rad') {
+        clearInterval(kirishTimer);
+        kirishQadam1('Siz rad etdingiz. Bu siz bo‘lsangiz qayta urining.');
+      } else if (r.holat === 'muddati_otdi' || r.holat === 'yoq') {
+        clearInterval(kirishTimer);
+        kirishQadam1('So‘rov muddati tugadi. Qayta urining.');
+      }
+    } catch { /* tarmoq — keyingi urinishda */ }
+  }, 2000);
+}
+
 // ---------------- Ishga tushirish ----------------
 
 /**
@@ -146,18 +253,9 @@ const SARALASH = {
  */
 function telegramdanTashqarida() {
   if (tg?.initData) return false;
-  document.body.innerHTML = `
-    <div class="tashqarida">
-      <div class="tashqarida-ichi">
-        <div class="tashqarida-belgi">KiOVO</div>
-        <h2>Ilova Telegram ichida ishlaydi</h2>
-        <p>Buyurtma, skaner va maslahat — hammasi Telegram hisobingizga
-           bog‘langan. Quyidagi tugma sizni ilovaga olib boradi.</p>
-        <a class="asosiy" href="/app/ochish">Telegramda ochish</a>
-      </div>
-    </div>`;
-  // Yorliqdan ochilgan bo'lsa kutib turishning ma'nosi yo'q
-  setTimeout(() => { location.href = '/app/ochish'; }, 1200);
+  // Seans bor — ilova xuddi Telegram ichidagidek ishlaydi
+  if (seansToken()) return false;
+  kirishEkrani();
   return true;
 }
 
@@ -521,16 +619,21 @@ function bolimlarniChiz() {
   const bolimsiz = holat.mahsulotlar.filter((p) => !p.category_id).sort(tartib);
   if (bolimsiz.length) bolimlar.push({ k: { name: 'Boshqa', slug: 'boshqa' }, royxat: bolimsiz });
 
-  quti.innerHTML = bolimlar.map(({ k, royxat }, i) => {
-    const gorizontal = i % 2 === 0;
-    const kartalar = (gorizontal ? royxat.slice(0, 12) : royxat.slice(0, 4)).map(kartaHtml).join('');
+  // Hamma bo'lim GORIZONTAL siriladi. Ilgari bittasi gorizontal,
+  // keyingisi vertikal to'r edi — natijada vertikal bo'lim ustida
+  // «Hammasini ko'rish» turardi, holbuki u yerda hammasi allaqachon
+  // ko'rinib turardi. Bir xil ko'rinish tushunarliroq: har bo'lim
+  // bitta satr, davomi yon tomonda, «Hammasini ko'rish» esa haqiqatan
+  // ham sig'magan mahsulotlar uchun.
+  quti.innerHTML = bolimlar.map(({ k, royxat }) => {
+    const kartalar = royxat.slice(0, 12).map(kartaHtml).join('');
     return `
       <div class="bolim-satr">
         <h2>${esc(k.name)}</h2>
-        ${k.slug !== 'boshqa' && royxat.length > (gorizontal ? 12 : 4)
+        ${k.slug !== 'boshqa' && royxat.length > 12
           ? `<button data-hammasi="${esc(k.slug)}">Hammasini ko‘rish ${ik('keyingi', 15)}</button>` : ''}
       </div>
-      <div class="${gorizontal ? 'qator' : 'bolim-tor'}">${kartalar}</div>`;
+      <div class="qator">${kartalar}</div>`;
   }).join('');
 
   $$('#bolimlar .mahsulot').forEach((el) => el.onclick = (e) => kartaBosildi(e, el));
@@ -2088,10 +2191,19 @@ function profilniChiz() {
         <span>Ommaviy oferta</span><span class="oq">${ik('keyingi', 17)}</span></a>
       <button class="tanlov-tugma" id="t-profil-ochir">
         <span style="color:var(--qizil)">Ma’lumotlarimni o‘chirish</span>
-        <span class="oq">${ik('keyingi', 17)}</span></button>`)}`;
+        <span class="oq">${ik('keyingi', 17)}</span></button>
+      ${seansToken() && !tg?.initData ? `
+        <button class="tanlov-tugma" id="t-chiqish">
+          <span style="color:var(--qizil)">Bu qurilmadan chiqish</span>
+          <span class="oq">${ik('keyingi', 17)}</span></button>` : ''}`)}`;
 
   // --- Ulanishlar ---
   $('#t-ornat') && ($('#t-ornat').onclick = ilovaniOrnat);
+  $('#t-chiqish') && ($('#t-chiqish').onclick = async () => {
+    try { await api('/api/chiqish', { method: 'POST' }); } catch {}
+    seansOchir();
+    location.reload();
+  });
 
   const saqla = async (tan) => {
     try {

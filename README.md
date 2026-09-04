@@ -76,11 +76,12 @@ Google Gemini · Railway.
   qidiruv), banner karuseli, toifa doiralari va toifa bo'yicha
   bo'limlar. Karuselning **birinchi slaydi har doim AI tahlil
   chaqirig'i** — bosh sahifadagi asosiy amal yo'qolmaydi; admin
-  yuklagan rasmlar undan keyin aylanadi. Bo'limlar almashinadi: biri
-  gorizontal siriladi, keyingisi vertikal to'r bo'lib tushadi.
-  Toifasi belgilanmagan mahsulotlar **«Boshqa»** bo'limiga tushadi —
-  do'konda ko'rinmay qolgan mahsulot yo'qotilgan pul. Oxirida
-  «Barcha mahsulotlar».
+  yuklagan rasmlar undan keyin aylanadi. **Har bo'lim gorizontal
+  siriladi** — ilgari biri gorizontal, keyingisi vertikal to'r edi va
+  vertikal bo'lim ustida «Hammasini ko'rish» turardi, holbuki u yerda
+  hammasi allaqachon ko'rinardi. Toifasi belgilanmagan mahsulotlar
+  **«Boshqa»** bo'limiga tushadi — do'konda ko'rinmay qolgan mahsulot
+  yo'qotilgan pul. Oxirida «Barcha mahsulotlar».
 - **Mahsulot kartasi** — yurakcha (sevimlilar), ★ reyting, narx,
   moslik yorlig'i va bitta bosishda savatga qo'shadigan «+».
   - **Reyting o'ylab topilmaydi**: u manba do'kondan (skrinshotdagi
@@ -139,7 +140,20 @@ Google Gemini · Railway.
   Service worker faqat QOBIQNI keshlaydi (HTML/CSS/JS/ikonka) — katalog,
   savat va buyurtma har doim tarmoqdan olinadi, eski narx ko'rsatilmaydi.
 
-  ⚠️ **Yorliq ilovani ochishi uchun qisqa nom kerak.** Telegram yorliqni
+  **Telegramsiz ham ishlaydi.** Yorliq bosilganda ilova brauzerda
+  ochiladi va telefon raqami so'raladi. Raqam kiritilgach botga
+  tasdiqlash so'rovi (✅ Ha, bu men / 🚫 Men emas) va **4 xonali kod**
+  keladi — kod ekrandagi bilan mos kelsagina tasdiqlanadi. Tasdiqdan
+  keyin brauzerga 60 kunlik seans beriladi va ilova Chrome'da ham,
+  bosh ekrandagi yorliqda ham xuddi oddiy ilovadek ishlaydi.
+
+  Parol yo'q: u yo'qoladi, o'g'irlanadi va tiklashni talab qiladi.
+  Kirish faqat botdan ro'yxatdan o'tgan va telefoni tasdiqlangan
+  odam uchun — raqamni bilgan begona kira olmaydi, chunki tasdiqni
+  telefonidagi Telegram beradi. Token bazada XOM saqlanmaydi, faqat
+  sha256 xeshi turadi. Bitta IP dan 15 daqiqada 5 ta urinish.
+
+  ⚠️ **Telegram yorlig'i ilovani ochishi uchun qisqa nom kerak.** Telegram yorliqni
   ilova QANDAY ochilganiga qarab yasaydi: `web_app` tugmasidan ochilgan
   ilova bot suhbatiga bog'lanadi, shuning uchun yorliq ham bot suhbatini
   ochadi. To'g'ridan-to'g'ri havoladan (`t.me/<bot>/<nom>`) ochilgani
@@ -148,10 +162,8 @@ Google Gemini · Railway.
   **Enable**. Keyin uni admin panelning **«Mini App qisqa nomi»**
   bo'limiga yozasiz — botdagi «Do'kon» tugmasi o'sha havolaga aylanadi.
 
-  Brauzerdan o'rnatilgan PWA ning `start_url` i `/app/ochish` —
-  bu manzil Telegramdagi ilovaga yo'naltiradi. Ilova Telegramdan
-  tashqarida ochilsa `initData` bo'lmaydi va hech narsa yuklanmaydi,
-  shuning uchun bunday holda «Telegramda ochish» ekrani ko'rsatiladi.
+  `/app/ochish` — Telegramdagi ilovaga yo'naltiradigan manzil;
+  kirish ekranidagi «Telegramda ochish» tugmasi shuni ishlatadi.
 - **Profil** — Telegram avatari, ism va statistika. Bo'limlar YOPIQ
   turadi va bosilganda ochiladi: shaxsiy ma'lumot (tahrirlanadi),
   **terim va sog'liq** (teri turi, allergiya, kasallik — AI shularni
@@ -805,6 +817,7 @@ src/
     yetkazish.js       og'irlik bo'yicha narx (API yoki tarif jadvali)
     pochta-hujjati.js  pochta uchun manzillar hujjati
     xarid-hisobot.js   xarid ro'yxati: mahsulot va viloyat bo'yicha jamlash
+    ilova-kirish.js    telefon + botdan tasdiqlash (Telegramsiz seans)
     qollanma-hujjati.js mijozga qutiga qo'shiladigan parvarish qo'llanmasi
     mijoz-qollanma.js  to'lovdan keyin qo'llanmani yuborish (rasm + PDF)
     kalit-sozlar.js    qoida + AI dan kalit so'zlarni to'ldirish
@@ -838,6 +851,7 @@ migrations/
   026_reyting_sevimli  manba reytingi va sevimlilar
   027_mavzu_kiovo      yangi standart mavzu (oq fon, yorqin qizil)
   028_sharhlar         haqiqiy sharhlar + reyting triggeri
+  029_ilova_kirish     kirish so'rovlari va brauzer seanslari
 ```
 
 Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing

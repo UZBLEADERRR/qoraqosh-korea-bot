@@ -10,6 +10,7 @@ import * as reg from './handlers/register.js';
 import * as skaner from './handlers/scanner.js';
 import * as dokon from './handlers/shop.js';
 import { esc } from './format.js';
+import { sorovJavobi } from '../services/ilova-kirish.js';
 
 async function foydalanuvchi(from) {
   const telegramId = String(from.id);
@@ -113,6 +114,27 @@ async function callback(cq) {
       chat_id: chatId, message_id: cq.message.message_id, reply_markup: { inline_keyboard: [] },
     });
     if (!user.agreed_at) await reg.roziBol(chatId, user);
+    return;
+  }
+
+  // Brauzerdan kirishni tasdiqlash
+  if (data.startsWith('kir:')) {
+    const [, javob, id] = data.split(':');
+    const s = await sorovJavobi(id, javob === 'ha');
+    if (!s) return javobBer(cq.id, 'Bu so‘rovning muddati o‘tgan yoki javob berilgan', true);
+
+    await javobBer(cq.id, javob === 'ha' ? '✅ Tasdiqlandi' : '🚫 Rad etildi');
+    if (cq.message) {
+      await tg('editMessageText', {
+        chat_id: chatId, message_id: cq.message.message_id, parse_mode: 'HTML',
+        text: javob === 'ha'
+          ? `✅ <b>Kirish tasdiqlandi</b>\n\nBrauzerdagi ilova ochildi. `
+            + `Endi u yerda Telegramsiz ishlaydi.`
+          : `🚫 <b>Kirish rad etildi</b>\n\nAgar bu siz bo‘lmasangiz — xavotir olmang, `
+            + `hech kim kira olmadi. Parol kerak emas: kirish faqat shu yerdagi `
+            + `tasdiq bilan bo‘ladi.`,
+      }).catch(() => {});
+    }
     return;
   }
 
