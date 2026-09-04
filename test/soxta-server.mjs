@@ -317,6 +317,15 @@ export function soxtaServer(port = 4444) {
         const kichik = (b.generationConfig?.maxOutputTokens || 0) < 512;
         // Haqiqiy hayotdagi kabi: byudjet kichik bo'lsa o'ylash uni yeb qo'yadi
         if (kichik) return j({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [] } }] });
+
+        // YARIM javob: JSON boshlanadi-yu, tugamaydi. Server buni
+        // "tushunarsiz javob" deb emas, "byudjet yetmadi" deb tushunib,
+        // keyingi urinishda ko'proq berishi kerak.
+        if (globalThis.AI_UZILGAN > 0) {
+          globalThis.AI_UZILGAN -= 1;
+          return j({ candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [
+            { text: '{"sifat":{"yaroqli":true,"sabab":"yaroqli","ishonch":92,"izoh":""},"umumiy":{"taxminiy' }] } }] });
+        }
         // Sxema so'rovda bo'lmasa promptdan qidiramiz — soddalashtirilgan
         // rejimda u matn bo'lib yuboriladi
         const sxema = b.generationConfig?.responseSchema

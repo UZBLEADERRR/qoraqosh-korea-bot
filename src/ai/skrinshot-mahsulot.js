@@ -24,6 +24,8 @@ const SXEMA = {
     narx_qiymat:  { type: 'number' },
     narx_valyuta: { type: 'string', enum: ['KRW', 'UZS', 'USD', 'yoq'] },
     ogirlik_g:    { type: 'number' },
+    reyting:      { type: 'number' },
+    sharh_soni:   { type: 'integer' },
     volume:       { type: 'string' },
     category:     { type: 'string', enum: [...TOIFALAR, 'yangi'] },
     // Mavjud toifalarning birortasi to'g'ri kelmasa — yangisini taklif qiladi
@@ -39,7 +41,7 @@ const SXEMA = {
     emoji:        { type: 'string' },
   },
   required: ['kosmetikami','ishonch','izoh','name','brand','narx_qiymat','narx_valyuta',
-             'ogirlik_g','volume','category','yangi_toifa','step','description','usage_text',
+             'ogirlik_g','reyting','sharh_soni','volume','category','yangi_toifa','step','description','usage_text',
              'ingredients','actives','concerns','skin_types','warnings','emoji'],
   propertyOrdering: ['kosmetikami','ishonch','izoh','name','brand','narx_qiymat','narx_valyuta',
              'ogirlik_g','volume','category','yangi_toifa','step','description','usage_text',
@@ -57,6 +59,12 @@ NARX — eng muhimi:
 - Chegirmali narx bo'lsa (eski narx chizilgan) — YANGI, kichik narxni ol.
 - Narx umuman ko'rinmasa: narx_qiymat = 0, narx_valyuta = "yoq".
 - O'ylab TOPMA. Ko'rinmasa 0 yoz.
+
+REYTING:
+- Skrinshotda yulduzcha bahosi va sharhlar soni ko'rinsa o'qi:
+  reyting = 4.8, sharh_soni = 124.
+- Ko'rinmasa IKKALASI HAM 0 bo'lsin. O'ylab TOPMA — soxta reyting
+  ishonchni yo'qotadi, biz uni umuman ko'rsatmaymiz.
 
 OG'IRLIK:
 - ogirlik_g — mahsulotning qadoq bilan taxminiy og'irligi, grammda.
@@ -119,6 +127,8 @@ export async function skrinshotdanMahsulot(base64, mime = 'image/jpeg') {
     narx_qiymat: son(j.narx_qiymat),
     narx_valyuta: ['KRW', 'UZS', 'USD'].includes(j.narx_valyuta) ? j.narx_valyuta : 'yoq',
     ogirlik_g: Math.round(son(j.ogirlik_g)),
+    reyting: Math.min(5, Math.round(son(j.reyting) * 10) / 10),
+    sharh_soni: Math.round(son(j.sharh_soni)),
     volume: s(j.volume, 30),
     category: toifa,
     yangi_toifa: toifa === 'yangi' ? s(j.yangi_toifa, 40) : '',

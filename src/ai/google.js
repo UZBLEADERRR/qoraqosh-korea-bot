@@ -116,7 +116,19 @@ export async function googleJson(parts, schema, opts = {}) {
       continue;
     }
     try { return JSON.parse(text); }
-    catch { throw Object.assign(new Error(`JSON emas: ${text.slice(0, 200)}`), { turkum: 'json' }); }
+    catch {
+      // Javob YARIM kelgan bo'lsa JSON albatta buziladi. Ilgari shu yerda
+      // darrov xato tashlanardi va odam "AI javobi tushunarsiz" degan
+      // xabarni ko'rardi — aslida shunchaki byudjet yetmagan. Endi
+      // keyingi urinishda byudjet ikki barobar bo'ladi.
+      if (cand?.finishReason === 'MAX_TOKENS') {
+        oxirgi = Object.assign(
+          new Error(`Javob uzilib qoldi (MAX_TOKENS, byudjet ${maxTokens})`), { turkum: 'uzilgan' });
+        continue;
+      }
+      oxirgi = Object.assign(new Error(`JSON emas: ${text.slice(0, 200)}`), { turkum: 'json' });
+      continue;
+    }
   }
   throw oxirgi || Object.assign(new Error('Google javob bermadi'), { turkum: 'nomalum' });
 }

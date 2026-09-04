@@ -63,12 +63,34 @@ Google Gemini · Railway.
     tashxis qo'yilmaydi, shifokorga borish aytiladi.
   - Inputga bosilganda pastki menyu pastga sirg'alib ketadi.
   - Cheklov: bitta odamga 10 daqiqada 20 ta savol.
-- **Bosh sahifa** — qizil shapka (logotip, qo'ng'iroq, qidiruv), karusel,
-  toifa kartalari va **toifa bo'yicha bo'limlar**. Bo'limlar almashinib
-  keladi: biri gorizontal siriladi, keyingisi vertikal to'r bo'lib
-  tushadi — bir xil ritm ekranni zeriktiradi. Oxirida «Barcha
-  mahsulotlar». Toifa tanlansa yoki qidiruv yozilsa bo'limlar o'rnini
-  natijalar to'ri egallaydi.
+- **Bosh sahifa** — oq shapka (qizil logotip, qo'ng'iroq, savat va
+  qidiruv), banner karuseli, toifa doiralari va toifa bo'yicha
+  bo'limlar. Karuselning **birinchi slaydi har doim AI tahlil
+  chaqirig'i** — bosh sahifadagi asosiy amal yo'qolmaydi; admin
+  yuklagan rasmlar undan keyin aylanadi. Bo'limlar almashinadi: biri
+  gorizontal siriladi, keyingisi vertikal to'r bo'lib tushadi.
+  Oxirida «Barcha mahsulotlar».
+- **Mahsulot kartasi** — yurakcha (sevimlilar), ★ reyting, narx,
+  moslik yorlig'i va bitta bosishda savatga qo'shadigan «+».
+  - **Reyting o'ylab topilmaydi**: u manba do'kondan (skrinshotdagi
+    baho) olinadi. Sharh soni nol bo'lsa yulduzcha umuman
+    ko'rsatilmaydi — soxta reyting ishonchni eng tez yo'qotadi.
+  - **Moslik yorlig'i** ham haqiqiy: oxirgi tahlildagi muammolar va
+    profildagi teri turi bilan solishtiriladi. Mos kelmasa yorliq
+    chiqmaydi.
+- **Sevimlilar** — katalogdagi yurakcha, profildagi «Sevimlilar»
+  bo'limi va statistikadagi hisob.
+- **Savatda AI tavsiyasi** — savatdagi mahsulotlar qaysi parvarish
+  bosqichlarini qamragani hisoblanadi va YETISHMAYOTGAN bosqichdan
+  eng mos mahsulot taklif qilinadi. Hammasi bor bo'lsa taklif
+  chiqmaydi.
+- **Buyurtma yo'li** — to'rt bosqich (Qabul qilindi → Tayyorlanmoqda →
+  Yo'lda → Yetkazildi), joriysi qizil. Ichki texnik holatlar
+  («Koreyadan jo'natildi», «omborda») mijozga ko'rinadigan bosqich
+  ichiga yig'iladi: o'nta holat emas, to'rtta tushunarli qadam.
+- **Skaner** — qadam ko'rsatkichi, yuz ramkasi bilan namuna surat,
+  nimalar aniqlanishi (akne, quruqlik, yog'lanish, teshik, dog') va
+  bitta tugma.
 - **Qidiruv har tilda ishlaydi.** Katalogdagi nom koreyscha yoki
   inglizcha («Perfect Whip», «수분 크림»), odam esa o'z tilida yozadi.
   Har mahsulotga **kalit so'zlar** saqlanadi: `penka`, `пенка`,
@@ -741,6 +763,8 @@ migrations/
   007_ombor_admin.sql  omborlar, viloyat/tuman, Telegram admin
   008_omborda_holati…  «Omborda» holati va uning xabari
   025_kalit_sozlar…    qidiruv kalit so'zlari + profil (allergiya)
+  026_reyting_sevimli  manba reytingi va sevimlilar
+  027_mavzu_kiovo      yangi standart mavzu (oq fon, yorqin qizil)
 ```
 
 Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing
@@ -753,6 +777,23 @@ AI maslahatchi, skrinshotdan import).
 ---
 
 ## Muhim texnik qarorlar
+
+### AI javobi uzilib qolsa
+
+Model javobi `MAX_TOKENS` bilan to'xtasa JSON **yarim** keladi va
+albatta buziladi. Ilgari shu yerda darrov xato tashlanardi va mijoz
+«🤖 AI javobi tushunarsiz chiqdi» degan xabarni ko'rardi — aslida
+shunchaki javob byudjeti yetmagan edi.
+
+Endi `finishReason: MAX_TOKENS` (Google) va `finish_reason: length`
+(OpenRouter) alohida ajratiladi: bu «tushunarsiz javob» emas, uzilgan
+javob. Har qayta urinishda byudjet **ikki barobar** oshiriladi
+(8192 → 16384 → 32768), shuning uchun ikkinchi yoki uchinchi urinish
+to'liq javob beradi. Yuz tahlili so'rovining byudjeti ham 3 000 dan
+8 000 ga ko'tarildi: tavsiya soni cheklovi olib tashlangach javob
+uzayib, eski byudjetga sig'may qolgan edi.
+
+### Boshqa qarorlar
 
 **Yetkazish narxi ham serverda.** `place_order()` ga tayyor narx beriladi,
 lekin uni SERVER kodi (`src/services/yetkazish.js`) hisoblaydi — mijoz

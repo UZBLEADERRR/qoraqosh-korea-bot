@@ -9,13 +9,14 @@
 // natija rasmi (SVG) va admin paneldagi ko'rinish.
 
 export const MAVZU_STANDART = {
-  asosiy: '#B3161C',   // sarlavha foni (brend qizili)
-  fon:    '#FBF8F3',   // ilova va rasm foni (issiq fil suyagi)
-  urgu:   '#B3161C',   // tugmalar va narx
+  asosiy: '#E0242B',   // sarlavha foni (brend qizili)
+  fon:    '#F6F6F7',   // ilova va rasm foni (neytral kulrang)
+  urgu:   '#E0242B',   // tugmalar va narx
 };
 
 /** Tayyor to'plamlar — admin bir bosishda tanlaydi. */
 export const TOPLAMLAR = [
+  { kalit: 'kiovo',    nom: 'KiOVO · oq',         asosiy: '#E0242B', fon: '#F6F6F7', urgu: '#E0242B' },
   { kalit: 'fil',      nom: 'Qizil · fil suyagi', asosiy: '#B3161C', fon: '#FBF8F3', urgu: '#B3161C' },
   { kalit: 'qizil',    nom: 'Qizil · och yashil', asosiy: '#B3161C', fon: '#EAF3D9', urgu: '#C0392B' },
   { kalit: 'jigarrang', nom: 'Jigarrang · krem',  asosiy: '#6F4830', fon: '#FAF9F7', urgu: '#8A5A3D' },

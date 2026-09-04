@@ -152,14 +152,16 @@ export async function bittaSkrinshot(fileId, qoida) {
   const p = await qator(
     `insert into products (name, brand, category_id, step, price, cost_price, stock,
         volume, country, description, usage_text, ingredients, actives, concerns,
-        skin_types, warnings, emoji, ogirlik, ai_filled, is_active)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,'KR',$9,$10,$11,$12,$13,$14,$15,$16,$17,true,true)
+        skin_types, warnings, emoji, ogirlik, reyting, sharh_soni, ai_filled, is_active)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,'KR',$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,true,true)
      returning *`,
     [karta.name, karta.brand || null, kategoriyaId, karta.step,
      sotuv, n.tannarx, OMBOR_SONI,
      karta.volume || null, karta.description || null, karta.usage_text || null,
      karta.ingredients || null, karta.actives, karta.concerns, karta.skin_types,
-     karta.warnings || null, karta.emoji, karta.ogirlik_g]);
+     karta.warnings || null, karta.emoji, karta.ogirlik_g,
+     karta.sharh_soni > 0 ? karta.reyting || null : null,
+     karta.sharh_soni]);
 
   await posterSaqla(base64, p.id);
   // Qidiruv "penka" deb ham topsin

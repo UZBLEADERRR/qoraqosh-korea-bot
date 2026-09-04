@@ -62,11 +62,12 @@ export async function apiRoutes(req, res, yol) {
               (select count(*)::int from orders   where user_id = $1
                  and status <> 'bekor')            as buyurtma,
               (select coalesce(sum(total), 0)::bigint from orders where user_id = $1
-                 and status <> 'bekor')            as jami_xarid`, [user.id]);
+                 and status <> 'bekor')            as jami_xarid,
+              (select count(*)::int from sevimlilar where user_id = $1) as sevimli`, [user.id]);
     return ok(res, {
       limit: await limitHolati(user.id),
       stat: { tahlil: stat?.tahlil ?? 0, buyurtma: stat?.buyurtma ?? 0,
-              jami_xarid: Number(stat?.jami_xarid ?? 0) },
+              jami_xarid: Number(stat?.jami_xarid ?? 0), sevimli: stat?.sevimli ?? 0 },
       user: {
         id: user.id, full_name: user.full_name, phone: user.phone,
         age: user.age, address: user.address || '',
@@ -195,6 +196,26 @@ export async function apiRoutes(req, res, yol) {
       console.error('MASLAHAT XATOSI', x.log);
       return xato(res, 502, x.matn);
     }
+  }
+
+  // --- Sevimlilar: ilovadagi yurakcha ---
+  if (yol === '/api/sevimli' && req.method === 'GET') {
+    return ok(res, { idlar: (await qatorlar(
+      'select product_id from sevimlilar where user_id = $1 order by created_at desc',
+      [user.id])).map((x) => Number(x.product_id)) });
+  }
+  if (yol === '/api/sevimli' && req.method === 'POST') {
+    const b = await tana(req);
+    const id = Number(b.product_id);
+    if (!id) return xato(res, 400, 'Mahsulot tanlanmadi.');
+    if (b.olib_tashla) {
+      await sorov('delete from sevimlilar where user_id = $1 and product_id = $2', [user.id, id]);
+      return ok(res, { sevimli: false });
+    }
+    await sorov(
+      `insert into sevimlilar (user_id, product_id) values ($1,$2)
+       on conflict do nothing`, [user.id, id]);
+    return ok(res, { sevimli: true });
   }
 
   // --- Profilni tahrirlash ---

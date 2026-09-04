@@ -63,9 +63,13 @@
           <span>KiOVO</span>
         </div>
         <div class="shapka-amal">
-          <button id="t-xabarlar" aria-label="Xabarlar">
-            <i data-ik="qongiroq" data-ik-olcham="21"></i>
+          <button id="t-xabarlar" aria-label="Buyurtmalarim">
+            <i data-ik="qongiroq" data-ik-olcham="22"></i>
             <i class="nishon yashirin" id="xabar-nishon">0</i>
+          </button>
+          <button id="t-savatga-otish" aria-label="Savat">
+            <i data-ik="savat" data-ik-olcham="22"></i>
+            <i class="nishon yashirin" id="shapka-savat">0</i>
           </button>
         </div>
       </div>
@@ -75,18 +79,21 @@
           <i data-ik="qidiruv" data-ik-olcham="18"></i>
           <input id="qidiruv" type="text" inputmode="search" enterkeyhint="search"
                  autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
-                 placeholder="Nomi yoki muammo: «penka»">
+                 placeholder="Nima qidiryapsiz?">
           <button class="tozala yashirin" id="qidiruv-tozala" aria-label="Tozalash"><i data-ik="yopish" data-ik-olcham="16"></i></button>
+          <button class="qid-skaner" id="t-qid-skaner" aria-label="Yuzni skanerlash">
+            <i data-ik="skaner" data-ik-olcham="19"></i></button>
         </div>
         <button class="uch-nuqta" id="filtr-tugma" aria-label="Filtr"><i data-ik="filtr"></i><i class="belgi-nuqta yashirin" id="filtr-belgi"></i></button>
       </div>
     </header>
 
-    <!-- Karusel: admin panelidan yuklangan rasmlar aylanadi, chetida
-         skanerga o'tish tugmasi. Rasm yo'q bo'lsa oddiy chaqiriq karta. -->
-    <div class="karusel yashirin" id="karusel">
+    <!-- Banner karuseli. Birinchi slayd HAR DOIM AI tahlil chaqirig'i —
+         bu bosh sahifadagi asosiy amal, u yo'qolmasligi kerak. Admin
+         yuklagan rasmlar undan keyin aylanadi. -->
+    <div class="karusel" id="karusel">
       <div class="karusel-lenta" id="karusel-lenta"></div>
-      <button class="karusel-tugma" id="karusel-tugma">
+      <button class="karusel-tugma yashirin" id="karusel-tugma">
         <i data-ik="skaner" data-ik-olcham="15"></i>Yuz tahlili</button>
       <div class="karusel-nuqtalar" id="karusel-nuqtalar"></div>
     </div>
@@ -119,14 +126,22 @@
        va uzun matn bor edi — odam o'qimay pastga sirg'ardi. -->
   <section id="tab-skaner" class="ekran yashirin">
     <div id="skaner-boshlash">
+      <div class="ekran-bosh">
+        <div class="qadam-holat"><span id="skan-qadam">1/3</span>
+          <span class="qadam-chiziq"><i style="width:33%"></i></span></div>
+        <h2>Yuzingizni tahlil qilamiz</h2>
+        <p>Eng yaxshi natija uchun yaxshi yoritilgan joyda
+          yuzingizni kadrga joylashtiring.</p>
+      </div>
+
       <div class="skaner-namuna">
         <img id="namuna-rasm" alt="Namuna surat">
         <div class="namuna-yoq" id="namuna-yoq"><i data-ik="selfi" data-ik-olcham="52"></i></div>
-        <span class="namuna-teg">Mana shunday</span>
+        <span class="yuz-ramka"></span>
       </div>
 
-      <p class="skaner-maslahat">
-        Yorug‘ joyda, pardozsiz, yuz ekranni to‘ldirsin.</p>
+      <!-- Nimalarni aniqlaymiz: odam nima kutishini oldindan bilsin -->
+      <div class="skan-belgilar" id="skan-belgilar"></div>
 
       <div class="ichki">
         <button class="asosiy" id="tushirish">

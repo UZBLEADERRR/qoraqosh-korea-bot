@@ -123,6 +123,23 @@ for (const [data, kutilgan] of [
     !korinadigan().some((x) => /JPG yoki PNG/.test(x.text || '')));
 }
 
+// Javob YARIM kelib qolsa (MAX_TOKENS) JSON albatta buziladi. Ilgari
+// mijoz «AI javobi tushunarsiz chiqdi» degan xabarni ko'rardi — aslida
+// shunchaki javob byudjeti yetmagan edi. Endi byudjet oshirilib qayta
+// so'raladi.
+{
+  await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
+  globalThis.AI_UZILGAN = 2;             // ikki marta yarim javob
+  yuborilgan.length = 0;
+  await rasmYubor();
+  globalThis.AI_UZILGAN = 0;
+  test('uzilib qolgan javobdan keyin tahlil baribir chiqadi',
+    korinadigan().some((x) => /Tahlil natijasi/.test(x.text || '')),
+    korinadigan().map((x) => (x.text || '').slice(0, 40)).join(' | '));
+  test('«tushunarsiz javob» xabari ketmaydi',
+    !korinadigan().some((x) => /tushunarsiz/.test(x.text || '')));
+}
+
 // ═══════════ SKANER NAMUNASI ═══════════
 // «Yuz skaneri» bosilganda botda ham namuna surat kelishi kerak: odam
 // ko'rsatmani o'qib emas, ko'rib tushunadi.

@@ -258,7 +258,7 @@ Faqat boshqa mos variant umuman bo'lmasa, eskisini qoldirishing mumkin.`
     rasmPart(base64, mime),
   ];
 
-  const javob = await aiJson(parts, SXEMA, { temperature: 0.3, maxTokens: 3000 });
+  const javob = await aiJson(parts, SXEMA, { temperature: 0.3, maxTokens: 8000 });
 
   const sifat = javob?.sifat || {};
   if (!sifat.yaroqli) {

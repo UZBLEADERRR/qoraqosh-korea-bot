@@ -453,7 +453,7 @@ console.log('\n── MAHSULOT REKLAMASI ──');
 // ═══════════ ILOVA MAVZUSI ═══════════
 console.log('\n── MAVZU ──');
 {
-  const { palitra, kontrastMatn, rangTozala } = await import('../src/lib/mavzu.js');
+  const { palitra, kontrastMatn, rangTozala, MAVZU_STANDART } = await import('../src/lib/mavzu.js');
   const { natijaSvg } = await import('../src/rasm/natija-kartochka.js');
 
   const qizil = palitra({ asosiy: '#B3161C', fon: '#EAF3D9' });
@@ -468,7 +468,8 @@ console.log('\n── MAVZU ──');
   // Noto'g'ri rang standartga tushadi — ilova hech qachon buzilmaydi
   test('noto‘g‘ri rang rad etiladi', rangTozala('salom', '#B3161C') === '#b3161c');
   test('noto‘g‘ri rang palitrani buzmaydi',
-    palitra({ asosiy: 'yashil', fon: '###' }).asosiy === '#b3161c');
+    palitra({ asosiy: 'yashil', fon: '###' }).asosiy === MAVZU_STANDART.asosiy.toLowerCase(),
+    palitra({ asosiy: 'yashil', fon: '###' }).asosiy);
 
   // Rasm mavzu rangi bilan chiziladi
   const svgQizil = natijaSvg({ rasmBase64: null, brend: 'KiOVO',
@@ -487,14 +488,15 @@ console.log('\n── MAVZU ──');
     svgQizil.includes('#D92B2B') && svgKok.includes('#D92B2B'));
 
   // Admin yo'li orqali saqlash
+  const { MAVZU_STANDART: MS } = await import('../src/lib/mavzu.js');
   const saqlash = await chaqirAdmin('/api/admin/mavzu', 'POST',
     { asosiy: '#123A63', fon: '#E7F0F7', urgu: '#1D6FA5' });
   test('mavzu saqlandi', saqlash.tana.mavzu?.asosiy === '#123a63', saqlash.tana.mavzu?.asosiy);
   test('javobda palitra keladi', Boolean(saqlash.tana.palitra?.karta));
 
   const yomon = await chaqirAdmin('/api/admin/mavzu', 'POST', { asosiy: 'ololo', fon: '' });
-  test('noto‘g‘ri rang standartga tushadi', yomon.tana.mavzu?.asosiy === '#b3161c',
-    yomon.tana.mavzu?.asosiy);
+  test('noto‘g‘ri rang standartga tushadi',
+    yomon.tana.mavzu?.asosiy === MS.asosiy.toLowerCase(), yomon.tana.mavzu?.asosiy);
 
   await sorov(`update settings set value = '{"asosiy":"#B3161C","fon":"#EAF3D9","urgu":"#C0392B"}'::jsonb
                 where key = 'mavzu'`);

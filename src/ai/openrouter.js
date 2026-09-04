@@ -66,6 +66,9 @@ export async function openrouterJson(parts, schema, opts = {}) {
   const tozaSxema = sxemaniTozala(schema);
 
   for (let urinish = 0; urinish < 3; urinish++) {
+    // Har qayta urinishda javob byudjetini ikki barobar oshiramiz:
+    // uzilib qolgan JSON ni tuzatishning yagona to'g'ri yo'li shu.
+    const maxTokens = (opts.maxTokens ?? 8192) * (1 << Math.min(2, urinish));
     const qattiqSxema = urinish === 0;
     const xabarlar = xabarga(qattiqSxema ? parts : [
       { text: `Javobni FAQAT shu JSON sxemasiga mos qaytar:\n${JSON.stringify(schema)}\n` },
@@ -90,7 +93,7 @@ export async function openrouterJson(parts, schema, opts = {}) {
           model,
           messages: xabarlar,
           temperature: opts.temperature ?? 0.4,
-          max_tokens: opts.maxTokens ?? 8192,
+          max_tokens: maxTokens,
           response_format: qattiqSxema
             ? { type: 'json_schema', json_schema: { name: 'natija', strict: true, schema: tozaSxema } }
             : { type: 'json_object' },
@@ -136,7 +139,14 @@ export async function openrouterJson(parts, schema, opts = {}) {
     const toza = String(matn).replace(/^```(?:json)?\s*|\s*```$/g, '').trim();
     try { return JSON.parse(toza); }
     catch {
-      oxirgi = Object.assign(new Error(`JSON emas: ${toza.slice(0, 200)}`), { turkum: 'json' });
+      // finish_reason "length" bo'lsa javob YARIM kelgan — bu "tushunarsiz
+      // javob" emas, byudjet yetmagan. Keyingi urinishda ko'proq beramiz.
+      const uzilgan = tanlov?.finish_reason === 'length';
+      oxirgi = Object.assign(
+        new Error(uzilgan
+          ? `Javob uzilib qoldi (byudjet ${maxTokens})`
+          : `JSON emas: ${toza.slice(0, 200)}`),
+        { turkum: uzilgan ? 'uzilgan' : 'json' });
       continue;
     }
   }
