@@ -757,10 +757,12 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 .menyu .nishon{background:var(--urgu);color:#fff}
 
 /* ---------- Skaner: sodda ---------- */
-.skaner-namuna{position:relative;margin:18px 16px 16px;border-radius:20px;overflow:hidden;
-  background:var(--chiziq-och);aspect-ratio:3/4;max-height:52vh;
+.skaner-namuna{position:relative;margin:18px auto 16px;border-radius:20px;overflow:hidden;
+  background:var(--chiziq-och);aspect-ratio:3/4;max-width:calc(100% - 32px);
   display:grid;place-items:center}
 .skaner-namuna img{width:100%;height:100%;object-fit:cover;display:block}
+/* Keng namunada (ikki yuz) yuz ramkasi chalg'itadi */
+.skaner-namuna.ramkasiz .yuz-ramka{display:none}
 .skaner-namuna .namuna-yoq{color:var(--och);display:grid;place-items:center}
 .namuna-teg{position:absolute;left:12px;top:12px;background:rgba(0,0,0,.55);color:#fff;
   font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
@@ -985,7 +987,6 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 /* Yuz ramkasi — namunadagi burchakli kadr */
 .yuz-ramka{position:absolute;inset:12% 14%;border-radius:46% 46% 42% 42%;
   border:2px solid rgba(255,255,255,.75);pointer-events:none}
-.skaner-namuna{max-height:44vh}
 
 /* Nimalarni aniqlaymiz */
 .skan-belgilar{display:flex;justify-content:space-between;gap:6px;padding:14px 18px 4px}
@@ -1033,7 +1034,8 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 
 /* Skaner ekrani: tugma pastki menyu ostida qolmasin */
 #tab-skaner{padding-bottom:24px}
-.skaner-namuna{max-height:38vh}
+.skaner-namuna{max-height:38vh;width:auto}
+.skaner-namuna img{width:auto;height:100%;max-width:100%}
 
 /* Mahsulot sahifasi: reyting, sotuv soni, moslik yorliqlari */
 .oyna-baho{display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap}
@@ -1094,3 +1096,39 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 .baho-tanlov button.faol svg path{fill:currentColor}
 .baho-matn{text-align:center;font-size:14px;font-weight:700;color:var(--kul);
   min-height:20px;margin-bottom:14px}
+
+/* ============================================================
+   AI CHAT — formatlangan javob va yig'iladigan tavsiya
+   ============================================================ */
+.pufak h4{display:flex;align-items:center;gap:7px}
+.pufak .h4-belgi{font-size:15px;line-height:1}
+.pufak ol{margin:0 0 8px;padding-left:0;list-style:none;counter-reset:qadam}
+.pufak ol li{position:relative;padding-left:26px;margin-bottom:6px;counter-increment:qadam}
+.pufak ol li::before{content:counter(qadam);position:absolute;left:0;top:1px;
+  width:18px;height:18px;border-radius:99px;background:var(--urgu-och);color:var(--urgu);
+  font-size:11px;font-weight:800;display:grid;place-items:center}
+.diqqat-satr{display:flex;gap:8px;align-items:flex-start;margin:10px 0 4px;
+  padding:10px 12px;background:var(--sariq-och);color:var(--sariq);
+  border-radius:11px;font-size:13.5px;line-height:1.45;font-weight:600}
+.diqqat-satr i[data-ik]{flex:0 0 auto;margin-top:1px}
+.diqqat-satr span{color:var(--matn);font-weight:500}
+
+/* Tavsiyalar yig'ilgan holda */
+.tavsiya-yigma{background:var(--panel);border:1px solid var(--chiziq);
+  border-radius:16px;overflow:hidden;margin-top:2px}
+.tavsiya-yigma>summary{list-style:none;cursor:pointer;display:flex;align-items:center;
+  gap:11px;padding:13px 14px}
+.tavsiya-yigma>summary::-webkit-details-marker{display:none}
+.tav-belgi{width:36px;height:36px;border-radius:11px;background:var(--urgu-och);
+  color:var(--urgu);display:grid;place-items:center;flex:0 0 auto}
+.tav-matn{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.tav-matn b{font-size:14.5px;font-weight:750;letter-spacing:-.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tav-matn span{font-size:12.5px;color:var(--och);font-weight:600}
+.tav-oq{color:var(--och);transition:transform .18s ease;display:grid;place-items:center}
+.tavsiya-yigma[open] .tav-oq{transform:rotate(180deg)}
+.tavsiya-ich{border-top:1px solid var(--chiziq-och);padding:4px 0 0}
+.tavsiya-ich .toplam{border:0;border-radius:0;margin:0}
+.tavsiya-ich .tavsiyalar{padding:8px 10px 10px;gap:8px}
+.tavsiya-ich .t-karta{border:0;padding:2px}
+.tavsiya-ich .t-karta+.t-karta{border-top:1px solid var(--chiziq-och);padding-top:11px}

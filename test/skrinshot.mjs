@@ -21,6 +21,7 @@ const { migratsiyalarniQoll } = await import('../src/db/migrate.js');
 await migratsiyalarniQoll();
 const { sorov, qator, qatorlar, qiymat, pool } = await import('../src/db.js');
 const { yangilanish } = await import('../src/bot/index.js');
+const { navbatHolati } = await import('../src/services/skrinshot-import.js');
 const { adminRoutes } = await import('../src/api/admin.js');
 const { issueAdminToken } = await import('../src/lib/auth.js');
 const { Readable } = await import('node:stream');
@@ -70,6 +71,7 @@ await yoz('/qosh');
 test('rejim ochildi', /Skrinshotdan mahsulot/.test(hammasi()));
 test('narx qoidasi tushuntirildi', /KRW ×/.test(hammasi()), hammasi().match(/KRW × [\d.]+/)?.[0]);
 
+const adminUser = await qator(`select id from users where telegram_id = $1`, [TG]);
 const oldin = await qiymat('select count(*)::int from products where is_active');
 yuborilgan.length = 0;
 for (let i = 1; i <= 4; i++) await rasmYubor(i);
@@ -123,9 +125,37 @@ for (let i = 0; i < 20; i++) {
 test('qidiruv kalit so‘zlari qo‘shildi',
   (await qiymat(`select array_length(kalit_sozlar,1) from products where id = $1`, [p1.id])) > 0);
 
+// AI skrinshotdan chiroyli poster chizadi — skrinshotning o'zi
+// katalogda yomon ko'rinadi (do'kon interfeysi, koreyscha yozuvlar).
+// Poster importdan KEYIN, alohida bosqichda chiziladi.
+{
+  // Navbat tugashini kutamiz: poster bosqichi ham shu ichida
+  for (let i = 0; i < 80; i++) {
+    if (!navbatHolati(adminUser.id)?.ishlamoqda) break;
+    await kut(250);
+  }
+  const n = navbatHolati(adminUser.id);
+  test('poster bosqichi ishladi', Boolean(n?.poster), JSON.stringify(n?.poster || {}));
+  test('hamma mahsulotga poster chizildi', n?.poster?.tayyor === 4,
+    `${n?.poster?.tayyor}/${n?.poster?.jami}, xato: ${n?.poster?.xato}`);
+
+  // Har mahsulotda BITTA rasm qoladi: chizilgan poster (skrinshot o'chadi)
+  const rasmSoni = await qiymat(
+    `select count(*)::int from media where product_id = any($1::bigint[])`,
+    [yangilar.map((p) => p.id)]);
+  test('eski skrinshotlar o‘chirildi, bittadan poster qoldi', rasmSoni === 4, `${rasmSoni} ta rasm`);
+
+  // Poster mahsulotga bog'langan va katalogda ko'rinadi
+  const bogliq = await qiymat(
+    `select count(*)::int from products p join media m on m.id = p.poster_id
+      where p.id = any($1::bigint[])`, [yangilar.map((p) => p.id)]);
+  test('poster mahsulotga bog‘langan', bogliq === 4, `${bogliq}/4`);
+}
+
 yuborilgan.length = 0;
 await yoz('/tugat');
 test('hisobot yuborildi', /Tayyor/.test(hammasi()));
+test('hisobotda poster soni bor', /Poster chizildi/.test(hammasi()));
 test('hisobotda soni bor', /Katalogga qo‘shildi/.test(hammasi()));
 test('havola haqida eslatildi', /Havolalarni admin panelda/.test(hammasi()));
 

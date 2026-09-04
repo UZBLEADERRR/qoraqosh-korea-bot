@@ -96,6 +96,17 @@ test('bosqichlar tartib bilan',
   (r.tana.tavsiya || []).every((t, i, a) => i === 0 || a[i - 1].tartib <= t.tartib),
   (r.tana.tavsiya || []).map((t) => `${t.tartib}.${t.bosqich}`).join(' → '));
 
+// --- SOF MASLAHAT: mahsulot TAVSIYA QILINMAYDI ---
+// "Akne nega chiqadi" degan savolga mahsulot tiqishtirish — maslahatchini
+// sotuvchiga aylantiradi va ishonchni yo'qotadi.
+globalThis.AI_JAVOB = true;
+const jv = await chaqir('/api/maslahat', 'POST', { savol: 'Akne nega chiqadi?' });
+test('sof savolga "javob" turi keldi', jv.tana.turi === 'javob', jv.tana.turi);
+test('javobda mahsulot KO‘RSATILMAYDI', (jv.tana.tavsiya || []).length === 0,
+  `${jv.tana.tavsiya?.length} ta`);
+test('javob formatlangan (sarlavha va qadamlar bor)',
+  /##/.test(jv.tana.javob) && /1\./.test(jv.tana.javob));
+
 // --- ANIQLASHTIRUVCHI SAVOL ---
 globalThis.AI_SAVOL = true;
 const sv = await chaqir('/api/maslahat', 'POST', { savol: 'Krem kerak' });
@@ -172,7 +183,8 @@ console.log('\n== KALIT SO‘ZLAR ==');
 console.log('\n== SHARHLAR ==');
 {
   const u = await qator(`select id from users where telegram_id = '910001'`);
-  await sorov('delete from sharhlar where user_id = $1', [u.id]);
+  // Sinov takrorlanadigan bo'lishi uchun 1-mahsulotdagi HAMMA sharh tozalanadi
+  await sorov('delete from sharhlar where user_id = $1 or product_id = 1', [u.id]);
   await sorov(`delete from orders where user_id = $1 and order_no like 'SH-%'`, [u.id]);
 
   // Sotib olmagan odam sharh yozolmaydi
@@ -218,7 +230,7 @@ console.log('\n== SHARHLAR ==');
   test('manba bahosi alohida ustunda', 'manba_reyting' in (p1 || {}));
 
   // Baholanmagan mahsulotlar ro'yxati
-  await sorov('delete from sharhlar where user_id = $1', [u.id]);
+  await sorov('delete from sharhlar where user_id = $1 or product_id = 1', [u.id]);
   const kut = await chaqir('/api/sharh-kutilmoqda', 'GET');
   test('baholanmagan mahsulot ro‘yxatda',
     (kut.tana.mahsulotlar || []).some((x) => Number(x.product_id) === 1));

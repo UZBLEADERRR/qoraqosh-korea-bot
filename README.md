@@ -39,6 +39,11 @@ Google Gemini · Railway.
 - **AI maslahatchi** (pastki menyudagi **Maslahat** bo'limi) — odam o'z
   so'zi bilan yozadi: «oyog'im og'riyapti», «tuk oluvchi bormi», «yuzim
   quruq». AI **faqat katalogdagi** mahsulotni tavsiya qiladi.
+  - **U sotuvchi emas, maslahatchi.** «Akne nega chiqadi?», «tonerni
+    qachon surtaman?» kabi savolga **mahsulotsiz**, sof javob beradi —
+    har savolga mahsulot tiqishtirish ishonchni yo'qotadi. Mahsulot
+    faqat odam tanlashda yordam so'raganda yoki muammoni hal qilish
+    uchun haqiqatan kerak bo'lganda chiqadi.
   - **Ma'lumot yetmasa TAXMIN QILMAYDI, SAVOL BERADI.** «Krem kerak»
     degan odamdan teri turini so'raydi va tayyor variantlarni tugma
     qilib beradi — odam yozib o'tirmaydi, bosadi. Kerak bo'lsa **rasm
@@ -50,8 +55,12 @@ Google Gemini · Railway.
     jami narx va **«Hammasini savatga»** — bitta bosishda hammasi savatga
     tushadi. Tizza og'rig'i kabi bitta narsa yetadigan holatda esa bitta
     mahsulot chiqadi.
-  - Javob **formatlangan**: kichik sarlavhalar, ro'yxat, qalin so'zlar.
+  - Javob **formatlangan**: rangli kichik sarlavhalar, nuqtali ro'yxat,
+    raqamlangan qadamlar, qalin so'zlar va ajratilgan «diqqat» satri.
     Avval «nega shunday bo'ladi» tushuntiriladi, keyin «nima qilamiz».
+  - **Tavsiyalar yig'ilgan holda keladi** — javob uzun bo'lib
+    ketmasligi uchun mahsulotlar bitta satrga («2 ta · 265 000 so'm»)
+    yig'iladi, bosilganda ochiladi.
   - **Kontekstni saqlaydi** — oxirgi 8 xabar modelga uzatiladi, shuning
     uchun bir savolni ikki marta bermaydi.
   - **Profilni hisobga oladi**: yosh, teri turi, allergiya va kasallik
@@ -69,7 +78,9 @@ Google Gemini · Railway.
   chaqirig'i** — bosh sahifadagi asosiy amal yo'qolmaydi; admin
   yuklagan rasmlar undan keyin aylanadi. Bo'limlar almashinadi: biri
   gorizontal siriladi, keyingisi vertikal to'r bo'lib tushadi.
-  Oxirida «Barcha mahsulotlar».
+  Toifasi belgilanmagan mahsulotlar **«Boshqa»** bo'limiga tushadi —
+  do'konda ko'rinmay qolgan mahsulot yo'qotilgan pul. Oxirida
+  «Barcha mahsulotlar».
 - **Mahsulot kartasi** — yurakcha (sevimlilar), ★ reyting, narx,
   moslik yorlig'i va bitta bosishda savatga qo'shadigan «+».
   - **Reyting o'ylab topilmaydi**: u manba do'kondan (skrinshotdagi
@@ -224,7 +235,10 @@ bittalab yoki birdaniga yuztasini. Qolganini AI qiladi:
 - mahsulot **mavjud bo'limlarning birortasiga ham tushmasa** (tuk
   oluvchi, pinset, sochiq) — AI **yangi bo'lim ochadi** (`Aksessuar`),
   keyin uni panelda tuzatasiz;
-- skrinshotning o'zi mahsulot posteri bo'lib qoladi;
+- **poster AI tomonidan avtomatik chiziladi** — import tugagach har
+  bir mahsulot uchun skrinshotdan toza studiya posteri yasaladi
+  (oq fon, yozuvsiz, 1:1), asl skrinshot esa o'chiriladi. Ya'ni
+  do'konda Koreya saytining ekran surati emas, tayyor poster turadi;
 - qidiruv kalit so'zlari ham darrov to'ldiriladi.
 
 Navbat **bittalab** ishlanadi (yuzta AI chaqiruvi bir vaqtda ketsa
@@ -851,6 +865,12 @@ yig'adi, `chiz.js` uni resvg bilan PNG ga o'giradi (~170 ms). Ranglar
 `assets/shrift/` dan yuklanadi, tizimdan EMAS — konteynerda shrift
 bo'lmasa matn jimgina yo'qolardi. Rasmda emoji ishlatilmaydi: resvg rangli
 emoji shriftini chizmaydi, o'rnida bo'sh kvadrat qoladi.
+
+Rasmning ustki qismida har bir belgi uchun `Sababi:` va `Yechimi:`
+satrlari chiqadi — foiz o'zi hech narsa tushuntirmaydi. Pastdagi
+mahsulot kartalari esa songa qarab kichrayadi (4 tagacha bitta
+qatorga sig'adi, 8 tasi ko'rsatiladi): ikkita katta karta o'rniga
+to'liq tavsiya ko'ringani yaxshiroq.
 
 **Bitta AI chaqiruvi.** Modelga katalogning ixcham ro'yxati beriladi, shuning
 uchun u mavjud bo'lmagan mahsulotni o'ylab topa olmaydi. Qaytgan `product_id`

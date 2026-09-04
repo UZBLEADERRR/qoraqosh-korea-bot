@@ -77,6 +77,19 @@ function javobMatni(sxemaMatni) {
   // AI maslahatchi. Ikki rejim: odatda TO'PLAM, globalThis.AI_SAVOL
   // qo'yilgan bo'lsa aniqlashtiruvchi SAVOL.
   if (sxemaMatni.includes('savol_variantlar')) {
+    if (globalThis.AI_JAVOB) {
+      globalThis.AI_JAVOB = false;
+      return JSON.stringify({
+        javob: 'Akne teri teshigi yog‘ va o‘lik hujayra bilan tiqilganda paydo bo‘ladi.\n'
+             + '## 🧼 Nima qilish kerak\n1. Kuniga ikki marta yumshoq tozalang\n'
+             + '2. Toshmani siqmang\n> Uch haftadan keyin ham o‘tmasa dermatologga boring.',
+        turi: 'javob',
+        savol_matn: '', savol_variantlar: [], rasm_kerak: false,
+        toplam_nom: '', toplam_izoh: '',
+        tavsiya: [{ product_id: 1, tartib: 1, bosqich: 'tozalash',
+                    sabab: 'Bu tavsiya KO‘RSATILMASLIGI kerak.', qanday: '-' }],
+        takliflar: ['Qanday tozalagich mos?'] });
+    }
     if (globalThis.AI_SAVOL) {
       globalThis.AI_SAVOL = false;
       return JSON.stringify({

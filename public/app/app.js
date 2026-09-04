@@ -339,7 +339,19 @@ function namunaniChiz() {
   rasm.src = `/media/${holat.namuna}`;
   // Rasm ochilmasa (o'chirilgan bo'lsa) o'rnida ikon qoladi
   rasm.onerror = () => korsat(false);
-  rasm.onload  = () => korsat(true);
+  rasm.onload = () => {
+    korsat(true);
+    // Quti nisbati RASMNIKIGA moslashadi: aks holda keng namuna
+    // (masalan yonma-yon ikki yuz) qirqiladi yoki chetida bo'sh
+    // joy qoladi.
+    const quti = rasm.closest('.skaner-namuna');
+    if (quti && rasm.naturalWidth && rasm.naturalHeight) {
+      quti.style.aspectRatio = `${rasm.naturalWidth} / ${rasm.naturalHeight}`;
+      // Yuz ramkasi bitta markazlashgan yuz uchun. Admin qo'ygan
+      // namunada ikki yuz bo'lishi mumkin — unda ramka chalg'itadi.
+      quti.classList.toggle('ramkasiz', rasm.naturalWidth / rasm.naturalHeight > 1.05);
+    }
+  };
   korsat(true);
 }
 
@@ -471,12 +483,16 @@ function toifalarniChiz() {
  */
 function bolimlarniChiz() {
   const quti = $('#bolimlar');
+  const tartib = (a, b) => (b.sold_count || 0) - (a.sold_count || 0);
   const bolimlar = holat.kategoriyalar.map((k) => ({
     k,
-    royxat: holat.mahsulotlar
-      .filter((p) => p.category_id === k.id)
-      .sort((a, b) => (b.sold_count || 0) - (a.sold_count || 0)),
+    royxat: holat.mahsulotlar.filter((p) => p.category_id === k.id).sort(tartib),
   })).filter((x) => x.royxat.length);
+
+  // Bo'limi yo'q mahsulotlar ham ko'rinsin: aks holda ular faqat
+  // "Barcha mahsulotlar" ichida qolib, bosh sahifada yo'qoladi.
+  const bolimsiz = holat.mahsulotlar.filter((p) => !p.category_id).sort(tartib);
+  if (bolimsiz.length) bolimlar.push({ k: { name: 'Boshqa', slug: 'boshqa' }, royxat: bolimsiz });
 
   quti.innerHTML = bolimlar.map(({ k, royxat }, i) => {
     const gorizontal = i % 2 === 0;
@@ -484,7 +500,7 @@ function bolimlarniChiz() {
     return `
       <div class="bolim-satr">
         <h2>${esc(k.name)}</h2>
-        ${royxat.length > (gorizontal ? 12 : 4)
+        ${k.slug !== 'boshqa' && royxat.length > (gorizontal ? 12 : 4)
           ? `<button data-hammasi="${esc(k.slug)}">Hammasini ko‘rish ${ik('keyingi', 15)}</button>` : ''}
       </div>
       <div class="${gorizontal ? 'qator' : 'bolim-tor'}">${kartalar}</div>`;
@@ -2339,17 +2355,47 @@ function formatMatn(xom) {
   const qatorlar = String(xom || '').split('\n');
   const chiq = [];
   let royxat = [];
+  let tur = 'ul';
   const royxatniYop = () => {
-    if (royxat.length) { chiq.push(`<ul>${royxat.join('')}</ul>`); royxat = []; }
+    if (royxat.length) { chiq.push(`<${tur}>${royxat.join('')}</${tur}>`); royxat = []; }
   };
   const qalin = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
 
   for (const xq of qatorlar) {
     const q = xq.trim();
     if (!q) { royxatniYop(); continue; }
-    if (q.startsWith('##')) { royxatniYop(); chiq.push(`<h4>${qalin(q.replace(/^#+\s*/, ''))}</h4>`); }
-    else if (/^[•\-*]\s/.test(q)) royxat.push(`<li>${qalin(q.slice(1).trim())}</li>`);
-    else { royxatniYop(); chiq.push(`<p>${qalin(q)}</p>`); }
+
+    // ## Sarlavha — boshidagi emoji alohida belgi bo'lib chiqadi
+    if (q.startsWith('##')) {
+      royxatniYop();
+      const matn = q.replace(/^#+\s*/, '');
+      const e = matn.match(/^(\p{Extended_Pictographic}\uFE0F?)\s*(.*)$/u);
+      chiq.push(e
+        ? `<h4><span class="h4-belgi">${esc(e[1])}</span>${qalin(e[2])}</h4>`
+        : `<h4>${qalin(matn)}</h4>`);
+      continue;
+    }
+    // > Diqqat qilinadigan jumla
+    if (q.startsWith('>')) {
+      royxatniYop();
+      chiq.push(`<div class="diqqat-satr">${ik('ogoh', 15)}<span>${qalin(q.slice(1).trim())}</span></div>`);
+      continue;
+    }
+    // 1. Tartibli qadam
+    const raqamli = q.match(/^(\d{1,2})[.)]\s+(.*)$/);
+    if (raqamli) {
+      if (tur !== 'ol') { royxatniYop(); tur = 'ol'; }
+      royxat.push(`<li>${qalin(raqamli[2])}</li>`);
+      continue;
+    }
+    // • Ro'yxat bandi
+    if (/^[•\-*]\s/.test(q)) {
+      if (tur !== 'ul') { royxatniYop(); tur = 'ul'; }
+      royxat.push(`<li>${qalin(q.slice(1).trim())}</li>`);
+      continue;
+    }
+    royxatniYop(); tur = 'ul';
+    chiq.push(`<p>${qalin(q)}</p>`);
   }
   royxatniYop();
   return chiq.join('');
@@ -2395,11 +2441,7 @@ function toplamHtml(j) {
     holat.savat.some((r) => r.products.id === t.product_id));
   return `
     <div class="toplam">
-      <div class="toplam-bosh">
-        <span class="toplam-teg">${ik('yulduz', 12)}To‘plam</span>
-        <h4>${esc(j.toplam.nom)}</h4>
-        ${j.toplam.izoh ? `<p>${esc(j.toplam.izoh)}</p>` : ''}
-      </div>
+      ${j.toplam.izoh ? `<div class="toplam-bosh"><p>${esc(j.toplam.izoh)}</p></div>` : ''}
       <div class="toplam-royxat">${j.tavsiya.map((t) => tavsiyaKartasi(t, true)).join('')}</div>
       <div class="toplam-past">
         <div><span class="ozgina">${j.tavsiya.length} ta mahsulot</span>
@@ -2429,13 +2471,23 @@ function aiXabarHtml(j) {
             ? `<button class="rasmli" data-rasm-sora="1">${ik('kamera', 16)}Rasm yuborish</button>` : ''}
         </div>
       </div>`;
-  } else if (j.toplam && (j.tavsiya || []).length > 1) {
-    ost = toplamHtml(j);
   } else if ((j.tavsiya || []).length) {
-    ost = `<div class="tavsiyalar">
-        <div class="tavsiya-bosh">${ik('yulduz', 13)}Siz uchun ${j.tavsiya.length} ta mahsulot</div>
-        ${j.tavsiya.map((t) => tavsiyaKartasi(t)).join('')}
-      </div>`;
+    // Mahsulotlar YOPIQ turadi: ochilgan holda javob juda uzayib
+    // ketadi va suhbatni o'qib bo'lmaydi. Bosilganda ochiladi.
+    const ich = (j.toplam && j.tavsiya.length > 1)
+      ? toplamHtml(j)
+      : `<div class="tavsiyalar">${j.tavsiya.map((t) => tavsiyaKartasi(t)).join('')}</div>`;
+    const jami = j.tavsiya.reduce((s, t) => s + (t.mahsulot?.price || 0), 0);
+    ost = `
+      <details class="tavsiya-yigma">
+        <summary>
+          <span class="tav-belgi">${ik('savat', 17)}</span>
+          <span class="tav-matn"><b>${j.toplam ? esc(j.toplam.nom) : 'Sizga mos mahsulotlar'}</b>
+            <span>${j.tavsiya.length} ta · ${narx(jami)}</span></span>
+          <span class="tav-oq">${ik('pastga', 18)}</span>
+        </summary>
+        <div class="tavsiya-ich">${ich}</div>
+      </details>`;
   }
 
   return `

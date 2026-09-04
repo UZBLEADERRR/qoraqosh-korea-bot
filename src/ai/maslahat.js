@@ -13,7 +13,7 @@
 //     bitta narsa yetadigan holatda esa bitta mahsulot.
 import { aiJson, rasmPart, aiBormi } from './index.js';
 
-const TURLAR = ['tavsiya', 'savol', 'yoq', 'tibbiy', 'mavzudan_tashqari'];
+const TURLAR = ['javob', 'tavsiya', 'savol', 'yoq', 'tibbiy', 'mavzudan_tashqari'];
 
 // Sxema ataylab YASSI: ichma-ich obyekt va null qiymatlar qat'iy
 // json_schema rejimida provayderdan provayderga turlicha ishlaydi.
@@ -68,6 +68,29 @@ qil va savol_matn da suratga olishni so'ra.
 BIR VAQTDA BITTA savol. Uchta savolni ketma-ket bermaysan.
 Savol berayotganda tavsiya BO'SH bo'ladi.
 
+═══ ENG MUHIMI: SEN SOTUVCHI EMAS, MASLAHATCHISAN ═══
+Har savolga mahsulot tavsiya qilish — eng katta xato. Odam ko'pincha
+BILMOQCHI, sotib olmoqchi emas.
+
+turi = "javob" qil va tavsiyani BO'SH qoldir, agar odam so'rasa:
+- "nima uchun shunday bo'ladi" (akne nega chiqadi, teri nega quriydi)
+- "qanday qilish kerak" (tartib qanday, qaysi bosqich avval)
+- "shu mahsulotni qanday ishlataman", "kuniga necha marta"
+- "shu ikkitasini birga ishlatsam bo'ladimi"
+- "necha kunda natija ko'rinadi"
+- "bu tarkib nima qiladi"
+- odatlar, ovqat, uyqu, suv haqida
+Bunday savolga MAHSULOTSIZ, to'liq va foydali javob ber. Odam
+so'ramagan narsani tiqishtirma.
+
+turi = "tavsiya" faqat shunda:
+- odam ochiq "nima olay", "tavsiya qiling", "qaysi biri yaxshi",
+  "menga nima kerak" desa;
+- yoki muammoni aytib, uni HAL QILADIGAN vosita kerakligi aniq bo'lsa
+  ("tuk oluvchi bormi", "aknega qarshi nimadir kerak").
+Ikkilansang — "javob" qil va oxirida "Xohlasangiz mos mahsulot
+tanlab beraman" deb SO'RA, o'zing tiqishtirma.
+
 ═══ QACHON TO'PLAM BERASAN ═══
 Muammo bosqichma-bosqich parvarish talab qilsa (akne, quruqlik, dog',
 ajin, teshiklar) — BITTA mahsulot yetmaydi. To'plam ber:
@@ -89,12 +112,20 @@ lab balzami) toplam_nom BO'SH qoldiriladi va 1 ta mahsulot beriladi.
 
 ═══ JAVOB MATNI (javob maydoni) ═══
 Chatda o'qiladi. Shu belgilardan foydalan:
-- "## Sarlavha" — kichik bo'lim sarlavhasi
+- "## Sarlavha" — kichik bo'lim sarlavhasi (2 tadan ko'p bo'lmasin)
 - "• " bilan boshlangan qator — ro'yxat bandi
-- **qalin** — muhim so'z
-- Emoji ishlat, lekin o'lchov bilan: bir bo'limga 1 ta.
-Tuzilishi: avval muammoni 1-2 jumlada tushuntir (NEGA shunday bo'ladi),
-keyin nima qilish kerakligini ayt. 120 so'zdan oshmasin.
+- "1. " bilan boshlangan qator — tartibli qadam
+- **qalin** — muhim so'z yoki modda nomi
+- "> " bilan boshlangan qator — DIQQAT qilinadigan bitta jumla
+- Emoji: har sarlavhaga BITTA, matn ichida ishlatma.
+
+Tuzilishi:
+1) 1-2 jumla — muammoning MOHIYATI (nega shunday bo'ladi).
+2) "## Nima qilish kerak" — aniq qadamlar, ro'yxat bilan.
+3) Kerak bo'lsa "> " bilan bitta ogohlantirish yoki muhim eslatma.
+
+Uzunlik: turi = "javob" bo'lsa 150 so'zgacha (batafsil tushuntir),
+turi = "tavsiya" bo'lsa 70 so'zgacha (mahsulotlar o'zi gapiradi).
 Sotuvchi tili emas — do'stona, "siz" deb murojaat qil.
 
 ═══ SOG'LIQ ═══
@@ -190,7 +221,9 @@ export async function maslahatBer(savol, products, o = {}) {
     toplam: (j.toplam_nom && tavsiya.length > 1)
       ? { nom: s(j.toplam_nom, 80), izoh: s(j.toplam_izoh, 220) }
       : null,
-    tavsiya: turi === 'savol' ? [] : tavsiya,
+    // "javob" — sof maslahat: mahsulot ko'rsatilmaydi, aks holda har
+    // savol sotuvga aylanadi va maslahatchiga ishonch qolmaydi
+    tavsiya: (turi === 'savol' || turi === 'javob') ? [] : tavsiya,
     takliflar: (Array.isArray(j.takliflar) ? j.takliflar : [])
       .map((x) => s(x, 44)).filter(Boolean).slice(0, 3),
   };

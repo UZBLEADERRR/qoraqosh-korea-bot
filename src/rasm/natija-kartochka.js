@@ -277,35 +277,57 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     q.push(matn('Suratda topilgan belgilar', y + 30, { olcham: 32, ogirlik: 700, rang: R.matn }));
     y += 54;
 
-    const SATR = 88;
+    // Har belgi uchun SABABI ham yoziladi: "54% qizarish" degan raqamdan
+    // ko'ra "nega shunday bo'ldi" foydaliroq. Karta balandligi matnga
+    // qarab o'zgaradi — sabab yo'q bo'lsa qator past bo'lib qoladi.
     muammolar.forEach((m, i) => {
       const foiz = Math.round(Number(m.foiz ?? 40));
       const rang = TARTIB_RANG[i] || darajaRangi(foiz);
       const kartaEni = ENI - CHET * 2;
+      const nomX = CHET + 92;
+      const ichEni = kartaEni - (nomX - CHET) - 34;
+
+      const sabab = String(m.sabab || m.izoh || '').trim();
+      const sababQat = sabab ? qatorlarga(`Sababi: ${sabab}`, ichEni, 21).slice(0, 2) : [];
+      const yechim = String(m.yechim || '').trim();
+      const yechimQat = yechim ? qatorlarga(`Yechimi: ${yechim}`, ichEni, 21).slice(0, 2) : [];
+
+      const SATR = 74 + (m.zona ? 26 : 0)
+        + (sababQat.length ? sababQat.length * 26 + 6 : 0)
+        + (yechimQat.length ? yechimQat.length * 26 + 4 : 0);
 
       q.push(`<rect x="${CHET}" y="${y}" width="${kartaEni}" height="${SATR}" rx="18"
         fill="${R.karta}" stroke="${R.chiziq}"/>`);
       // Chap chekkadagi rangli chiziq
       q.push(`<path d="M${CHET + 7} ${y} h-1 a6 6 0 0 0-6 6 v${SATR - 12} a6 6 0 0 0 6 6 h1 z"
         fill="${rang}"/>`);
+      q.push(raqamNishoni(CHET + 52, y + 40, 21, i + 1, rang));
 
-      q.push(raqamNishoni(CHET + 52, y + SATR / 2, 21, i + 1, rang));
-
-      const nomX = CHET + 92;
-      const shkalaEni = 320;
-      const foizX = CHET + kartaEni - 26;
-      const shkalaX = foizX - 90 - shkalaEni;
-
-      q.push(matn(kes(m.nom, shkalaX - nomX - 20, 27, 700), y + 38,
+      let ty = y + 38;
+      // Nom va foiz bir qatorda
+      q.push(matn(kes(m.nom, ichEni - 90, 27, 700), ty,
         { x: nomX, olcham: 27, ogirlik: 700, rang: R.matn }));
+      q.push(matn(`${foiz}%`, ty, { x: CHET + kartaEni - 26, oxiri: true,
+        olcham: 27, ogirlik: 700, rang }));
+      ty += 26;
+
       if (m.zona) {
-        q.push(matn(kes(m.zona, shkalaX - nomX - 20, 22), y + 66,
-          { x: nomX, olcham: 22, rang: R.kul }));
+        q.push(matn(kes(m.zona, ichEni, 21), ty, { x: nomX, olcham: 21, rang: R.kul }));
+        ty += 26;
       }
-      q.push(shkala(shkalaX, y + SATR / 2 - 6, shkalaEni, foiz, rang,
-        { balandlik: 12, fon: R.chiziq }));
-      q.push(matn(`${foiz}%`, y + SATR / 2 + 10,
-        { x: foizX, oxiri: true, olcham: 27, ogirlik: 700, rang }));
+      // Shkala nom ostida — endi u raqam bilan joy talashmaydi
+      q.push(shkala(nomX, ty - 12, ichEni, foiz, rang, { balandlik: 10, fon: R.chiziq }));
+      ty += 18;
+
+      sababQat.forEach((str) => {
+        q.push(matn(str, ty, { x: nomX, olcham: 21, rang: R.kul }));
+        ty += 26;
+      });
+      if (yechimQat.length) ty += 4;
+      yechimQat.forEach((str) => {
+        q.push(matn(str, ty, { x: nomX, olcham: 21, rang: R.yashil || R.kul }));
+        ty += 26;
+      });
 
       y += SATR + 12;
     });
@@ -317,15 +339,18 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     q.push(matn('Sizga mos parvarish', y + 30, { olcham: 32, ogirlik: 700, rang: R.matn }));
     y += 52;
 
-    // Tavsiya soni teri holatiga qarab o'zgaradi: qatorga uchtadan,
-    // ko'pi bilan ikki qator (6 ta). Qolgani ilovada — rasmni cheksiz
-    // uzaytirib bo'lmaydi, Telegram uni siqib yuboradi.
-    const royxat = tavsiyalar.slice(0, 6);
-    const oraliq = 16;
-    const ustun = Math.min(3, royxat.length);
+    // Mahsulot ko'p bo'lsa kartalar KICHRAYADI va bitta qatorga sig'adi:
+    // to'rtta mahsulot uchta ustunda "3 + 1" bo'lib chiqsa, oxirgisi
+    // yolg'iz qolib, rasm ham bejiz uzayadi.
+    const royxat = tavsiyalar.slice(0, 8);
+    const oraliq = 14;
+    const ustun = Math.min(royxat.length <= 3 ? 3 : 4, royxat.length);
     const kartaEni = Math.floor((ENI - CHET * 2 - oraliq * (ustun - 1)) / ustun);
-    const rasmH = Math.round(kartaEni * 0.74);
-    const kartaH = rasmH + 104;
+    const rasmH = Math.round(kartaEni * 0.86);
+    // Kichik kartada shrift ham kichrayadi
+    const kichik = ustun >= 4;
+    const shr = kichik ? 19 : 22;
+    const kartaH = rasmH + (kichik ? 88 : 104);
 
     royxat.forEach((r, i) => {
       const qator = Math.floor(i / ustun);
@@ -343,17 +368,21 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
             x="${kx + 1}" y="${ky + 1}" width="${kartaEni - 2}" height="${rasmH}"
             clip-path="url(#m${i})" preserveAspectRatio="xMidYMid slice"/>`);
       } else {
-        q.push(belgiChiz('tomchi', kx + kartaEni / 2, ky + rasmH / 2, 74, R.och, { qalin: 1.5 }));
+        q.push(belgiChiz('tomchi', kx + kartaEni / 2, ky + rasmH / 2,
+          kichik ? 56 : 74, R.och, { qalin: 1.5 }));
       }
 
-      q.push(raqamNishoni(kx + 32, ky + 32, 19, i + 1, rang));
+      q.push(raqamNishoni(kx + (kichik ? 26 : 32), ky + (kichik ? 26 : 32),
+        kichik ? 16 : 19, i + 1, rang));
 
-      q.push(matn(kes(r.bosqich || 'Parvarish', kartaEni - 28, 22, 700), ky + rasmH + 34,
-        { x: kx + 16, olcham: 22, ogirlik: 700, rang }));
+      const ich = kichik ? 12 : 16;
+      q.push(matn(kes(r.bosqich || 'Parvarish', kartaEni - ich * 2, shr, 700),
+        ky + rasmH + (kichik ? 28 : 34),
+        { x: kx + ich, olcham: shr - 2, ogirlik: 700, rang }));
 
-      const nomQat = qatorlarga(r.nom, kartaEni - 28, 22, 600).slice(0, 2);
-      nomQat.forEach((s, k) => q.push(matn(s, ky + rasmH + 64 + k * 28,
-        { x: kx + 16, olcham: 22, ogirlik: 600, rang: R.matn })));
+      const nomQat = qatorlarga(r.nom, kartaEni - ich * 2, shr, 600).slice(0, 2);
+      nomQat.forEach((s, k) => q.push(matn(s, ky + rasmH + (kichik ? 54 : 64) + k * (shr + 5),
+        { x: kx + ich, olcham: shr, ogirlik: 600, rang: R.matn })));
     });
 
     const qatorlarSoni = Math.ceil(royxat.length / ustun);

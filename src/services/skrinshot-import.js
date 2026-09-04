@@ -20,6 +20,8 @@ import { faylOl, yubor, tahrirla } from '../bot/tg.js';
 import { kalitlarniQosh } from './kalit-sozlar.js';
 import { keshniTashla } from '../lib/kesh.js';
 import { uzumgaMoslab } from './uzum-narx.js';
+import { posterChiz } from '../ai/poster.js';
+import { aiBormi } from '../ai/index.js';
 
 // Ishonch shundan past bo'lsa katalogga chiqarmaymiz — chala o'qilgan
 // mahsulot do'konda turgani eng yomon variant.
@@ -66,6 +68,7 @@ const holatMatni = (n) => {
     + `✅ Katalogga tushdi: <b>${n.qoshildi.length}</b>\n`
     + (n.otkazildi.length ? `⏭ O‘tkazildi: <b>${n.otkazildi.length}</b>\n` : '')
     + (n.xato ? `⚠️ Xato: <b>${n.xato}</b>\n` : '')
+    + (n.poster ? `\n🎨 Poster chizilmoqda: <b>${n.poster.tayyor}</b>/${n.poster.jami}\n` : '')
     + `\nRasm tashlashda davom eting. Tugatish: /tugat`;
 };
 
@@ -171,6 +174,86 @@ export async function bittaSkrinshot(fileId, qoida) {
   return { holat: 'qoshildi', mahsulot: p, narx: n, uzum: uz.ozgardi ? uz.uzum : null, karta };
 }
 
+/**
+ * Skrinshotdan chiroyli POSTER yasaydi.
+ *
+ * Skrinshotning o'zi katalogda yomon ko'rinadi: unda do'kon interfeysi,
+ * koreyscha yozuvlar, narx yorliqlari bo'ladi. Shuning uchun uni tayanch
+ * qilib, mahsulotning studiya fotosurati chizdiriladi.
+ *
+ * G'oya so'rash uchun ALOHIDA AI chaqiruvi qilinmaydi (yuzta mahsulotda
+ * bu ikki barobar xarajat) — prompt kartochkadan yig'iladi.
+ */
+function posterPrompti(p) {
+  const toifa = {
+    tozalash: 'facial cleanser', toner: 'facial toner bottle', serum: 'serum dropper bottle',
+    krem: 'moisturiser jar', niqob: 'sheet mask pack', quyosh: 'sunscreen tube',
+    lab: 'lip balm', toplam: 'skincare set', ichimlik: 'health drink bottle',
+  }[p.toifa] || 'skincare product';
+
+  return `A premium e-commerce product photograph of this Korean ${toifa}.
+The product package from the reference image must be reproduced EXACTLY —
+identical bottle shape, colours, label layout and typography.
+Place it on a clean, soft, uncluttered surface with gentle natural daylight,
+a soft shadow underneath and a calm neutral background in warm off-white or
+pale beige. Add one or two subtle natural props that match the product
+(a green leaf, a water droplet, a smooth stone) — nothing distracting.
+Sharp focus on the product, shallow depth of field, magazine-quality
+commercial photography, square composition, product centred and filling
+most of the frame.`;
+}
+
+/** Bitta mahsulot uchun poster chizib, eskisining o'rniga qo'yadi. */
+export async function posterniYarat(productId) {
+  const p = await qator(
+    `select p.id, p.name, p.brand, p.poster_id, c.slug as toifa
+       from products p left join categories c on c.id = p.category_id
+      where p.id = $1`, [productId]);
+  if (!p || !p.poster_id) return false;
+
+  const m = await qator('select bayt, mime from media where id = $1', [p.poster_id]);
+  if (!m) return false;
+
+  const rasm = await posterChiz({
+    base64: Buffer.from(m.bayt).toString('base64'),
+    mime: m.mime || 'image/jpeg',
+    prompt: posterPrompti(p),
+    nisbat: '1:1',
+  });
+
+  const bayt = Buffer.from(rasm.base64, 'base64');
+  const yangi = await qator(
+    `insert into media (tur, mime, bayt, hajm, product_id)
+     values ('poster',$1,$2,$3,$4) returning id`,
+    [rasm.mime || 'image/png', bayt, bayt.length, p.id]);
+  await sorov('update products set poster_id = $1 where id = $2', [yangi.id, p.id]);
+  // Skrinshot endi kerak emas — o'rnini chizilgan poster egalladi
+  await sorov('delete from media where id = $1', [p.poster_id]).catch(() => {});
+  keshniTashla('katalog');
+  return true;
+}
+
+/** Navbat tugagach posterlarni bittalab chizadi. */
+async function posterlarniChiz(n) {
+  if (!aiBormi() || !n.qoshildi.length) return;
+  if ((await sozlama('skrinshot_poster', true)) === false) return;
+
+  n.poster = { jami: n.qoshildi.length, tayyor: 0, xato: 0 };
+  await holatniYangila(n, true);
+
+  for (const r of n.qoshildi) {
+    try {
+      if (await posterniYarat(r.mahsulot.id)) n.poster.tayyor += 1;
+      else n.poster.xato += 1;
+    } catch (e) {
+      n.poster.xato += 1;
+      console.warn('POSTER XATOSI:', e.message?.slice(0, 140));
+    }
+    await holatniYangila(n);
+  }
+  await holatniYangila(n, true);
+}
+
 async function ishlovchi(user, n) {
   const qoida = qoidaniTozala(await sozlama('narx_qoidasi', {}));
 
@@ -186,6 +269,11 @@ async function ishlovchi(user, n) {
     }
     await holatniYangila(n);
   }
+
+  // Mahsulotlar katalogda — endi rasmlarini chiroyli qilamiz.
+  // Bu sekin, shuning uchun importdan KEYIN, alohida bosqich.
+  try { await posterlarniChiz(n); }
+  catch (e) { console.warn('POSTER NAVBATI:', e.message?.slice(0, 140)); }
 
   n.ishlamoqda = false;
   await holatniYangila(n, true);
@@ -214,6 +302,7 @@ export async function importniTugat(user, chatId) {
     + `Har biriga ombor: <b>${OMBOR_SONI}</b> dona\n`
     + (jamiNarx ? `O‘rtacha narx: <b>${Math.round(jamiNarx / n.qoshildi.length).toLocaleString('uz-UZ').replace(/,/g, ' ')}</b> so‘m\n` : '')
     + (uzumga ? `Uzum narxiga moslandi: <b>${uzumga}</b> ta\n` : '')
+    + (n.poster ? `Poster chizildi: <b>${n.poster.tayyor}</b> ta\n` : '')
     + (royxat ? `\n${royxat}\n` : '')
     + (n.qoshildi.length > 25 ? `\n…va yana ${n.qoshildi.length - 25} ta\n` : '')
     + (otkazildi ? `\n<b>O‘tkazildi:</b>\n${otkazildi}\n` : '')
