@@ -11,6 +11,12 @@ function opt(name, fallback = '') {
   return (process.env[name] || '').trim() || fallback;
 }
 
+/** Vergul, nuqta-vergul yoki yangi qator bilan ajratilgan kalitlar. */
+function kalitlar(name) {
+  return (process.env[name] || '')
+    .split(/[\s,;]+/).map((x) => x.trim()).filter(Boolean);
+}
+
 export const config = {
   botToken:      req('BOT_TOKEN'),
   // Sinovda soxta serverga yo'naltirish uchun; ishlab chiqarishda tegilmaydi
@@ -27,9 +33,15 @@ export const config = {
   // Osilib qolgan so'rov butun hovuzni band qilmasin
   dbSorovTimeout: Math.max(3000, Number(opt('DB_QUERY_TIMEOUT_MS', '15000')) || 15000),
 
-  geminiKey:     opt('GEMINI_API_KEY'),
-  // OpenRouter — bitta kalit bilan Gemini va boshqa modellarga kirish
-  openrouterKey:   opt('OPENROUTER_API_KEY'),
+  // AI kalitlari — BIR NECHTA bo'lishi mumkin, vergul yoki yangi qator
+  // bilan ajratiladi. Har kalitning o'z kunlik kvotasi bor: uchta kalit
+  // = uch barobar chegara. Biri tugasa yoki yiqilsa keyingisiga
+  // o'tiladi, ya'ni bitta kalit tufayli butun ilova to'xtamaydi.
+  geminiKeys:      kalitlar('GEMINI_API_KEY'),
+  openrouterKeys:  kalitlar('OPENROUTER_API_KEY'),
+  // Eskicha nom — kod bo'ylab bitta kalit kutilgan joylar uchun
+  geminiKey:     kalitlar('GEMINI_API_KEY')[0] || '',
+  openrouterKey: kalitlar('OPENROUTER_API_KEY')[0] || '',
   openrouterApi:   opt('OPENROUTER_API', 'https://openrouter.ai/api/v1'),
   openrouterModel: opt('OPENROUTER_MODEL', 'google/gemini-2.5-flash'),
   geminiModel:   opt('GEMINI_MODEL', 'gemini-2.5-flash'),

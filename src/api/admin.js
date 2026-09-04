@@ -5,7 +5,7 @@ import { ok, xato, tana, ipOl, javob } from '../lib/http.js';
 import { verifyInitData } from '../lib/auth.js';
 import { kalitlarniToldir } from '../services/kalit-sozlar.js';
 import { nomlarniToldir, saqla as nomniSaqla, nomsizSoni } from '../services/nom-uz.js';
-import { havolasizlar } from '../services/skrinshot-import.js';
+import { havolasizlar, posterniYarat } from '../services/skrinshot-import.js';
 import { mahsulotniTani } from '../ai/productEnrich.js';
 import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
 import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi } from '../ai/index.js';
@@ -27,6 +27,7 @@ import { rasmChizaOlamizmi, svgdanPng } from '../rasm/chiz.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
 import { brendNomi } from '../lib/brend.js';
 import { navbatHolati } from '../ai/navbat.js';
+import { kalitHolati } from '../ai/index.js';
 import { keshHolati } from '../lib/media-kesh.js';
 import { xaridHisoboti, havolasizSoni, mahsulotCsv, viloyatCsv }
   from '../services/xarid-hisobot.js';
@@ -93,7 +94,7 @@ export async function adminRoutes(req, res, yol) {
       tekshiruvlar: await tizimTekshir(),
       // Yuklama holati: AI navbati va rasm keshi. Ilova sekinlashsa
       // sabab shu ikkitasining birida ko'rinadi.
-      yuklama: { ai: navbatHolati(), rasm: keshHolati() },
+      yuklama: { ai: navbatHolati(), rasm: keshHolati(), kalitlar: kalitHolati() },
     });
   }
 
@@ -291,8 +292,14 @@ export async function adminRoutes(req, res, yol) {
 
   // ================= MAHSULOTLAR =================
   if (yol === '/api/admin/products' && req.method === 'GET') {
+    // `poster_turi` — poster AI chizganmi yoki hali Koreya saytining
+    // ekran suratimi. Panelda «hali skrinshot» filtri shunga tayanadi:
+    // bunday rasm do'konda havaskorona ko'rinadi va sotuvni pasaytiradi.
     return ok(res, {
-      mahsulotlar: await qatorlar('select * from products order by id desc limit 2000'),
+      mahsulotlar: await qatorlar(
+        `select p.*, m.tur as poster_turi
+           from products p left join media m on m.id = p.poster_id
+          order by p.id desc limit 2000`),
       kategoriyalar: await qatorlar('select * from categories order by sort'),
     });
   }
@@ -363,11 +370,14 @@ export async function adminRoutes(req, res, yol) {
 
   // --- Bo'limlar (toifalar): admin qo'shadi, AI ham o'zi qo'sha oladi ---
   if (yol === '/api/admin/toifalar' && req.method === 'GET') {
-    return ok(res, { toifalar: await qatorlar(
-      `select c.id, c.slug, c.name, c.emoji, c.sort,
-              (select count(*)::int from products p
-                where p.category_id = c.id and p.is_active) as soni
-         from categories c order by c.sort, c.id`) });
+    return ok(res, {
+      ikonlar: IKONLAR,
+      toifalar: await qatorlar(
+        `select c.id, c.slug, c.name, c.emoji, c.sort, c.ikon,
+                (select count(*)::int from products p
+                  where p.category_id = c.id and p.is_active) as soni
+           from categories c order by c.sort, c.id`),
+    });
   }
   if (yol === '/api/admin/toifa' && req.method === 'POST') {
     const b = await tana(req);
@@ -377,16 +387,19 @@ export async function adminRoutes(req, res, yol) {
       .replace(/[‘’'`ʻʼ]/g, '')
       .replace(/[^a-z0-9\u0400-\u04FF]+/gi, '-')
       .replace(/^-+|-+$/g, '') || 'boshqa').slice(0, 40);
+    // Ikonka — ilovadagi filtr doirasi uchun. Faqat mavjud ikonlardan.
+    const ikon = IKONLAR.includes(String(b.ikon || '')) ? String(b.ikon) : null;
+    const q = [nom, String(b.emoji || '').slice(0, 4) || null,
+               Math.max(0, Number(b.sort) || 100), ikon];
     const t = b.id
-      ? await qator(`update categories set name = $2, emoji = $3, sort = $4 where id = $1 returning *`,
-          [Number(b.id), nom, String(b.emoji || '').slice(0, 4) || null,
-           Math.max(0, Number(b.sort) || 100)])
+      ? await qator(
+          `update categories set name = $2, emoji = $3, sort = $4, ikon = $5
+            where id = $1 returning *`, [Number(b.id), ...q])
       : await qator(
-          `insert into categories (slug, name, emoji, sort) values ($1,$2,$3,$4)
-           on conflict (slug) do update set name = excluded.name, emoji = excluded.emoji
-           returning *`,
-          [slug, nom, String(b.emoji || '').slice(0, 4) || null,
-           Math.max(0, Number(b.sort) || 100)]);
+          `insert into categories (slug, name, emoji, sort, ikon) values ($1,$2,$3,$4,$5)
+           on conflict (slug) do update set name = excluded.name, emoji = excluded.emoji,
+                 ikon = coalesce(excluded.ikon, categories.ikon)
+           returning *`, [slug, ...q]);
     keshniTashla('katalog');
     return ok(res, { toifa: t });
   }
@@ -413,6 +426,22 @@ export async function adminRoutes(req, res, yol) {
       return ok(res, { natija: n });
     } catch (e) {
       return xato(res, 502, e.message);
+    }
+  }
+
+  // Skrinshotdan AI poster chizish. Import paytida avtomatik bo'ladi,
+  // lekin AI o'shanda band bo'lsa yoki yiqilsa rasm skrinshotligicha
+  // qoladi — do'konda bu havaskorona ko'rinadi. Shu tugma qayta uradi.
+  if (yol === '/api/admin/poster-yasa' && req.method === 'POST') {
+    const id = Number((await tana(req)).id);
+    if (!id) return xato(res, 400, 'Mahsulot tanlanmadi.');
+    try {
+      const yangi = await posterniYarat(id);
+      if (!yangi) return xato(res, 502, 'Poster chizilmadi — AI band yoki rasm yo‘q.');
+      katalogYangilandi();
+      return ok(res, { poster_id: yangi });
+    } catch (e) {
+      return xato(res, 502, xatoniTushuntir(e).matn);
     }
   }
 
@@ -1229,6 +1258,14 @@ export async function adminRoutes(req, res, yol) {
 
   return xato(res, 404, 'Topilmadi');
 }
+
+// Ilovadagi ikon to'plami — bo'lim uchun tanlanadigan ro'yxat.
+// Nomlar public/app/ikon.js dagilar bilan bir xil bo'lishi shart.
+const IKONLAR = [
+  'tomchi', 'shisha', 'pipetka', 'quti', 'niqob', 'quyosh', 'yurak', 'sovga',
+  'ichki', 'barg', 'qalqon', 'koz', 'tozalik', 'tibbiy', 'dokon', 'savat',
+  'profil', 'sovga', 'tahrir', 'rasm',
+].filter((v, i, a) => a.indexOf(v) === i);
 
 // ---------- Yordamchilar ----------
 /**

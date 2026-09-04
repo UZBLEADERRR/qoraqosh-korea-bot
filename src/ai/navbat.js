@@ -20,6 +20,8 @@
 // maslahatchiga 10 daqiqada 20 savol) o'z joyida qoladi: ular BITTA
 // odamdan himoya qiladi, bu yerda esa HAMMASIDAN birgalikda.
 
+import { config } from '../config.js';
+
 const son = (nom, zaxira) => {
   const v = Number(process.env[nom]);
   return Number.isFinite(v) && v > 0 ? v : zaxira;
@@ -27,8 +29,16 @@ const son = (nom, zaxira) => {
 
 // Standart qiymatlar Gemini/OpenRouter'ning odatdagi bepul va arzon
 // tariflariga mo'ljallangan. Kvota kattaroq bo'lsa muhitdan oshiriladi.
-const BIR_VAQTDA = son('AI_BIR_VAQTDA', 6);      // parallel chaqiruv
-const DAQIQADA   = son('AI_DAQIQADA', 60);       // daqiqadagi chaqiruv
+//
+// Chegara KALITLAR SONIGA ko'paytiriladi: har kalitning o'z kvotasi
+// bor, uchta kalit = uch barobar o'tkazuvchanlik. Muhitda aniq son
+// berilgan bo'lsa u o'zgarmaydi — admin bilib qo'ygan.
+const kalitSoni = Math.max(1,
+  Math.max((config.geminiKeys || []).length, (config.openrouterKeys || []).length));
+const BIR_VAQTDA = process.env.AI_BIR_VAQTDA
+  ? son('AI_BIR_VAQTDA', 6) : 6 * kalitSoni;     // parallel chaqiruv
+const DAQIQADA = process.env.AI_DAQIQADA
+  ? son('AI_DAQIQADA', 60) : 60 * kalitSoni;     // daqiqadagi chaqiruv
 const NAVBAT_MAKS = son('AI_NAVBAT_MAKS', 120);  // navbatda kutayotganlar
 const KUTISH_MS  = son('AI_KUTISH_MS', 25_000);  // navbatda maksimal kutish
 
@@ -130,6 +140,7 @@ export function navbatga(bajar, { muhim = false } = {}) {
 export const navbatHolati = () => ({
   ishlayotgan,
   navbatda: navbat.length,
+  kalitlar: kalitSoni,
   bir_vaqtda: BIR_VAQTDA,
   daqiqada: DAQIQADA,
   qolgan_token: Math.floor(tokenlar),

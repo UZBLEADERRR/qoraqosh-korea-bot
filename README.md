@@ -82,6 +82,14 @@ Google Gemini · Railway.
   hammasi allaqachon ko'rinardi. Toifasi belgilanmagan mahsulotlar
   **«Boshqa»** bo'limiga tushadi — do'konda ko'rinmay qolgan mahsulot
   yo'qotilgan pul. Oxirida «Barcha mahsulotlar».
+- **Bo'lim ikonkalari.** Filtr doiralaridagi ikonka ilgari faqat
+  `slug` bo'yicha tanlanardi, shuning uchun AI ochgan yangi bo'limlar
+  (masalan «Aksessuar») HAMMASI bir xil ikonka olardi va filtr o'qilmay
+  qolardi. Endi ikonka bazada saqlanadi va admin panelning
+  **Bo'limlar** bo'limida tanlanadi. Tanlanmagan bo'lsa nomdan
+  avtomatik topiladi («soch» → tomchi, «tuk oluvchi» → qalqon), u ham
+  topilmasa slug'dan barqaror tanlov qilinadi — hech bo'lmasa bo'limlar
+  bir-biridan farq qiladi. Rang ham shunday.
 - **Nomlar o'zbekcha.** Katalogdagi asl nom inglizcha yoki koreyscha
   («Heartleaf Pore Deep Cleansing Oil») — mijoz uni o'qiy olmaydi va nima
   ekanini tushunmaydi. Shuning uchun har mahsulotning **ikkita nomi**
@@ -338,6 +346,24 @@ buyurtma, summa, ombor yoki nom bo'yicha.
 
 Jamlash SQL da bajariladi (`services/xarid-hisobot.js`): buyurtma minglab
 bo'lganda ham hammasini xotiraga tortib olib sanamaymiz.
+
+### 🔍 Katalogni tekshirib chiqish
+
+Panelning **Mahsulotlar** bo'limida har karta o'z **posteri** bilan
+ko'rinadi va bitta savolga javob beradigan filtrlar bor:
+
+| Filtr | Nimani ko'rsatadi |
+|---|---|
+| Hali skrinshot | Poster o'rniga Koreya saytining ekran surati turibdi |
+| Rasmsiz | Umuman rasm yo'q |
+| Nomi inglizcha | O'zbekcha nom yozilmagan |
+| Havolasiz | Manba havolasi yo'q — `/orders` uni topolmaydi |
+| Omborda yo'q · Sotuvda emas | Mijoz sotib ololmaydi |
+
+«Hali skrinshot» eng muhimi: import paytida AI band bo'lsa yoki yiqilsa
+poster chizilmay qoladi va do'konda havaskorona ekran surati turadi.
+Bunday kartada **«🎨 Skrinshotdan poster»** tugmasi chiqadi — bir
+bosishda qayta chizdiradi.
 
 ### Admin uchun (`/admin`)
 - **Boshqaruv paneli** — daromad, yalpi foyda va marja, o'rtacha chek,
@@ -806,6 +832,7 @@ src/
     productEnrich.js   skrinshotdan mahsulotni tanish
     poster.js          poster g'oyalari va generatsiyasi
     navbat.js          AI navbati: bir vaqtda va daqiqada nechta chaqiruv
+    kalitlar.js        bir nechta API kaliti: navbat, chetga qo'yish
     maslahat.js        AI maslahatchi: savol, to'plam, tavsiya
     skrinshot-mahsulot.js  skrinshotdan mahsulot + narx o'qish
     kalit-sozlar.js    qidiruv kalit so'zlari (partiyalab)
@@ -878,6 +905,7 @@ migrations/
   028_sharhlar         haqiqiy sharhlar + reyting triggeri
   029_ilova_kirish     kirish so'rovlari va brauzer seanslari
   030_nom_uz           mahsulotning o'zbekcha nomi
+  031_toifa_ikon       bo'lim ikonkasi (filtr doirasi uchun)
 ```
 
 Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing
@@ -999,10 +1027,25 @@ tugatadi. `ai/navbat.js` to'rtta chegara qo'yadi:
 
 | Chegara | Standart | Muhit o'zgaruvchisi |
 |---|---|---|
-| Bir vaqtda ketadigan chaqiruv | 6 | `AI_BIR_VAQTDA` |
-| Daqiqadagi chaqiruv (token-chelak) | 60 | `AI_DAQIQADA` |
+| Bir vaqtda ketadigan chaqiruv | 6 × kalit soni | `AI_BIR_VAQTDA` |
+| Daqiqadagi chaqiruv (token-chelak) | 60 × kalit soni | `AI_DAQIQADA` |
 | Navbatda kutishi mumkin bo'lganlar | 120 | `AI_NAVBAT_MAKS` |
 | Navbatda maksimal kutish | 25 s | `AI_KUTISH_MS` |
+
+**Bir nechta AI kaliti.** `GEMINI_API_KEY` va `OPENROUTER_API_KEY` ga
+vergul bilan bir nechta kalit yozish mumkin:
+`GEMINI_API_KEY="kalit1,kalit2,kalit3"`. Har kalitning o'z kunlik
+kvotasi bor, shuning uchun **chegara kalitlar soniga ko'paytiriladi** —
+uchta kalit = uch barobar o'tkazuvchanlik (muhitda aniq son berilgan
+bo'lsa u o'zgarmaydi).
+
+Kalitlar NAVBAT bilan ishlatiladi, ya'ni yuk teng taqsimlanadi. Kvotasi
+tugagani (`429`) 10 daqiqaga, noto'g'ri kaliti (`401/403`) bir soatga
+chetga qo'yiladi va so'rov **darrov keyingi kalit bilan** qaytariladi —
+bitta kalit tufayli ilova AI'siz qolmaydi. Hammasi chetda bo'lsa ham
+eng erta bo'shaydigani beriladi: «kalit yo'q» deb to'xtagandan ko'ra
+urinib ko'rgan yaxshi. Holat admin panelda ko'rinadi, kalitning o'zi
+esa hech qachon — faqat oxirgi 4 belgi (`…1234`).
 
 Navbat to'lsa yoki kutish uzaysa so'rov **darrov rad etiladi**
 («⏳ AI hozir band, 1–2 daqiqadan keyin urinib ko'ring») — odam besh

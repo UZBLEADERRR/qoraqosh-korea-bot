@@ -1056,6 +1056,57 @@ console.log('\n── MARKETPLACE ──');
 }
 
 
+// ═══════════ AI KALITLARI HOVUZI ═══════════
+// Bitta kalitning kunlik kvotasi bor. Bir nechta kalit qo'yilsa
+// chegara shuncha barobar oshadi va biri tugasa keyingisi ishlaydi.
+console.log('\n── AI KALITLARI ──');
+{
+  const { hovuz, sabab } = await import('../src/ai/kalitlar.js');
+
+  test('kalitsiz hovuz bo‘sh', hovuz([]).bormi() === false);
+  test('takror kalit bir marta olinadi', hovuz(['a', 'a', 'b']).soni() === 2);
+
+  const h = hovuz(['k1', 'k2', 'k3']);
+  test('uchta kalit', h.soni() === 3 && h.tayyorSoni() === 3);
+
+  // NAVBAT bilan — yuk teng taqsimlanadi
+  const olingan = [h.ol().kalit, h.ol().kalit, h.ol().kalit, h.ol().kalit];
+  test('navbat bilan aylanadi', olingan.join(',') === 'k1,k2,k3,k1', olingan.join(','));
+
+  // Kvotasi tugagan kalit CHETGA qo'yiladi
+  h.yomon(0, 'kvota');
+  test('chetga qo‘yilgani tayyor emas', h.tayyorSoni() === 2);
+  const keyin = [h.ol().kalit, h.ol().kalit, h.ol().kalit];
+  test('chetdagi kalit olinmaydi', !keyin.includes('k1'), keyin.join(','));
+
+  // Muvaffaqiyat kalitni tiklaydi
+  h.yaxshi(0);
+  test('yaxshi javob kalitni tikladi', h.tayyorSoni() === 3);
+
+  // HAMMASI chetda bo'lsa ham bittasi beriladi — «kalit yo'q» deb
+  // to'xtagandan ko'ra urinib ko'rgan yaxshi
+  h.yomon(0, 'kvota'); h.yomon(1, 'kvota'); h.yomon(2, 'notogri');
+  test('hammasi damda ham kalit beriladi', Boolean(h.ol()?.kalit));
+
+  // Bitta kalit bo'lsa oddiy xato uni chetga qo'ymaydi
+  const bitta = hovuz(['yolgiz']);
+  bitta.yomon(0, 'xato');
+  test('yolg‘iz kalit oddiy xatoda chetga qo‘yilmaydi', bitta.tayyorSoni() === 1);
+  bitta.yomon(0, 'kvota');
+  test('kvota tugasa yolg‘iz kalit ham chetga', bitta.tayyorSoni() === 0);
+
+  // Holat kalitni OSHKOR QILMAYDI
+  const hh = hovuz(['juda-maxfiy-kalit-1234']).holatlar();
+  test('kalit oshkor qilinmaydi', !hh[0].nom.includes('maxfiy'), hh[0].nom);
+  test('faqat oxirgi 4 belgi', hh[0].nom === '…1234', hh[0].nom);
+
+  // Sabab aniqlash
+  test('kvota tanildi', sabab(new Error('429 Too Many Requests')) === 'kvota');
+  test('quota so‘zi ham', sabab(new Error('RESOURCE_EXHAUSTED: quota')) === 'kvota');
+  test('noto‘g‘ri kalit tanildi', sabab(new Error('403 invalid api key')) === 'notogri');
+  test('boshqasi — oddiy xato', sabab(new Error('502 bad gateway')) === 'xato');
+}
+
 // ═══════════ AI NAVBATI ═══════════
 // Minglab odam bir vaqtda so'rasa provayder 429 beradi va kvota
 // bir necha daqiqada tugaydi. Hamma chaqiruv bitta darvozadan o'tadi.

@@ -1,5 +1,6 @@
 // Google Generative Language API (to'g'ridan-to'g'ri).
 import { config } from '../config.js';
+import { hovuz, sabab } from './kalitlar.js';
 
 const kut = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -53,6 +54,10 @@ function xatoTashla(kod, matn) {
   throw e;
 }
 
+// Kalitlar hovuzi: bir nechta GEMINI_API_KEY berilsa navbat bilan
+// ishlatiladi va kvotasi tugagani vaqtincha chetga qo'yiladi.
+export const geminiHovuz = hovuz(config.geminiKeys);
+
 export async function googleJson(parts, schema, opts = {}) {
   const model = opts.model || config.geminiModel;
   let oxirgi;
@@ -65,9 +70,10 @@ export async function googleJson(parts, schema, opts = {}) {
     const maxTokens = (opts.maxTokens ?? 8192) * (1 << Math.min(2, urinish));
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 60000);
+    const k = geminiHovuz.ol();
     let res;
     try {
-      res = await fetch(`${config.geminiApi}/${model}:generateContent?key=${config.geminiKey}`, {
+      res = await fetch(`${config.geminiApi}/${model}:generateContent?key=${k?.kalit || ''}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tana(parts, schema, { ...opts, maxTokens }, rejim)),
@@ -80,10 +86,21 @@ export async function googleJson(parts, schema, opts = {}) {
     } finally { clearTimeout(timer); }
 
     if (res.status === 429 || res.status >= 500) {
+      // 429 — SHU kalitning kvotasi tugadi. Uni chetga qo'yamiz va
+      // keyingi urinish boshqa kalit bilan ketadi.
+      if (k) geminiHovuz.yomon(k.indeks, res.status === 429 ? 'kvota' : 'xato');
       oxirgi = Object.assign(new Error(`Google HTTP ${res.status}`),
         { turkum: res.status === 429 ? 'kvota' : 'band' });
-      await kut(900 * (urinish + 1));
+      // Boshqa tayyor kalit bo'lsa kutmaymiz — darrov u bilan urinamiz
+      await kut(geminiHovuz.tayyorSoni() > 0 ? 50 : 900 * (urinish + 1));
       continue;
+    }
+    if (res.status === 401 || res.status === 403) {
+      if (k) geminiHovuz.yomon(k.indeks, 'notogri');
+      if (geminiHovuz.tayyorSoni() > 0 && urinish < 3) {
+        oxirgi = new Error(`Google HTTP ${res.status}`);
+        continue;                       // boshqa kalit bilan urinamiz
+      }
     }
     if (res.status === 400 && rejim < 2) {
       // Sozlamalardan biri yoqmadi — soddalashtirib qayta urinamiz.
@@ -94,7 +111,11 @@ export async function googleJson(parts, schema, opts = {}) {
       rejim += 1;
       continue;
     }
-    if (!res.ok) xatoTashla(res.status, await res.text().catch(() => ''));
+    if (!res.ok) {
+      if (k) geminiHovuz.yomon(k.indeks, sabab(new Error(`HTTP ${res.status}`)));
+      xatoTashla(res.status, await res.text().catch(() => ''));
+    }
+    if (k) geminiHovuz.yaxshi(k.indeks);
 
     const data = await res.json();
     const cand = data?.candidates?.[0];
@@ -136,10 +157,11 @@ export async function googleJson(parts, schema, opts = {}) {
 /** Rasm chizish (gemini-*-image). */
 export async function googleRasm(parts, { nisbat, model, timeoutMs = 90000 } = {}) {
   const m = model || config.geminiImageModel;
+  const k = geminiHovuz.ol();
   const yubor = (imageConfigBilan) => {
     const ctrl = new AbortController();
     setTimeout(() => ctrl.abort(), timeoutMs);
-    return fetch(`${config.geminiApi}/${m}:generateContent?key=${config.geminiKey}`, {
+    return fetch(`${config.geminiApi}/${m}:generateContent?key=${k?.kalit || ''}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctrl.signal,
       body: JSON.stringify({
         contents: [{ role: 'user', parts }],
@@ -157,13 +179,24 @@ export async function googleRasm(parts, { nisbat, model, timeoutMs = 90000 } = {
   // imageConfig ni MODEL tushunmagan holatdagina u olib tashlanadi
   // (aks holda rasm umuman kelmaydi).
   let res = await yubor(true);
-  if (res.status === 429 || res.status >= 500) { await kut(1200); res = await yubor(true); }
+  if (res.status === 429 || res.status >= 500) {
+    // Kvota tugagan kalitni chetga qo'yib, boshqasi bilan urinamiz
+    if (k) geminiHovuz.yomon(k.indeks, res.status === 429 ? 'kvota' : 'xato');
+    const k2 = geminiHovuz.ol();
+    if (k2 && k2.indeks !== k?.indeks) { k.kalit = k2.kalit; k.indeks = k2.indeks; }
+    await kut(k2 && k2.indeks !== k?.indeks ? 50 : 1200);
+    res = await yubor(true);
+  }
   if (res.status === 400 && nisbat) {
     const matn = await res.clone().text().catch(() => '');
     // 400 imageConfig sababli bo'lsagina nisbatsiz urinamiz
     if (/imageConfig|aspectRatio|aspect_ratio/i.test(matn)) res = await yubor(false);
   }
-  if (!res.ok) xatoTashla(res.status, await res.text().catch(() => ''));
+  if (!res.ok) {
+    if (k) geminiHovuz.yomon(k.indeks, sabab(new Error(`HTTP ${res.status}`)));
+    xatoTashla(res.status, await res.text().catch(() => ''));
+  }
+  if (k) geminiHovuz.yaxshi(k.indeks);
 
   const data = await res.json();
   const cand = data?.candidates?.[0];

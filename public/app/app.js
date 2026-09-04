@@ -594,6 +594,53 @@ const TOIFA_IKON = {
   toplam:'sovga', ichimlik:'ichki',
 };
 
+// Nomdan ikonka topish — AI ochgan yangi bo'limlar uchun.
+// Ilgari ular hammasi bir xil «shisha» ni olardi va filtr o'qilmay
+// qolardi.
+const NOM_IKON = [
+  [/soch|shampun|balzam/i, 'tomchi'],  [/tuk|epilyat|razor|ustara/i, 'qalqon'],
+  [/lab|lip/i, 'yurak'],               [/koz|ko‘z|eye/i, 'koz'],
+  [/quyosh|spf|sun/i, 'quyosh'],       [/niqob|maska|mask|patch/i, 'niqob'],
+  [/serum|essens|ampul/i, 'pipetka'],  [/krem|cream|namlov/i, 'quti'],
+  [/toner|tonik/i, 'shisha'],          [/tozala|yuvish|penka|foam/i, 'tomchi'],
+  [/toplam|nabor|set|komplekt/i, 'sovga'],
+  [/vitamin|kollagen|ichimlik|ichki/i, 'ichki'],
+  [/aksessuar|asbob|vosita|qurilma/i, 'quti'],
+  [/tirnoq|nail/i, 'tahrir'],          [/tana|body|qol|oyoq/i, 'profil'],
+];
+
+// Moslik topilmasa ham bo'limlar bir-biridan farq qilsin: slug'dan
+// barqaror tanlov. Bir xil bo'lim har doim bir xil ikonka oladi.
+const ZAXIRA_IKON = ['quti', 'sovga', 'barg', 'tomchi', 'qalqon', 'niqob', 'shisha', 'ichki'];
+const xeshRaqam = (s) => {
+  let h = 0;
+  for (let i = 0; i < String(s).length; i++) h = (h * 31 + String(s).charCodeAt(i)) >>> 0;
+  return h;
+};
+
+/** Bo'lim ikonkasi: admin tanlagani → slug → nom → barqaror zaxira. */
+function toifaIkon(k) {
+  if (k.ikon) return k.ikon;
+  if (TOIFA_IKON[k.slug]) return TOIFA_IKON[k.slug];
+  const matn = `${k.name || ''} ${k.slug || ''}`;
+  for (const [qoida, ikon] of NOM_IKON) if (qoida.test(matn)) return ikon;
+  return ZAXIRA_IKON[xeshRaqam(k.slug || k.name || '') % ZAXIRA_IKON.length];
+}
+
+// Rang ham shunday: tayyor sinf bo'lmasa slug'dan barqaror tus.
+const ZAXIRA_TUS = [
+  ['#fdeceb', '#c0392b'], ['#e7f5ee', '#2e7d55'], ['#e8f0fd', '#2563c9'],
+  ['#fdf1e0', '#a9741a'], ['#f2ecfb', '#6b46c1'], ['#e6f6f8', '#12707d'],
+  ['#fbecf5', '#a02472'], ['#eef2e8', '#5a7a2e'],
+];
+const TAYYOR_SINF = new Set(Object.keys(TOIFA_IKON));
+
+function toifaUslub(k) {
+  if (TAYYOR_SINF.has(k.slug)) return '';
+  const [fon, matn] = ZAXIRA_TUS[xeshRaqam(k.slug || k.name || '') % ZAXIRA_TUS.length];
+  return `background:${fon};color:${matn}`;
+}
+
 /** Yuqoridagi toifa kartalari (rasmdagidek oq, ikonli, siriladigan). */
 function toifalarniChiz() {
   const bor = new Set(holat.mahsulotlar.map((p) => p.category_id));
@@ -601,7 +648,7 @@ function toifalarniChiz() {
                   ...holat.kategoriyalar.filter((k) => bor.has(k.id))];
   $('#toifalar').innerHTML = royxat.map((k) => `
     <button data-toifa="${esc(k.slug)}" class="${k.slug === holat.kategoriya ? 'tanlangan' : ''}">
-      <span class="doira t-${esc(k.slug)}">${ik(TOIFA_IKON[k.slug] || 'shisha', 23)}</span>
+      <span class="doira t-${esc(k.slug)}" style="${toifaUslub(k)}">${ik(toifaIkon(k), 23)}</span>
       <span>${esc(k.name)}</span>
     </button>`).join('');
   $$('#toifalar [data-toifa]').forEach((b) => b.onclick = () => {

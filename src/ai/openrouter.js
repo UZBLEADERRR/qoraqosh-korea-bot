@@ -2,6 +2,7 @@
 // Gemini modelini shu orqali chaqirish mumkin: kvota va hisob-kitob
 // OpenRouter tomonida bo'ladi, Google kalitini alohida boshqarish shart emas.
 import { config } from '../config.js';
+import { hovuz, sabab } from './kalitlar.js';
 
 const kut = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -59,6 +60,10 @@ function xatoTashla(kod, matn) {
  * Tuzilgan JSON. Avval json_schema bilan urinamiz (aniqroq),
  * model qo'llab-quvvatlamasa json_object ga tushamiz va sxemani promptga qo'shamiz.
  */
+// Kalitlar hovuzi: bir nechta OPENROUTER_API_KEY berilsa navbat bilan
+// ishlatiladi, kvotasi tugagani vaqtincha chetga qo'yiladi.
+export const orHovuz = hovuz(config.openrouterKeys);
+
 export async function openrouterJson(parts, schema, opts = {}) {
   const model = opts.orModel || config.openrouterModel;
   let oxirgi;
@@ -77,13 +82,14 @@ export async function openrouterJson(parts, schema, opts = {}) {
 
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 60000);
+    const k = orHovuz.ol();
     let res;
     try {
       res = await fetch(`${config.openrouterApi}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${config.openrouterKey}`,
+          Authorization: `Bearer ${k?.kalit || ''}`,
           // OpenRouter statistikasi uchun (ixtiyoriy, lekin tavsiya etiladi)
           'HTTP-Referer': config.publicUrl || 'https://qoraqosh.uz',
           'X-Title': 'KiOVO',
@@ -118,12 +124,25 @@ export async function openrouterJson(parts, schema, opts = {}) {
       continue;
     }
     if (res.status === 429 || res.status >= 500) {
+      // Kvotasi tugagan kalit chetga — keyingi urinish boshqasi bilan
+      if (k) orHovuz.yomon(k.indeks, res.status === 429 ? 'kvota' : 'xato');
       oxirgi = Object.assign(new Error(`OpenRouter HTTP ${res.status}`),
         { turkum: res.status === 429 ? 'kvota' : 'band' });
-      await kut(900 * (urinish + 1));
+      await kut(orHovuz.tayyorSoni() > 0 ? 50 : 900 * (urinish + 1));
       continue;
     }
-    if (!res.ok) xatoTashla(res.status, await res.text().catch(() => ''));
+    if ((res.status === 401 || res.status === 403) && k) {
+      orHovuz.yomon(k.indeks, 'notogri');
+      if (orHovuz.tayyorSoni() > 0 && urinish < 2) {
+        oxirgi = new Error(`OpenRouter HTTP ${res.status}`);
+        continue;
+      }
+    }
+    if (!res.ok) {
+      if (k) orHovuz.yomon(k.indeks, sabab(new Error(`HTTP ${res.status}`)));
+      xatoTashla(res.status, await res.text().catch(() => ''));
+    }
+    if (k) orHovuz.yaxshi(k.indeks);
 
     const data = await res.json();
     if (data?.error) xatoTashla(data.error.code || 500, data.error.message || 'xato');

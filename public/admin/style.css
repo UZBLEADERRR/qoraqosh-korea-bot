@@ -380,3 +380,11 @@ a.tug.asos{color:#fff}
 .karta.ogoh b{display:block;font-size:14.5px;line-height:1.35}
 .karta.ogoh .mayda{margin-top:3px;color:var(--sariq)}
 .karta.ogoh .tug{flex:0 0 auto;background:var(--panel);border-color:transparent}
+
+/* Mahsulot kartasidagi poster — katalogni ko'z bilan tekshirish uchun */
+.mah-rasm{flex:0 0 auto;width:54px;height:54px;border-radius:11px;overflow:hidden;
+  background:var(--fon);border:1px solid var(--chiziq);display:grid;place-items:center}
+.mah-rasm img{width:100%;height:100%;object-fit:cover;display:block}
+.mah-rasm i{font-style:normal;font-size:24px}
+.mah-teglar{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.mah-teglar:empty{display:none}

@@ -455,12 +455,17 @@ async function mahsulotlar(qidiruv = '') {
     holat.kesh.mahsulotlar = j.mahsulotlar;
     holat.kesh.kategoriyalar = j.kategoriyalar;
     const q = qidiruv.toLowerCase();
+    const hammasi = j.mahsulotlar;
     // Ikkala nom bo'yicha ham qidiriladi
-    const royxat = q
-      ? j.mahsulotlar.filter((p) =>
+    let royxat = q
+      ? hammasi.filter((p) =>
           `${p.name} ${p.nom_uz || ''} ${p.brand || ''}`.toLowerCase().includes(q))
-      : j.mahsulotlar;
-    const nomsiz = j.mahsulotlar.filter((p) => p.is_active && !p.nom_uz).length;
+      : hammasi;
+    royxat = royxat.filter(MAH_FILTR[mf.tur]?.f || (() => true));
+
+    const nomsiz = hammasi.filter((p) => p.is_active && !p.nom_uz).length;
+    const sanoq = Object.fromEntries(Object.entries(MAH_FILTR)
+      .map(([k, v]) => [k, hammasi.filter(v.f).length]));
 
     $('#tan').innerHTML = `
       <div class="bosh"><h1>Mahsulotlar</h1><span class="ozgina">${royxat.length} ta</span></div>
@@ -475,6 +480,12 @@ async function mahsulotlar(qidiruv = '') {
       <div style="padding:0 16px 12px">
         <input id="m-qidiruv" placeholder="🔍 Nom yoki brend" value="${esc(qidiruv)}">
       </div>
+      <!-- Filtr: katalogni ko'z bilan tekshirib chiqish uchun -->
+      <div class="chip-satr">
+        ${Object.entries(MAH_FILTR).map(([k, v]) => `<button
+          class="chip${mf.tur === k ? ' faol' : ''}" data-mf="${k}">${esc(v.n)}
+          <i style="font-style:normal;opacity:.6"> ${sanoq[k]}</i></button>`).join('')}
+      </div>
       ${royxat.length ? royxat.map(mahsulotKarta).join('') : boshHolat('🔍', 'Topilmadi')}`;
 
     let t; $('#m-qidiruv').oninput = (e) => {
@@ -483,6 +494,19 @@ async function mahsulotlar(qidiruv = '') {
     };
     $('#t-yangi').onclick = () => mahsulotOyna(null);
     $('#t-nomuz') && ($('#t-nomuz').onclick = nomlarniOgir);
+    $$('[data-mf]').forEach((b) => b.onclick = () => { mf.tur = b.dataset.mf; mahsulotlar(qidiruv); });
+    // Skrinshotdan AI poster. `data-poster` band — u reklama posteri.
+    $$('[data-yasa]').forEach((b) => b.onclick = async () => {
+      b.disabled = true; b.textContent = 'Chizilmoqda…';
+      try {
+        await api('/api/admin/poster-yasa', { method: 'POST',
+          body: JSON.stringify({ id: Number(b.dataset.yasa) }) });
+        tost('Poster tayyor'); holat.kesh = {}; mahsulotlar(qidiruv);
+      } catch (e) {
+        tost(e.message, 'xato');
+        b.disabled = false; b.textContent = '🎨 Skrinshotdan poster';
+      }
+    });
     $('#t-skrin').onclick = skrinshotOyna;
     $('#t-toplam').onclick = toplamOyna;
     $$('[data-mah]').forEach((b) => b.onclick = () =>
@@ -493,6 +517,19 @@ async function mahsulotlar(qidiruv = '') {
     });
   } catch (e) { xatoChiz(e); }
 }
+
+// Mahsulot filtrlari — katalogni ko'z bilan tekshirib chiqish uchun.
+// Har biri BITTA savolga javob beradi: nimasi tugallanmagan?
+const MAH_FILTR = {
+  hammasi:  { n: 'Hammasi',       f: () => true },
+  skrinshot:{ n: 'Hali skrinshot', f: (p) => p.poster_turi === 'skrinshot' },
+  rasmsiz:  { n: 'Rasmsiz',       f: (p) => !p.poster_id },
+  nomsiz:   { n: 'Nomi inglizcha', f: (p) => !p.nom_uz },
+  havolasiz:{ n: 'Havolasiz',     f: (p) => !p.manba_url },
+  tugagan:  { n: 'Omborda yo‘q',  f: (p) => !p.stock },
+  yopiq:    { n: 'Sotuvda emas',  f: (p) => !p.is_active },
+};
+const mf = { tur: 'hammasi' };
 
 /**
  * Katalogdagi hamma nomni o'zbekchaga o'girish.
@@ -522,14 +559,22 @@ function mahsulotKarta(p) {
   return `
   <div class="qator-karta" style="${p.is_active ? '' : 'opacity:.5'}">
     <div class="qator-bosh" data-mah="${p.id}" style="cursor:pointer">
-      <div style="display:flex;gap:10px;align-items:flex-start;min-width:0">
-        <span style="font-size:26px;flex:0 0 auto">${esc(p.emoji || '🧴')}</span>
+      <div style="display:flex;gap:11px;align-items:flex-start;min-width:0">
+        <!-- Poster: katalogni ko'z bilan tekshirish uchun eng kerakli narsa -->
+        <span class="mah-rasm">${p.poster_id
+          ? `<img src="/media/${esc(p.poster_id)}?w=200" alt="" loading="lazy">`
+          : `<i>${esc(p.emoji || '🧴')}</i>`}</span>
         <div style="min-width:0">
           <div class="nom">${esc(p.nom_uz || p.name)}</div>
           ${p.nom_uz ? `<div class="ozgina" style="opacity:.75">${esc(p.name)}</div>` : ''}
-          <div class="ozgina">${esc(p.brand || '')}${p.volume ? ' · ' + esc(p.volume) : ''}
-            ${p.ai_filled ? '<span class="yor kok" style="margin-left:4px">AI</span>' : ''}
-            ${p.nom_uz ? '' : '<span class="yor sariq" style="margin-left:4px">nomi inglizcha</span>'}</div>
+          <div class="ozgina">${esc(p.brand || '')}${p.volume ? ' · ' + esc(p.volume) : ''}</div>
+          <div class="mah-teglar">
+            ${p.ai_filled ? '<span class="yor kok">AI</span>' : ''}
+            ${p.poster_turi === 'skrinshot' ? '<span class="yor sariq">hali skrinshot</span>' : ''}
+            ${!p.poster_id ? '<span class="yor qizil">rasmsiz</span>' : ''}
+            ${!p.nom_uz ? '<span class="yor sariq">nomi inglizcha</span>' : ''}
+            ${!p.manba_url ? '<span class="yor kul">havolasiz</span>' : ''}
+          </div>
         </div>
       </div>
       <span class="yor ${omborYor}">${p.stock} dona</span>
@@ -544,6 +589,8 @@ function mahsulotKarta(p) {
     <div class="amallar">
       <button class="tug kichik" data-mah="${p.id}">✏️ Tahrirlash</button>
       <button class="tug kichik" data-poster="${p.id}">📢 Poster</button>
+      ${p.poster_turi === 'skrinshot' ? `<button class="tug kichik asos"
+        data-yasa="${p.id}">🎨 Skrinshotdan poster</button>` : ''}
     </div>
   </div>`;
 }
@@ -1510,6 +1557,7 @@ async function bolimlar() {
   try {
     const j = await api('/api/admin/toifalar');
     const t = j.toifalar || [];
+    const ikonlar = j.ikonlar || [];
     $('#tan').innerHTML = `
       <div class="bosh"><h1>Bo‘limlar</h1><span class="ozgina">${t.length} ta</span></div>
 
@@ -1539,6 +1587,13 @@ async function bolimlar() {
             <div><label>Nomi</label><input class="bl-n" value="${esc(x.name)}" maxlength="40"></div>
             <div><label>Tartib</label><input class="bl-s" type="number" value="${x.sort}"></div>
           </div>
+          <label>Ilovadagi ikonka<span class="yordam">Filtr doirasida ko‘rinadi.
+            Tanlanmasa nomdan avtomatik topiladi.</span></label>
+          <select class="bl-i">
+            <option value="">— avtomatik —</option>
+            ${ikonlar.map((i) => `<option value="${esc(i)}"
+              ${x.ikon === i ? 'selected' : ''}>${esc(i)}</option>`).join('')}
+          </select>
           <div style="display:flex;gap:8px;margin-top:8px">
             <button class="tug asos" data-yangi="${x.id}">Saqlash</button>
             <button class="tug xavf" data-ochir="${x.id}">O‘chirish</button>
@@ -1559,6 +1614,7 @@ async function bolimlar() {
       try {
         await api('/api/admin/toifa', { method: 'POST', body: JSON.stringify({
           id: Number(b.dataset.yangi), name: k.querySelector('.bl-n').value.trim(),
+          ikon: k.querySelector('.bl-i').value,
           sort: Number(k.querySelector('.bl-s').value) || 100 }) });
         tost('Saqlandi'); bolimlar();
       } catch (e) { tost(e.message, 'xato'); }

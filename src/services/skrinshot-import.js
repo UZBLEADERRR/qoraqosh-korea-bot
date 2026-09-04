@@ -113,8 +113,12 @@ async function toifaniTop(karta) {
 async function posterSaqla(base64, productId) {
   const bayt = Buffer.from(base64, 'base64');
   const m = await qator(
+    // `skrinshot` — bu HALI Koreya saytining ekran surati. AI poster
+    // chizib bo'lgach uning o'rniga `poster` turi keladi. Farqlash
+    // shuning uchun kerak: admin panelda «hali skrinshot» filtri
+    // aynan shu bo'yicha ishlaydi.
     `insert into media (tur, mime, bayt, hajm, product_id)
-     values ('poster','image/jpeg',$1,$2,$3) returning id`,
+     values ('skrinshot','image/jpeg',$1,$2,$3) returning id`,
     [bayt, bayt.length, productId]);
   await sorov('update products set poster_id = $1 where id = $2', [m.id, productId]);
   return m.id;

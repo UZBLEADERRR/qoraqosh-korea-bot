@@ -4,8 +4,8 @@
 //   GEMINI_API_KEY bo'lsa      → Google (asosiy yoki zaxira)
 // Ikkalasi ham bo'lsa: OpenRouter yiqilsa Google'ga o'tadi.
 import { config } from '../config.js';
-import { googleJson, googleRasm } from './google.js';
-import { openrouterJson } from './openrouter.js';
+import { googleJson, googleRasm, geminiHovuz } from './google.js';
+import { openrouterJson, orHovuz } from './openrouter.js';
 import { navbatga, pauzaQil, kutishSoniyasi } from './navbat.js';
 
 export const openrouterBormi = () => Boolean(config.openrouterKey);
@@ -82,3 +82,14 @@ export async function aiRasm(parts, opts = {}) {
 export const rasmPart = (base64, mime = 'image/jpeg') => ({
   inline_data: { mime_type: mime, data: base64 },
 });
+
+/**
+ * Kalitlar holati — admin panel uchun.
+ * Kalitning O'ZI hech qachon qaytarilmaydi, faqat oxirgi 4 belgi.
+ */
+export function kalitHolati() {
+  return {
+    google:     geminiHovuz.holatlar(),
+    openrouter: orHovuz.holatlar(),
+  };
+}
