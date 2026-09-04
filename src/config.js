@@ -44,7 +44,17 @@ export const config = {
   openrouterKey: kalitlar('OPENROUTER_API_KEY')[0] || '',
   openrouterApi:   opt('OPENROUTER_API', 'https://openrouter.ai/api/v1'),
   openrouterModel: opt('OPENROUTER_MODEL', 'google/gemini-2.5-flash'),
-  geminiModel:   opt('GEMINI_MODEL', 'gemini-2.5-flash'),
+  // Matn/JSON modeli. Standart — eng yangi Flash.
+  geminiModel:   opt('GEMINI_MODEL', 'gemini-3.8-flash'),
+  // ZAXIRA MODELLAR. Har modelning O'Z kunlik kvotasi bor, shuning
+  // uchun asosiysi tugaganda keyingisiga o'tish ilovani tirik saqlaydi
+  // — bu kalit qo'shishdan ham tezroq yechim.
+  // Tartib: yangidan eskiga. Muhitdan vergul bilan o'zgartirsa bo'ladi.
+  geminiModellar: kalitlar('GEMINI_MODELLAR').length
+    ? kalitlar('GEMINI_MODELLAR')
+    : ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash',
+       'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite',
+       'gemini-3-flash-preview'],
   // Rasm chizish modeli (poster generatsiyasi)
   geminiImageModel: opt('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image'),
 

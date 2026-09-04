@@ -6,7 +6,7 @@ import { esc, narx } from '../format.js';
 import { adminmi } from '../../lib/admin.js';
 import { floodKutilmoqda, floodQolgan, floodTekshir } from '../../lib/flood.js';
 import { config } from '../../config.js';
-import { kalitHolati, provayder, aiBormi, jurnalHolati } from '../../ai/index.js';
+import { kalitHolati, provayder, aiBormi, jurnalHolati, modelHolatlari } from '../../ai/index.js';
 import { navbatHolati } from '../../ai/navbat.js';
 import { brendNomi } from '../../lib/brend.js';
 import { xabar, oringaQoy } from '../shablon.js';
@@ -502,6 +502,22 @@ function aiHolatSatri() {
 
   const q = [`🤖 <b>AI</b> · ${esc(provayder().nom)}`];
   const k = kalitHolati();
+
+  // ── Modellar ──
+  // Har modelning O'Z kvotasi bor. Asosiysi tugasa keyingisi ishlaydi,
+  // shuning uchun bu yerda «qaysi model hozir ishlayapti» ko'rinishi
+  // muhim: skaner ishlamay, poster ishlayotgan bo'lsa sabab shu.
+  const mh = modelHolatlari();
+  const ishlaydigan = mh.find((m) => m.tayyor);
+  q.push(`📦 Model: <code>${esc(ishlaydigan?.nom || 'yo‘q')}</code>`
+    + ` (${mh.filter((m) => m.tayyor).length}/${mh.length} tayyor)`);
+  for (const m of mh.filter((x) => !x.tayyor)) {
+    q.push(`   • <code>${esc(m.nom)}</code> — `
+      + (m.yoq ? 'mavjud emas'
+         : m.sabab === 'kunlik' ? 'kunlik kvota tugadi'
+         : `${Math.ceil(m.dam_qoldi / 60)} daqiqa dam oladi`));
+  }
+
   const n = navbatHolati();
   const j = jurnalHolati();
 
@@ -542,9 +558,14 @@ function aiHolatSatri() {
 /** Eng oxirgi xato turiga qarab aniq maslahat. */
 function nimaQilish(turkum) {
   const M = {
-    kvota:   ['<b>Nima qilish:</b> kunlik kvota tugagan. 10–15 daqiqa kuting yoki',
-              'Railway’da <code>GEMINI_API_KEY</code> ga vergul bilan yana kalit qo‘shing —',
-              'chegara kalit soniga ko‘payadi.'],
+    kvota:   ['<b>Nima qilish:</b> daqiqalik chegara. Bir daqiqa kuting —',
+              'model o‘zi tiklanadi.'],
+    kvota_kunlik: [
+      '<b>Nima qilish:</b> HAMMA modelning kunlik kvotasi tugagan.',
+      '1. Ertagacha kuting — kvota o‘zi tiklanadi.',
+      '2. Yoki Railway’da <code>GEMINI_API_KEY</code> ga vergul bilan yana',
+      '   kalit qo‘shing: chegara kalit soniga ko‘payadi.',
+      '3. Yoki <code>GEMINI_MODELLAR</code> ga yana model qo‘shing.'],
     cheklov: ['<b>Nima qilish:</b> kvota tugagan. Yana bir kalit qo‘shing yoki kuting.'],
     kalit:   ['<b>Nima qilish:</b> kalit noto‘g‘ri yoki bekor qilingan.',
               'Railway’dagi <code>GEMINI_API_KEY</code> ni tekshiring.'],

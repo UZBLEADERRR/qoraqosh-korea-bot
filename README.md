@@ -735,6 +735,40 @@ mahsulotning o'z posteri ishlatiladi. Keyin xuddi oddiy post kabi tasdiqlash
 oqimidan o'tadi.
 
 
+### Zaxira modellar — bittasi tugasa ikkinchisi ishlaydi
+
+Google'da **har modelning o'z kvotasi bor**. Shuning uchun skaner va
+maslahatchi ishlamay qolib, poster generatsiyasi ishlayverishi mumkin:
+JSON chaqiruvlar matn modeliga (`gemini-3.8-flash`), rasm chizish esa
+rasm modeliga (`gemini-*-image`) ketadi.
+
+Endi matn modeli bitta emas, **ro'yxat**:
+
+```
+gemini-3.8-flash → 3.7 → 3.6 → 3.5 → 3.5-flash-lite
+                 → 3.1-flash-lite → 3-flash-preview
+```
+
+Asosiysi 429 bersa keyingisiga **darrov** o'tiladi va tugagani vaqtincha
+chetga qo'yiladi. Bu kalit qo'shishdan ham tez ishlaydi — hech narsa
+sozlash kerak emas. `GEMINI_MODEL` va `GEMINI_MODELLAR` bilan
+o'zgartirsa bo'ladi.
+
+429 javobining **tanasi endi o'qiladi**: Google u yerda qaysi kvota
+tugaganini (`quotaId`) va qancha kutish kerakligini (`retryDelay`)
+yozadi. Ilgari tana tashlab yuborilardi va «Google HTTP 429» dan
+boshqa hech nima bilinmasdi.
+
+| Kvota | Nima qilinadi | Mijoz nima ko'radi |
+|---|---|---|
+| **daqiqalik** | model 70 s dam oladi, keyingisiga o'tiladi | «AI limiti vaqtincha tugadi, 10–15 daqiqada urinib ko'ring» |
+| **kunlik** | model 1 soatga chetga, keyingisiga o'tiladi | «Bugungi AI limiti tugadi. Ertaga urinib ko'ring» + do'konga havola |
+
+Model **404** bersa (nomi noto'g'ri yoki kalitga ruxsat yo'q) u
+ro'yxatdan butunlay chiqariladi — qayta urinish behuda. Ro'yxat
+aylanib qayta boshiga qaytmaydi: hammasi tugagan bo'lsa qo'shimcha
+so'rov yuborilmaydi, chunki u ham kvota yeydi.
+
 ### «Xatolik yuz berdi» endi chiqmaydi
 
 Ichki xato mijozga tushunarli xabarga aylanadi (`src/lib/xatolar.js`).

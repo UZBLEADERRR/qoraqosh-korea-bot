@@ -11,6 +11,10 @@ const TURKUM_MATNI = {
   // berdi» deyish YOMON: u aybni o'zidan yoki rasmdan qidiradi va
   // rasmni almashtirib qayta-qayta uradi. Aniq aytamiz.
   kvota:       '⏳ AI limiti vaqtincha tugadi. 10–15 daqiqadan so‘ng qayta urinib ko‘ring.',
+  // Kunlik kvota daqiqada tiklanmaydi — «10 daqiqadan keyin urinib
+  // ko'ring» deyish odamni aldash bo'lardi.
+  kvota_kunlik: '🌙 Bugungi AI limiti tugadi. Ertaga qayta urinib ko‘ring — '
+              + 'yoki hozir do‘kondan mahsulot tanlashingiz mumkin.',
   cheklov:     '⏳ AI limiti vaqtincha tugadi. 10–15 daqiqadan so‘ng qayta urinib ko‘ring.',
   tarmoq:      '📡 AI serveriga ulanib bo‘lmadi. Bir daqiqadan so‘ng qayta urinib ko‘ring.',
   vaqt:        '⏳ Tahlil juda uzoq davom etdi. Qayta urinib ko‘ring.',

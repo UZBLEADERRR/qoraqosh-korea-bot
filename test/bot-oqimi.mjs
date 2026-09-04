@@ -154,9 +154,10 @@ console.log('\n── KVOTA TUGAGANDA ──');
 
   await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
   globalThis.AI_429 = 99;                // hech qanaqa urinish o'tmaydi
+  globalThis.AI_429_KUNLIK = false;      // DAQIQALIK chegara
   yuborilgan.length = 0;
   await rasmYubor();
-  globalThis.AI_429 = 0;
+  globalThis.AI_429 = 0; globalThis.AI_429_KUNLIK = true;
 
   const xabarlar = korinadigan().map((x) => x.text || '').join('\n');
   test('umumiy «Xatolik yuz berdi» CHIQMAYDI',
@@ -170,6 +171,8 @@ console.log('\n── KVOTA TUGAGANDA ──');
   test('jurnalga yozildi', j.xato > 0, `${j.muvaffaq}/${j.jami}, xato ${j.xato}`);
   test('turkum «kvota» deb aniqlandi', j.oxirgi[0]?.turkum === 'kvota',
     j.oxirgi[0]?.turkum);
+  test('jurnalda QAYSI MODEL yiqilgani ham bor', /gemini-/.test(j.oxirgi[0]?.xabar || ''),
+    j.oxirgi[0]?.xabar?.slice(0, 80));
   test('qayerda bo‘lgani ham yozildi', j.oxirgi[0]?.qayerda === 'skaner',
     j.oxirgi[0]?.qayerda);
   test('KALIT jurnalga TUSHMAYDI', !/key=soxta/.test(j.oxirgi[0]?.xabar || ''),
@@ -188,10 +191,10 @@ console.log('\n── KVOTA TUGAGANDA ──');
   await sorov(`update users set is_admin = true where telegram_id = $1`, [TG]);
   await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
   navbatniTozala();
-  globalThis.AI_429 = 99;
+  globalThis.AI_429 = 99; globalThis.AI_429_KUNLIK = false;
   yuborilgan.length = 0;
   await rasmYubor();
-  globalThis.AI_429 = 0;
+  globalThis.AI_429 = 0; globalThis.AI_429_KUNLIK = true;
   const adminga = korinadigan().map((x) => x.text || '').join('\n');
   test('adminga texnik sabab ko‘rsatiladi', /Google HTTP 429/.test(adminga),
     adminga.slice(-200));
@@ -211,6 +214,94 @@ console.log('\n── KVOTA TUGAGANDA ──');
 
   jurnalniTozala();
   await sorov(`update users set is_admin = false where telegram_id = $1`, [TG]);
+}
+
+// ═══════════ MODEL ALMASHUVI ═══════════
+// Skaner va maslahatchi ishlamay qolgan, poster esa ishlayvergan edi.
+// Sabab: JSON chaqiruvlar bitta matn modeliga, rasm chizish esa boshqa
+// modelga ketadi va Google'da HAR MODELNING O'Z KVOTASI bor. Matn
+// modelining kunlik chegarasi tugagach butun skaner to'xtagan.
+// Endi zaxira modellar bor: biri tugasa keyingisi ishlaydi.
+console.log('\n── MODEL ALMASHUVI ──');
+{
+  const { modellarniTozala, modelHolatlari, royxat, kvotaTuri, kutishMs }
+    = await import('../src/ai/modellar.js');
+  const { jurnalniTozala } = await import('../src/ai/jurnal.js');
+  const { navbatniTozala } = await import('../src/ai/navbat.js');
+
+  // ── 429 javobini o'qish ──
+  const kunlikJavob = JSON.stringify({ error: { details: [
+    { violations: [{ quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier' }] },
+    { retryDelay: '31s' }] } });
+  test('kunlik kvota ajratildi', kvotaTuri(kunlikJavob) === 'kunlik', kvotaTuri(kunlikJavob));
+  test('daqiqalik kvota ajratildi',
+    kvotaTuri('quotaId: GenerateRequestsPerMinutePerProjectPerModel') === 'daqiqalik');
+  test('retryDelay o‘qildi', kutishMs(kunlikJavob) === 31000, String(kutishMs(kunlikJavob)));
+
+  const modellar = royxat();
+  test('zaxira modellar ro‘yxati bor', modellar.length >= 3, modellar.join(', '));
+  test('birinchisi eng yangi flash', modellar[0] === 'gemini-3.8-flash', modellar[0]);
+
+  // ── Asosiy model kvotasi tugasa keyingisi ishlaydi ──
+  modellarniTozala(); jurnalniTozala(); navbatniTozala();
+  await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
+  globalThis.AI_429_MODELLAR = [modellar[0], modellar[1]];   // ikkitasi tugagan
+  yuborilgan.length = 0;
+  await rasmYubor();
+  globalThis.AI_429_MODELLAR = [];
+
+  test('ASOSIY MODEL TUGASA HAM TAHLIL CHIQADI',
+    korinadigan().some((x) => /Tahlil natijasi/.test(x.text || '')),
+    korinadigan().map((x) => (x.text || '').slice(0, 40)).join(' | '));
+  test('mijozga xato ko‘rsatilmadi',
+    !korinadigan().some((x) => /limiti|Xatolik/.test(x.text || '')));
+
+  const h = modelHolatlari();
+  test('tugagan modellar chetga qo‘yildi',
+    h[0].tayyor === false && h[1].tayyor === false,
+    h.map((m) => `${m.nom}:${m.tayyor ? 'tayyor' : m.sabab}`).join(' | '));
+  test('sabab «kunlik» deb yozildi', h[0].sabab === 'kunlik', h[0].sabab);
+  test('uchinchi model ishladi', h[2].tayyor === true && h[2].ishlatilgan > 0,
+    `${h[2].nom} · ${h[2].ishlatilgan} marta`);
+
+  // ── Model nomi noto'g'ri bo'lsa (404) butunlay chiqariladi ──
+  modellarniTozala(); navbatniTozala();
+  await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
+  globalThis.AI_404_MODELLAR = [modellar[0]];
+  yuborilgan.length = 0;
+  await rasmYubor();
+  globalThis.AI_404_MODELLAR = [];
+  test('yo‘q model tahlilni to‘xtatmaydi',
+    korinadigan().some((x) => /Tahlil natijasi/.test(x.text || '')),
+    korinadigan().map((x) => (x.text || '').slice(0, 40)).join(' | '));
+  const h2 = modelHolatlari();
+  test('yo‘q model ro‘yxatdan chiqarildi', h2[0].yoq === true, h2[0].sabab);
+
+  // ── HAMMA model tugasa: aniq va HALOL xabar ──
+  modellarniTozala(); jurnalniTozala(); navbatniTozala();
+  await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
+  globalThis.AI_429_MODELLAR = modellar;
+  yuborilgan.length = 0;
+  await rasmYubor();
+  globalThis.AI_429_MODELLAR = [];
+  const matn = korinadigan().map((x) => x.text || '').join('\n');
+  test('kunlik kvotada «ertaga» deyiladi', /Bugungi AI limiti tugadi/.test(matn),
+    matn.slice(-200));
+  test('«10 daqiqadan keyin» deb ALDAMAYDI', !/10–15 daqiqadan/.test(matn));
+  test('do‘konga yo‘naltiradi', /do‘kondan/.test(matn));
+
+  // ── /holat qaysi model ishlayotganini ko'rsatadi ──
+  await sorov(`update users set is_admin = true where telegram_id = $1`, [TG]);
+  yuborilgan.length = 0;
+  await yangilanish({ update_id: 1, message: { message_id: 1,
+    chat: { id: Number(TG), type: 'private' }, from: { id: Number(TG) }, text: '/holat' } });
+  const holat2 = yuborilgan.map((x) => x.text || '').join('\n');
+  test('/holat modelni ko‘rsatadi', /📦 Model:/.test(holat2), holat2.slice(0, 160));
+  test('/holat kunlik kvotani aytadi', /kunlik kvota tugadi/.test(holat2));
+  test('/holat kalit qo‘shishni maslahat beradi', /GEMINI_MODELLAR|GEMINI_API_KEY/.test(holat2));
+  await sorov(`update users set is_admin = false where telegram_id = $1`, [TG]);
+
+  modellarniTozala(); jurnalniTozala(); navbatniTozala();
 }
 
 // ═══════════ SKANER NAMUNASI ═══════════

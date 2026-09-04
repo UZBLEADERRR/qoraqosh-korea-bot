@@ -357,11 +357,32 @@ export function soxtaServer(port = 4444) {
         // so'rovni SODDALASHTIRIB qayta urinishi kerak — shuni sinaymiz.
         // Kvota tugadi — provayder 429 qaytaradi. Aynan shu holat
         // mijozga «Xatolik yuz berdi» bo'lib borardi.
-        if (globalThis.AI_429 > 0) {
-          globalThis.AI_429 -= 1;
+        //
+        // AI_429_MODELLAR — qaysi MODELLAR kvotasi tugagani. Google'da
+        // har modelning o'z kvotasi bor, shuning uchun server keyingi
+        // modelga o'tib ishlashda davom etishi kerak.
+        const model = (yol.match(/models\/([^:]+):/) || [])[1] || '';
+        const kvotasiz = globalThis.AI_429_MODELLAR || [];
+        if (globalThis.AI_429 > 0 || kvotasiz.includes(model)) {
+          if (globalThis.AI_429 > 0) globalThis.AI_429 -= 1;
+          const kunlik = globalThis.AI_429_KUNLIK !== false;
           res.writeHead(429, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ error: { code: 429,
-            message: 'Resource has been exhausted (e.g. check quota).' } }));
+            message: 'You exceeded your current quota.', status: 'RESOURCE_EXHAUSTED',
+            details: [
+              { '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+                violations: [{ quotaId: kunlik
+                  ? 'GenerateRequestsPerDayPerProjectPerModel-FreeTier'
+                  : 'GenerateRequestsPerMinutePerProjectPerModel-FreeTier',
+                  quotaDimensions: { model } }] },
+              { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '31s' },
+            ] } }));
+        }
+        // Model umuman yo'q bo'lsa Google 404 beradi
+        if ((globalThis.AI_404_MODELLAR || []).includes(model)) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: { code: 404,
+            message: `models/${model} is not found for API version v1beta.` } }));
         }
         if (globalThis.AI_400 > 0) {
           globalThis.AI_400 -= 1;

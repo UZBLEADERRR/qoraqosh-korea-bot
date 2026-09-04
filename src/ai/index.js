@@ -79,7 +79,7 @@ function cheklovmi(e) {
   const m = String(e?.message || '');
   // google.js 429 da `kvota`, openrouter `cheklov` beradi — ikkalasi ham
   // bir xil ma'noda: butun navbat pauza qilishi kerak.
-  if (e?.turkum === 'cheklov' || e?.turkum === 'kvota'
+  if (e?.turkum === 'cheklov' || e?.turkum === 'kvota' || e?.turkum === 'kvota_kunlik'
       || /\b429\b|rate limit|too many requests|quota|resource_exhausted/i.test(m)) {
     pauzaQil(kutishSoniyasi(m));
   }
@@ -119,3 +119,4 @@ export function kalitHolati() {
 }
 
 export { jurnalHolati, oxirgiXatolar } from './jurnal.js';
+export { modelHolatlari } from './modellar.js';

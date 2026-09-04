@@ -1,6 +1,8 @@
 // Google Generative Language API (to'g'ridan-to'g'ri).
 import { config } from '../config.js';
 import { hovuz, sabab } from './kalitlar.js';
+import { modelOl, modelBand, modelYoq, modelYaxshi, kvotaTuri, kutishMs }
+  from './modellar.js';
 
 const kut = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -59,12 +61,16 @@ function xatoTashla(kod, matn) {
 export const geminiHovuz = hovuz(config.geminiKeys);
 
 export async function googleJson(parts, schema, opts = {}) {
-  const model = opts.model || config.geminiModel;
   let oxirgi;
   // 400 kelganda so'rovni soddalashtiramiz (tana() dagi izohga qarang)
   let rejim = 0;
+  // Shu chaqiruvda yiqilgan modellar — ularga qaytmaymiz
+  const otkaz = [];
+  let model = opts.model || modelOl();
+  // Har model uchun 4 tadan urinish, lekin jami cheksiz emas
+  const MAKS = 4 + (opts.model ? 0 : 3);
 
-  for (let urinish = 0; urinish < 4; urinish++) {
+  for (let urinish = 0; urinish < MAKS; urinish++) {
     // Har qayta urinishda byudjetni IKKI BAROBAR oshiramiz:
     // 8192 → 16384 → 32768. Javob uzilib qolgan bo'lsa shu yordam beradi.
     const maxTokens = (opts.maxTokens ?? 8192) * (1 << Math.min(2, urinish));
@@ -85,20 +91,61 @@ export async function googleJson(parts, schema, opts = {}) {
       continue;
     } finally { clearTimeout(timer); }
 
-    if (res.status === 429 || res.status >= 500) {
-      // 429 — SHU kalitning kvotasi tugadi. Uni chetga qo'yamiz va
-      // keyingi urinish boshqa kalit bilan ketadi.
-      if (k) geminiHovuz.yomon(k.indeks, res.status === 429 ? 'kvota' : 'xato');
-      oxirgi = Object.assign(new Error(`Google HTTP ${res.status}`),
-        { turkum: res.status === 429 ? 'kvota' : 'band' });
-      // Boshqa tayyor kalit bo'lsa kutmaymiz — darrov u bilan urinamiz
+    if (res.status === 429) {
+      // Javob TANASINI o'qiymiz: qaysi kvota tugagani va qancha kutish
+      // kerakligi aynan shu yerda yozilgan. Ilgari tana tashlab
+      // yuborilardi va «Google HTTP 429» dan boshqa hech nima
+      // bilinmasdi — kunlikmi, daqiqalikmi, farqi ko'rinmasdi.
+      const matn = await res.text().catch(() => '');
+      const tur = kvotaTuri(matn);
+      const kutish = kutishMs(matn);
+
+      // Kvota MODELGA bog'liq: shu modelni chetga qo'yib, keyingisiga
+      // o'tamiz. Har modelning o'z kvotasi bor, shuning uchun bu
+      // kutishdan tezroq yechim.
+      modelBand(model, tur, kutish);
+      if (k) geminiHovuz.yomon(k.indeks, 'kvota');
+      otkaz.push(model);
+
+      oxirgi = Object.assign(
+        new Error(`Google HTTP 429 · ${model} · ${tur} kvota${
+          matn ? ` · ${matn.replace(/\s+/g, ' ').slice(0, 200)}` : ''}`),
+        { turkum: tur === 'kunlik' ? 'kvota_kunlik' : 'kvota', model: model, kvota: tur });
+
+      const keyingi = modelOl(otkaz);
+      // `otkaz` da bo'lsa — ro'yxat aylanib chiqdi, hammasi tugagan.
+      // Qayta urinish behuda kvota sarflaydi.
+      if (keyingi && keyingi !== model && !otkaz.includes(keyingi)) {
+        console.warn(`Google ${model} kvotasi tugadi (${tur}) → ${keyingi}`);
+        model = keyingi;
+        continue;                     // yangi model bilan DARROV urinamiz
+      }
+      // Boshqa model qolmadi — kunlik kvotada qayta urinish behuda
+      if (tur === 'kunlik' || otkaz.length >= 2) break;
+      await kut(Math.min(kutish || 900 * (urinish + 1), 3000));
+      continue;
+    }
+    if (res.status >= 500) {
+      if (k) geminiHovuz.yomon(k.indeks, 'xato');
+      oxirgi = Object.assign(new Error(`Google HTTP ${res.status} · ${model}`), { turkum: 'band' });
       await kut(geminiHovuz.tayyorSoni() > 0 ? 50 : 900 * (urinish + 1));
       continue;
     }
+    if (res.status === 404) {
+      // Model nomi noto'g'ri yoki kalitga ruxsat yo'q. Qayta urinish
+      // behuda — ro'yxatdan chiqarib, keyingisiga o'tamiz.
+      modelYoq(model);
+      otkaz.push(model);
+      const keyingi = modelOl(otkaz);
+      oxirgi = Object.assign(new Error(`Google HTTP 404 · «${model}» mavjud emas`),
+        { turkum: 'model', model });
+      if (keyingi && keyingi !== model) { model = keyingi; continue; }
+      break;
+    }
     if (res.status === 401 || res.status === 403) {
       if (k) geminiHovuz.yomon(k.indeks, 'notogri');
-      if (geminiHovuz.tayyorSoni() > 0 && urinish < 3) {
-        oxirgi = new Error(`Google HTTP ${res.status}`);
+      if (geminiHovuz.tayyorSoni() > 0 && urinish < MAKS - 1) {
+        oxirgi = Object.assign(new Error(`Google HTTP ${res.status}`), { turkum: 'kalit' });
         continue;                       // boshqa kalit bilan urinamiz
       }
     }
@@ -116,6 +163,7 @@ export async function googleJson(parts, schema, opts = {}) {
       xatoTashla(res.status, await res.text().catch(() => ''));
     }
     if (k) geminiHovuz.yaxshi(k.indeks);
+    modelYaxshi(model);
 
     const data = await res.json();
     const cand = data?.candidates?.[0];
