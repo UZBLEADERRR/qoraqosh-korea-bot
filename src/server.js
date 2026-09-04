@@ -18,6 +18,8 @@ import { apiRoutes } from './api/routes.js';
 import { adminRoutes } from './api/admin.js';
 import { yangilanish } from './bot/index.js';
 import { ilovaHavolasi } from './lib/ilova-havola.js';
+import { keshdanOl, keshgaQoy } from './lib/media-kesh.js';
+import { jpegQil } from './rasm/olcham.js';
 import { tg } from './bot/tg.js';
 import { ofertaSahifasi } from './lib/oferta.js';
 import { postSahifasi, imzoTogrimi } from './lib/post-korinish.js';
@@ -85,24 +87,47 @@ const server = http.createServer(async (req, res) => {
     // Posterlar va logotip ochiq. CHEK va TAHLIL NATIJASI faqat admin
     // tokeni bilan: birinchisi mijozning to'lov hujjati, ikkinchisida
     // uning YUZI bor. Havolani bilgan har kim ko'rmasligi kerak.
+    // Rasm. `?w=400` — ekranga mos o'lchamdagi JPEG.
+    //
+    // Asl poster 1024px PNG, ya'ni 1–2 MB. Kartochka esa telefonda
+    // ~150px. Kerak bo'lganidan yigirma barobar ko'p bayt yuborish —
+    // ilova «sekin ishlashi»ning asosiy sababi edi. Kichraytirilgan
+    // JPEG xotirada keshlanadi: ikkinchi so'rovdan boshlab na baza,
+    // na protsessor bezovta qilinadi.
     if (yol.startsWith('/media/')) {
       const id = yol.slice(7);
       if (!/^[0-9a-f-]{36}$/i.test(id)) return notFound(res);
+
+      const wXom = Number(url.searchParams.get('w'));
+      const w = RUXSAT_ENI.includes(wXom) ? wXom : 0;
+      const kalit = `${id}:${w}`;
+
+      const keshda = keshdanOl(kalit);
+      if (keshda) return rasmniBer(res, keshda.bayt, keshda.mime);
+
       const m = await qator('select mime, bayt, tur from media where id = $1', [id]);
       if (!m) return notFound(res);
+      // Chek — mijozning to'lov hujjati, natija — uning YUZI. Bularni
+      // havolani bilgan har kim ko'rmasligi kerak.
       if (m.tur === 'chek' || m.tur === 'natija') {
         const token = (url.searchParams.get('t') || '').trim() ||
                       (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
         if (!verifyAdminToken(token)) return xato(res, 403, 'Ruxsat yo‘q');
+        return rasmniBer(res, m.bayt, m.mime);      // maxfiy rasm keshlanmaydi
       }
-      res.writeHead(200, {
-        'Content-Type': m.mime,
-        'Content-Length': m.bayt.length,
-        // Rasm hech qachon o'zgarmaydi (yangisi yangi id oladi) — uzoq keshlash xavfsiz
-        'Cache-Control': 'public, max-age=31536000, immutable',
-        'X-Content-Type-Options': 'nosniff',
-      });
-      return res.end(m.bayt);
+
+      let bayt = m.bayt, mime = m.mime;
+      if (w) {
+        try {
+          const r = await jpegQil(m.bayt, m.mime, { eni: w });
+          bayt = r.bayt; mime = r.mime;
+        } catch (e) {
+          // Kichraytirib bo'lmasa aslini beramiz — rasm YO'QOLMASIN
+          console.warn('MEDIA kichraytirish:', e.message?.slice(0, 80));
+        }
+      }
+      keshgaQoy(kalit, bayt, mime);
+      return rasmniBer(res, bayt, mime);
     }
 
     // ---------- API ----------
@@ -183,6 +208,21 @@ const server = http.createServer(async (req, res) => {
     xato(res, 500, 'Server xatosi');
   }
 });
+
+// Faqat shu kengliklar: har xil o'lchamni chizaverish protsessorni
+// yeydi va keshni behuda to'ldiradi.
+const RUXSAT_ENI = [200, 400, 800];
+
+const rasmniBer = (res, bayt, mime) => {
+  res.writeHead(200, {
+    'Content-Type': mime,
+    'Content-Length': bayt.length,
+    // Rasm hech qachon o'zgarmaydi (yangisi yangi id oladi) — uzoq keshlash xavfsiz
+    'Cache-Control': 'public, max-age=31536000, immutable',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  res.end(bayt);
+};
 
 const notFound = (res) => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('404 — topilmadi'); };
 const redirect = (res, joy) => { res.writeHead(302, { Location: joy }); res.end(); };

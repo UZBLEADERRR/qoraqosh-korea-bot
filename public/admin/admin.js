@@ -3283,9 +3283,28 @@ async function tizim() {
   try {
     const j = await api('/api/admin/health');
     const xatolar = j.tekshiruvlar.filter((t) => t.holat === 'xato');
+    const ai = j.yuklama?.ai || {};
+    const rs = j.yuklama?.rasm || {};
     $('#tizim-tan').innerHTML = `
       <div class="xabar-quti ${xatolar.length ? 'xato' : 'ok'}">
         ${xatolar.length ? `⚠️ ${xatolar.length} ta muammo topildi` : '✅ Hammasi joyida'}</div>
+
+      <!-- Yuklama: ilova sekinlashsa sabab shu yerda ko'rinadi -->
+      <div class="kpi-tor">
+        <div class="kpi${ai.navbatda > 20 ? ' urgu' : ''}">
+          <div class="k">AI navbati</div><div class="v">${ai.navbatda ?? 0}</div>
+          <div class="q">${ai.ishlayotgan ?? 0} ta ishlamoqda · ${ai.bir_vaqtda ?? 0} gacha</div></div>
+        <div class="kpi"><div class="k">Daqiqada</div>
+          <div class="v">${ai.qolgan_token ?? 0}<span class="q" style="font-size:13px">
+            /${ai.daqiqada ?? 0}</span></div>
+          <div class="q">qolgan chaqiruv</div></div>
+        <div class="kpi${ai.pauza_qoldi ? ' urgu' : ''}"><div class="k">Pauza</div>
+          <div class="v">${ai.pauza_qoldi ? ai.pauza_qoldi + ' s' : 'yo‘q'}</div>
+          <div class="q">${ai.radEtilgan ?? 0} ta rad etilgan</div></div>
+        <div class="kpi"><div class="k">Rasm keshi</div>
+          <div class="v">${rs.foiz ?? 0}%</div>
+          <div class="q">${rs.soni ?? 0} ta · ${rs.mb ?? 0}/${rs.chegara_mb ?? 0} MB</div></div>
+      </div>
       ${j.tekshiruvlar.map((t) => `
         <div class="qator-karta">
           <div class="qator-bosh">

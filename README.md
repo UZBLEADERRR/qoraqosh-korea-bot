@@ -805,6 +805,7 @@ src/
     faceAnalysis.js    sifat nazorati + tahlil + tavsiya (bitta chaqiruv)
     productEnrich.js   skrinshotdan mahsulotni tanish
     poster.js          poster g'oyalari va generatsiyasi
+    navbat.js          AI navbati: bir vaqtda va daqiqada nechta chaqiruv
     maslahat.js        AI maslahatchi: savol, to'plam, tavsiya
     skrinshot-mahsulot.js  skrinshotdan mahsulot + narx o'qish
     kalit-sozlar.js    qidiruv kalit so'zlari (partiyalab)
@@ -817,6 +818,7 @@ src/
     natija-kartochka.js tahlil natijasining SVG ko'rinishi
     qollanma-kartochka.js mijozga boradigan rasmli parvarish qo'llanmasi
     qollanma-sahifa.js  PDF qo'llanmaning A4 sahifalari
+    olcham.js          rasmni ekranga mos o'lchamda JPEG qilish
     poster-tuzat.js    posterni nisbatga kesish va yozuvni o'zimiz yozish
     chiz.js            SVG -> PNG (resvg + repozitoriyadagi shriftlar)
   api/
@@ -969,6 +971,52 @@ o'raydi: PNG ochiladi (zlib), qator filtrlari yechiladi, alfa oq fonga
 qo'shiladi va xom RGB qayta siqiladi. Natija — A4, mahsulot suratlari
 bilan, brend ranglarida. Matn tanlanmaydi, lekin telefonda o'qiladigan
 qo'llanma uchun bu muhim emas.
+
+**Rasmlar bazada, lekin ekranga mos o'lchamda beriladi.** Fayllar
+`media` jadvalida `bytea` bo'lib yotadi — alohida saqlash xizmati
+(S3) sozlash shart emas, ulanish satridan boshqa hech narsa kerak
+emas. Muammosi: AI dan kelgan poster 1024px PNG, ya'ni **1–2 MB**,
+kartochka esa telefonda ~150px. Kerak bo'lganidan yigirma barobar
+ko'p bayt — ilova «sekin ishlashi»ning asosiy sababi shu edi.
+
+Endi `/media/<id>?w=400` kerakli kenglikdagi **JPEG** qaytaradi:
+368 KB → **6.6 KB** (56 barobar). Do'kon sahifasi 7 MB o'rniga
+130 KB yuklaydi. Quvur: PNG → resvg bilan kichraytirish → xom RGB
+→ JPEG. JPEG kodlovchi `lib/jpeg.js` da — kutubxonasiz, standart
+Annex K jadvallari va 4:2:0 subsemplash bilan (Node'da JPEG
+kodlovchi yo'q, resvg esa faqat PNG chiqaradi).
+
+Kichraytirilgan rasm **xotirada keshlanadi** (`lib/media-kesh.js`,
+LRU, standart 96 MB): birinchi so'rovdan keyin na baza, na protsessor
+bezovta qilinadi — ikkinchi so'rov 1 ms. Faqat 200/400/800 px
+ruxsat etilgan: har xil o'lchamni chizaverish protsessorni yeydi.
+Chek va tahlil natijasi keshlanmaydi — ular maxfiy.
+
+**AI chaqiruvlari bitta navbatdan o'tadi.** Minglab odam bir vaqtda
+skaner yoki maslahatchini ochsa, minglab bir vaqtdagi chaqiruv
+provayderdan 429 oldiradi va kunlik kvotani bir necha daqiqada
+tugatadi. `ai/navbat.js` to'rtta chegara qo'yadi:
+
+| Chegara | Standart | Muhit o'zgaruvchisi |
+|---|---|---|
+| Bir vaqtda ketadigan chaqiruv | 6 | `AI_BIR_VAQTDA` |
+| Daqiqadagi chaqiruv (token-chelak) | 60 | `AI_DAQIQADA` |
+| Navbatda kutishi mumkin bo'lganlar | 120 | `AI_NAVBAT_MAKS` |
+| Navbatda maksimal kutish | 25 s | `AI_KUTISH_MS` |
+
+Navbat to'lsa yoki kutish uzaysa so'rov **darrov rad etiladi**
+(«⏳ AI hozir band, 1–2 daqiqadan keyin urinib ko'ring») — odam besh
+daqiqa aylanani kuzatgandan ko'ra aniq javobni afzal ko'radi.
+Provayder 429 bersa BUTUN navbat pauza qiladi: bu cheklovdan
+chiqishning yagona yo'li, aks holda navbatdagi yuzta so'rov ketma-ket
+urilib uni uzaytiradi. Admin ishlari (import, poster, nom o'girish)
+navbat BOSHIGA tushadi — mijoz kutmaydi, admin esa o'zi boshlagan
+ishining tugashini kutib turadi.
+
+Foydalanuvchining shaxsiy cheklovlari (kunlik tahlil limiti,
+maslahatchiga 10 daqiqada 20 savol) o'z joyida: ular BITTA odamdan
+himoya qiladi, navbat esa hammasidan birgalikda. Holat admin
+panelning **Tizim holati** bo'limida ko'rinadi.
 
 **Telegramga har so'rov qayta uriniladi.** Railway'dan `api.telegram.org`
 ga ulanish uzilib turadi va ilgari bitta `fetch failed` butun buyruqni

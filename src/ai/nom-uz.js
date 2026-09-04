@@ -103,7 +103,7 @@ export async function nomUzAI(products) {
   const j = await aiJson(
     [{ text: KORSATMA + products.map(satr).join('\n') }],
     SXEMA,
-    { temperature: 0.2, maxTokens: 4096 },
+    { temperature: 0.2, maxTokens: 4096, muhim: true },
   );
 
   const bor = new Map(products.map((p) => [p.id, p]));

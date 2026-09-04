@@ -26,6 +26,8 @@ import { kanalniSina, kanalgaHolat } from '../services/kanal.js';
 import { rasmChizaOlamizmi, svgdanPng } from '../rasm/chiz.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
 import { brendNomi } from '../lib/brend.js';
+import { navbatHolati } from '../ai/navbat.js';
+import { keshHolati } from '../lib/media-kesh.js';
 import { xaridHisoboti, havolasizSoni, mahsulotCsv, viloyatCsv }
   from '../services/xarid-hisobot.js';
 
@@ -87,7 +89,12 @@ export async function adminRoutes(req, res, yol) {
   // ================= TIZIM HOLATI =================
   // Nimadir ishlamay qolsa, sabab shu yerda ko'rinadi.
   if (yol === '/api/admin/health' && req.method === 'GET') {
-    return ok(res, { tekshiruvlar: await tizimTekshir() });
+    return ok(res, {
+      tekshiruvlar: await tizimTekshir(),
+      // Yuklama holati: AI navbati va rasm keshi. Ilova sekinlashsa
+      // sabab shu ikkitasining birida ko'rinadi.
+      yuklama: { ai: navbatHolati(), rasm: keshHolati() },
+    });
   }
 
   // ================= BOSHQARUV =================

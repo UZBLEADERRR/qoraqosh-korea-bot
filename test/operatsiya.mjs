@@ -1056,6 +1056,119 @@ console.log('\n── MARKETPLACE ──');
 }
 
 
+// ═══════════ AI NAVBATI ═══════════
+// Minglab odam bir vaqtda so'rasa provayder 429 beradi va kvota
+// bir necha daqiqada tugaydi. Hamma chaqiruv bitta darvozadan o'tadi.
+console.log('\n── AI NAVBATI ──');
+{
+  const N = await import('../src/ai/navbat.js');
+  N.navbatniTozala();
+
+  // 1) Bir vaqtda ketadigan chaqiruvlar CHEKLANGAN
+  let joriy = 0, eng = 0;
+  const sekin = () => N.navbatga(async () => {
+    joriy++; eng = Math.max(eng, joriy);
+    await new Promise((r) => setTimeout(r, 40));
+    joriy--; return 'ok';
+  });
+  await Promise.all(Array.from({ length: 30 }, sekin));
+  const h = N.navbatHolati();
+  test('bir vaqtda chegaradan oshmadi', eng <= h.bir_vaqtda, `${eng} / ${h.bir_vaqtda}`);
+  test('hammasi bajarildi', h.jami === 30, String(h.jami));
+  test('kutganlar sanaldi', h.kutgan > 0, `${h.kutgan} ta`);
+
+  // 2) Xato ham chaqiruvchiga yetib boradi
+  N.navbatniTozala();
+  let xatoMatn = '';
+  await N.navbatga(async () => { throw new Error('ichki xato'); }).catch((e) => { xatoMatn = e.message; });
+  test('xato yutilmaydi', xatoMatn === 'ichki xato', xatoMatn);
+
+  // 3) 429 kelganda BUTUN navbat pauza qiladi
+  N.navbatniTozala();
+  test('kutish soniyasi o‘qildi', N.kutishSoniyasi('429 Too Many Requests, retry after 45') === 45);
+  test('sabab topilmasa 30 s', N.kutishSoniyasi('429') === 30);
+  N.pauzaQil(2);
+  const p = N.navbatHolati();
+  test('pauza qo‘yildi', p.pauza_qoldi >= 1 && p.pauza_qoldi <= 2, `${p.pauza_qoldi} s`);
+  const t0 = Date.now();
+  await N.navbatga(async () => 'kechikdi');
+  test('pauza tugagach ishladi', Date.now() - t0 >= 900, `${Date.now() - t0} ms`);
+
+  // 4) Navbat to'lib ketsa DARROV rad etadi — odam aylanani kuzatmasin
+  N.navbatniTozala();
+  const uzoq = Array.from({ length: 200 }, () =>
+    N.navbatga(() => new Promise((r) => setTimeout(() => r('ok'), 300))).catch((e) => e.turkum));
+  const natijalar = await Promise.all(uzoq);
+  const band = natijalar.filter((x) => x === 'band').length;
+  test('to‘lgan navbat rad etiladi', band > 0, `${band} ta rad etildi`);
+  test('rad etilganda «band» turkumi', band > 0);
+
+  // 5) Muhim ish (admin importi) navbat boshiga tushadi
+  N.navbatniTozala();
+  const tartib = [];
+  const band6 = Array.from({ length: 6 }, () =>
+    N.navbatga(() => new Promise((r) => setTimeout(r, 60))));   // hamma joyni band qiladi
+  await new Promise((r) => setTimeout(r, 5));
+  const oddiy = N.navbatga(async () => { tartib.push('oddiy'); });
+  const muhim = N.navbatga(async () => { tartib.push('muhim'); }, { muhim: true });
+  await Promise.all([...band6, oddiy, muhim]);
+  test('muhim ish oldinga o‘tdi', tartib[0] === 'muhim', tartib.join(' → '));
+
+  N.navbatniTozala();
+}
+
+// ═══════════ RASM: JPEG VA KESH ═══════════
+// Poster 1024px PNG = 1–2 MB. Do'kon sahifasida yigirmata shunday
+// rasm mobil internetda ilovani «sekin» qiladi.
+console.log('\n── RASM ──');
+{
+  const { rgbdanJpeg } = await import('../src/lib/jpeg.js');
+  const { jpegQil, olchamOl } = await import('../src/rasm/olcham.js');
+  const { pngdanRgb } = await import('../src/lib/pdf.js');
+  const { svgdanPng } = await import('../src/rasm/chiz.js');
+  const K = await import('../src/lib/media-kesh.js');
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f0d7c8"/><stop offset="1" stop-color="#2b3a55"/>
+    </linearGradient></defs>
+    <rect width="1024" height="1024" fill="url(#g)"/>
+    <circle cx="512" cy="400" r="260" fill="#fff" opacity="0.85"/></svg>`;
+  const png = await svgdanPng(svg, 1024);
+
+  const { eni, boyi, rgb } = pngdanRgb(png);
+  const jpg = rgbdanJpeg(rgb, eni, boyi, 72);
+  test('JPEG sarlavhasi to‘g‘ri', jpg[0] === 0xff && jpg[1] === 0xd8, jpg.subarray(0,2).toString('hex'));
+  test('JPEG oxiri to‘g‘ri', jpg.at(-2) === 0xff && jpg.at(-1) === 0xd9);
+  test('o‘lcham o‘qildi', JSON.stringify(olchamOl(jpg)) === JSON.stringify({ boyi: 1024, eni: 1024 }),
+    JSON.stringify(olchamOl(jpg)));
+  test('JPEG PNG dan ANCHA kichik', jpg.length < png.length / 4,
+    `${(png.length/1024).toFixed(0)} KB → ${(jpg.length/1024).toFixed(0)} KB`);
+
+  const kichik = await jpegQil(png, 'image/png', { eni: 400 });
+  test('kichraytirildi', olchamOl(kichik.bayt)?.eni === 400, String(olchamOl(kichik.bayt)?.eni));
+  test('mime jpeg', kichik.mime === 'image/jpeg');
+  test('kartochka rasmi 60 KB dan kichik', kichik.bayt.length < 60 * 1024,
+    `${(kichik.bayt.length/1024).toFixed(0)} KB`);
+
+  // Asl rasm kichik bo'lsa kattalashtirilmaydi
+  const mayda = await svgdanPng(svg, 100);
+  const m2 = await jpegQil(mayda, 'image/png', { eni: 400 });
+  test('kichik rasm kattalashtirilmaydi', olchamOl(m2.bayt)?.eni === 100,
+    String(olchamOl(m2.bayt)?.eni));
+
+  // ── Kesh ──
+  K.keshniBoshat();
+  test('bo‘sh keshda topilmaydi', K.keshdanOl('yoq:400') === null);
+  K.keshgaQoy('a:400', Buffer.alloc(1000, 1), 'image/jpeg');
+  test('keshdan topildi', K.keshdanOl('a:400')?.bayt.length === 1000);
+  test('holat hisoblanadi', K.keshHolati().soni === 1, JSON.stringify(K.keshHolati()));
+  K.keshdanOchir('a');
+  test('o‘chirilgach yo‘q', K.keshdanOl('a:400') === null);
+  test('hisob tozalandi', K.keshHolati().soni === 0);
+  K.keshniBoshat();
+}
+
 // ═══════════ O'ZBEKCHA NOM ═══════════
 // Ilovada mijoz o'zbekcha nomni ko'radi, buyurtma va xarid ro'yxati
 // esa ASL nom bilan ketadi — Koreyadan aynan shu mahsulot topiladi.

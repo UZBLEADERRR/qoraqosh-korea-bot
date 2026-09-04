@@ -93,7 +93,7 @@ export async function posterGoyalari(base64, mime, mahsulot) {
   const j = await aiJson(
     [{ text: GOYA_KORSATMA(mahsulot || {}) }, rasmPart(base64, mime)],
     GOYA_SXEMA,
-    { temperature: 0.9, maxTokens: 3000 },
+    { temperature: 0.9, maxTokens: 3000, muhim: true },
   );
 
   const s = (v, n) => String(v ?? '').slice(0, n);
@@ -146,7 +146,7 @@ caption, do not — leave that area as clean background instead.`;
     ? [{ text: toliq }, rasmPart(base64, mime || 'image/jpeg')]
     : [{ text: toliq }];
 
-  const rasm = await aiRasm(parts, { nisbat: nis });
+  const rasm = await aiRasm(parts, { nisbat: nis, muhim: true });
 
   // Model nisbatni har doim ham hurmat qilmaydi — o'zimiz markazdan kesamiz.
   // Yozuv qo'shmaymiz: rasm toza qoladi.

@@ -414,7 +414,7 @@ function karuselniChiz() {
   const jami = 1 + rasmlar.length;
 
   $('#karusel-lenta').innerHTML = aiSlayd()
-    + rasmlar.map((id) => `<div class="slayd"><img src="/media/${esc(id)}" alt="" loading="lazy"></div>`).join('');
+    + rasmlar.map((id) => `<div class="slayd"><img src="/media/${esc(id)}?w=800" alt="" loading="lazy"></div>`).join('');
   $('#karusel-nuqtalar').innerHTML = jami > 1
     ? Array.from({ length: jami }, (_, i) => `<i class="${i === 0 ? 'faol' : ''}"></i>`).join('') : '';
 
@@ -472,7 +472,7 @@ function namunaniChiz() {
   if (!rasm) return;
   const korsat = (bor) => { kor(rasm, bor); kor(yoq, !bor); };
   if (!holat.namuna) return korsat(false);
-  rasm.src = `/media/${holat.namuna}`;
+  rasm.src = `/media/${holat.namuna}?w=800`;
   // Rasm ochilmasa (o'chirilgan bo'lsa) o'rnida ikon qoladi
   rasm.onerror = () => korsat(false);
   rasm.onload = () => {
@@ -575,7 +575,7 @@ function rasmHtml(p, uslub = '', nishonlar = '') {
   // to'q gradient qo'yilardi va katalog rang-barang bo'lib ketardi.
   const fon = '';
   const ich = p.poster_id
-    ? `<img src="/media/${esc(p.poster_id)}" alt="${esc(nomi(p))}" loading="lazy">`
+    ? `<img src="/media/${esc(p.poster_id)}?w=400" alt="${esc(nomi(p))}" loading="lazy">`
     : ik('shisha', 44);
   return `<div class="rasm" style="${p.poster_id ? '' : fon};${uslub}">${ich}${nishonlar}</div>`;
 }
@@ -1366,7 +1366,7 @@ function natijaniChiz() {
       <button class="tavsiya-karta" data-tavsiya="${r.p.id}">
         <span class="tk-rasm" style="${r.p.poster_id ? '' :
           `background:linear-gradient(135deg,${esc(r.p.gradient?.[0] || '#3a3330')},${esc(r.p.gradient?.[1] || '#6b5d55')})`}">
-          ${r.p.poster_id ? `<img src="/media/${esc(r.p.poster_id)}" alt="" loading="lazy">`
+          ${r.p.poster_id ? `<img src="/media/${esc(r.p.poster_id)}?w=200" alt="" loading="lazy">`
                           : ik('shisha', 26)}
           <i class="tk-raqam">${i + 1}</i></span>
         <span class="tk-bosqich">${esc(BOSQICH[r.bosqich] || r.bosqich)}</span>
@@ -1511,11 +1511,18 @@ function savatniKorsat() {
 }
 
 /** Serverdan haqiqiy holatni olib, ekranni moslashtiradi. */
-async function savatniSinxronla() {
-  try {
-    holat.savat = (await api('/api/cart')).savat || [];
-    savatniKorsat();
-  } catch { /* keyingi safar */ }
+// Savatni server bilan tekislash. Har «+» bosilganda darrov emas,
+// bosishlar tinchigach BIR MARTA: odam beshta mahsulot qo'shsa beshta
+// ortiqcha so'rov ketardi, telefonda esa har so'rov sezilarli.
+let sinxronTaymer = null;
+function savatniSinxronla() {
+  clearTimeout(sinxronTaymer);
+  sinxronTaymer = setTimeout(async () => {
+    try {
+      holat.savat = (await api('/api/cart')).savat || [];
+      savatniKorsat();
+    } catch { /* keyingi safar */ }
+  }, 700);
 }
 
 async function savatga(id, soni = 1) {
@@ -1597,7 +1604,7 @@ function qoshimchaTavsiyaHtml() {
       <p>${esc(t.sabab)}.</p>
       <div class="ai-taklif-qator" data-taklif="${t.p.id}">
         <div class="savat-rasm">${t.p.poster_id
-          ? `<img src="/media/${esc(t.p.poster_id)}" alt="">` : ik('shisha', 26)}</div>
+          ? `<img src="/media/${esc(t.p.poster_id)}?w=200" alt="" loading="lazy">` : ik('shisha', 26)}</div>
         <div class="savat-tan">
           <div class="savat-brend">${esc(t.p.brand || '')}</div>
           <div class="savat-nom">${esc(nomi(t.p))}</div>
@@ -1654,7 +1661,7 @@ function savatniChiz() {
     ${holat.savat.map(({ products: p, quantity }) => `
       <div class="savat-qator">
         <div class="savat-rasm">
-          ${p.poster_id ? `<img src="/media/${esc(p.poster_id)}" alt="">` : ik('shisha', 28)}</div>
+          ${p.poster_id ? `<img src="/media/${esc(p.poster_id)}?w=200" alt="" loading="lazy">` : ik('shisha', 28)}</div>
         <div class="savat-tan">
           <div class="savat-nom">${esc(nomi(p))}</div>
           <div class="savat-brend">${esc(p.brand || '')}${p.volume ? ' · ' + esc(p.volume) : ''}</div>
@@ -2557,7 +2564,7 @@ function tavsiyaKartasi(t, tartibli = false) {
   const yoq = !(p.stock > 0);
   const savatda = holat.savat.some((r) => r.products.id === p.id);
   const rasm = p.poster_id
-    ? `<img src="/media/${esc(p.poster_id)}" alt="" loading="lazy">`
+    ? `<img src="/media/${esc(p.poster_id)}?w=200" alt="" loading="lazy">`
     : ik('shisha', 26);
   const eski = p.old_price && p.old_price > p.price ? `<s>${qisqaNarx(p.old_price)}</s>` : '';
   return `

@@ -104,7 +104,7 @@ export async function skrinshotdanMahsulot(base64, mime = 'image/jpeg') {
   const j = await aiJson(
     [{ text: KORSATMA }, rasmPart(base64, mime)],
     SXEMA,
-    { temperature: 0.2, maxTokens: 2048 },
+    { temperature: 0.2, maxTokens: 2048, muhim: true },
   );
 
   const s = (v, n) => String(v ?? '').trim().slice(0, n);

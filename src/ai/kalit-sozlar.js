@@ -75,7 +75,7 @@ export async function kalitSozlarAI(products) {
   const j = await aiJson(
     [{ text: KORSATMA + products.map(satr).join('\n') }],
     SXEMA,
-    { temperature: 0.3, maxTokens: 4096 },
+    { temperature: 0.3, maxTokens: 4096, muhim: true },
   );
 
   const bor = new Set(products.map((p) => p.id));
