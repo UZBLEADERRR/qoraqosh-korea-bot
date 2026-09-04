@@ -176,6 +176,22 @@ export function soxtaServer(port = 4444) {
       if (yol.includes('/file/bot')) { res.writeHead(200, { 'Content-Type': 'image/jpeg' }); return res.end(png()); }
       if (yol.endsWith('/sendMessage')) {
         const b = JSON.parse(await tana(req) || '{}');
+        // Tarmoq uzilishi: birinchi N urinishda ulanishni uzamiz
+        if (globalThis.TG_UZILISH > 0) {
+          globalThis.TG_UZILISH--;
+          urinishlar.push({ usul: 'sendMessage', chat_id: b.chat_id, uzildi: true });
+          return req.socket.destroy();
+        }
+        // Uzun matnni Telegram kabi rad etamiz
+        if (String(b.text || '').length > 4096) {
+          return j({ ok: false, error_code: 400,
+            description: 'Bad Request: message is too long' });
+        }
+        // Buzuq HTML ni ham xuddi Telegram kabi rad etamiz
+        if (b.parse_mode === 'HTML' && /<b>[^<]*$/.test(String(b.text || ''))) {
+          return j({ ok: false, error_code: 400,
+            description: "Bad Request: can't parse entities" });
+        }
         // Telegramning spam cheklovini taqlid qilish uchun
         if (globalThis.TG_FLOOD) {
           urinishlar.push({ usul: 'sendMessage', chat_id: b.chat_id });

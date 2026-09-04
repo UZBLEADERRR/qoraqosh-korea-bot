@@ -1011,6 +1011,56 @@ console.log('\n── MARKETPLACE ──');
 }
 
 
+// ═══════════ TARMOQ UZILISHI VA UZUN XABAR ═══════════
+// Railway'dan Telegram'ga ulanish uziladi. Ilgari bitta `fetch failed`
+// butun buyruqni yo'q qilardi: admin /orders yozsa CHATDA HECH NARSA
+// ko'rinmasdi va nima bo'lganini bilib bo'lmasdi.
+console.log('\n── TARMOQ UZILISHI ──');
+{
+  const { tg, yubor } = await import('../src/bot/tg.js');
+  const { urinishlar } = await import('./soxta-server.mjs');
+
+  urinishlar.length = 0;
+  globalThis.TG_UZILISH = 2;                 // ikkitasi uzilsin, uchinchisi o'tsin
+  const j = await yubor('800001', 'Uzilishdan keyin yetib kelgan xabar');
+  globalThis.TG_UZILISH = 0;
+  test('uzilishdan keyin qayta urindi va yetkazdi', j?.ok === true, j?.description);
+  test('uch marta urinildi', urinishlar.length === 3, `${urinishlar.length} ta`);
+
+  // Umuman ulanmasa ham ISTISNO tashlamaydi — buyruq yiqilmaydi
+  urinishlar.length = 0;
+  globalThis.TG_UZILISH = 99;
+  let tashladi = false;
+  const j2 = await yubor('800001', 'yetmaydigan xabar').catch(() => { tashladi = true; });
+  globalThis.TG_UZILISH = 0;
+  test('tarmoq butunlay yo‘q bo‘lsa ham istisno yo‘q', tashladi === false);
+  test('sabab tushunarli qaytdi', /TARMOQ/.test(j2?.description || ''), j2?.description);
+
+  // Uzun ro'yxat: Telegram 4096 dan uzunini rad etadi — bo'lib yuboramiz
+  yuborilgan.length = 0;
+  const uzun = Array.from({ length: 400 }, (_, i) =>
+    `${i + 1}. Mahsulot nomi juda uzun bo‘lgan qator — <b>3 dona</b>`).join('\n');
+  const uz = await yubor('700001', uzun, {
+    reply_markup: { inline_keyboard: [[{ text: 'Qabul qilindi', callback_data: 'x' }]] } });
+  test('uzun xabar yuborildi', uz?.ok === true, uz?.description);
+  test('bir nechta bo‘lakka bo‘lindi', yuborilgan.length > 1, `${yuborilgan.length} ta xabar`);
+  test('har bo‘lak chegaradan qisqa',
+    yuborilgan.every((x) => (x.text || '').length <= 4096),
+    String(Math.max(...yuborilgan.map((x) => (x.text || '').length))));
+  test('tugma faqat oxirgi bo‘lakda',
+    yuborilgan.filter((x) => x.reply_markup).length === 1
+    && Boolean(yuborilgan[yuborilgan.length - 1].reply_markup));
+
+  // Buzuq HTML — bo'sh chat eng yomon variant, teglarsiz bo‘lsa ham ketsin
+  yuborilgan.length = 0;
+  const buz = await yubor('700001', 'Yopilmagan <b>teg');
+  test('buzuq HTML da ham xabar yetdi', buz?.ok === true, buz?.description);
+  test('teglar olib tashlandi', !/[<>]/.test(yuborilgan.at(-1)?.text || ''),
+    yuborilgan.at(-1)?.text);
+
+  void tg;
+}
+
 // ═══════════ TELEGRAM CHEKLOVI (PEER_FLOOD) ═══════════
 // PEER_FLOOD — 429 emas, BOTGA qo'yilgan spam cheklovi va soatlab
 // turadi. Cheklov paytida yana urinish uni UZAYTIRADI, shuning uchun

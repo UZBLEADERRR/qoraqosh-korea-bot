@@ -905,6 +905,19 @@ qo'shiladi va xom RGB qayta siqiladi. Natija — A4, mahsulot suratlari
 bilan, brend ranglarida. Matn tanlanmaydi, lekin telefonda o'qiladigan
 qo'llanma uchun bu muhim emas.
 
+**Telegramga har so'rov qayta uriniladi.** Railway'dan `api.telegram.org`
+ga ulanish uzilib turadi va ilgari bitta `fetch failed` butun buyruqni
+yo'q qilardi: admin `/orders` yozsa CHATDA HECH NARSA ko'rinmasdi.
+Endi `tg()` uch marta uriniladi (0.4s → 1.2s), 25 soniyalik vaqt
+chegarasi bor va **hech qachon istisno tashlamaydi** — chaqiruvchi
+`{ ok:false, description:'TARMOQ: …' }` ni ko'radi va o'zi qaror qiladi.
+
+**Uzun xabar bo'linadi.** Telegram 4096 belgidan uzunini rad etadi —
+xarid ro'yxati o'sganda admin jim qolardi. `yubor()` matnni qator
+chegarasidan bo'ladi, tugmalarni oxirgi bo'lakka qo'yadi. HTML buzilgan
+bo'lsa (`can't parse entities`) xabar teglarsiz qayta yuboriladi:
+bo'sh chat eng yomon variant.
+
 **PEER_FLOOD — Telegramning bot ustidagi spam cheklovi.** Bu 429 emas:
 429 bir necha soniyada o'tadi, PEER_FLOOD esa soatlab turadi va
 cheklov paytida YANA URINISH uni uzaytiradi. Shuning uchun
