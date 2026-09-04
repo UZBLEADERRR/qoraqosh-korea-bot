@@ -82,6 +82,25 @@ Google Gemini · Railway.
   hammasi allaqachon ko'rinardi. Toifasi belgilanmagan mahsulotlar
   **«Boshqa»** bo'limiga tushadi — do'konda ko'rinmay qolgan mahsulot
   yo'qotilgan pul. Oxirida «Barcha mahsulotlar».
+- **Nomlar o'zbekcha.** Katalogdagi asl nom inglizcha yoki koreyscha
+  («Heartleaf Pore Deep Cleansing Oil») — mijoz uni o'qiy olmaydi va nima
+  ekanini tushunmaydi. Shuning uchun har mahsulotning **ikkita nomi**
+  bor: `name` — Koreyadagi ASL nom, `nom_uz` — ilovada ko'rinadigani
+  («Heartleaf teshik tozalovchi gidrofil moy»).
+
+  Asl nom hech qachon o'zgartirilmaydi: **buyurtma, xarid ro'yxati
+  (`/orders`), pochta hujjati va Koreyadagi qidiruv aynan shunga
+  tayanadi** — tarjimaga almashtirsak do'kondan qaysi mahsulot ekanini
+  topib bo'lmay qoladi.
+
+  O'zbekcha nomni AI yozadi: brend va mahsulot liniyasi (Heartleaf,
+  Vita C, Purple Tone-Up) o'zgarmaydi — ular identifikator; faqat
+  vazifani bildiruvchi qism o'giriladi. Yangi mahsulot `/qosh` bilan
+  qo'shilganda avtomatik to'ldiriladi, mavjudlari uchun panelda
+  **«N ta nomni o'zbekchaga o'girish»** tugmasi bor. Har mahsulotni
+  qo'lda ham tahrirlash mumkin. **Qidiruv ikkala nom bo'yicha ham
+  ishlaydi** — odam «gidrofil moy» deb ham, «cleansing oil» deb ham
+  qidiradi.
 - **Mahsulot kartasi** — yurakcha (sevimlilar), ★ reyting, narx,
   moslik yorlig'i va bitta bosishda savatga qo'shadigan «+».
   - **Reyting o'ylab topilmaydi**: u manba do'kondan (skrinshotdagi
@@ -818,6 +837,7 @@ src/
     pochta-hujjati.js  pochta uchun manzillar hujjati
     xarid-hisobot.js   xarid ro'yxati: mahsulot va viloyat bo'yicha jamlash
     ilova-kirish.js    telefon + botdan tasdiqlash (Telegramsiz seans)
+    nom-uz.js          mahsulot nomini o'zbekchalashtirish
     qollanma-hujjati.js mijozga qutiga qo'shiladigan parvarish qo'llanmasi
     mijoz-qollanma.js  to'lovdan keyin qo'llanmani yuborish (rasm + PDF)
     kalit-sozlar.js    qoida + AI dan kalit so'zlarni to'ldirish
@@ -852,6 +872,7 @@ migrations/
   027_mavzu_kiovo      yangi standart mavzu (oq fon, yorqin qizil)
   028_sharhlar         haqiqiy sharhlar + reyting triggeri
   029_ilova_kirish     kirish so'rovlari va brauzer seanslari
+  030_nom_uz           mahsulotning o'zbekcha nomi
 ```
 
 Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing

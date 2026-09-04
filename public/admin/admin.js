@@ -455,9 +455,12 @@ async function mahsulotlar(qidiruv = '') {
     holat.kesh.mahsulotlar = j.mahsulotlar;
     holat.kesh.kategoriyalar = j.kategoriyalar;
     const q = qidiruv.toLowerCase();
+    // Ikkala nom bo'yicha ham qidiriladi
     const royxat = q
-      ? j.mahsulotlar.filter((p) => `${p.name} ${p.brand || ''}`.toLowerCase().includes(q))
+      ? j.mahsulotlar.filter((p) =>
+          `${p.name} ${p.nom_uz || ''} ${p.brand || ''}`.toLowerCase().includes(q))
       : j.mahsulotlar;
+    const nomsiz = j.mahsulotlar.filter((p) => p.is_active && !p.nom_uz).length;
 
     $('#tan').innerHTML = `
       <div class="bosh"><h1>Mahsulotlar</h1><span class="ozgina">${royxat.length} ta</span></div>
@@ -466,6 +469,8 @@ async function mahsulotlar(qidiruv = '') {
           📦 Ko‘p rasmdan birdan qo‘shish</button>
         <button class="tug" id="t-skrin" style="flex:1">📷 Bitta rasmdan</button>
         <button class="tug" id="t-yangi" style="flex:1">+ Qo‘lda</button>
+        ${nomsiz ? `<button class="tug" id="t-nomuz" style="flex:1 1 100%">
+          🇺🇿 ${nomsiz} ta nomni o‘zbekchaga o‘girish</button>` : ''}
       </div>
       <div style="padding:0 16px 12px">
         <input id="m-qidiruv" placeholder="🔍 Nom yoki brend" value="${esc(qidiruv)}">
@@ -477,6 +482,7 @@ async function mahsulotlar(qidiruv = '') {
       t = setTimeout(() => { mahsulotlar(v); setTimeout(() => $('#m-qidiruv')?.focus(), 0); }, 300);
     };
     $('#t-yangi').onclick = () => mahsulotOyna(null);
+    $('#t-nomuz') && ($('#t-nomuz').onclick = nomlarniOgir);
     $('#t-skrin').onclick = skrinshotOyna;
     $('#t-toplam').onclick = toplamOyna;
     $$('[data-mah]').forEach((b) => b.onclick = () =>
@@ -488,6 +494,28 @@ async function mahsulotlar(qidiruv = '') {
   } catch (e) { xatoChiz(e); }
 }
 
+/**
+ * Katalogdagi hamma nomni o'zbekchaga o'girish.
+ *
+ * Asl nom O'ZGARMAYDI — u Koreyadan xarid qilish, pochta hujjati va
+ * /orders ro'yxati uchun kerak. Faqat ilovada ko'rinadigan nom yoziladi.
+ */
+async function nomlarniOgir() {
+  tasdiqla('Nomlarni o‘zbekchaga o‘girish',
+    'AI har mahsulotga o‘zbekcha nom yozadi. Asl nom o‘zgarmaydi — '
+    + 'xarid ro‘yxati va pochta hujjati baribir asl nom bilan ketadi. '
+    + 'Bir necha daqiqa olishi mumkin.', async () => {
+      tost('O‘girilmoqda…');
+      try {
+        const r = await api('/api/admin/nom-uz', { method: 'POST',
+          body: JSON.stringify({ chegara: 500 }) });
+        const n = r.natija || {};
+        tost(n.sabab || `${n.yozildi || 0} ta nom o‘girildi`);
+        holat.kesh = {}; mahsulotlar();
+      } catch (e) { tost(e.message, 'xato'); }
+    });
+}
+
 function mahsulotKarta(p) {
   const marja = p.price ? Math.round((p.price - p.cost_price) / p.price * 100) : 0;
   const omborYor = p.stock === 0 ? 'qizil' : p.stock <= 5 ? 'sariq' : 'yashil';
@@ -497,9 +525,11 @@ function mahsulotKarta(p) {
       <div style="display:flex;gap:10px;align-items:flex-start;min-width:0">
         <span style="font-size:26px;flex:0 0 auto">${esc(p.emoji || '🧴')}</span>
         <div style="min-width:0">
-          <div class="nom">${esc(p.name)}</div>
+          <div class="nom">${esc(p.nom_uz || p.name)}</div>
+          ${p.nom_uz ? `<div class="ozgina" style="opacity:.75">${esc(p.name)}</div>` : ''}
           <div class="ozgina">${esc(p.brand || '')}${p.volume ? ' · ' + esc(p.volume) : ''}
-            ${p.ai_filled ? '<span class="yor kok" style="margin-left:4px">AI</span>' : ''}</div>
+            ${p.ai_filled ? '<span class="yor kok" style="margin-left:4px">AI</span>' : ''}
+            ${p.nom_uz ? '' : '<span class="yor sariq" style="margin-left:4px">nomi inglizcha</span>'}</div>
         </div>
       </div>
       <span class="yor ${omborYor}">${p.stock} dona</span>
@@ -528,7 +558,13 @@ function mahsulotOyna(p) {
   modal(yangi ? 'Yangi mahsulot' : 'Mahsulotni tahrirlash', `
     ${p?.ai_filled && yangi ? `<div class="xabar-quti ok" style="margin:0 0 12px">
       AI to‘ldirdi — tekshirib chiqing</div>` : ''}
-    <label>Nomi *</label><input id="m-name" value="${esc(p?.name || '')}">
+    <label>Asl nomi *<span class="yordam">Koreyadagi nom — xarid ro‘yxati va
+      pochta hujjati shunga tayanadi, o‘zgartirmang</span></label>
+    <input id="m-name" value="${esc(p?.name || '')}">
+    <label>Ilovadagi nomi<span class="yordam">Mijoz shuni ko‘radi.
+      Bo‘sh qoldirsangiz asl nom ko‘rinadi va AI keyin to‘ldiradi.</span></label>
+    <input id="m-nomuz" value="${esc(p?.nom_uz || '')}"
+           placeholder="Heartleaf teshik tozalovchi gidrofil moy">
     <div class="forma-tor">
       <div><label>Brend</label><input id="m-brand" value="${esc(p?.brand || '')}"></div>
       <div><label>Hajm</label><input id="m-volume" value="${esc(p?.volume || '')}" placeholder="150 ml"></div>
@@ -579,7 +615,8 @@ function mahsulotOyna(p) {
     const xato = $('#m-xato');
     const tana = {
       id: p?.id || undefined,
-      name: $('#m-name').value.trim(), brand: $('#m-brand').value.trim(),
+      name: $('#m-name').value.trim(), nom_uz: $('#m-nomuz').value.trim(),
+      brand: $('#m-brand').value.trim(),
       category_id: Number($('#m-cat').value) || null, step: $('#m-step').value,
       price: Number($('#m-price').value), cost_price: Number($('#m-cost').value) || 0,
       stock: Number($('#m-stock').value) || 0, volume: $('#m-volume').value.trim(),

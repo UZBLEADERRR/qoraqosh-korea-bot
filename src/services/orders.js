@@ -58,7 +58,7 @@ export async function buyurtmaYarat(user, items,
 
 export const savatniOl = (userId) => qatorlar(
   `select c.quantity,
-          json_build_object('id', p.id, 'name', p.name, 'brand', p.brand,
+          json_build_object('id', p.id, 'name', p.name, 'nom_uz', p.nom_uz, 'brand', p.brand,
                             'price', p.price, 'stock', p.stock, 'emoji', p.emoji,
                             'volume', p.volume, 'poster_id', p.poster_id) as products
      from cart_items c

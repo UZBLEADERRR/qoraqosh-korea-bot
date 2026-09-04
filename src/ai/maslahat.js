@@ -148,7 +148,7 @@ KATALOG (id|brend nom|bosqich|muammo|teri|faol modda|narx):
 `;
 
 const katalogMatni = (products) => products.map((p) =>
-  `${p.id}|${p.brand ?? ''} ${p.name}|${p.step ?? '-'}|${(p.concerns || []).join(',') || '-'}`
+  `${p.id}|${p.brand ?? ''} ${p.nom_uz || p.name}|${p.step ?? '-'}|${(p.concerns || []).join(',') || '-'}`
   + `|${(p.skin_types || []).join(',') || '-'}|${(p.actives || []).join(',') || '-'}|${p.price}`
 ).join('\n');
 

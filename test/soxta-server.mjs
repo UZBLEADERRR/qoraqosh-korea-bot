@@ -52,7 +52,7 @@ const TAHLIL = {
 };
 
 /** Sxemaga qarab mos soxta javob qaytaradi. */
-function javobMatni(sxemaMatni) {
+function javobMatni(sxemaMatni, prompt = '') {
   aiHisobi.jami += 1;
   if (sxemaMatni.includes('kosmetikami')) aiHisobi.marketplace += 1;
   if (sxemaMatni.includes('muammolar')) return JSON.stringify(TAHLIL);
@@ -75,6 +75,17 @@ function javobMatni(sxemaMatni) {
       ingredients: 'Green Tea Extract, Glycerin',
       actives: ['green tea'], concerns: ['yoglilik'], skin_types: ['barcha'],
       warnings: '', emoji: '🧴' });
+  }
+
+  // O'zbekcha nom. Sxemasi kalit so'zlarnikiga o'xshaydi (natijalar[]),
+  // farqi — `nom` maydoni bor, `sozlar` yo'q.
+  if (sxemaMatni.includes('natijalar') && sxemaMatni.includes('"nom"')
+      && !sxemaMatni.includes('sozlar')) {
+    // id lar promptdagi ro'yxatdan olinadi: server faqat o'zi
+    // so'ragan mahsulotlarning javobini qabul qiladi
+    const royxat = [...prompt.matchAll(/^(\d+) \| /gm)].map((m) => Number(m[1]));
+    return JSON.stringify({ natijalar: royxat.map((id) => ({
+      id, nom: `Sinov o‘zbekcha nom ${id}` })) });
   }
 
   // AI maslahatchi. Ikki rejim: odatda TO'PLAM, globalThis.AI_SAVOL
@@ -374,14 +385,19 @@ export function soxtaServer(port = 4444) {
         const sxema = b.generationConfig?.responseSchema
           ? JSON.stringify(b.generationConfig.responseSchema)
           : (b.contents?.[0]?.parts || []).map((x) => x.text || '').join(' ');
-        return j({ candidates: [{ content: { parts: [{ text: javobMatni(sxema) }] }, finishReason: 'STOP' }] });
+        const prompt = (b.contents?.[0]?.parts || []).map((x) => x.text || '').join(' ');
+        return j({ candidates: [{ content: { parts: [{ text: javobMatni(sxema, prompt) }] },
+          finishReason: 'STOP' }] });
       }
 
       // ---- OpenRouter ----
       if (yol.endsWith('/chat/completions')) {
         const b = JSON.parse(await tana(req) || '{}');
         const sxema = JSON.stringify(b.response_format?.json_schema?.schema || {});
-        return j({ choices: [{ message: { content: javobMatni(sxema) }, finish_reason: 'stop' }] });
+        const prompt = (b.messages || []).map((m) => (typeof m.content === 'string' ? m.content
+          : (m.content || []).map((c) => c.text || '').join(' '))).join(' ');
+        return j({ choices: [{ message: { content: javobMatni(sxema, prompt) },
+          finish_reason: 'stop' }] });
       }
       j({ ok: false, description: 'noma’lum: ' + yol });
     });

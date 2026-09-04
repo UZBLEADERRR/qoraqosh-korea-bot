@@ -93,12 +93,23 @@ const meyor = (s) => translit(String(s || '').toLowerCase())
   .replace(/[^a-z0-9\u3130-\u318f\uac00-\ud7a3\s]/g, ' ')
   .replace(/\s+/g, ' ').trim();
 
+/**
+ * Ilovada KO'RINADIGAN nom.
+ *
+ * Katalogdagi `name` — Koreyadagi asl nom: mijoz uni o'qiy olmaydi.
+ * `nom_uz` esa o'zbekchalashtirilgani. Asl nom o'chirilmaydi:
+ * buyurtma, xarid ro'yxati va pochta hujjati aynan shunga tayanadi.
+ */
+const nomi = (p) => String(p?.nom_uz || '').trim() || String(p?.name || '').trim();
+
 /** Mahsulotdan qidiriladigan matn tuzadi. */
 function indeks(p) {
   const kat = holat.kategoriyalar.find((k) => k.id === p.category_id)?.name || '';
   // kalit_sozlar — serverda AI to'ldirgan «odam yozadigan» so'zlar:
   // penka, пенка, gel dlya umyvaniya, foam cleanser…
-  return meyor([p.name, p.brand, kat, p.step, p.description,
+  // IKKALA nom ham indeksga tushadi: odam «gidrofil moy» deb ham,
+  // «cleansing oil» deb ham qidiradi.
+  return meyor([p.name, p.nom_uz, p.brand, kat, p.step, p.description,
     ...(p.kalit_sozlar || []),
     ...(p.concerns || []), ...(p.skin_types || []), ...(p.actives || [])].join(' '));
 }
@@ -110,7 +121,7 @@ function ball(p, sorov) {
   if (!sozlar.length) return 1;
 
   const matn = p._indeks;
-  const nom  = meyor(`${p.brand || ''} ${p.name}`);
+  const nom  = meyor(`${p.brand || ''} ${p.name} ${p.nom_uz || ''}`);
   let b = 0;
 
   for (const soz of sozlar) {
@@ -564,7 +575,7 @@ function rasmHtml(p, uslub = '', nishonlar = '') {
   // to'q gradient qo'yilardi va katalog rang-barang bo'lib ketardi.
   const fon = '';
   const ich = p.poster_id
-    ? `<img src="/media/${esc(p.poster_id)}" alt="${esc(p.name)}" loading="lazy">`
+    ? `<img src="/media/${esc(p.poster_id)}" alt="${esc(nomi(p))}" loading="lazy">`
     : ik('shisha', 44);
   return `<div class="rasm" style="${p.poster_id ? '' : fon};${uslub}">${ich}${nishonlar}</div>`;
 }
@@ -728,7 +739,7 @@ function kartaHtml(p) {
          role="button" aria-label="Sevimlilarga">${ik('yurak', 17)}</i>`)}
     <div class="mtan">
       <div class="mbrend">${esc(p.brand || '')}</div>
-      <div class="mnom">${esc(p.name)}</div>
+      <div class="mnom">${esc(nomi(p))}</div>
       ${reytingHtml(p)}
       <div class="mnarx">${qisqaNarx(p.price)} so‘m${
         p.old_price && p.old_price > p.price ? `<s>${qisqaNarx(p.old_price)}</s>` : ''}</div>
@@ -864,7 +875,7 @@ function mahsulotOyna(id) {
           role="button" aria-label="Sevimlilarga">${ik('yurak', 18)}</i>`)}
     <div style="padding:18px 18px 0">
       <div class="mbrend">${esc(p.brand || '')}</div>
-      <h2 style="margin:5px 0 8px">${esc(p.name)}</h2>
+      <h2 style="margin:5px 0 8px">${esc(nomi(p))}</h2>
 
       <!-- Reyting va sotuv soni: ikkalasi ham HAQIQIY ma'lumot bo'lsa chiqadi -->
       <div class="oyna-baho">
@@ -1020,7 +1031,7 @@ function sharhOyna(id, joriy) {
     $('#modal-tan').innerHTML = `
       <div style="padding:18px 18px 0">
         <h2 style="margin-bottom:4px">${joriy ? 'Sharhni o‘zgartirish' : 'Sharh yozish'}</h2>
-        <p class="ozgina" style="margin-bottom:16px">${esc(p?.name || '')}</p>
+        <p class="ozgina" style="margin-bottom:16px">${esc(nomi(p))}</p>
 
         <div class="baho-tanlov" id="baho-tanlov">
           ${Array.from({ length: 5 }, (_, i) => `
@@ -1359,7 +1370,7 @@ function natijaniChiz() {
                           : ik('shisha', 26)}
           <i class="tk-raqam">${i + 1}</i></span>
         <span class="tk-bosqich">${esc(BOSQICH[r.bosqich] || r.bosqich)}</span>
-        <span class="tk-nom">${esc(r.p.name)}</span>
+        <span class="tk-nom">${esc(nomi(r.p))}</span>
         <span class="tk-brend">${esc(r.p.brand || '')}</span>
         <span class="tk-narx">${narx(r.p.price)}</span>
       </button>`).join('')}
@@ -1589,7 +1600,7 @@ function qoshimchaTavsiyaHtml() {
           ? `<img src="/media/${esc(t.p.poster_id)}" alt="">` : ik('shisha', 26)}</div>
         <div class="savat-tan">
           <div class="savat-brend">${esc(t.p.brand || '')}</div>
-          <div class="savat-nom">${esc(t.p.name)}</div>
+          <div class="savat-nom">${esc(nomi(t.p))}</div>
           <div class="savat-narx">${narx(t.p.price)}</div>
         </div>
         <button class="karta-qosh" data-taklif-qosh="${t.p.id}"
@@ -1645,7 +1656,7 @@ function savatniChiz() {
         <div class="savat-rasm">
           ${p.poster_id ? `<img src="/media/${esc(p.poster_id)}" alt="">` : ik('shisha', 28)}</div>
         <div class="savat-tan">
-          <div class="savat-nom">${esc(p.name)}</div>
+          <div class="savat-nom">${esc(nomi(p))}</div>
           <div class="savat-brend">${esc(p.brand || '')}${p.volume ? ' · ' + esc(p.volume) : ''}</div>
           <div class="savat-past">
             <span class="soni">
@@ -2558,7 +2569,7 @@ function tavsiyaKartasi(t, tartibli = false) {
             ? `<span class="t-bosqich">${esc(BOSQICH_NOM[t.bosqich] || t.bosqich)}</span>`
             : (p.brand ? `<span class="t-brend">${esc(p.brand)}</span>` : '')}
         </div>
-        <div class="t-nom">${esc(p.name)}</div>
+        <div class="t-nom">${esc(nomi(p))}</div>
         ${t.sabab ? `<div class="t-sabab">${esc(t.sabab)}</div>` : ''}
         ${t.qanday ? `<div class="t-qanday">${ik('soat', 13)}${esc(t.qanday)}</div>` : ''}
         <div class="t-past">

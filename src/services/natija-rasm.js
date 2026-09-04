@@ -21,7 +21,8 @@ export function tavsiyaRoyxati(tahlil, mahsulotlar = []) {
       if (!p) return null;
       return {
         bosqich: BOSQICH_NOMI[r.bosqich] || r.bosqich || '',
-        nom: p.name, brend: p.brand || '', poster_id: p.poster_id || null,
+        // Rasm MIJOZGA ketadi — o'zbekcha nom ko'rsatiladi
+        nom: p.nom_uz || p.name, brend: p.brand || '', poster_id: p.poster_id || null,
       };
     })
     .filter(Boolean);

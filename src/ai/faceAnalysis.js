@@ -99,7 +99,7 @@ const SXEMA = {
 
 function katalogMatni(products) {
   return products.map((p) =>
-    `${p.id}|${p.brand ?? ''} ${p.name}|bosqich:${p.step ?? '-'}|muammo:${(p.concerns || []).join(',') || '-'}|teri:${(p.skin_types || []).join(',') || '-'}|faol:${(p.actives || []).join(',') || '-'}`
+    `${p.id}|${p.brand ?? ''} ${p.nom_uz || p.name}|bosqich:${p.step ?? '-'}|muammo:${(p.concerns || []).join(',') || '-'}|teri:${(p.skin_types || []).join(',') || '-'}|faol:${(p.actives || []).join(',') || '-'}`
   ).join('\n');
 }
 

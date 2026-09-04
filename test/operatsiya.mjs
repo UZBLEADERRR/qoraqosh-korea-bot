@@ -1056,6 +1056,89 @@ console.log('\n── MARKETPLACE ──');
 }
 
 
+// ═══════════ O'ZBEKCHA NOM ═══════════
+// Ilovada mijoz o'zbekcha nomni ko'radi, buyurtma va xarid ro'yxati
+// esa ASL nom bilan ketadi — Koreyadan aynan shu mahsulot topiladi.
+console.log('\n── O‘ZBEKCHA NOM ──');
+{
+  const N = await import('../src/services/nom-uz.js');
+  const { tozala } = await import('../src/ai/nom-uz.js');
+
+  test('bo‘sh nom tozalanadi', tozala('  ') === '');
+  test('qo‘shtirnoq olib tashlanadi', tozala('"Namlovchi krem"') === 'Namlovchi krem');
+  test('BAQIRIQ kichraytiriladi', tozala('NAMLOVCHI KREM') === 'Namlovchi krem',
+    tozala('NAMLOVCHI KREM'));
+  test('juda uzun nom qisqartiriladi', tozala('a'.repeat(120)).length <= 70);
+
+  await sorov(`update products set nom_uz = null`);
+  const nomsizOldin = await N.nomsizSoni();
+  test('boshida nomsizlar bor', nomsizOldin > 0, `${nomsizOldin} ta`);
+
+  const r = await N.nomlarniToldir({ chegara: 50 });
+  test('nomlar to‘ldirildi', r.yozildi > 0, JSON.stringify(r));
+  test('nomsizlar kamaydi', (await N.nomsizSoni()) < nomsizOldin);
+
+  const p1 = await qator('select id, name, nom_uz from products where id = 1');
+  test('o‘zbekcha nom yozildi', Boolean(p1.nom_uz), p1.nom_uz);
+  test('ASL NOM O‘ZGARMADI', p1.name === 'Heartleaf Pore Deep Cleansing Oil', p1.name);
+
+  test('korinadiganNom o‘zbekchani beradi',
+    N.korinadiganNom(p1) === p1.nom_uz);
+  test('nom_uz bo‘lmasa asl nom ko‘rinadi',
+    N.korinadiganNom({ name: 'Asl', nom_uz: null }) === 'Asl');
+  test('bo‘sh nom_uz ham asl nomga tushadi',
+    N.korinadiganNom({ name: 'Asl', nom_uz: '   ' }) === 'Asl');
+
+  // Ilova katalogi o'zbekcha nomni beradi
+  const kat = await chaqirIlova('/api/catalog', 'GET');
+  const km = (kat.tana.mahsulotlar || []).find((x) => x.id === 1);
+  test('katalogda ikkala nom ham bor', Boolean(km?.name && km?.nom_uz),
+    `${km?.name} / ${km?.nom_uz}`);
+
+  // ENG MUHIMI: buyurtma ASL nom bilan yoziladi
+  const u = await qator(`select id from users where telegram_id = '800001'`);
+  await sorov('delete from cart_items where user_id = $1', [u.id]);
+  const { savatgaQosh, buyurtmaYarat } = await import('../src/services/orders.js');
+  await savatgaQosh(u.id, 1, 1);
+  const b = await buyurtmaYarat({ id: u.id, full_name: 'Sinov' },
+    [{ product_id: 1, quantity: 1 }],
+    { name: 'Sinov', phone: '+998901112233', address: 'Manzil 1',
+      viloyat: 'Toshkent shahri', tuman: 'Chilonzor', yetkazishTuri: 'filial' });
+  const element = (b.items || [])[0];
+  test('BUYURTMADA ASL NOM', element?.name === 'Heartleaf Pore Deep Cleansing Oil',
+    element?.name);
+  test('buyurtmaga o‘zbekcha nom tushmadi', !/Sinov o‘zbekcha/.test(element?.name || ''));
+
+  // Xarid ro'yxati ham asl nom bilan (Koreyadan shuni qidiriladi)
+  const xr = await chaqirAdmin('/api/admin/xarid?holat=yangi&kun=0', 'GET');
+  const xm = (xr.tana.mahsulotlar || []).find((x) => x.product_id === 1);
+  test('XARID RO‘YXATIDA ASL NOM', xm?.nom === 'Heartleaf Pore Deep Cleansing Oil', xm?.nom);
+
+  // Savatda esa o'zbekcha ko'rinadi
+  const { savatniOl } = await import('../src/services/orders.js');
+  await savatgaQosh(u.id, 1, 1);
+  const savat = await savatniOl(u.id);
+  test('savatda o‘zbekcha nom ham keladi', Boolean(savat[0]?.products?.nom_uz),
+    savat[0]?.products?.nom_uz);
+  await sorov('delete from cart_items where user_id = $1', [u.id]);
+
+  // Admin qo'lda tahrirlashi
+  const qol = await chaqirAdmin('/api/admin/nom-uz', 'POST',
+    { id: 1, nom: '  Qo‘lda yozilgan nom  ' });
+  test('admin qo‘lda nom yozdi', qol.tana.nom_uz === 'Qo‘lda yozilgan nom', qol.tana.nom_uz);
+  const p2 = await qator('select name, nom_uz from products where id = 1');
+  test('qo‘lda yozgach ham asl nom joyida',
+    p2.name === 'Heartleaf Pore Deep Cleansing Oil' && p2.nom_uz === 'Qo‘lda yozilgan nom');
+
+  // Bo'sh yuborilsa tozalanadi va yana asl nom ko'rinadi
+  await chaqirAdmin('/api/admin/nom-uz', 'POST', { id: 1, nom: '' });
+  const p3 = await qator('select name, nom_uz from products where id = 1');
+  test('bo‘sh nom tozalab yuboriladi', p3.nom_uz === null);
+  test('shunda ilovada asl nom ko‘rinadi', N.korinadiganNom(p3) === p3.name);
+
+  await sorov(`update products set nom_uz = null`);
+}
+
 // ═══════════ TELEGRAMSIZ KIRISH ═══════════
 // Bosh ekrandagi yorliq Telegramni ochishga majbur qilardi. Endi odam
 // raqamini kiritadi, botga tasdiqlash keladi, tasdiqlagach brauzerda

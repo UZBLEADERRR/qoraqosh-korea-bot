@@ -18,6 +18,7 @@ import { skrinshotdanMahsulot } from '../ai/skrinshot-mahsulot.js';
 import { narxHisobla, qoidaniTozala } from '../lib/narx.js';
 import { faylOl, yubor, tahrirla } from '../bot/tg.js';
 import { kalitlarniQosh } from './kalit-sozlar.js';
+import { nomniQosh } from './nom-uz.js';
 import { keshniTashla } from '../lib/kesh.js';
 import { uzumgaMoslab } from './uzum-narx.js';
 import { posterChiz } from '../ai/poster.js';
@@ -169,6 +170,9 @@ export async function bittaSkrinshot(fileId, qoida) {
   await posterSaqla(base64, p.id);
   // Qidiruv "penka" deb ham topsin
   kalitlarniQosh(p.id).catch(() => {});
+  // Ilovada mijoz o'zbekcha nomni ko'rsin. Asl nom o'zgarmaydi —
+  // Koreyadan xarid qilishda aynan u kerak.
+  nomniQosh(p.id).catch(() => {});
   keshniTashla('katalog');
 
   return { holat: 'qoshildi', mahsulot: p, narx: n, uzum: uz.ozgardi ? uz.uzum : null, karta };

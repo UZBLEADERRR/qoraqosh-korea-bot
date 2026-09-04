@@ -4,6 +4,7 @@ import { issueAdminToken, verifyAdminToken, loginBloklanganmi, loginXato, loginT
 import { ok, xato, tana, ipOl, javob } from '../lib/http.js';
 import { verifyInitData } from '../lib/auth.js';
 import { kalitlarniToldir } from '../services/kalit-sozlar.js';
+import { nomlarniToldir, saqla as nomniSaqla, nomsizSoni } from '../services/nom-uz.js';
 import { havolasizlar } from '../services/skrinshot-import.js';
 import { mahsulotniTani } from '../ai/productEnrich.js';
 import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
@@ -408,6 +409,34 @@ export async function adminRoutes(req, res, yol) {
     }
   }
 
+  // ── O'ZBEKCHA NOM ──
+  // Katalogdagi nom inglizcha yoki koreyscha — mijoz uni o'qiy olmaydi.
+  // Asl nom SAQLANADI (Koreyadan xarid, pochta hujjati, /orders shunga
+  // tayanadi), ilovada esa o'zbekchasi ko'rsatiladi.
+  if (yol === '/api/admin/nom-uz' && req.method === 'POST') {
+    const b = await tana(req);
+    // Bitta mahsulotni qo'lda tahrirlash
+    if (b.id) {
+      const nom = await nomniSaqla(Number(b.id), String(b.nom || ''));
+      katalogYangilandi();
+      return ok(res, { id: Number(b.id), nom_uz: nom });
+    }
+    try {
+      const n = await nomlarniToldir({
+        hammasi: b.hammasi === true,
+        chegara: Math.max(1, Math.min(2000, Number(b.chegara) || 300)),
+      });
+      katalogYangilandi();
+      return ok(res, { natija: n });
+    } catch (e) {
+      return xato(res, 502, e.message);
+    }
+  }
+
+  if (yol === '/api/admin/nom-uz' && req.method === 'GET') {
+    return ok(res, { nomsiz: await nomsizSoni() });
+  }
+
   if (yol === '/api/admin/products-toplam' && req.method === 'POST') {
     const royxat = (await tana(req)).mahsulotlar;
     if (!Array.isArray(royxat) || !royxat.length) return xato(res, 400, 'Ro‘yxat bo‘sh.');
@@ -469,6 +498,9 @@ export async function adminRoutes(req, res, yol) {
     const b = await tana(req);
     const m = {
       name: String(b.name || '').trim().slice(0, 120),
+      // Ilovada ko'rinadigan o'zbekcha nom. Bo'sh bo'lsa asl nom
+      // ko'rsatiladi, AI keyin to'ldirib qo'yadi.
+      nom_uz: String(b.nom_uz || '').trim().slice(0, 120) || null,
       brand: String(b.brand || '').trim().slice(0, 60) || null,
       category_id: b.category_id ? Number(b.category_id) : null,
       step: b.step || null,
@@ -498,7 +530,7 @@ export async function adminRoutes(req, res, yol) {
     const q = [m.name, m.brand, m.category_id, m.step, m.price, m.old_price, m.cost_price,
                m.stock, m.volume, m.country, m.description, m.usage_text, m.ingredients,
                m.actives, m.concerns, m.skin_types, m.warnings, m.emoji, m.ai_filled, m.is_active,
-               m.manba_url, m.manba, m.ogirlik];
+               m.manba_url, m.manba, m.ogirlik, m.nom_uz];
     try {
       const natija = b.id
         ? await qator(
@@ -506,13 +538,13 @@ export async function adminRoutes(req, res, yol) {
                     cost_price=$7,stock=$8,volume=$9,country=$10,description=$11,usage_text=$12,
                     ingredients=$13,actives=$14,concerns=$15,skin_types=$16,warnings=$17,
                     emoji=$18,ai_filled=$19,is_active=$20,manba_url=$21,manba=$22,
-                    ogirlik=$23,updated_at=now()
-              where id=$24 returning *`, [...q, b.id])
+                    ogirlik=$23,nom_uz=$24,updated_at=now()
+              where id=$25 returning *`, [...q, b.id])
         : await qator(
             `insert into products (name,brand,category_id,step,price,old_price,cost_price,stock,
                     volume,country,description,usage_text,ingredients,actives,concerns,skin_types,
                     warnings,emoji,ai_filled,is_active,manba_url,manba,ogirlik)
-             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
              returning *`, q);
       katalogYangilandi();
       return ok(res, { mahsulot: natija });
