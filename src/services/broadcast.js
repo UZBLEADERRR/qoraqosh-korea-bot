@@ -4,12 +4,18 @@
 // qaytadi va bot vaqtincha bloklanadi. Shuning uchun ataylab sekin
 // yuboramiz va 429 kelsa kutamiz.
 //
+// PEER_FLOOD boshqacha: bu 429 emas, BOTGA qo'yilgan spam cheklovi va
+// soatlab turadi. Kelgan zahoti yuborishni TO'XTATAMIZ — qolgan mingta
+// odamga urinish cheklovni faqat uzaytiradi. Yuborish «to'xtatildi»
+// holatida saqlanadi, admin keyin qayta boshlaydi.
+//
 // Yuborish fonda ketadi: minglab foydalanuvchi bo'lsa bu daqiqalar oladi,
 // admin esa javobni darhol olishi kerak.
 import { qator, qatorlar, sorov } from '../db.js';
 import { yubor, tg } from '../bot/tg.js';
+import { floodmi, floodKutilmoqda, floodQolgan } from '../lib/flood.js';
 
-const SEKUNDIGA = 20;                 // xavfsiz tezlik
+const SEKUNDIGA = 10;                 // xavfsiz tezlik (ilgari 20 edi)
 const ORALIQ = Math.ceil(1000 / SEKUNDIGA);
 
 const kut = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -35,20 +41,24 @@ export async function broadcastBoshla({ matn, fileId, adminId, chatId }) {
 }
 
 async function yuborishniBajar(id, oluvchilar, { matn, fileId }, hisobotChat) {
-  let yuborildi = 0, xato = 0, bloklangan = 0;
+  let yuborildi = 0, xato = 0, bloklangan = 0, toxtadi = false;
 
   for (const u of oluvchilar) {
+    if (floodKutilmoqda()) { toxtadi = true; break; }
     const javob = fileId
       ? await tg('sendPhoto', { chat_id: u.telegram_id, photo: fileId,
-          caption: matn, parse_mode: 'HTML' })
+          caption: matn, parse_mode: 'HTML' }, { ommaviy: true })
       : await tg('sendMessage', { chat_id: u.telegram_id, text: matn,
-          parse_mode: 'HTML', link_preview_options: { is_disabled: true } });
+          parse_mode: 'HTML', link_preview_options: { is_disabled: true } },
+          { ommaviy: true });
 
     if (javob?.ok) {
       yuborildi++;
     } else {
       xato++;
       const sabab = String(javob?.description || '');
+      // Cheklov boshlandi — qolganini yubormaymiz
+      if (floodmi(sabab) || sabab === 'PEER_FLOOD_KUTISH') { toxtadi = true; break; }
       // Foydalanuvchi botni bloklagan — qayta urinishdan foyda yo'q,
       // uni belgilab qo'yamiz, keyingi yuborishlarda vaqt ketmaydi.
       if (/bot was blocked|user is deactivated|chat not found/i.test(sabab)) {
@@ -69,15 +79,19 @@ async function yuborishniBajar(id, oluvchilar, { matn, fileId }, hisobotChat) {
   }
 
   await sorov(
-    `update yuborishlar set holat = 'tugadi', yuborildi = $1, xato = $2, tugadi_at = now()
-      where id = $3`, [yuborildi, xato, id]);
+    `update yuborishlar set holat = $4, yuborildi = $1, xato = $2, tugadi_at = now()
+      where id = $3`, [yuborildi, xato, id, toxtadi ? 'toxtatildi' : 'tugadi']);
 
   if (hisobotChat) {
+    const qolgan = oluvchilar.length - yuborildi - xato;
     await yubor(hisobotChat, [
-      `📊 <b>Yuborish tugadi</b>`, ``,
+      toxtadi ? `🚫 <b>Yuborish to‘xtatildi</b>` : `📊 <b>Yuborish tugadi</b>`, ``,
       `✅ Yetib bordi: <b>${yuborildi}</b>`,
       xato ? `⚠️ Yetmadi: ${xato}` : '',
       bloklangan ? `🚫 Botni bloklaganlar: ${bloklangan}` : '',
+      toxtadi ? `\n<b>Telegram botni vaqtincha chekladi (PEER_FLOOD).</b>`
+        + `\nQolgan ${qolgan} ta odamga yuborilmadi — davom etsak cheklov uzayadi.`
+        + `\nTaxminan <b>${Math.ceil(floodQolgan() / 60)} daqiqadan</b> keyin qayta urinib ko‘ring.` : '',
     ].filter(Boolean).join('\n')).catch(() => {});
   }
 }

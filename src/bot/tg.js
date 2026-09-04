@@ -1,9 +1,21 @@
 // Telegram Bot API ustidan yupqa qatlam.
 import { config } from '../config.js';
+import { floodmi, floodBelgila, floodKutilmoqda } from '../lib/flood.js';
 
 const API = `${config.telegramApi}/bot${config.botToken}`;
 
-export async function tg(method, body = {}) {
+/**
+ * @param {string} method
+ * @param {object} body
+ * @param {{ommaviy?: boolean}} [opts]  ommaviy — bu mijozning savoliga
+ *   javob emas, o'zimiz boshlagan yuborish (reklama, bosqich xabari,
+ *   kanal posti). Telegram cheklovi paytida bunday yuborish
+ *   TO'XTATILADI: urinishning o'zi cheklovni uzaytiradi.
+ */
+export async function tg(method, body = {}, opts = {}) {
+  if (opts.ommaviy && floodKutilmoqda()) {
+    return { ok: false, description: 'PEER_FLOOD_KUTISH' };
+  }
   const res = await fetch(`${API}/${method}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -19,9 +31,15 @@ export async function tg(method, body = {}) {
     return { ok: false, description: `HTTP ${res.status}` };
   }
   if (!data.ok) {
+    // PEER_FLOOD — botga qo'yilgan spam cheklovi. Har urinishda jurnalni
+    // to'ldirmaymiz: sovish oynasi uzayganidagina bir marta yoziladi.
+    if (floodmi(data.description)) {
+      floodBelgila({ usul: method, chat: body.chat_id });
+      return data;
+    }
     // "message is not modified" kabi zararsiz xatolarni jim o'tkazamiz
     if (!/not modified|message to (edit|delete) not found|query is too old/i.test(data.description || '')) {
-      console.error(`TG ${method}:`, data.description);
+      console.error(`TG ${method}${body.chat_id ? ` → ${body.chat_id}` : ''}:`, data.description);
     }
   }
   return data;
@@ -69,8 +87,12 @@ export const rasmniUzat = (chat_id, file_id, caption = '', extra = {}) =>
   tg('sendPhoto', { chat_id, photo: file_id, caption: caption.slice(0, 1024),
     parse_mode: 'HTML', ...extra });
 
-export const yubor = (chat_id, text, extra = {}) =>
-  tg('sendMessage', { chat_id, text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, ...extra });
+export const yubor = (chat_id, text, extra = {}) => {
+  const { ommaviy, ...qolgan } = extra;
+  return tg('sendMessage',
+    { chat_id, text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, ...qolgan },
+    { ommaviy });
+};
 
 export const tahrirla = (chat_id, message_id, text, extra = {}) =>
   tg('editMessageText', { chat_id, message_id, text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, ...extra });

@@ -2,7 +2,10 @@
 import http from 'node:http';
 import zlib from 'node:zlib';
 
-export const yuborilgan = [];   // botdan chiqqan xabarlar
+export const yuborilgan = [];
+// Telegramga qilingan HAR urinish (yuborilgan bo'lmasa ham) —
+// cheklov paytida bot hali ham so'rov yuboryaptimi, shuni bilish uchun
+export const urinishlar = [];
 let mahsulotHisobi = 0;
 let skrinshotHisobi = 0;         // soxta AI qaytaradigan mahsulot nomlari uchun
 // AI necha marta chaqirilgani — «arzon filtr token tejaydimi» degan
@@ -173,8 +176,14 @@ export function soxtaServer(port = 4444) {
       if (yol.includes('/file/bot')) { res.writeHead(200, { 'Content-Type': 'image/jpeg' }); return res.end(png()); }
       if (yol.endsWith('/sendMessage')) {
         const b = JSON.parse(await tana(req) || '{}');
+        // Telegramning spam cheklovini taqlid qilish uchun
+        if (globalThis.TG_FLOOD) {
+          urinishlar.push({ usul: 'sendMessage', chat_id: b.chat_id });
+          return j({ ok: false, error_code: 400, description: 'Bad Request: PEER_FLOOD' });
+        }
         b.id = ++xabarId;
         yuborilgan.push(b);
+        urinishlar.push({ usul: 'sendMessage', chat_id: b.chat_id });
         return j({ ok: true, result: { message_id: b.id, chat: { id: b.chat_id } } });
       }
       // sendPhoto multipart bilan keladi — izohni ajratib olamiz, baytni tashlaymiz

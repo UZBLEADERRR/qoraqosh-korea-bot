@@ -1011,6 +1011,73 @@ console.log('\n── MARKETPLACE ──');
 }
 
 
+// ═══════════ TELEGRAM CHEKLOVI (PEER_FLOOD) ═══════════
+// PEER_FLOOD — 429 emas, BOTGA qo'yilgan spam cheklovi va soatlab
+// turadi. Cheklov paytida yana urinish uni UZAYTIRADI, shuning uchun
+// ommaviy yuborish darrov to'xtashi kerak.
+console.log('\n── TELEGRAM CHEKLOVI ──');
+{
+  const { floodTozala, floodKutilmoqda, floodQolgan } =
+    await import('../src/lib/flood.js');
+  const { urinishlar } = await import('./soxta-server.mjs');
+  const bc = await import('../src/services/broadcast.js');
+  floodTozala();
+
+  // Ko'p odam bo'lsin — cheklov birinchisidayoq to'xtatishi kerak
+  for (let i = 0; i < 12; i++) {
+    await sorov(`insert into users (telegram_id, full_name, phone, source)
+      values ($1, 'Sinov', '+99890111' || $2, 'telegram')
+      on conflict (telegram_id) do nothing`, [`9500${i}`, String(2000 + i)]);
+  }
+  const hammasiSoni = await qiymat(
+    `select count(*)::int from users where not is_blocked and telegram_id is not null`);
+
+  globalThis.TG_FLOOD = true;
+  urinishlar.length = 0;
+  yuborilgan.length = 0;
+  const y = await bc.broadcastBoshla({ matn: 'Sinov reklama', chatId: '700001' });
+  // Fon vazifasi tugashini kutamiz
+  for (let i = 0; i < 60; i++) {
+    const h = await bc.broadcastHolati(y.id);
+    if (h.holat !== 'ketmoqda') break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  globalThis.TG_FLOOD = false;
+
+  test('cheklov aniqlandi', floodKutilmoqda() === true);
+  test('sovish oynasi qo‘yildi', floodQolgan() > 60, `${floodQolgan()} sek`);
+  test('yuborish TO‘XTATILDI, hammaga urinilmadi',
+    urinishlar.length < hammasiSoni, `${urinishlar.length} / ${hammasiSoni}`);
+  test('birinchi xatodayoq to‘xtadi', urinishlar.length <= 2, `${urinishlar.length} ta urinish`);
+
+  const h = await bc.broadcastHolati(y.id);
+  test('yuborish «toxtatildi» deb belgilandi', h.holat === 'toxtatildi', h.holat);
+
+  // Cheklov paytida ommaviy yuborish umuman API ga bormaydi
+  urinishlar.length = 0;
+  const { tg } = await import('../src/bot/tg.js');
+  const rad = await tg('sendMessage', { chat_id: '800001', text: 'x' }, { ommaviy: true });
+  test('cheklov paytida ommaviy so‘rov yuborilmaydi', urinishlar.length === 0);
+  test('sabab tushunarli', rad.description === 'PEER_FLOOD_KUTISH', rad.description);
+
+  // Mijozning savoliga javob esa ISHLAYDI — uni javobsiz qoldirib bo'lmaydi
+  const javob = await tg('sendMessage', { chat_id: '800001', text: 'javob' });
+  test('oddiy javob cheklov paytida ham ketadi', javob.ok === true);
+
+  // /holat adminga holatni ko'rsatadi
+  yuborilgan.length = 0;
+  await yoz('700001', '/holat');
+  test('/holat cheklovni ko‘rsatdi', /PEER_FLOOD/.test(hammasi()));
+  test('/holat nima qilishni aytdi', /BotSupport/.test(hammasi()));
+
+  floodTozala();
+  await sorov(`delete from users where telegram_id like '9500%'`);
+  test('cheklov tozalangach yana ishlaydi', floodKutilmoqda() === false);
+  yuborilgan.length = 0;
+  await yoz('700001', '/holat');
+  test('/holat toza holatni ham ko‘rsatadi', /cheklovi yo‘q/.test(hammasi()));
+}
+
 // ═══════════ MINI APP HAVOLASI ═══════════
 // Bosh ekranga qo'yilgan yorliq BOT SUHBATINI ochardi, ilovani emas.
 // Sabab: yorliq ilova qanday ochilganiga qarab yasaladi — to'g'ridan

@@ -4,6 +4,7 @@ import { qator, qatorlar, sorov, sozlama } from '../../db.js';
 import { yubor, tg, tgFayl, javobBer, harakat } from '../tg.js';
 import { esc, narx } from '../format.js';
 import { adminmi } from '../../lib/admin.js';
+import { floodKutilmoqda, floodQolgan, floodTekshir } from '../../lib/flood.js';
 import { config } from '../../config.js';
 import { brendNomi } from '../../lib/brend.js';
 import { xabar } from '../shablon.js';
@@ -30,6 +31,7 @@ export const BUYRUQLAR = [
   ['/tanitish', 'Mahsulotni kanalda reklama qilish'],
   ['/brend',    'Brend nomini o‘zgartirish'],
   ['/panel',    'Admin panelni ochish'],
+  ['/holat',    'Telegram cheklovi va bot holati'],
 ];
 
 /** Admin holati — ko'p qadamli buyruqlar uchun (users.state ustunida). */
@@ -112,7 +114,7 @@ async function qabulQilindi(cq, user) {
 
   // Mijozlarga xabar
   const buyurtmalar = await partiyaBuyurtmalari(id);
-  for (const o of buyurtmalar) mijozgaBosqich(o, 'qadoqlanmoqda').catch(() => {});
+  bosqichniTarqat(buyurtmalar, 'qadoqlanmoqda', cq.message?.chat?.id).catch(() => {});
 }
 
 // ══════════════════ Kanaldan to'lovni tasdiqlash ══════════════════
@@ -224,7 +226,7 @@ async function partiyaBosqichi(cq) {
   await javobBer(cq.id, `${b.emoji} ${b.nom}`);
 
   const buyurtmalar = await partiyaBuyurtmalari(Number(id));
-  for (const o of buyurtmalar) mijozgaBosqich(o, holat).catch(() => {});
+  bosqichniTarqat(buyurtmalar, holat, cq.message?.chat?.id).catch(() => {});
 
   const kel = keyingi(holat);
   const kb = [];
@@ -286,12 +288,45 @@ async function partiyaRoyxati(cq) {
 /** Bosqich o'zgarganda mijozga xabar. */
 async function mijozgaBosqich(buyurtma, holat) {
   const u = await qator('select telegram_id from users where id = $1', [buyurtma.user_id]);
-  if (!u?.telegram_id) return;
+  if (!u?.telegram_id) return false;
   const b = bosqich(holat);
   const shablon = await sozlama(`xabar_holat_${holat}`, '');
   const matn = String(shablon || '').replace(/"/g, '')
     || `${b.emoji} <b>{raqam}</b> — ${b.nom}`;
-  await yubor(u.telegram_id, matn.replace(/\{raqam\}/g, esc(buyurtma.order_no)));
+  const j = await yubor(u.telegram_id, matn.replace(/\{raqam\}/g, esc(buyurtma.order_no)),
+    { ommaviy: true });
+  return Boolean(j?.ok);
+}
+
+/**
+ * Partiyadagi HAMMA mijozga bosqich xabari — birma-bir va sekin.
+ *
+ * Ilgari hammasi bir vaqtda ketardi (`for (...) mijozgaBosqich(...)`),
+ * ya'ni qirq buyurtmali partiya Telegramga qirqta bir vaqtdagi so'rov
+ * yuborardi. Aynan shunday portlash PEER_FLOOD ga — botga qo'yilgan
+ * spam chekloviga — olib keladi. Endi soniyada 10 tadan oshmaydi va
+ * cheklov boshlansa yuborish TO'XTAYDI: davom etish uni uzaytiradi.
+ */
+async function bosqichniTarqat(buyurtmalar, holat, chatId) {
+  let yetdi = 0, yetmadi = 0;
+  for (const o of buyurtmalar) {
+    if (floodKutilmoqda()) { yetmadi += buyurtmalar.length - yetdi - yetmadi; break; }
+    try { (await mijozgaBosqich(o, holat)) ? yetdi++ : yetmadi++; }
+    catch { yetmadi++; }
+    await new Promise((r) => setTimeout(r, 100));      // ~10/sek
+  }
+  if (chatId && yetmadi) {
+    const q = floodQolgan();
+    await yubor(chatId, [
+      `⚠️ <b>${yetmadi} ta mijozga xabar yetmadi</b>`,
+      yetdi ? `✅ Yetganlari: ${yetdi} ta` : '',
+      q ? `\n🚫 Telegram botni vaqtincha chekladi (PEER_FLOOD).`
+        + `\nOmmaviy yuborish <b>${Math.ceil(q / 60)} daqiqaga</b> to‘xtatildi —`
+        + ` davom etsak cheklov uzayadi.`
+        + `\n\n<i>Buyurtma holati bazada o‘zgardi, faqat xabar ketmadi.</i>` : '',
+    ].filter(Boolean).join('\n')).catch(() => {});
+  }
+  return { yetdi, yetmadi };
 }
 
 // ══════════════════ /reklama — BROADCAST ══════════════════
@@ -387,6 +422,47 @@ async function panelHavolasi(chatId) {
     { reply_markup: { inline_keyboard: [[{ text: 'Panelni ochish', web_app: { url } }]] } });
 }
 
+/**
+ * Bot holati: eng muhimi — Telegram cheklovi bormi.
+ *
+ * PEER_FLOOD chiqqanda mijozlarga xabar ketmay qoladi, lekin buyurtma
+ * bazada joyida turadi. Admin buni jurnaldan emas, botning o'zidan
+ * ko'rishi kerak.
+ */
+async function botHolati(chatId) {
+  const f = floodTekshir();
+  const q = [`📡 <b>Bot holati</b>`, ``];
+
+  if (f.cheklangan) {
+    q.push(`🚫 <b>Telegram cheklovi (PEER_FLOOD) kuchda</b>`,
+      `Ommaviy yuborish <b>${Math.ceil(f.qolgan / 60)} daqiqaga</b> to‘xtatildi.`, ``,
+      `Mijozlarning savoliga javob berish ISHLAYDI — faqat reklama va`,
+      `bosqich xabarlari kutadi.`, ``,
+      `<b>Nega bo‘ladi:</b> qisqa vaqtda ko‘p odamga xabar yuborilgan,`,
+      `yoki botni bloklaganlarga qayta yozilgan, yoki kimdir shikoyat qilgan.`, ``,
+      `<b>Nima qilish kerak:</b>`,
+      `1. Kutish — cheklov o‘zi tushadi.`,
+      `2. Takrorlansa <a href="https://t.me/BotSupport">@BotSupport</a> ga yozing.`,
+      `3. Reklamani kamroq va kamdan-kam yuboring.`);
+  } else {
+    q.push(`✅ Telegram cheklovi yo‘q`);
+  }
+
+  if (f.soni) {
+    q.push(``, `<i>Server ko‘tarilgandan beri ${f.soni} marta cheklovga tushdi.</i>`);
+  }
+  const kutayotgan = await qiymatOl(
+    `select count(*)::int from yuborishlar where holat = 'toxtatildi'`);
+  if (kutayotgan) q.push(`<i>To‘xtab qolgan yuborish: ${kutayotgan} ta.</i>`);
+
+  return yubor(chatId, q.join('\n'));
+}
+
+const qiymatOl = async (sql) => {
+  const r = await qator(sql).catch(() => null);
+  return r ? Number(Object.values(r)[0]) : 0;
+};
+
 // ══════════════════ Dispetcher ══════════════════
 
 /**
@@ -425,6 +501,7 @@ async function buyruqniBajar(buyruq, argument, chatId, user) {
     case '/reja':    await rejaMenyusi(chatId); return true;
     case '/tanitish': await tanitishBoshla(chatId, argument); return true;
     case '/panel':   await panelHavolasi(chatId); return true;
+    case '/holat':   await botHolati(chatId); return true;
     case '/brend':   await brendBoshla(chatId, user, argument); return true;
     case '/bekor':   await holatTozala(user.id); await yubor(chatId, '❌ Bekor qilindi.'); return true;
     case '/admin':

@@ -366,16 +366,19 @@ Kompyuter oldiga o'tirmasdan, Telegram'dan:
 | `/tanitish` | **Mahsulot reklamasi.** Mahsulotni tanlaysiz, AI katalogdagi ma'lumotdan reklama posti yozadi va tasdiqlashga yuboradi. Qidirish: `/tanitish krem`. |
 | `/brend` | Brend nomini o'zgartirish. |
 | `/panel` | Admin panelni ochish. |
+| `/holat` | **Telegram cheklovi bormi.** PEER_FLOOD chiqqan bo'lsa qancha qolganini, nega bo'lganini va nima qilish kerakligini aytadi. |
 
 **Ikkita hujjat** (`/partiya` yoki `/orders` ostidagi tugmalardan):
 
 - **📄 Pochta hujjati** — partiyadagi hamma jo'natma bitta `.docx` da:
   umumiy jadval (kimga, manzil, telefon, buyurtma, summa) va har biri uchun
   qirqiladigan «KIMDAN / KIMGA» yorlig'i. Print qilib pochtaga olib borasiz.
-- **📘 Parvarish qo'llanmasi** — har mijoz uchun alohida sahifa: u AYNAN
-  o'zi olgan mahsulotlarni qaysi tartibda va qanday ishlatishi, faol
-  moddalari, ehtiyot choralari. Print qilib har birini o'z qutisiga solasiz.
-  Mahsulot to'g'ri ishlatilsa natija ko'rinadi — bu qayta xaridga olib keladi.
+- **📘 Parvarish qo'llanmasi** (`.pdf`) — har mijoz uchun alohida sahifa: u
+  AYNAN o'zi olgan mahsulotlarni qaysi tartibda va qanday ishlatishi, faol
+  moddalari, ehtiyot choralari — **har biri katta surati bilan**. Print qilib
+  har birini o'z qutisiga solasiz. Mahsulot to'g'ri ishlatilsa natija
+  ko'rinadi — bu qayta xaridga olib keladi. Mijozga to'lov tasdiqlangach shu
+  PDF avtomatik boradi (Word emas: `.docx` ni telefonda hamma ocholmaydi).
 
 ### 🎨 Ilova mavzusi (ranglar)
 
@@ -901,6 +904,23 @@ o'raydi: PNG ochiladi (zlib), qator filtrlari yechiladi, alfa oq fonga
 qo'shiladi va xom RGB qayta siqiladi. Natija — A4, mahsulot suratlari
 bilan, brend ranglarida. Matn tanlanmaydi, lekin telefonda o'qiladigan
 qo'llanma uchun bu muhim emas.
+
+**PEER_FLOOD — Telegramning bot ustidagi spam cheklovi.** Bu 429 emas:
+429 bir necha soniyada o'tadi, PEER_FLOOD esa soatlab turadi va
+cheklov paytida YANA URINISH uni uzaytiradi. Shuning uchun
+`lib/flood.js` sovish oynasini yuritadi (15 daqiqadan boshlab, har
+takrorlanishda ikki barobar, 6 soatgacha): oyna ochiq turganda
+ommaviy yuborishlar — reklama, bosqich xabarlari — Telegramga umuman
+bormaydi, mijozning savoliga javob esa ketaveradi (odamni javobsiz
+qoldirish undan battar).
+
+Cheklovga olib kelgan asosiy sabab tuzatildi: partiya bosqichi
+o'zgarganda mijozlarga xabar `for (...) mijozgaBosqich(...)` bilan
+HAMMASI BIR VAQTDA ketardi — qirq buyurtmali partiya Telegramga qirqta
+bir vaqtdagi so'rov yuborardi. Endi birma-bir, soniyada 10 tadan.
+Reklama tezligi ham 20 dan 10 ga tushdi va birinchi PEER_FLOOD da
+to'xtaydi (yuborish `toxtatildi` holatida saqlanadi). Admin `/holat`
+bilan cheklov bor-yo'qligini va qancha qolganini ko'radi.
 
 **Word hujjati kutubxonasiz.** `.docx` — bu ZIP ichidagi bir nechta XML.
 Word Unicode'ni o'zi biladi, shuning uchun PDF'dagi kabi shrift joylashtirish
