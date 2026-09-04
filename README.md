@@ -257,9 +257,17 @@ Google Gemini · Railway.
   Server viloyat/tuman juftligini rasmiy ro'yxatga solishtiradi.
 - **To'lov faqat karta orqali** — buyurtma tasdiqlangach karta raqami chiqadi,
   mijoz to'lab chek rasmini yuklaydi. Naqd pul yo'q.
-- **Eng yaqin ombor** — mahsulot yetib kelganda mijozga aynan qaysi omborga
-  kelgani, uning manzili, mo'ljali, telefoni va ish vaqti yuboriladi.
-  Ombor avval tuman, topilmasa viloyat bo'yicha tanlanadi.
+- **Ombor yo'q — pochtadan jo'natiladi.** Mahsulot O'zbekistonga yetib
+  kelganda mijozga «bojxonadan o'tdi, jo'natishga tayyorlanmoqda» deb
+  xabar boradi va HECH QANDAY manzil va'da qilinmaydi. Jo'natish paytida
+  admin buyurtma kartasidagi **«Qayerga jo'natildi?»** maydoniga filial
+  manzili yoki kuzatuv raqamini yozadi — o'sha matn mijozga xabar bo'lib
+  boradi. Shunday qilib mijoz mavjud bo'lmagan omborga bormaydi.
+  Ilgari bu xabar mijozga `{ombor}`, `{manzil}` degan XOM belgilar bilan
+  borardi: shablonda o'rin egallovchi bor edi, to'ldiruvchi kod esa yo'q.
+  Endi o'rin egallovchilar bitta joyda (`oringaQoy`) to'ldiriladi:
+  qiymati yo'q belgi bilan birga butun qator olib tashlanadi, tanilmagan
+  belgi esa umuman chiqmaydi.
 - **Tahlil bo'limida O'Z suratingiz** ko'rinadi, ostida belgilar ro'yxati
   (sabab va yechim bilan) va tavsiya etilgan mahsulotlar **gorizontal
   lentada**, rasmi va narxi bilan.
@@ -267,7 +275,7 @@ Google Gemini · Railway.
   nechta buyurtma va jami qancha xarid qilgani; buyurtmalar tarixi;
   konsultatsiya, yordam, ommaviy oferta va ma'lumotni o'chirish.
 - **Buyurtma yo'li ko'rinib turadi** — to'lov tasdiqlandi → Koreyada
-  qadoqlanmoqda → Koreyadan jo'natildi → yo'lda → O'zbekiston omborida →
+  qadoqlanmoqda → Koreyadan jo'natildi → yo'lda → O'zbekistonga yetdi →
   pochtadan jo'natildi → yetib keldi. Har bosqichda xabar keladi.
 - **Majburiy obuna** (ixtiyoriy) — kanalga a'zo bo'lmagan foydalanuvchi
   botdan foydalana olmaydi. Kanal havolasi tugmada ham, matnda ham
@@ -373,6 +381,8 @@ bosishda qayta chizdiradi.
   (yangi 75%, tasdiqlangan 90%, yo'lda 97%) va tarixiy tugallanish ulushiga
   ko'paytiriladi; oy oxiri prognozi kunlik o'rtachadan chiqariladi.
 - **Buyurtmalar** — holatni o'zgartirish, bekor qilishda ombor avtomatik qaytadi.
+  «📮 Pochtadan jo'natildi» ni bosganda **qayerga jo'natilgani** so'raladi
+  (filial manzili yoki kuzatuv raqami) va mijozga xabar bo'lib boradi.
 - **Mahsulotni o'chirish — ikki yo'l.** «📦 Arxivga olish» katalogdan
   yashiradi va qaytarish mumkin; «💥 Butunlay o'chirish» bazadan o'chiradi
   (rasmi va savatlardagi nusxalari bilan) va qaytarib bo'lmaydi. Ikkalasida

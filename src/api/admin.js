@@ -11,10 +11,10 @@ import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
 import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi } from '../ai/index.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { config } from '../config.js';
-import { HOLATLAR } from '../lib/bosqichlar.js';
+import { HOLATLAR, bosqich } from '../lib/bosqichlar.js';
 import { yubor, tg, tgFayl } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
-import { xabar, keshniTozala } from '../bot/shablon.js';
+import { xabar, xabarOrin, keshniTozala } from '../bot/shablon.js';
 import { STANDART, GURUHLAR, TAVSIF } from '../bot/shablonlar-standart.js';
 import { palitra, rangTozala, MAVZU_STANDART, TOPLAMLAR } from '../lib/mavzu.js';
 import * as mp from '../services/marketplace.js';
@@ -180,11 +180,21 @@ export async function adminRoutes(req, res, yol) {
 
     if (b.status === 'bekor' && eski.status !== 'bekor') await sorov('select restock_order($1)', [b.id]);
 
-    await sorov(
-      `update orders set status=$1, cancel_reason=$2, updated_at=now() where id=$3`,
-      [b.status, b.status === 'bekor' ? String(b.reason || '').slice(0, 200) : null, b.id]);
+    // Pochta izohi — jo'natma qayerga ketgani va kuzatuv raqami.
+    // Bizda ombor yo'q: mahsulot eng yaqin pochtadan jo'natiladi va
+    // aniq joy faqat shu paytda ma'lum bo'ladi.
+    const pochta = b.pochta_izoh !== undefined
+      ? String(b.pochta_izoh || '').slice(0, 300).trim() || null
+      : eski.pochta_izoh;
 
-    mijozgaXabar(eski, b.status, b.reason).catch((e) => console.error('Xabar:', e.message));
+    await sorov(
+      `update orders set status=$1, cancel_reason=$2, pochta_izoh=$4, updated_at=now()
+        where id=$3`,
+      [b.status, b.status === 'bekor' ? String(b.reason || '').slice(0, 200) : null,
+       b.id, pochta]);
+
+    mijozgaXabar({ ...eski, pochta_izoh: pochta }, b.status, b.reason)
+      .catch((e) => console.error('Xabar:', e.message));
     kanalgaHolat(eski.order_no, b.status, b.reason).catch(() => {});
     return ok(res, { ok: true });
   }
@@ -1581,39 +1591,46 @@ async function sotuvlar(oy = '') {
   };
 }
 
+/**
+ * Bosqich o'zgarganda mijozga xabar (admin panel yo'li).
+ *
+ * OMBOR YO'Q. Ilgari bu yerda «eng yaqin ombor» qidirilar va mijozga
+ * «olib ketishingiz mumkin» deb manzil yuborilardi — bunday joy
+ * mavjud emas. Mahsulot O'zbekistonga kelgach eng yaqin pochtadan
+ * mijozning manziliga jo'natiladi; aniq filial esa faqat jo'natish
+ * paytida ma'lum bo'ladi, shuning uchun admin uni `pochta_izoh` ga
+ * yozadi va mijoz keyingi xabarda ko'radi.
+ *
+ * Bot yo'li bilan bir xil to'ldiruvchi ishlatiladi: qaysi yo'ldan
+ * yuborilishidan qat'i nazar mijoz bir xil matnni oladi.
+ */
 async function mijozgaXabar(buyurtma, holat, sabab) {
   const chatId = buyurtma.telegram_id;
   if (!chatId) return;
 
+  const [tel, ishVaqti] = await Promise.all([
+    sozlama('menejer_telefon', ''), sozlama('menejer_ish_vaqti', ''),
+  ]);
+  const toza = (v) => String(v ?? '').trim();
+  const b = bosqich(holat);
+  const sbb = toza(sabab ?? buyurtma.cancel_reason);
+
   const qiymatlar = {
-    raqam: esc(buyurtma.order_no),
-    sabab: sabab ? `\n\nSabab: ${esc(sabab)}` : '',
+    raqam:       toza(buyurtma.order_no),
+    holat:       b.nom,
+    yetkazish:   buyurtma.yetkazish_turi === 'uy'
+      ? 'Uyingizgacha yetkazamiz' : 'Eng yaqin pochta filialiga',
+    manzil:      [buyurtma.viloyat, buyurtma.tuman].filter(Boolean).join(', '),
+    pochta_izoh: toza(buyurtma.pochta_izoh),
+    telefon:     toza(tel),
+    ish_vaqti:   toza(ishVaqti),
+    // Shablonda «bekor qilindi.{sabab}» — sarlavha shu yerda
+    // qo'shiladi, sababsiz bo'lsa qator umuman chiqmaydi.
+    sabab:       sbb ? `\n\nSabab: ${sbb}` : '',
   };
 
-  // "Omborga yetib keldi" — eng yaqin ombor ma'lumotini qo'shamiz
-  if (holat === 'omborda') {
-    let ombor = buyurtma.ombor_id
-      ? await qator('select * from omborlar where id = $1', [buyurtma.ombor_id])
-      : null;
-    // Buyurtma paytida ombor topilmagan bo'lsa — hozir qidiramiz
-    if (!ombor) {
-      ombor = await qator(
-        `select * from omborlar
-          where faol and (viloyat = $1 or $1 is null)
-          order by (tuman = $2) desc nulls last, tartib limit 1`,
-        [buyurtma.viloyat || null, buyurtma.tuman || null]);
-      if (ombor) await sorov('update orders set ombor_id = $1 where id = $2', [ombor.id, buyurtma.id]);
-    }
-    Object.assign(qiymatlar, {
-      ombor:     esc(ombor?.nom || 'Markaziy ombor'),
-      manzil:    esc(ombor?.manzil || ''),
-      mo_ljal:   ombor?.mo_ljal ? `📌 ${esc(ombor.mo_ljal)}` : '',
-      telefon:   esc(ombor?.telefon || ''),
-      ish_vaqti: esc(ombor?.ish_vaqti || ''),
-    });
-  }
-
-  const matn = await xabar(`xabar_holat_${holat}`, qiymatlar, '');
+  const matn = await xabarOrin(`xabar_holat_${holat}`, qiymatlar,
+    `${b.emoji} <b>{raqam}</b> — ${b.nom}`);
   if (matn) await yubor(chatId, matn);
 }
 

@@ -3,6 +3,7 @@
 // {figurali qavs} — o'rin egallovchi. Noma'lum nom bo'sh qatorga aylanadi,
 // shuning uchun admin shablonni buzib qo'ysa ham bot yiqilmaydi.
 import { qatorlar } from '../db.js';
+import { esc } from './format.js';
 
 let kesh = null;
 let keshVaqti = 0;
@@ -45,6 +46,51 @@ export async function xabar(kalit, qiymatlar = {}, zaxira = '') {
   const s = await shablonlar();
   const shablon = s.get(kalit);
   return tozala(toldir(shablon || zaxira, qiymatlar));
+}
+
+/**
+ * Shablonni bazadan olib `oringaQoy` bilan to'ldiradi.
+ *
+ * Mijozga BOSQICH xabari shu yo'l bilan boradi: u yerda to'ldirilmagan
+ * belgi qolib ketishi mumkin emas.
+ */
+export async function xabarOrin(kalit, qiymatlar = {}, zaxira = '') {
+  const s = await shablonlar();
+  return oringaQoy(s.get(kalit) || zaxira, qiymatlar);
+}
+
+/**
+ * Shablonga qiymatlarni qo'yadi — mijozga ketadigan xabar uchun.
+ *
+ * `toldir` dan farqi ikkita, ikkalasi ham mijoz ko'rgan muammodan
+ * kelib chiqqan:
+ *   1. Qiymati yo'q o'rin egallovchi bilan birga BUTUN QATOR olib
+ *      tashlanadi — yolg'iz «📞» yoki bo'sh «📍» qolib ketmasin.
+ *   2. Tanilmagan belgi ham o'chiriladi. Ilgari mijozga «{ombor}»,
+ *      «{manzil}» degan xom matn borardi: shablonda belgi bor edi,
+ *      to'ldiruvchi kod esa yo'q edi.
+ * Qiymatlar HTML uchun ekranlanadi: mijoz ismida «<» bo'lsa xabar
+ * Telegramda ochilmay qolmasin.
+ */
+export function oringaQoy(shablon, qiymatlar = {}) {
+  const kerakli = String(shablon || '').split('\n').filter((q) => {
+    const belgilar = [...q.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+    if (!belgilar.length) return true;
+    const bosh = belgilar.every((k) => !String(qiymatlar[k] ?? '').trim());
+    // Belgilardan tashqari faqat bezak (emoji, teg, tinish) qolsa —
+    // qatorning o'zi keraksiz.
+    const faqatBezak = q.replace(/\{\w+\}/g, '')
+      .replace(/[\s📍📞🕘📦🚚·•—–-]/gu, '')
+      .replace(/<\/?[a-z]+>/gi, '') === '';
+    return !(bosh && faqatBezak);
+  });
+
+  return kerakli.join('\n')
+    .replace(/\{(\w+)\}/g, (_, k) => esc(String(qiymatlar[k] ?? '')))
+    .replace(/<(b|i|u|s|code)>\s*<\/\1>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+$/gm, '')
+    .trim();
 }
 
 /**

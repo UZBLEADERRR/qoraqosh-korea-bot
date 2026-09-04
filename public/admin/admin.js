@@ -308,7 +308,8 @@ const HOLATLAR = {
   qadoqlanmoqda:    ['📦 Koreyada qadoqlanmoqda', 'sariq'],
   korea_jonatildi:  ['✈️ Koreyadan jo‘natildi',   'sariq'],
   yolda:            ['🌍 Yo‘lda',                 'sariq'],
-  omborda:          ['🏢 O‘zbekiston omborida',   'kok'],
+  // Ombor YO'Q — mahsulot O'zbekistonga kelib, bojxonadan o'tdi.
+  omborda:          ['🏢 O‘zbekistonga yetdi',     'kok'],
   pochta_jonatildi: ['📮 Pochtadan jo‘natildi',   'kok'],
   yetkazildi:       ['🎉 Yetib keldi',            'yashil'],
   bekor:            ['❌ Bekor',                  'qizil'],
@@ -378,6 +379,8 @@ function buyurtmaOyna(o) {
     <div class="qator-satr"><span class="k">Manzil</span>
       <span class="v" style="max-width:60%">${esc(o.customer_address || '—')}</span></div>
     ${o.note ? `<div class="qator-satr"><span class="k">Izoh</span><span class="v">${esc(o.note)}</span></div>` : ''}
+    ${o.pochta_izoh ? `<div class="qator-satr"><span class="k">📮 Pochta</span>
+      <span class="v" style="max-width:60%">${esc(o.pochta_izoh)}</span></div>` : ''}
 
     <h3 style="margin:18px 0 6px">Mahsulotlar</h3>
     ${o.items.map((i) => `<div class="qator-satr">
@@ -411,10 +414,10 @@ function buyurtmaOyna(o) {
 }
 
 async function holatOzgartir(o, yangi) {
-  const amal = async (sabab) => {
+  const amal = async (qosh = {}) => {
     try {
       await api('/api/admin/order-status', { method: 'POST',
-        body: JSON.stringify({ id: o.id, status: yangi, reason: sabab || null }) });
+        body: JSON.stringify({ id: o.id, status: yangi, reason: null, ...qosh }) });
       modalYop(); tost('Holat o‘zgartirildi'); yuklanmoqda(); buyurtmalar();
     } catch (e) { tost(e.message, 'xato'); }
   };
@@ -423,12 +426,28 @@ async function holatOzgartir(o, yangi) {
       <p class="mayda">Sabab mijozga xabar bo‘lib boradi. Mahsulotlar omborga qaytadi.</p>
       <input id="bekor-sabab" placeholder="Masalan: mahsulot tugadi" style="margin-top:12px">
       <button class="tug xavf keng" id="t-bekor" style="margin-top:16px">Bekor qilish</button>`);
-    $('#t-bekor').onclick = () => amal($('#bekor-sabab').value.trim());
+    $('#t-bekor').onclick = () => amal({ reason: $('#bekor-sabab').value.trim() });
+    return;
+  }
+  // Jo'natish paytida QAYERGA ketgani ma'lum bo'ladi — mijoz aynan
+  // shuni kutadi. Izohsiz o'tkazsa xabar quruq chiqadi, shuning uchun
+  // maydon shu yerda so'raladi (majburiy emas: ba'zan keyin aniqlanadi).
+  if (yangi === 'pochta_jonatildi') {
+    const joy = o.yetkazish_turi === 'uy' ? 'uy manziliga' : 'eng yaqin filialga';
+    modal('Qayerga jo‘natildi?', `
+      <p class="mayda">Mijozga xabar bo‘lib boradi: filial manzili yoki
+        kuzatuv raqami. Bo‘sh qoldirsangiz faqat ${esc(joy)} deb ketadi.</p>
+      <input id="pochta-izoh" maxlength="300" value="${esc(o.pochta_izoh || '')}"
+        placeholder="Masalan: Chilonzor 12-filial · kuzatuv AB123456789UZ"
+        style="margin-top:12px">
+      <button class="tug asos keng" id="t-pochta" style="margin-top:16px">📮 Jo‘natildi</button>`);
+    $('#t-pochta').onclick = () => amal({ pochta_izoh: $('#pochta-izoh').value.trim() });
     return;
   }
   if (yangi === 'omborda') {
-    return tasdiqla('Omborga yetib keldimi?',
-      'Mijozga eng yaqin ombor manzili va telefoni yuboriladi.', () => amal());
+    return tasdiqla('O‘zbekistonga yetdimi?',
+      'Mijozga «bojxonadan o‘tdi, jo‘natishga tayyorlanmoqda» deb xabar boradi. '
+      + 'Manzil va’da qilinmaydi — u keyingi bosqichda aytiladi.', () => amal());
   }
   amal();
 }

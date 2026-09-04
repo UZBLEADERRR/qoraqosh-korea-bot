@@ -19,7 +19,8 @@ export const GURUHLAR = [
   {
     nom: '📦 Buyurtma holatlari',
     izoh: 'Admin panelda holatni o‘zgartirganingizda mijozga boradigan xabar.',
-    kalitlar: ['xabar_holat_tasdiqlangan', 'xabar_holat_omborda', 'xabar_holat_yolda',
+    kalitlar: ['xabar_holat_tasdiqlangan', 'xabar_holat_omborda',
+               'xabar_holat_pochta_jonatildi', 'xabar_holat_yolda',
                'xabar_holat_yetkazildi', 'xabar_holat_bekor', 'xabar_tolov_tasdiq'],
   },
   {
@@ -71,9 +72,12 @@ export const TAVSIF = {
   xabar_rad:            { nom: 'Rasm rad etildi', izoh: 'Rasm sifati talabga javob bermasa.', orin: ['emoji', 'sabab'] },
 
   xabar_holat_tasdiqlangan: { nom: 'Tasdiqlandi', izoh: '', orin: ['raqam'] },
-  xabar_holat_omborda:      { nom: 'Omborga yetib keldi',
-    izoh: 'Eng yaqin ombor ma’lumoti avtomatik qo‘yiladi.',
-    orin: ['raqam', 'ombor', 'manzil', 'mo_ljal', 'telefon', 'ish_vaqti'] },
+  xabar_holat_omborda:      { nom: 'O‘zbekistonga yetib keldi',
+    izoh: 'Bojxonadan o‘tdi. Manzil VA’DA QILINMAYDI — u keyingi bosqichda aytiladi.',
+    orin: ['raqam'] },
+  xabar_holat_pochta_jonatildi: { nom: 'Pochtadan jo‘natildi',
+    izoh: 'Qayerga jo‘natilgani buyurtma kartasidagi «Pochta izohi» dan olinadi.',
+    orin: ['raqam', 'yetkazish', 'manzil', 'pochta_izoh', 'telefon', 'ish_vaqti'] },
   xabar_holat_yolda:        { nom: 'Yo‘lda',      izoh: '', orin: ['raqam'] },
   xabar_holat_yetkazildi:   { nom: 'Yetkazildi',  izoh: '', orin: ['raqam'] },
   xabar_holat_bekor:        { nom: 'Bekor qilindi', izoh: 'Sabab yozsangiz {sabab} ga tushadi.', orin: ['raqam', 'sabab'] },
@@ -184,17 +188,25 @@ Savolingiz bo‘lsa menejerimiz javob beradi.
 /ochir — ma’lumotimni o‘chirish`,
 
   xabar_holat_tasdiqlangan: `✅ <b>{raqam}</b> buyurtmangiz tasdiqlandi. Tayyorlanmoqda.`,
+  // Bizda OMBOR YO'Q — mahsulot eng yaqin pochtadan jo'natiladi.
+  // Aniq joy keyinroq ma'lum bo'ladi, shuning uchun bu xabarda manzil
+  // va'da qilinmaydi.
   xabar_holat_omborda:
-`📦 <b>{raqam}</b> buyurtmangiz omborga yetib keldi!
+`📦 <b>{raqam}</b> buyurtmangiz O‘zbekistonga yetib keldi!
 
-📍 <b>{ombor}</b>
+Bojxonadan o‘tdi va jo‘natishga tayyorlanmoqda.
+
+<i>Qayerdan olishingizni — eng yaqin pochta filialidanmi yoki
+uyingizgami — keyingi xabarda aytamiz.</i>`,
+  xabar_holat_pochta_jonatildi:
+`📮 <b>{raqam}</b> buyurtmangiz jo‘natildi!
+
+📍 <b>{yetkazish}</b>
 {manzil}
-{mo_ljal}
+{pochta_izoh}
 
 📞 {telefon}
-🕘 {ish_vaqti}
-
-<i>Olib ketishingiz yoki kuryer yetkazishini kutishingiz mumkin.</i>`,
+🕘 {ish_vaqti}`,
   xabar_holat_yolda:        `🚚 <b>{raqam}</b> buyurtmangiz yo‘lga chiqdi. Kuryer bog‘lanadi.`,
   xabar_holat_yetkazildi:   `📦 <b>{raqam}</b> yetkazildi. Xaridingiz uchun rahmat! ✨`,
   xabar_holat_bekor:        `❌ <b>{raqam}</b> bekor qilindi.{sabab}`,

@@ -1679,5 +1679,98 @@ console.log('\n── PDF ──');
   test('startxref xref ga to‘g‘ri keladi', xom.slice(joy, joy + 4) === 'xref', String(joy));
 }
 
+// ═══════════ BOSQICH XABARI: OMBOR YO'Q ═══════════
+// Mijozga «📍 {ombor} {manzil} {mo_ljal}» degan XOM matn borgan edi:
+// shablonda o'rin egallovchi bor, to'ldiruvchi kod esa yo'q. Ustiga
+// bizda ombor umuman yo'q — «olib ketishingiz mumkin» yolg'on va'da.
+console.log('\n── BOSQICH XABARI (OMBOR YO‘Q) ──');
+{
+  const { oringaQoy } = await import('../src/bot/shablon.js');
+
+  // ── to'ldiruvchining o'zi ──
+  test('tanilmagan belgi mijozga bormaydi',
+    !/[{}]/.test(oringaQoy('Salom {ombor} {mo_ljal}!', { raqam: 'A1' })),
+    oringaQoy('Salom {ombor} {mo_ljal}!', { raqam: 'A1' }));
+
+  const kop = oringaQoy('📮 {raqam}\n📍 {yetkazish}\n{pochta_izoh}\n📞 {telefon}',
+    { raqam: 'QQ-1', yetkazish: 'Uyingizgacha', pochta_izoh: '', telefon: '' });
+  test('bo‘sh belgi bilan butun qator o‘chadi',
+    kop === '📮 QQ-1\n📍 Uyingizgacha', JSON.stringify(kop));
+
+  test('to‘ldirilgan qator qoladi',
+    oringaQoy('{a} · {b}', { a: 'bor', b: '' }) === 'bor ·',
+    oringaQoy('{a} · {b}', { a: 'bor', b: '' }));
+
+  test('HTML ekranlanadi',
+    oringaQoy('{nom}', { nom: '<script>' }) === '&lt;script&gt;');
+
+  test('bo‘sh teg qolmaydi', oringaQoy('<b>{x}</b>a', { x: '' }) === 'a',
+    oringaQoy('<b>{x}</b>a', { x: '' }));
+
+  // ── haqiqiy buyurtma bo'ylab ──
+  const mijoz = await qator(`select id, telegram_id from users where telegram_id='800001'`);
+  const { buyurtmaYarat } = await import('../src/services/orders.js');
+  await sorov('delete from cart_items where user_id = $1', [mijoz.id]);
+  await sorov(`update settings set value='0'::jsonb where key='minimal_buyurtma'`);
+  const b = await buyurtmaYarat({ id: mijoz.id, full_name: 'Sinov', phone: '+998901112233' },
+    [{ product_id: 1, quantity: 1 }],
+    { name: 'Sinov', phone: '+998901112233', address: 'Chilonzor 5-uy',
+      viloyat: 'Toshkent shahri', tuman: 'Chilonzor', yetkazishTuri: 'filial' });
+
+  const mijozgaOxirgi = () => [...yuborilgan].reverse()
+    .find((y) => String(y.chat_id) === String(mijoz.telegram_id))?.text || '';
+
+  yuborilgan.length = 0;
+  const r1 = await chaqirAdmin('/api/admin/order-status', 'POST',
+    { id: b.id, status: 'omborda' });
+  test('holat o‘zgardi', r1.kod === 200, JSON.stringify(r1.tana));
+  await new Promise((r) => setTimeout(r, 400));      // xabar fon rejimida ketadi
+  const x1 = mijozgaOxirgi();
+  test('«omborda» xabari yetdi', x1.includes(b.order_no), x1.slice(0, 80));
+  test('XOM BELGI YO‘Q', !/\{\w+\}/.test(x1), x1);
+  test('ombor va’da qilinmaydi', !/ombor/i.test(x1), x1);
+  test('olib ketishga chaqirmaydi', !/olib keting|olib ketish/i.test(x1), x1);
+
+  // ── pochtadan jo'natildi: admin qayerga ketganini yozadi ──
+  yuborilgan.length = 0;
+  const izoh = 'Chilonzor 12-filial · AB123456789UZ';
+  const r2 = await chaqirAdmin('/api/admin/order-status', 'POST',
+    { id: b.id, status: 'pochta_jonatildi', pochta_izoh: izoh });
+  test('jo‘natish holati o‘tdi', r2.kod === 200, JSON.stringify(r2.tana));
+  test('pochta izohi bazaga yozildi',
+    (await qiymat('select pochta_izoh from orders where id=$1', [b.id])) === izoh);
+  await new Promise((r) => setTimeout(r, 400));
+  const x2 = mijozgaOxirgi();
+  test('MIJOZ QAYERGA KETGANINI KO‘RADI', x2.includes(izoh), x2);
+  test('yetkazish turi aytiladi', /filial/i.test(x2), x2);
+  test('bu yerda ham xom belgi yo‘q', !/\{\w+\}/.test(x2), x2);
+
+  // Izohsiz jo'natilsa qator butunlay chiqmaydi — bo'sh «📍» qolmasin
+  await sorov('update orders set pochta_izoh = null where id = $1', [b.id]);
+  yuborilgan.length = 0;
+  await chaqirAdmin('/api/admin/order-status', 'POST',
+    { id: b.id, status: 'yolda' });
+  await chaqirAdmin('/api/admin/order-status', 'POST',
+    { id: b.id, status: 'pochta_jonatildi', pochta_izoh: '' });
+  await new Promise((r) => setTimeout(r, 400));
+  const x3 = mijozgaOxirgi();
+  test('izohsiz ham xabar tushunarli', !/\{\w+\}/.test(x3) && x3.includes(b.order_no), x3);
+  test('bo‘sh qator qolmadi', !/\n\s*\n\s*\n/.test(x3), JSON.stringify(x3));
+
+  // Bekor qilinganda sabab sarlavha bilan keladi
+  yuborilgan.length = 0;
+  await chaqirAdmin('/api/admin/order-status', 'POST',
+    { id: b.id, status: 'bekor', reason: 'mahsulot tugadi' });
+  await new Promise((r) => setTimeout(r, 400));
+  const x4 = mijozgaOxirgi();
+  test('bekor sababi sarlavha bilan', /Sabab: mahsulot tugadi/.test(x4), x4);
+
+  // Bot yo'li (partiya bosqichi) ham xuddi shunday to'ldiradi
+  const { STANDART } = await import('../src/bot/shablonlar-standart.js');
+  test('standart «omborda» matnida ombor yo‘q',
+    !/\{ombor\}|\{mo_ljal\}/.test(STANDART.xabar_holat_omborda),
+    STANDART.xabar_holat_omborda);
+}
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

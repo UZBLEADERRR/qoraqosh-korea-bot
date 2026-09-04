@@ -17,8 +17,10 @@ export const BOSQICHLAR = [
     izoh: 'O‘zbekistonga yo‘lga chiqdi' },
   { kalit: 'yolda',            nom: 'Yo‘lda',                 emoji: '🌍',
     izoh: 'Xalqaro yetkazib berishda' },
-  { kalit: 'omborda',          nom: 'O‘zbekiston omborida',   emoji: '🏢',
-    izoh: 'Bojxonadan o‘tdi, omborga yetib keldi' },
+  // Bizda ombor yo'q: mahsulot O'zbekistonga yetib kelgach eng yaqin
+  // pochtadan mijozga jo'natiladi.
+  { kalit: 'omborda',          nom: 'O‘zbekistonga yetdi',    emoji: '🏢',
+    izoh: 'Bojxonadan o‘tdi, jo‘natishga tayyorlanmoqda' },
   { kalit: 'pochta_jonatildi', nom: 'Pochtadan jo‘natildi',   emoji: '📮',
     izoh: 'Mijoz manziliga jo‘natildi' },
   { kalit: 'yetkazildi',       nom: 'Yetib keldi',            emoji: '🎉',

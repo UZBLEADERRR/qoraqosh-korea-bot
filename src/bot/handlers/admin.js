@@ -7,7 +7,7 @@ import { adminmi } from '../../lib/admin.js';
 import { floodKutilmoqda, floodQolgan, floodTekshir } from '../../lib/flood.js';
 import { config } from '../../config.js';
 import { brendNomi } from '../../lib/brend.js';
-import { xabar } from '../shablon.js';
+import { xabar, oringaQoy } from '../shablon.js';
 import { keshniTashla } from '../../lib/kesh.js';
 import { qoidaniTozala } from '../../lib/narx.js';
 import { skrinshotQabul, importniTugat } from '../../services/skrinshot-import.js';
@@ -285,7 +285,15 @@ async function partiyaRoyxati(cq) {
   return yubor(cq.message.chat.id, `📋 <b>Buyurtmalar</b>\n\n${satr || '—'}`);
 }
 
-/** Bosqich o'zgarganda mijozga xabar. */
+/**
+ * Bosqich xabarini mijozga yuboradi.
+ *
+ * O'rin egallovchilar SHU YERDA to'ldiriladi. Ilgari faqat {raqam}
+ * almashardi va mijozga «{ombor}», «{manzil}» degan xom belgilar
+ * borardi. Endi ma'lum bo'lganlari qo'yiladi, NOMA'LUMLARI esa
+ * o'chiriladi: yarim to'ldirilgan xabar butunlay to'ldirilmaganidan
+ * ham yomon ko'rinadi.
+ */
 async function mijozgaBosqich(buyurtma, holat) {
   const u = await qator('select telegram_id from users where id = $1', [buyurtma.user_id]);
   if (!u?.telegram_id) return false;
@@ -293,8 +301,28 @@ async function mijozgaBosqich(buyurtma, holat) {
   const shablon = await sozlama(`xabar_holat_${holat}`, '');
   const matn = String(shablon || '').replace(/"/g, '')
     || `${b.emoji} <b>{raqam}</b> — ${b.nom}`;
-  const j = await yubor(u.telegram_id, matn.replace(/\{raqam\}/g, esc(buyurtma.order_no)),
-    { ommaviy: true });
+
+  const [tel, ishVaqti] = await Promise.all([
+    sozlama('menejer_telefon', ''), sozlama('menejer_ish_vaqti', ''),
+  ]);
+  const toza = (v) => String(v ?? '').replace(/"/g, '').trim();
+  const sbb = toza(buyurtma.cancel_reason);
+
+  const qiymatlar = {
+    raqam:      buyurtma.order_no || '',
+    holat:      b.nom,
+    yetkazish:  buyurtma.yetkazish_turi === 'uy'
+      ? 'Uyingizgacha yetkazamiz' : 'Eng yaqin pochta filialiga',
+    manzil:     [buyurtma.viloyat, buyurtma.tuman].filter(Boolean).join(', '),
+    pochta_izoh: toza(buyurtma.pochta_izoh),
+    telefon:    toza(tel),
+    ish_vaqti:  toza(ishVaqti),
+    // Shablonda «bekor qilindi.{sabab}» — sarlavha shu yerda
+    // qo'shiladi, sababsiz bo'lsa qator umuman chiqmaydi.
+    sabab:      sbb ? `\n\nSabab: ${sbb}` : '',
+  };
+
+  const j = await yubor(u.telegram_id, oringaQoy(matn, qiymatlar), { ommaviy: true });
   return Boolean(j?.ok);
 }
 
