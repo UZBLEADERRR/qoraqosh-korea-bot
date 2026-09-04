@@ -279,6 +279,32 @@ nusxalab (yoki hammasini birdan), do'kondan topib, havolani qo'yasiz —
 qo'shiladi, nomi, emojisi va tartibi o'zgartiriladi. AI o'zi ochgan
 bo'limlar ham shu yerda ko'rinadi.
 
+### 🧾 Xarid ro'yxati (admin panel)
+
+Botdagi `/orders` BITTA partiyani ko'rsatadi. Paneldagi **Xarid ro'yxati**
+esa istalgan oraliq bo'yicha ikkita savolga javob beradi:
+
+- **Mahsulot bo'yicha** — «Koreyadan nimadan nechta olaman». Har qatorda
+  nomi, brendi, nechta buyurtmada uchragani, summasi va o'ngda ASOSIY son:
+  nechta dona kerak. Qizil nuqta — havolasi yo'q, sariq nuqta — omborda
+  yetmaydi. Qatorni bossangiz tannarx, ombor qoldig'i, nomni nusxalash va
+  manba sahifasi chiqadi.
+- **Viloyat bo'yicha** — «qaysi viloyatga qancha ketadi». Pochtani
+  oldindan rejalashtirish uchun. Viloyatni bossangiz ro'yxat o'sha
+  viloyatga filtrlanadi.
+
+Filtrlar bitta sirg'aladigan satrda: holat (To'langan / Yangi / Yo'lda /
+Yetkazilgan) va davr (7 / 30 / 90 kun / hammasi). Saralash — dona,
+buyurtma, summa, ombor yoki nom bo'yicha.
+
+**Eksport — CSV** (Excel'da ochiladi, o'zbekcha harflar buzilmaydi):
+- **📨 Telegramga yuborish** — telefonda asosiy yo'l. Telegram WebView
+  faylni yuklab ololmaydi, botdan kelgan fayl esa suhbatda qoladi.
+- **⬇︎ Yuklab olish** — kompyuterda to'g'ridan-to'g'ri.
+
+Jamlash SQL da bajariladi (`services/xarid-hisobot.js`): buyurtma minglab
+bo'lganda ham hammasini xotiraga tortib olib sanamaymiz.
+
 ### Admin uchun (`/admin`)
 - **Boshqaruv paneli** — daromad, yalpi foyda va marja, o'rtacha chek,
   foydalanuvchilar, 14 kunlik grafik, voronka (ochgan → ro'yxat → skaner →
@@ -778,6 +804,7 @@ src/
     partiya.js         xarid partiyalari (/orders)
     yetkazish.js       og'irlik bo'yicha narx (API yoki tarif jadvali)
     pochta-hujjati.js  pochta uchun manzillar hujjati
+    xarid-hisobot.js   xarid ro'yxati: mahsulot va viloyat bo'yicha jamlash
     qollanma-hujjati.js mijozga qutiga qo'shiladigan parvarish qo'llanmasi
     mijoz-qollanma.js  to'lovdan keyin qo'llanmani yuborish (rasm + PDF)
     kalit-sozlar.js    qoida + AI dan kalit so'zlarni to'ldirish

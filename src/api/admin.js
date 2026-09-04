@@ -1,7 +1,7 @@
 // Admin API. Kirish: login/parol -> muddati cheklangan token (8 soat).
 import { qator, qatorlar, sorov, qiymat, sozlama, tranzaksiya } from '../db.js';
 import { issueAdminToken, verifyAdminToken, loginBloklanganmi, loginXato, loginTozala } from '../lib/auth.js';
-import { ok, xato, tana, ipOl } from '../lib/http.js';
+import { ok, xato, tana, ipOl, javob } from '../lib/http.js';
 import { verifyInitData } from '../lib/auth.js';
 import { kalitlarniToldir } from '../services/kalit-sozlar.js';
 import { havolasizlar } from '../services/skrinshot-import.js';
@@ -11,7 +11,7 @@ import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi } from '../ai/
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { config } from '../config.js';
 import { HOLATLAR } from '../lib/bosqichlar.js';
-import { yubor, tg } from '../bot/tg.js';
+import { yubor, tg, tgFayl } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
 import { xabar, keshniTozala } from '../bot/shablon.js';
 import { STANDART, GURUHLAR, TAVSIF } from '../bot/shablonlar-standart.js';
@@ -25,6 +25,8 @@ import { kanalniSina, kanalgaHolat } from '../services/kanal.js';
 import { rasmChizaOlamizmi, svgdanPng } from '../rasm/chiz.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
 import { brendNomi } from '../lib/brend.js';
+import { xaridHisoboti, havolasizSoni, mahsulotCsv, viloyatCsv }
+  from '../services/xarid-hisobot.js';
 
 // Katalog keshini bekor qilish: admin nimadir o'zgartirsa ilova darhol yangisini ko'rsin
 const katalogYangilandi = () => keshniTashla('katalog');
@@ -89,6 +91,61 @@ export async function adminRoutes(req, res, yol) {
 
   // ================= BOSHQARUV =================
   if (yol === '/api/admin/dashboard' && req.method === 'GET') return ok(res, await boshqaruvPaneli());
+
+  // ================= XARID RO'YXATI =================
+  // «Koreyadan nimadan nechta olaman» va «qaysi viloyatga qancha
+  // ketadi» — ikkita savol, bitta ekran. Botdagi /orders bitta
+  // partiya uchun, bu yerda esa istalgan oraliq bo'yicha.
+  if (yol === '/api/admin/xarid' && req.method === 'GET') {
+    const f = xaridFiltri(req);
+    const r = await xaridHisoboti(f);
+    return ok(res, { ...r, filtr: f, havolasiz: havolasizSoni(r.mahsulotlar) });
+  }
+
+  // Eksportni TELEGRAMGA yuborish. Telefonda asosiy yo'l shu: Telegram
+  // WebView faylni yuklab ololmaydi, bot orqali kelgan fayl esa
+  // suhbatda qoladi — ochish ham, jo'natish ham mumkin.
+  if (yol === '/api/admin/xarid-yubor' && req.method === 'POST') {
+    const b = await tana(req);
+    const tur = b.tur === 'viloyat' ? 'viloyat' : 'mahsulot';
+    const f = xaridFiltri({ url: `/x?${b.sorov || ''}`, method: 'GET' });
+
+    // Kimga: Mini App ichida bo'lsa imzolangan foydalanuvchiga,
+    // aks holda birinchi adminga.
+    const tgUser = verifyInitData(req.headers['x-init-data']);
+    const chat = tgUser?.id ? String(tgUser.id) : (config.adminTelegramIds[0] || '');
+    if (!chat) return xato(res, 400, 'Telegram ID topilmadi — botdan /start bosing.');
+
+    const r = await xaridHisoboti(f);
+    const matn = tur === 'viloyat' ? viloyatCsv(r.viloyatlar) : mahsulotCsv(r.mahsulotlar);
+    const nom = `xarid-${tur}-${f.dan.slice(0, 10)}_${f.gacha.slice(0, 10)}.csv`;
+    const j = await tgFayl('sendDocument', {
+      chat_id: chat,
+      caption: `📥 <b>Xarid ro‘yxati</b> · ${tur === 'viloyat' ? 'viloyatlar' : 'mahsulotlar'}\n`
+        + `${f.dan.slice(0, 10)} — ${f.gacha.slice(0, 10)} · `
+        + `${tur === 'viloyat' ? r.viloyatlar.length + ' viloyat' : r.mahsulotlar.length + ' xil mahsulot'}`,
+      parse_mode: 'HTML',
+    }, { document: { bayt: Buffer.from(matn, 'utf8'), nom, mime: 'text/csv' } });
+
+    if (!j?.ok) return xato(res, 502, `Telegramga yuborilmadi: ${j?.description || 'noma’lum'}`);
+    return ok(res, { yuborildi: true, nom });
+  }
+
+  // Eksport: Excel'da ochiladigan CSV (kompyuterda to'g'ridan-to'g'ri
+  // yuklab olinadi — panel uni token bilan olib, blob qilib beradi).
+  if (yol === '/api/admin/xarid.csv' && req.method === 'GET') {
+    const f = xaridFiltri(req);
+    const url = new URL(req.url, 'http://x');
+    const tur = url.searchParams.get('tur') === 'viloyat' ? 'viloyat' : 'mahsulot';
+    const r = await xaridHisoboti(f);
+    const matn = tur === 'viloyat' ? viloyatCsv(r.viloyatlar) : mahsulotCsv(r.mahsulotlar);
+    const nom = `xarid-${tur}-${f.dan.slice(0, 10)}_${f.gacha.slice(0, 10)}.csv`;
+    return javob(res, 200, Buffer.from(matn, 'utf8'), {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${nom}"`,
+      'Cache-Control': 'no-store',
+    }, req);
+  }
 
   // ================= BUYURTMALAR =================
   if (yol === '/api/admin/orders' && req.method === 'GET') {
@@ -1135,6 +1192,40 @@ export async function adminRoutes(req, res, yol) {
 }
 
 // ---------- Yordamchilar ----------
+/**
+ * Xarid ro'yxati filtri. Standart holat — «tasdiqlangan»: to'lovi
+ * kelgan, lekin hali Koreyadan olinmagan buyurtmalar. Aynan shular
+ * uchun xaridga chiqiladi.
+ */
+const XARID_HOLATLARI = new Set(HOLATLAR);
+function xaridFiltri(req) {
+  const url = new URL(req.url, 'http://x');
+  const xom = (url.searchParams.get('holat') || 'tasdiqlangan').split(',')
+    .map((x) => x.trim()).filter((x) => XARID_HOLATLARI.has(x));
+  const holatlar = xom.length ? xom : ['tasdiqlangan'];
+
+  const kun = Number(url.searchParams.get('kun'));
+  const dan = url.searchParams.get('dan');
+  const gacha = url.searchParams.get('gacha');
+  const hozir = new Date();
+
+  // Sana kiritilmasa — oxirgi N kun (standart 90). «Butun davr» uchun
+  // kun=0 yuboriladi.
+  const boshi = dan ? new Date(`${dan}T00:00:00Z`)
+    : Number.isFinite(kun) && kun === 0 ? new Date('2020-01-01T00:00:00Z')
+    : new Date(hozir.getTime() - (Number.isFinite(kun) && kun > 0 ? kun : 90) * 864e5);
+  // «gacha» kunning O'ZI ham kirsin — shuning uchun ertangi kun olinadi
+  const oxiri = gacha ? new Date(new Date(`${gacha}T00:00:00Z`).getTime() + 864e5)
+    : new Date(hozir.getTime() + 864e5);
+
+  return {
+    holatlar,
+    dan: (isNaN(boshi) ? new Date(hozir.getTime() - 90 * 864e5) : boshi).toISOString(),
+    gacha: (isNaN(oxiri) ? new Date(hozir.getTime() + 864e5) : oxiri).toISOString(),
+    viloyat: (url.searchParams.get('viloyat') || '').slice(0, 60),
+  };
+}
+
 /** Faqat http(s) havolasini qabul qilamiz — javascript: kabi narsa o'tmasin. */
 function manbaUrl(xom) {
   const u = String(xom || '').trim().slice(0, 500);

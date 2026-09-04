@@ -227,8 +227,10 @@ textarea{resize:vertical;min-height:80px}
   scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .segment-lenta::-webkit-scrollbar{display:none}
 .segment-lenta .tug{flex:0 0 auto;white-space:nowrap}
-/* Havola ko'rinishidagi tugmalar (Qo'ng'iroq, Yozish) tugma bilan bir xil bo'lsin */
-.amallar a.tug{display:inline-flex;align-items:center;text-decoration:none}
+/* Havola ko'rinishidagi tugmalar (Qo'ng'iroq, Manba sahifasi) tugmadan
+   farq qilmasin — chizilgan tagchiziq ularni «matn» qilib ko'rsatadi. */
+a.tug{text-decoration:none;color:var(--matn)}
+a.tug.asos{color:#fff}
 
 /* ---------- Mavzu tanlash ---------- */
 .mavzu-toplamlar{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
@@ -286,3 +288,95 @@ textarea{resize:vertical;min-height:80px}
 .ikki{display:grid;gap:10px}
 @media (min-width:520px){.ikki{grid-template-columns:1fr 1fr}}
 .ikki>div{min-width:0}
+
+/* ═══════════ XARID RO'YXATI ═══════════
+   Telefonda ishlatiladi: jadval o'rniga bosiladigan qatorlar,
+   filtrlar esa yon tomonga sirg'aladigan bitta satrda. */
+
+/* Chip satri — gorizontal sirg'aluvchi filtr */
+.chip-satr{display:flex;gap:7px;overflow-x:auto;padding:0 16px 10px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch;align-items:center}
+.chip-satr::-webkit-scrollbar{display:none}
+.chip-satr.sara{padding-bottom:8px}
+.chip-yorliq{flex:0 0 auto;font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--och);font-weight:700;padding-right:2px}
+.chip{flex:0 0 auto;border:1.5px solid var(--chiziq);background:var(--panel);color:var(--kul);
+  padding:8px 14px;border-radius:99px;font-size:13.5px;font-weight:650;cursor:pointer;
+  white-space:nowrap;min-height:38px}
+.chip:active{transform:scale(.97)}
+.chip.faol{background:var(--urgu);border-color:var(--urgu);color:#fff}
+
+/* Ikkilik almashtirgich (Mahsulot / Viloyat) */
+.ikkilik{display:flex;gap:4px;margin:0 16px 12px;padding:4px;background:var(--panel2);
+  border:1px solid var(--chiziq);border-radius:12px}
+.ikkilik button{flex:1;border:0;background:none;color:var(--kul);font:inherit;font-size:14px;
+  font-weight:650;padding:9px 6px;border-radius:9px;cursor:pointer;min-height:42px;
+  display:flex;align-items:center;justify-content:center;gap:6px}
+.ikkilik button i{font-style:normal;font-size:11.5px;font-weight:700;padding:2px 7px;
+  border-radius:99px;background:var(--chiziq);color:var(--kul)}
+.ikkilik button.faol{background:var(--panel);color:var(--matn);box-shadow:var(--sh)}
+.ikkilik button.faol i{background:var(--urgu-och);color:var(--urgu)}
+
+/* Ro'yxat: bitta qatorda hamma kerakli son */
+.royxat{background:var(--panel);border:1px solid var(--chiziq);border-radius:var(--r);
+  margin:0 16px 14px;overflow:hidden;box-shadow:var(--sh)}
+.satr{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;
+  color:var(--matn);font:inherit;text-align:left;padding:13px 14px;cursor:pointer;
+  border-bottom:1px solid var(--chiziq);min-height:58px}
+.satr:last-child{border-bottom:0}
+.satr:active{background:var(--fon)}
+.satr-nom{flex:1;min-width:0;font-weight:650;font-size:14.5px;line-height:1.3;
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.satr-nom i{display:block;font-style:normal;font-weight:500;font-size:12.5px;color:var(--och);
+  margin-top:1px}
+.satr-son{flex:0 0 auto;text-align:right;font-weight:700;font-size:15px;line-height:1.15}
+.satr-son.katta{font-size:20px;color:var(--urgu);min-width:46px}
+.satr-son i{display:block;font-style:normal;font-weight:600;font-size:10px;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--och);margin-top:2px}
+.satr-ong{flex:0 0 auto;font-weight:650;font-size:13.5px;color:var(--kul);
+  min-width:76px;text-align:right}
+.satr-belgi{flex:0 0 auto;display:flex;gap:4px;align-items:center;min-width:12px}
+.nuqta{width:8px;height:8px;border-radius:50%;display:block}
+.nuqta.qizil{background:var(--qizil)}
+.nuqta.sariq{background:var(--sariq)}
+
+/* Nom ostidagi izoh bitta qatorda qoladi — ikkinchi qatorga o'tsa
+   qator balandligi sakraydi va ro'yxat notekis ko'rinadi. */
+.satr-nom i{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Ogohlantiruvchi karta */
+.karta.ogoh{background:var(--sariq-och);border-color:transparent}
+.karta.ogoh .mayda{color:var(--sariq)}
+
+/* ═══════════ MOBIL PARDOZ ═══════════
+   Telefonda ekranning har piksleri qimmat. Shuning uchun:
+   — sahifa sarlavhasi TAKRORLANMAYDI (yuqorida allaqachon turibdi);
+   — KPI kartalari ixchamroq;
+   — kartalar orasidagi bo'shliq kamroq. */
+@media (max-width:899px){
+  .bosh{padding:0 16px 10px}
+  .bosh>h1{display:none}
+  .bosh:empty{display:none}
+
+  .kpi-tor{gap:8px;padding:0 16px 12px}
+  .kpi{padding:11px 12px;border-radius:12px}
+  .kpi .k{font-size:10px}
+  .kpi .v{font-size:18px;margin-top:2px}
+  .kpi .q{font-size:11.5px;margin-top:1px}
+
+  .karta{padding:14px;margin:0 16px 10px;border-radius:12px}
+  .karta-bosh{margin-bottom:10px}
+  main{padding-top:12px}
+
+  /* Buyurtma kartasi ekranning yarmini egallamasin */
+  .qator-karta{padding:13px;margin:0 16px 8px;border-radius:12px}
+  .qator-satr{padding:5.5px 0;font-size:14px}
+  .amallar{margin-top:9px}
+}
+
+/* Ogohlantiruvchi karta: matn va tugma ustma-ust, aralashib ketmasin */
+.karta.ogoh{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.karta.ogoh>div{flex:1;min-width:170px}
+.karta.ogoh b{display:block;font-size:14.5px;line-height:1.35}
+.karta.ogoh .mayda{margin-top:3px;color:var(--sariq)}
+.karta.ogoh .tug{flex:0 0 auto;background:var(--panel);border-color:transparent}

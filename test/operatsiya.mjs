@@ -21,7 +21,7 @@ const { Readable } = await import('node:stream');
 const adminToken = issueAdminToken({ rol: 'admin' });
 
 const chaqirAdmin = (yol, usul, tana) => new Promise((res) => {
-  const bayt = Buffer.from(JSON.stringify(tana));
+  const bayt = Buffer.from(JSON.stringify(tana ?? {}));
   const req = Object.assign(new Readable({ read() { this.push(bayt); this.push(null); } }), {
     url: yol, method: usul,
     headers: { authorization: `Bearer ${adminToken}`, 'content-type': 'application/json',
@@ -36,7 +36,30 @@ const chaqirAdmin = (yol, usul, tana) => new Promise((res) => {
     end(x) { if (x) bolaklar.push(x); res({ kod: this.statusCode,
       tana: JSON.parse(Buffer.concat(bolaklar.map(Buffer.from)).toString() || '{}') }); },
   };
-  adminRoutes(req, javob, yol).catch((e) => res({ kod: 500, tana: { error: e.message } }));
+  // Haqiqiy serverda marshrutga yo'lning O'ZI beriladi, so'rov satri emas
+  adminRoutes(req, javob, yol.split('?')[0])
+    .catch((e) => res({ kod: 500, tana: { error: e.message } }));
+});
+
+// CSV kabi JSON bo'lmagan javob uchun: tanani xom ko'rinishda qaytaradi
+const chaqirXom = (yol) => new Promise((res) => {
+  const req = Object.assign(new Readable({ read() { this.push(null); } }), {
+    url: yol, method: 'GET',
+    headers: { authorization: `Bearer ${adminToken}` },
+    socket: { remoteAddress: '127.0.0.1' },
+  });
+  const bolaklar = [];
+  const sarlavhalar = {};
+  const javob = {
+    statusCode: 200, headersSent: false,
+    writeHead(k, h) { this.statusCode = k; Object.assign(sarlavhalar, h || {}); return this; },
+    setHeader(k, v) { sarlavhalar[k] = v; },
+    end(x) { if (x) bolaklar.push(x);
+      res({ kod: this.statusCode, sarlavhalar,
+            tana: Buffer.concat(bolaklar.map(Buffer.from)).toString('utf8') }); },
+  };
+  adminRoutes(req, javob, yol.split('?')[0])
+    .catch((e) => res({ kod: 500, sarlavhalar, tana: e.message }));
 });
 
 let ok=0,xato=0;
@@ -1010,6 +1033,90 @@ console.log('\n── MARKETPLACE ──');
   await sorov(`update settings set value = '600'::jsonb where key = 'marketplace_maks_ogirlik'`);
 }
 
+
+// ═══════════ XARID RO'YXATI (admin panel) ═══════════
+// Botdagi /orders bitta partiya uchun. Panelda esa istalgan oraliq:
+// nimadan nechta kerak va qaysi viloyatga qancha ketadi.
+console.log('\n── XARID RO‘YXATI ──');
+{
+  const s = 'holat=tasdiqlangan,qadoqlanmoqda,yetkazildi,yangi&kun=0';
+  const r = await chaqirAdmin(`/api/admin/xarid?${s}`, 'GET');
+  test('xarid hisoboti keldi', r.kod === 200, `kod=${r.kod} ${r.tana.error || ''}`);
+
+  const m = r.tana.mahsulotlar || [];
+  test('mahsulotlar jamlandi', m.length > 0, `${m.length} xil`);
+  test('eng ko‘p buyurtilgan birinchi',
+    m.every((x, i, a) => i === 0 || a[i - 1].dona >= x.dona),
+    m.slice(0, 3).map((x) => `${x.nom}:${x.dona}`).join(', '));
+  test('bitta mahsulot bir necha buyurtmadan jamlandi',
+    m.some((x) => x.buyurtma > 1), m.map((x) => x.buyurtma).join(','));
+  test('ombor qoldig‘i ham keldi', m.every((x) => 'ombor' in x));
+  test('manba havolasi ham keldi', m.some((x) => x.manba_url));
+
+  const v = r.tana.viloyatlar || [];
+  test('viloyatlar bo‘yicha jamlandi', v.length > 0, v.map((x) => x.viloyat).join(', '));
+  test('viloyat buyurtma bo‘yicha saralangan',
+    v.every((x, i, a) => i === 0 || a[i - 1].buyurtma >= x.buyurtma));
+  test('viloyat jami donasi mahsulot jamiga teng',
+    v.reduce((a, x) => a + x.dona, 0) === m.reduce((a, x) => a + x.dona, 0),
+    `${v.reduce((a, x) => a + x.dona, 0)} / ${m.reduce((a, x) => a + x.dona, 0)}`);
+
+  test('jami hisoblandi', r.tana.jami.dona > 0 && r.tana.jami.buyurtma > 0,
+    JSON.stringify(r.tana.jami));
+
+  // Viloyat bo'yicha filtr — qatorni bosganda shu ishlaydi
+  const bir = v.find((x) => x.viloyat !== 'Ko‘rsatilmagan');
+  if (bir) {
+    const f = await chaqirAdmin(
+      `/api/admin/xarid?${s}&viloyat=${encodeURIComponent(bir.viloyat)}`, 'GET');
+    test('viloyat bo‘yicha filtr ishlaydi',
+      f.tana.jami.buyurtma === bir.buyurtma,
+      `${f.tana.jami.buyurtma} / ${bir.buyurtma}`);
+    test('filtrda faqat bitta viloyat qoldi', (f.tana.viloyatlar || []).length === 1);
+  }
+
+  // Holat filtri: bekor qilinganlar xaridga tushmasligi kerak
+  const faqat = await chaqirAdmin('/api/admin/xarid?holat=bekor&kun=0', 'GET');
+  test('holat filtri ishlaydi',
+    (faqat.tana.mahsulotlar || []).length < m.length,
+    `bekor: ${faqat.tana.mahsulotlar?.length} · hammasi: ${m.length}`);
+
+  test('havolasizlar sanaldi', typeof r.tana.havolasiz === 'number', String(r.tana.havolasiz));
+
+  // ── CSV eksport ──
+  const c = await chaqirXom(`/api/admin/xarid.csv?${s}&tur=mahsulot`);
+  test('CSV keldi', c.kod === 200, `kod=${c.kod}`);
+  test('CSV turi to‘g‘ri', /text\/csv/.test(c.sarlavhalar['Content-Type'] || ''));
+  test('fayl nomi bilan yuklanadi',
+    /attachment; filename="xarid-mahsulot-.*\.csv"/.test(c.sarlavhalar['Content-Disposition'] || ''),
+    c.sarlavhalar['Content-Disposition']);
+  test('Excel uchun BOM bor', c.tana.charCodeAt(0) === 0xfeff);
+  test('ajratgich nuqta-vergul', /Mahsulot;Brend;Dona/.test(c.tana));
+  test('CSV da hamma mahsulot bor',
+    c.tana.trim().split('\r\n').length === m.length + 1,
+    `${c.tana.trim().split('\r\n').length - 1} / ${m.length}`);
+
+  const cv = await chaqirXom(`/api/admin/xarid.csv?${s}&tur=viloyat`);
+  test('viloyat CSV ham ishlaydi', /Viloyat;Buyurtma;Dona/.test(cv.tana));
+
+  // Nuqta-vergulli nom ustunlarni buzmasin
+  await sorov(`update products set name = 'Test; nomi "qo‘shtirnoq"' where id = 1`);
+  const c2 = await chaqirXom(`/api/admin/xarid.csv?${s}&tur=mahsulot`);
+  test('CSV maxsus belgilarni qochiradi',
+    c2.tana.includes('"Test; nomi ""qo‘shtirnoq"""'),
+    c2.tana.split('\r\n').find((q) => q.includes('Test')));
+  await sorov(`update products set name = 'Heartleaf Pore Deep Cleansing Oil' where id = 1`);
+
+  // ── Telegramga yuborish (telefonda asosiy yo'l) ──
+  yuborilgan.length = 0;
+  const y = await chaqirAdmin('/api/admin/xarid-yubor', 'POST', { tur: 'mahsulot', sorov: s });
+  test('CSV Telegramga yuborildi', y.kod === 200 && y.tana.yuborildi === true,
+    `kod=${y.kod} ${y.tana.error || ''}`);
+  const hj = yuborilgan.find((x) => x.hujjat);
+  test('fayl hujjat sifatida keldi', Boolean(hj), hj?.nom);
+  test('fayl .csv', /\.csv$/.test(hj?.nom || ''), hj?.nom);
+  test('izohda oraliq ko‘rsatilgan', /Xarid ro‘yxati/.test(hj?.text || ''), hj?.text);
+}
 
 // ═══════════ TARMOQ UZILISHI VA UZUN XABAR ═══════════
 // Railway'dan Telegram'ga ulanish uziladi. Ilgari bitta `fetch failed`

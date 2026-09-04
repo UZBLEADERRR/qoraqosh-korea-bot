@@ -149,6 +149,7 @@ function ochil() {
 const BOLIMLAR = {
   boshqaruv: { nom: 'Boshqaruv',    chiz: () => boshqaruv() },
   buyurtma:  { nom: 'Buyurtmalar',  chiz: () => buyurtmalar() },
+  xarid:     { nom: 'Xarid ro‘yxati', chiz: () => xarid() },
   mahsulot:  { nom: 'Mahsulotlar',  chiz: () => mahsulotlar() },
   market:    { nom: 'Marketplace',  chiz: () => marketplace() },
   havola:    { nom: 'Havolasizlar', chiz: () => havolasizlar() },
@@ -185,7 +186,7 @@ window.addEventListener('hashchange', () => {
 });
 $('#t-yangila').onclick = () => { holat.kesh = {}; bolimOch(holat.bolim); tost('Yangilandi'); };
 
-const KOP_MENYU = ['market', 'havola', 'bolim', 'sotuv', 'ombor', 'sozlama', 'xabar', 'tizim', 'qollanma'];
+const KOP_MENYU = ['mijoz', 'market', 'havola', 'bolim', 'sotuv', 'ombor', 'sozlama', 'xabar', 'tizim', 'qollanma'];
 const kopMenyu = () => modal('Ko‘proq', `
   <div style="display:grid;gap:8px">
     ${KOP_MENYU.map((k) => `<button class="tug keng" data-kop="${k}"
@@ -1193,6 +1194,216 @@ async function nusxala(matn, nima = 'Nom') {
     try { document.execCommand('copy'); tost(`${nima} nusxalandi`); }
     catch { tost('Nusxalab bo‘lmadi', 'xato'); }
     t.remove();
+  }
+}
+
+// ═══════════ XARID RO'YXATI ═══════════
+// Ikkita savolga javob beradi: «Koreyadan nimadan nechta olaman» va
+// «qaysi viloyatga qancha ketadi». Telefonda ishlatiladi, shuning
+// uchun jadval emas — bosiladigan qatorlar va bitta filtr satri.
+
+const XARID_HOLAT = [
+  { k: 'tasdiqlangan', n: 'To‘langan' },
+  { k: 'yangi',        n: 'Yangi' },
+  { k: 'qadoqlanmoqda',n: 'Yo‘lda' },
+  { k: 'yetkazildi',   n: 'Yetkazilgan' },
+];
+const XARID_DAVR = [
+  { k: 7,  n: '7 kun' }, { k: 30, n: '30 kun' },
+  { k: 90, n: '90 kun' }, { k: 0,  n: 'Hammasi' },
+];
+const XARID_SARA = {
+  dona:      { n: 'Dona',      f: (a, b) => b.dona - a.dona },
+  buyurtma:  { n: 'Buyurtma',  f: (a, b) => b.buyurtma - a.buyurtma },
+  summa:     { n: 'Summa',     f: (a, b) => Number(b.summa) - Number(a.summa) },
+  ombor:     { n: 'Ombor',     f: (a, b) => a.ombor - b.ombor },
+  nom:       { n: 'Nomi',      f: (a, b) => String(a.nom).localeCompare(String(b.nom)) },
+};
+
+const xf = { holat: 'tasdiqlangan', kun: 90, sara: 'dona', kor: 'mahsulot', viloyat: '' };
+
+const xaridSorov = () => new URLSearchParams({
+  holat: xf.holat, kun: String(xf.kun), ...(xf.viloyat ? { viloyat: xf.viloyat } : {}),
+}).toString();
+
+async function xarid() {
+  try {
+    const j = await api(`/api/admin/xarid?${xaridSorov()}`);
+    holat.xarid = j;
+    xaridChiz();
+  } catch (e) { xatoChiz(e); }
+}
+
+function xaridChiz() {
+  const j = holat.xarid || { mahsulotlar: [], viloyatlar: [], jami: {} };
+  const m = [...j.mahsulotlar].sort(XARID_SARA[xf.sara]?.f || XARID_SARA.dona.f);
+  const v = j.viloyatlar || [];
+  const jami = j.jami || {};
+
+  $('#tan').innerHTML = `
+    <div class="bosh"><h1>Xarid ro‘yxati</h1></div>
+
+    <!-- Filtr: bitta gorizontal satr, telefonda sirg‘aladi -->
+    <div class="chip-satr">
+      ${XARID_HOLAT.map((h) => `<button class="chip${xf.holat === h.k ? ' faol' : ''}"
+        data-xh="${h.k}">${esc(h.n)}</button>`).join('')}
+    </div>
+    <div class="chip-satr">
+      ${XARID_DAVR.map((d) => `<button class="chip${xf.kun === d.k ? ' faol' : ''}"
+        data-xd="${d.k}">${esc(d.n)}</button>`).join('')}
+    </div>
+
+    <div class="kpi-tor">
+      <div class="kpi urgu"><div class="k">Jami dona</div><div class="v">${som(jami.dona)}</div>
+        <div class="q">${som(jami.xil)} xil mahsulot</div></div>
+      <div class="kpi"><div class="k">Buyurtma</div><div class="v">${som(jami.buyurtma)}</div>
+        <div class="q">${som(v.length)} viloyat</div></div>
+      <div class="kpi"><div class="k">Summa</div><div class="v">${som(jami.summa)}</div>
+        <div class="q">so‘m</div></div>
+      <div class="kpi"><div class="k">Tannarx</div><div class="v">${som(jami.tannarx)}</div>
+        <div class="q">taxminiy</div></div>
+    </div>
+
+    ${xf.viloyat ? `<div class="karta" style="padding:12px 14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="yor urgu">${esc(xf.viloyat)}</span>
+        <span class="mayda" style="flex:1">bo‘yicha filtr</span>
+        <button class="tug kichik" id="x-viloyat-yop">✕ Olib tashlash</button>
+      </div></div>` : ''}
+
+    ${j.havolasiz ? `<div class="karta ogoh">
+      <div><b>${j.havolasiz} ta mahsulotning havolasi yo‘q</b>
+        <div class="mayda">Xaridga chiqishdan oldin qo‘shing — bo‘lmasa
+          do‘kondan qaysi biri ekanini topolmaysiz.</div></div>
+      <button class="tug kichik" data-b2="havola">Havolasizlar →</button>
+    </div>` : ''}
+
+    <!-- Ko'rinish almashtirgich -->
+    <div class="ikkilik">
+      <button class="${xf.kor === 'mahsulot' ? 'faol' : ''}" data-xk="mahsulot">
+        Mahsulot <i>${m.length}</i></button>
+      <button class="${xf.kor === 'viloyat' ? 'faol' : ''}" data-xk="viloyat">
+        Viloyat <i>${v.length}</i></button>
+    </div>
+
+    ${xf.kor === 'mahsulot' ? `
+      <div class="chip-satr sara">
+        <span class="chip-yorliq">Saralash</span>
+        ${Object.entries(XARID_SARA).map(([k, s]) => `<button
+          class="chip${xf.sara === k ? ' faol' : ''}" data-xs="${k}">${esc(s.n)}</button>`).join('')}
+      </div>
+      <div class="royxat">
+        ${m.length ? m.map((x, i) => xaridQator(x, i)).join('')
+          : boshHolat('📦', 'Bu oraliqda buyurtma yo‘q.')}
+      </div>`
+    : `<div class="royxat">
+        ${v.length ? v.map((x) => `
+          <button class="satr" data-xv="${esc(x.viloyat)}">
+            <span class="satr-nom">${esc(x.viloyat)}
+              <i>${som(x.dona)} dona · ${som(x.summa)} so‘m</i></span>
+            <span class="satr-son katta">${som(x.buyurtma)}<i>buyurtma</i></span>
+          </button>`).join('')
+        : boshHolat('🗺', 'Bu oraliqda buyurtma yo‘q.')}
+      </div>`}
+
+    <div class="karta">
+      <div class="karta-bosh"><h2>Eksport</h2></div>
+      <p class="mayda" style="margin:0 0 12px">Excel’da ochiladigan CSV.
+        Telefonda «Telegramga» tugmasi qulayroq — fayl botdan keladi.</p>
+      <div style="display:grid;gap:8px">
+        <button class="tug asos keng" id="x-tg">📨 Telegramga yuborish</button>
+        <button class="tug keng" id="x-yukla">⬇︎ Yuklab olish (CSV)</button>
+      </div>
+    </div>`;
+
+  $$('[data-xh]').forEach((b) => b.onclick = () => { xf.holat = b.dataset.xh; yuklanmoqda(); xarid(); });
+  $$('[data-xd]').forEach((b) => b.onclick = () => { xf.kun = Number(b.dataset.xd); yuklanmoqda(); xarid(); });
+  $$('[data-xs]').forEach((b) => b.onclick = () => { xf.sara = b.dataset.xs; xaridChiz(); });
+  $$('[data-xk]').forEach((b) => b.onclick = () => { xf.kor = b.dataset.xk; xaridChiz(); });
+  $$('[data-xv]').forEach((b) => b.onclick = () => {
+    xf.viloyat = b.dataset.xv === 'Ko‘rsatilmagan' ? '' : b.dataset.xv;
+    xf.kor = 'mahsulot'; yuklanmoqda(); xarid();
+  });
+  const vy = $('#x-viloyat-yop');
+  if (vy) vy.onclick = () => { xf.viloyat = ''; yuklanmoqda(); xarid(); };
+  $$('[data-b2]').forEach((b) => b.onclick = () => bolimOch(b.dataset.b2));
+
+  // Qatorni bosganda tafsilot
+  $$('[data-xm]').forEach((b) => b.onclick = () => {
+    const x = m[Number(b.dataset.xm)];
+    if (x) xaridTafsilot(x);
+  });
+
+  $('#x-tg').onclick = async (e) => {
+    e.target.disabled = true;
+    try {
+      const r = await api('/api/admin/xarid-yubor', { method: 'POST',
+        headers: tg?.initData ? { 'X-Init-Data': tg.initData } : {},
+        body: JSON.stringify({ tur: xf.kor, sorov: xaridSorov() }) });
+      tost(`Yuborildi: ${r.nom}`);
+    } catch (err) { tost(err.message, 'xato'); }
+    e.target.disabled = false;
+  };
+  $('#x-yukla').onclick = () => xaridYukla();
+}
+
+/**
+ * Bitta mahsulot qatori.
+ *
+ * Telefonda eng qimmat narsa — kenglik. Shuning uchun raqamlar ustunga
+ * yoyilmaydi: o'ngda faqat ASOSIY son (nechta dona kerak), qolgani
+ * nom ostidagi bitta satrda. Shunda mahsulot nomi to'liq ko'rinadi.
+ */
+function xaridQator(x, i) {
+  const kam = x.ombor < x.dona;
+  const izoh = [x.brend, `${som(x.buyurtma)} buyurtma`, som(x.summa)].filter(Boolean).join(' · ');
+  return `
+    <button class="satr" data-xm="${i}">
+      <span class="satr-nom">${esc(x.nom)}<i>${esc(izoh)}</i></span>
+      <span class="satr-belgi">
+        ${!x.manba_url && x.product_id ? '<i class="nuqta qizil" title="Havola yo‘q"></i>' : ''}
+        ${kam ? '<i class="nuqta sariq" title="Omborda yetmaydi"></i>' : ''}
+      </span>
+      <span class="satr-son katta">${som(x.dona)}<i>dona</i></span>
+    </button>`;
+}
+
+function xaridTafsilot(x) {
+  modal(x.nom, `
+    <div class="qator-satr"><span class="k">Brend</span><span class="v">${esc(x.brend || '—')}</span></div>
+    <div class="qator-satr"><span class="k">Kerak</span><span class="v">${som(x.dona)} dona</span></div>
+    <div class="qator-satr"><span class="k">Buyurtmalar</span><span class="v">${som(x.buyurtma)} ta</span></div>
+    <div class="qator-satr"><span class="k">Sotuv summasi</span><span class="v">${narx(x.summa)}</span></div>
+    <div class="qator-satr"><span class="k">Taxminiy tannarx</span><span class="v">${narx(x.tannarx)}</span></div>
+    <div class="qator-satr"><span class="k">Omborda</span>
+      <span class="v" ${x.ombor < x.dona ? 'style="color:var(--qizil)"' : ''}>${som(x.ombor)} dona</span></div>
+    <div style="display:grid;gap:8px;margin-top:16px">
+      <button class="tug keng" data-nusxa="${esc(`${x.brend ? x.brend + ' ' : ''}${x.nom}`)}">📋 Nomni nusxalash</button>
+      ${x.manba_url
+        ? `<a class="tug keng" target="_blank" rel="noopener" href="${esc(x.manba_url)}">🔗 Manba sahifasi</a>`
+        : `<a class="tug keng" target="_blank" rel="noopener"
+             href="https://www.coupang.com/np/search?q=${encodeURIComponent(x.nom)}">Coupang’da qidirish</a>`}
+    </div>`);
+  $$('[data-nusxa]').forEach((b) => b.onclick = () => nusxala(b.dataset.nusxa));
+}
+
+/** Kompyuterda to'g'ridan-to'g'ri yuklab olish (token sarlavhada ketadi). */
+async function xaridYukla() {
+  try {
+    const res = await fetch(`/api/admin/xarid.csv?${xaridSorov()}&tur=${xf.kor}`,
+      { headers: { Authorization: `Bearer ${holat.token}` } });
+    if (!res.ok) throw new Error(`Xatolik (${res.status})`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (res.headers.get('Content-Disposition') || '').match(/filename="([^"]+)"/)?.[1]
+      || 'xarid.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    tost('Yuklandi');
+  } catch (e) {
+    tost('Yuklab bo‘lmadi — «Telegramga» tugmasidan foydalaning', 'xato');
   }
 }
 
