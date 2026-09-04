@@ -4,6 +4,7 @@ import { issueAdminToken, verifyAdminToken, loginBloklanganmi, loginXato, loginT
 import { ok, xato, tana, ipOl } from '../lib/http.js';
 import { verifyInitData } from '../lib/auth.js';
 import { kalitlarniToldir } from '../services/kalit-sozlar.js';
+import { havolasizlar } from '../services/skrinshot-import.js';
 import { mahsulotniTani } from '../ai/productEnrich.js';
 import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
 import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi } from '../ai/index.js';
@@ -275,6 +276,64 @@ export async function adminRoutes(req, res, yol) {
   }
 
   // Tanilgan mahsulotlarni birdan saqlash
+  // --- Havolasiz mahsulotlar: botdan skrinshot bilan qo'shilganlar ---
+  // Admin nomni nusxalab, Coupang/Daiso da topadi va havolasini qo'yadi.
+  if (yol === '/api/admin/havolasiz' && req.method === 'GET') {
+    return ok(res, { mahsulotlar: await havolasizlar(300) });
+  }
+  if (yol === '/api/admin/mahsulot-havola' && req.method === 'POST') {
+    const b = await tana(req);
+    const id = Number(b.id);
+    const url = String(b.manba_url || '').trim().slice(0, 500);
+    if (!id) return xato(res, 400, 'Mahsulot tanlanmadi.');
+    if (url && !/^https?:\/\//i.test(url)) return xato(res, 400, 'Havola http bilan boshlanishi kerak.');
+    const manba = url ? (url.match(/daiso/i) ? 'daiso' : url.match(/coupang/i) ? 'coupang' : 'boshqa') : null;
+    const p = await qator(
+      `update products set manba_url = $2, manba = $3, updated_at = now()
+        where id = $1 returning id, name, manba_url`, [id, url || null, manba]);
+    if (!p) return xato(res, 404, 'Mahsulot topilmadi.');
+    keshniTashla('katalog');
+    return ok(res, { mahsulot: p });
+  }
+
+  // --- Bo'limlar (toifalar): admin qo'shadi, AI ham o'zi qo'sha oladi ---
+  if (yol === '/api/admin/toifalar' && req.method === 'GET') {
+    return ok(res, { toifalar: await qatorlar(
+      `select c.id, c.slug, c.name, c.emoji, c.sort,
+              (select count(*)::int from products p
+                where p.category_id = c.id and p.is_active) as soni
+         from categories c order by c.sort, c.id`) });
+  }
+  if (yol === '/api/admin/toifa' && req.method === 'POST') {
+    const b = await tana(req);
+    const nom = String(b.name || '').trim().slice(0, 40);
+    if (!nom) return xato(res, 400, 'Bo‘lim nomi kerak.');
+    const slug = (String(b.slug || nom).toLowerCase()
+      .replace(/[‘’'`ʻʼ]/g, '')
+      .replace(/[^a-z0-9\u0400-\u04FF]+/gi, '-')
+      .replace(/^-+|-+$/g, '') || 'boshqa').slice(0, 40);
+    const t = b.id
+      ? await qator(`update categories set name = $2, emoji = $3, sort = $4 where id = $1 returning *`,
+          [Number(b.id), nom, String(b.emoji || '').slice(0, 4) || null,
+           Math.max(0, Number(b.sort) || 100)])
+      : await qator(
+          `insert into categories (slug, name, emoji, sort) values ($1,$2,$3,$4)
+           on conflict (slug) do update set name = excluded.name, emoji = excluded.emoji
+           returning *`,
+          [slug, nom, String(b.emoji || '').slice(0, 4) || null,
+           Math.max(0, Number(b.sort) || 100)]);
+    keshniTashla('katalog');
+    return ok(res, { toifa: t });
+  }
+  if (yol === '/api/admin/toifa' && req.method === 'DELETE') {
+    const id = Number((await tana(req)).id);
+    if (!id) return xato(res, 400, 'Bo‘lim tanlanmadi.');
+    // Mahsulotlar o'chmaydi — ular "bo'limsiz" bo'lib qoladi
+    await sorov('delete from categories where id = $1', [id]);
+    keshniTashla('katalog');
+    return ok(res, { ochirildi: true });
+  }
+
   // Qidiruv kalit so'zlarini to'ldirish: odam "penka" deb ham, "пенка"
   // deb ham qidiradi, katalogdagi nom esa "Perfect Whip". Qoida bo'yicha
   // so'zlar darrov, AI so'zlari partiyalab qo'shiladi.

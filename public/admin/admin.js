@@ -151,6 +151,8 @@ const BOLIMLAR = {
   buyurtma:  { nom: 'Buyurtmalar',  chiz: () => buyurtmalar() },
   mahsulot:  { nom: 'Mahsulotlar',  chiz: () => mahsulotlar() },
   market:    { nom: 'Marketplace',  chiz: () => marketplace() },
+  havola:    { nom: 'Havolasizlar', chiz: () => havolasizlar() },
+  bolim:     { nom: 'Bo‘limlar',    chiz: () => bolimlar() },
   mijoz:     { nom: 'Mijozlar',     chiz: () => mijozlar() },
   sotuv:     { nom: 'Sotuvlar',     chiz: () => sotuvlar() },
   ombor:     { nom: 'Omborlar',     chiz: () => omborlar() },
@@ -183,7 +185,7 @@ window.addEventListener('hashchange', () => {
 });
 $('#t-yangila').onclick = () => { holat.kesh = {}; bolimOch(holat.bolim); tost('Yangilandi'); };
 
-const KOP_MENYU = ['market', 'sotuv', 'ombor', 'sozlama', 'xabar', 'tizim', 'qollanma'];
+const KOP_MENYU = ['market', 'havola', 'bolim', 'sotuv', 'ombor', 'sozlama', 'xabar', 'tizim', 'qollanma'];
 const kopMenyu = () => modal('Ko‘proq', `
   <div style="display:grid;gap:8px">
     ${KOP_MENYU.map((k) => `<button class="tug keng" data-kop="${k}"
@@ -1173,6 +1175,156 @@ const MARKET_HOLAT = {
   xato:        ['Olinmadi',           'qizil'],
 };
 let marketFiltr = 'kutilmoqda';
+
+// ═══════════ HAVOLASIZ MAHSULOTLAR ═══════════
+// Botga skrinshot tashlab qo'shilgan mahsulotning manba havolasi yo'q.
+// Bu yerda nomni bir bosishda nusxalab, do'kondan topib, havolani
+// qo'yasiz. Xarid ro'yxati (/orders) shu havolalardan foydalanadi.
+
+async function nusxala(matn, nima = 'Nom') {
+  try {
+    await navigator.clipboard.writeText(matn);
+    tost(`${nima} nusxalandi`);
+  } catch {
+    // clipboard API yopiq bo'lsa (eski brauzer, HTTP) — eski usul
+    const t = document.createElement('textarea');
+    t.value = matn; t.style.position = 'fixed'; t.style.opacity = '0';
+    document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); tost(`${nima} nusxalandi`); }
+    catch { tost('Nusxalab bo‘lmadi', 'xato'); }
+    t.remove();
+  }
+}
+
+async function havolasizlar() {
+  try {
+    const j = await api('/api/admin/havolasiz');
+    const r = j.mahsulotlar || [];
+    const hammaNom = r.map((p) => `${p.brand ? p.brand + ' ' : ''}${p.name}`).join('\n');
+
+    $('#tan').innerHTML = `
+      <div class="bosh"><h1>Havolasizlar</h1>
+        <span class="ozgina">${r.length} ta</span></div>
+
+      <div class="karta tor">
+        <p class="mayda" style="margin:0 0 10px">Botga skrinshot tashlab qo‘shilgan
+          mahsulotlarning manba havolasi yo‘q. Nomini nusxalab do‘kondan toping va
+          havolani shu yerga qo‘ying — <b>/orders</b> xarid ro‘yxati shundan
+          foydalanadi.</p>
+        ${r.length ? `<button class="tug keng" id="hv-hammasi">📋 Hamma nomni nusxalash</button>` : ''}
+      </div>
+
+      ${r.length ? r.map((p) => `
+        <div class="karta tor" data-hv="${p.id}">
+          <div class="qator-bosh">
+            <b>${esc(p.name)}</b>
+            <span class="ozgina">${(p.price || 0).toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m</span>
+          </div>
+          <div class="ozgina" style="margin:2px 0 8px">
+            ${esc(p.brand || '—')} · ombor ${p.stock} dona</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="tug" data-nusxa="${esc(`${p.brand ? p.brand + ' ' : ''}${p.name}`)}">📋 Nom</button>
+            <a class="tug" target="_blank" rel="noopener"
+               href="https://www.coupang.com/np/search?q=${encodeURIComponent(p.name)}">Coupang’da qidirish</a>
+          </div>
+          <input type="url" class="hv-url" placeholder="https://www.daiso.co.kr/product/…"
+                 style="margin-top:8px" spellcheck="false">
+          <button class="tug asos keng" data-saqla="${p.id}" style="margin-top:8px">Havolani saqlash</button>
+        </div>`).join('')
+      : `<div class="karta tor"><p class="mayda" style="margin:0">
+           Hamma mahsulotning havolasi bor 🎉</p></div>`}`;
+
+    const h = $('#hv-hammasi');
+    if (h) h.onclick = () => nusxala(hammaNom, `${r.length} ta nom`);
+
+    $$('[data-nusxa]').forEach((b) => b.onclick = () => nusxala(b.dataset.nusxa));
+    $$('[data-saqla]').forEach((b) => b.onclick = async () => {
+      const karta = b.closest('[data-hv]');
+      const url = karta.querySelector('.hv-url').value.trim();
+      if (!url) return tost('Havolani kiriting', 'xato');
+      b.disabled = true;
+      try {
+        await api('/api/admin/mahsulot-havola', { method: 'POST',
+          body: JSON.stringify({ id: Number(b.dataset.saqla), manba_url: url }) });
+        karta.remove();
+        tost('Saqlandi');
+      } catch (e) { tost(e.message, 'xato'); b.disabled = false; }
+    });
+  } catch (e) { xatoChiz(e); }
+}
+
+// ═══════════ BO'LIMLAR (TOIFALAR) ═══════════
+// Do'kon bosh sahifasidagi bo'limlar shu ro'yxatdan chiziladi.
+// AI ham mos toifa topolmasa yangisini o'zi qo'shadi — shu yerda
+// nomini tuzatib, tartibini o'zgartirasiz.
+
+async function bolimlar() {
+  try {
+    const j = await api('/api/admin/toifalar');
+    const t = j.toifalar || [];
+    $('#tan').innerHTML = `
+      <div class="bosh"><h1>Bo‘limlar</h1><span class="ozgina">${t.length} ta</span></div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>➕ Yangi bo‘lim</h2></div>
+        <p class="mayda" style="margin:0 0 10px">Do‘kon bosh sahifasida shu tartibda
+          chiqadi. Botga tashlangan skrinshot mavjud bo‘limlarga tushmasa,
+          <b>AI yangi bo‘limni o‘zi qo‘shadi</b> — keyin shu yerda nomini
+          tuzatasiz.</p>
+        <label>Nomi</label>
+        <input id="bl-nom" placeholder="Soch parvarishi" maxlength="40">
+        <div class="ikki">
+          <div><label>Emoji</label><input id="bl-emoji" placeholder="💇" maxlength="4"></div>
+          <div><label>Tartib</label><input id="bl-sort" type="number" value="100"></div>
+        </div>
+        <button class="tug asos keng" id="bl-qosh" style="margin-top:10px">Qo‘shish</button>
+      </div>
+
+      ${t.map((x) => `
+        <div class="karta tor" data-bl="${x.id}">
+          <div class="qator-bosh">
+            <b>${esc(x.emoji || '')} ${esc(x.name)}</b>
+            <span class="ozgina">${x.soni} ta mahsulot</span>
+          </div>
+          <div class="ozgina" style="margin:2px 0 8px">${esc(x.slug)} · tartib ${x.sort}</div>
+          <div class="ikki">
+            <div><label>Nomi</label><input class="bl-n" value="${esc(x.name)}" maxlength="40"></div>
+            <div><label>Tartib</label><input class="bl-s" type="number" value="${x.sort}"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="tug asos" data-yangi="${x.id}">Saqlash</button>
+            <button class="tug xavf" data-ochir="${x.id}">O‘chirish</button>
+          </div>
+        </div>`).join('')}`;
+
+    $('#bl-qosh').onclick = async () => {
+      const nom = $('#bl-nom').value.trim();
+      if (!nom) return tost('Nom kiriting', 'xato');
+      try {
+        await api('/api/admin/toifa', { method: 'POST', body: JSON.stringify({
+          name: nom, emoji: $('#bl-emoji').value.trim(), sort: Number($('#bl-sort').value) || 100 }) });
+        tost('Qo‘shildi'); bolimlar();
+      } catch (e) { tost(e.message, 'xato'); }
+    };
+    $$('[data-yangi]').forEach((b) => b.onclick = async () => {
+      const k = b.closest('[data-bl]');
+      try {
+        await api('/api/admin/toifa', { method: 'POST', body: JSON.stringify({
+          id: Number(b.dataset.yangi), name: k.querySelector('.bl-n').value.trim(),
+          sort: Number(k.querySelector('.bl-s').value) || 100 }) });
+        tost('Saqlandi'); bolimlar();
+      } catch (e) { tost(e.message, 'xato'); }
+    });
+    $$('[data-ochir]').forEach((b) => b.onclick = async () => {
+      if (!confirm('Bo‘lim o‘chirilsinmi? Mahsulotlar o‘chmaydi, bo‘limsiz qoladi.')) return;
+      try {
+        await api('/api/admin/toifa', { method: 'DELETE',
+          body: JSON.stringify({ id: Number(b.dataset.ochir) }) });
+        tost('O‘chirildi'); bolimlar();
+      } catch (e) { tost(e.message, 'xato'); }
+    });
+  } catch (e) { xatoChiz(e); }
+}
 
 async function marketplace() {
   try {

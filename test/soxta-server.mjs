@@ -3,7 +3,8 @@ import http from 'node:http';
 import zlib from 'node:zlib';
 
 export const yuborilgan = [];   // botdan chiqqan xabarlar
-let mahsulotHisobi = 0;         // soxta AI qaytaradigan mahsulot nomlari uchun
+let mahsulotHisobi = 0;
+let skrinshotHisobi = 0;         // soxta AI qaytaradigan mahsulot nomlari uchun
 // AI necha marta chaqirilgani — «arzon filtr token tejaydimi» degan
 // savolni faqat shu bilan tekshirib bo'ladi
 export const aiHisobi = { marketplace: 0, jami: 0 };
@@ -52,6 +53,27 @@ function javobMatni(sxemaMatni) {
   aiHisobi.jami += 1;
   if (sxemaMatni.includes('kosmetikami')) aiHisobi.marketplace += 1;
   if (sxemaMatni.includes('muammolar')) return JSON.stringify(TAHLIL);
+  // Admin botga tashlagan skrinshot: narx va og'irlik rasmdan o'qiladi
+  if (sxemaMatni.includes('narx_valyuta') && sxemaMatni.includes('yangi_toifa')) {
+    const i = ++skrinshotHisobi;
+    // Har uchinchisi — mavjud toifaga tushmaydigan mahsulot (tuk oluvchi)
+    const yangiToifa = i % 3 === 0;
+    return JSON.stringify({
+      kosmetikami: true, ishonch: 88, izoh: '',
+      name: yangiToifa ? `Hair Removal Stick ${i}` : `Green Tea Foam Cleanser ${i}`,
+      brand: 'Daiso',
+      narx_qiymat: 3200, narx_valyuta: 'KRW',
+      ogirlik_g: 120, volume: '100 ml',
+      category: yangiToifa ? 'yangi' : 'tozalash',
+      yangi_toifa: yangiToifa ? 'Aksessuar' : '',
+      step: yangiToifa ? 'qoshimcha' : 'tozalash',
+      description: 'Yumshoq ko‘pikli tozalagich.',
+      usage_text: 'Ho‘l yuzga aylantirib surting.',
+      ingredients: 'Green Tea Extract, Glycerin',
+      actives: ['green tea'], concerns: ['yoglilik'], skin_types: ['barcha'],
+      warnings: '', emoji: '🧴' });
+  }
+
   // AI maslahatchi. Ikki rejim: odatda TO'PLAM, globalThis.AI_SAVOL
   // qo'yilgan bo'lsa aniqlashtiruvchi SAVOL.
   if (sxemaMatni.includes('savol_variantlar')) {
@@ -128,6 +150,13 @@ export function soxtaServer(port = 4444) {
 
       // ---- Telegram ----
       if (yol.endsWith('/getFile'))  return j({ ok: true, result: { file_path: 'photos/x.jpg', file_size: 128000 } });
+      // Skrinshot importi holat xabarini tahrirlab turadi
+      if (yol.endsWith('/editMessageText')) {
+        const e = JSON.parse(await tana(req) || '{}');
+        const x = yuborilgan.find((m) => m.id === e.message_id);
+        if (x) x.text = e.text;
+        return j({ ok: true, result: { message_id: e.message_id } });
+      }
       if (yol.includes('/file/bot')) { res.writeHead(200, { 'Content-Type': 'image/jpeg' }); return res.end(png()); }
       if (yol.endsWith('/sendMessage')) {
         const b = JSON.parse(await tana(req) || '{}');

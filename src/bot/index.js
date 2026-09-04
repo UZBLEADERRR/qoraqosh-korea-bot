@@ -43,6 +43,9 @@ export async function yangilanish(upd) {
   }
 
   // ---- Admin buyruqlari va ko'p qadamli holatlari ----
+  // Rasm skanerdan OLDIN tekshiriladi: admin /qosh rejimida bo'lsa
+  // yuborgan surati mahsulot skrinshoti, yuz emas.
+  if (await admin.adminRasmi(msg, user)) return;
   if (await admin.adminBuyrugi(msg, user)) return;
   if (await admin.adminHolati(msg, user)) return;
 

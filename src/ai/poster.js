@@ -67,10 +67,11 @@ Har bir g'oya uchun:
     aksiya        — chegirma va narxga urg'u
 - tavsif: poster nimani ko'rsatishi, 1-2 jumla o'zbekcha
 - kimga: qaysi auditoriyaga (masalan "18-25 yosh, akneli teri")
-- matn_bosh: posterdagi ASOSIY yozuv, o'zbekcha, 2-5 so'z, kuchli
-- matn_qosh: kichik qo'shimcha yozuv, o'zbekcha, 4-8 so'z
-- nisbat: qaysi o'lcham eng mos (1:1, 3:4, 4:3, 9:16, 16:9).
-  Katalog kartochkasi uchun 1:1 yoki 3:4 ni tanla.
+- matn_bosh: XABAR uchun asosiy sarlavha, o'zbekcha, 2-5 so'z, kuchli.
+  DIQQAT: bu rasm USTIGA yozilmaydi — Telegram xabarining matni bo'ladi.
+- matn_qosh: xabar uchun kichik qo'shimcha yozuv, o'zbekcha, 4-8 so'z
+- nisbat: deyarli har doim "1:1" (katalog va mahsulot sahifasi kvadrat
+  ko'rsatadi). Faqat kanal uchun keng banner kerak bo'lsa "4:3".
 - prompt: rasm chizuvchi modelga INGLIZ tilida batafsil ko'rsatma.
   Muhim qoidalar prompt uchun:
     * mahsulot qadog'i tayanch rasmdagidek AYNAN saqlansin (shakl, rang, etiketka)
@@ -79,8 +80,9 @@ Har bir g'oya uchun:
     * agar uslub "muammo-yechim" bo'lsa: real, o'rtacha darajadagi teri
       muammosi ko'rsatilsin — qo'rqinchli yoki tibbiy sahna EMAS, hurmatli va
       chiroyli tarzda; odam yuzi ko'rsatilsa u aniq bir shaxsga o'xshamasin
-    * posterda yozuv bo'lsa, u aynan matn_bosh va matn_qosh matnini
-      o'zbek lotin alifbosida, xatosiz ko'rsatsin
+    * promptda YOZUV so'ralmasin: rasmda hech qanday matn, sarlavha,
+      narx yorlig'i yoki logotip bo'lmasligi kerak (mahsulot etiketkasidan
+      tashqari). Model o'zbekcha matnni doim buzib yozadi.
 
 Faqat JSON qaytar.`;
 
@@ -103,7 +105,7 @@ export async function posterGoyalari(base64, mime, mahsulot) {
     kimga:     s(g.kimga, 80),
     matn_bosh: s(g.matn_bosh, 60),
     matn_qosh: s(g.matn_qosh, 120),
-    nisbat:    NISBATLAR[g.nisbat] ? g.nisbat : '3:4',
+    nisbat:    NISBATLAR[g.nisbat] ? g.nisbat : '1:1',
     prompt:    s(g.prompt, 1800),
   }));
 }
@@ -111,20 +113,20 @@ export async function posterGoyalari(base64, mime, mahsulot) {
 /**
  * Tanlangan g'oyani chizadi. Tayanch rasm mahsulot qadog'ini saqlash uchun.
  *
- * MATNNI MODEL YOZMAYDI. U o'zbekcha yozuvni doim buzadi ("Tabiatdan
- * ilhom" o'rniga tanib bo'lmaydigan harflar) — bu brendni arzonlashtiradi.
- * Shuning uchun rasm YOZUVSIZ chiziladi, sarlavhani esa ustiga o'zimiz
- * qo'yamiz (repozitoriyadagi shrift bilan, imlo har doim to'g'ri).
+ * RASMDA YOZUV BO'LMAYDI. Model o'zbekcha matnni doim buzadi
+ * ("tozalaydi" o'rniga "tozalb") — bu brendni arzonlashtiradi. Ilgari
+ * yozuvni ustiga O'ZIMIZ qo'yardik, lekin model ham yozib qo'yaverdi va
+ * ikkita matn ustma-ust tushdi. Endi rasm butunlay toza: sarlavha
+ * Telegram xabarining matnida qoladi.
  */
-export async function posterChiz({ base64, mime, prompt, nisbat, matn_bosh, matn_qosh }) {
-  const nis = NISBATLAR[nisbat] ? nisbat : '3:4';
+export async function posterChiz({ base64, mime, prompt, nisbat }) {
+  // Kvadrat — sukut bo'yicha: katalog kartasi ham, mahsulot sahifasi ham
+  // 1:1 ko'rsatadi. Boshqa nisbatda rasmning tepasi yoki pasti kesiladi.
+  const nis = NISBATLAR[nisbat] ? nisbat : '1:1';
 
-  const yozuv = (matn_bosh || matn_qosh)
-    ? `\n\nDo NOT render any text, letters, numbers, logos or watermarks in the
-image. Leave the lower third visually calm and uncluttered — a caption will
-be placed there afterwards.`
-    : '\n\nDo not render any text on the image.';
-
+  // HECH QANDAY YOZUV. Model o'zbekcha matnni xato yozadi ("tozalb"),
+  // ustiga biz ham yozsak — ikkita matn ustma-ust tushadi. Yozuv
+  // Telegram xabarining o'zida qoladi, rasmda emas.
   const toliq = `${prompt}
 
 The product in the reference image must be reproduced faithfully — same bottle
@@ -132,7 +134,13 @@ shape, same colours, same label layout. This is a commercial advertising poster:
 professional studio lighting, sharp focus on the product, magazine quality.
 Aspect ratio ${nis} — the artwork must FILL the whole frame edge to edge.
 Never add black bars, white borders, letterboxing, framing or padding of any
-kind: no part of the canvas may be left empty.${yozuv}`;
+kind: no part of the canvas may be left empty.
+
+ABSOLUTELY NO TEXT. Do not render any words, letters, numbers, captions,
+slogans, price tags, badges, stickers, logos or watermarks anywhere in the
+image. The only text allowed is the text already printed on the physical
+product label in the reference photo. If you are about to add a headline or
+caption, do not — leave that area as clean background instead.`;
 
   const parts = base64
     ? [{ text: toliq }, rasmPart(base64, mime || 'image/jpeg')]
@@ -140,12 +148,12 @@ kind: no part of the canvas may be left empty.${yozuv}`;
 
   const rasm = await aiRasm(parts, { nisbat: nis });
 
-  // Model nisbatni har doim ham hurmat qilmaydi — o'zimiz kesamiz,
-  // va yozuvni ham o'zimiz qo'yamiz
+  // Model nisbatni har doim ham hurmat qilmaydi — o'zimiz markazdan kesamiz.
+  // Yozuv qo'shmaymiz: rasm toza qoladi.
   try {
     return await posterniTuzat({
       base64: rasm.base64, mime: rasm.mime, nisbat: nis,
-      matnBosh: matn_bosh || '', matnQosh: matn_qosh || '',
+      matnBosh: '', matnQosh: '',
     });
   } catch (e) {
     // Tuzatib bo'lmasa (motor yo'q) — model bergani baribir qaytadi

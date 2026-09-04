@@ -433,7 +433,7 @@ function toifalarniChiz() {
                   ...holat.kategoriyalar.filter((k) => bor.has(k.id))];
   $('#toifalar').innerHTML = royxat.map((k) => `
     <button data-toifa="${esc(k.slug)}" class="${k.slug === holat.kategoriya ? 'tanlangan' : ''}">
-      ${ik(TOIFA_IKON[k.slug] || 'shisha', 25)}<span>${esc(k.name)}</span>
+      ${ik(TOIFA_IKON[k.slug] || 'shisha', 21)}<span>${esc(k.name)}</span>
     </button>`).join('');
   $$('#toifalar [data-toifa]').forEach((b) => b.onclick = () => {
     holat.kategoriya = b.dataset.toifa; titra();
@@ -576,7 +576,7 @@ qidiruvEl.oninput = (e) => {
   holat.qidiruv = e.target.value;
   kor($('#qidiruv-tozala'), Boolean(holat.qidiruv));
   clearTimeout(qidiruvTimer);
-  qidiruvTimer = setTimeout(mahsulotlarniChiz, 140);
+  qidiruvTimer = setTimeout(katalogniChiz, 140);
 };
 $('#qidiruv-tozala').onclick = () => {
   holat.qidiruv = ''; qidiruvEl.value = '';
@@ -1686,6 +1686,19 @@ function profilniChiz() {
       <textarea id="p-kasallik" placeholder="Masalan: ekzema, rozatsea, qalqonsimon bez">${esc(u.kasallik || '')}</textarea>
       <button class="asosiy" id="t-teri-saqla" style="margin-top:16px">Saqlash</button>`)}
 
+    ${yigma('y-manzil', 'joy', 'Manzilim', u.viloyat ? esc(u.viloyat.replace(/ (viloyati|shahri|Respublikasi)$/, '')) : '', `
+      <div class="ozgina">Buyurtma berishda shu manzil tayyor turadi.</div>
+      <label>Viloyat</label>
+      <button class="tanlov-tugma" id="p-viloyat">
+        <span>${esc(u.viloyat || 'Tanlang')}</span><span class="oq">${ik('keyingi', 17)}</span></button>
+      <label>Tuman</label>
+      <button class="tanlov-tugma" id="p-tuman" ${u.viloyat ? '' : 'disabled'}>
+        <span>${esc(u.tuman || (u.viloyat ? 'Tanlang' : 'Avval viloyatni tanlang'))}</span>
+        <span class="oq">${ik('keyingi', 17)}</span></button>
+      <label for="p-kocha">Ko‘cha, uy, xonadon</label>
+      <textarea id="p-kocha" placeholder="Bunyodkor ko‘chasi 12-uy, 45-xonadon">${esc(u.address || '')}</textarea>
+      <button class="asosiy" id="t-manzil-saqla" style="margin-top:16px">Saqlash</button>`)}
+
     ${yigma('y-buyurtma', 'quti', 'Buyurtmalarim', String(st.buyurtma ?? 0),
       `<div id="buyurtma-tan"></div>`)}
 
@@ -1712,15 +1725,14 @@ function profilniChiz() {
       holat.user = { ...holat.user, ...j.user };
       titra('medium'); profilniChiz();
       // Ochiq turgan bo'limni yopib qo'ymaymiz
-      $('#y-shaxsiy') && ($('#y-shaxsiy').open = Boolean(tan.full_name !== undefined));
-      $('#y-teri') && ($('#y-teri').open = tan.teri_turi !== undefined);
-    } catch (e) { ogohlantir(e.message); }
+      if (tan.full_name !== undefined) $('#y-shaxsiy').open = true;
+      if (tan.teri_turi !== undefined) $('#y-teri').open = true;
+      return true;
+    } catch (e) { ogohlantir(e.message); return false; }
   };
 
   $('#t-shaxsiy-saqla').onclick = () => saqla({
-    full_name: $('#p-ism').value, age: $('#p-yosh').value,
-    teri_turi: holat.user?.teri_turi || '', allergiya: holat.user?.allergiya || '',
-    kasallik: holat.user?.kasallik || '' });
+    full_name: $('#p-ism').value, age: $('#p-yosh').value });
 
   let teri = u.teri_turi || '';
   $$('#p-teri [data-teri]').forEach((b) => b.onclick = () => {
@@ -1730,6 +1742,29 @@ function profilniChiz() {
   });
   $('#t-teri-saqla').onclick = () => saqla({
     teri_turi: teri, allergiya: $('#p-allergiya').value, kasallik: $('#p-kasallik').value });
+
+  // Manzil: viloyat -> tuman -> ko'cha
+  const manzilniOch = () => { const y = $('#y-manzil'); if (y) y.open = true; };
+  $('#p-viloyat').onclick = () => royxatOyna(
+    'Viloyatni tanlang', window.VILOYATLAR || [], u.viloyat || '',
+    async (tanlangan) => {
+      // Viloyat o'zgarsa tuman bekor bo'ladi: "Buxoro viloyati / Chilonzor
+      // tumani" kabi mos kelmaydigan juftlik chiqmasin
+      await saqla({ viloyat: tanlangan, tuman: '', address: $('#p-kocha')?.value || '' });
+      manzilniOch();
+    });
+  $('#p-tuman').onclick = () => {
+    if (!u.viloyat) return;
+    royxatOyna('Tumanni tanlang', window.tumanlarniOl(u.viloyat), u.tuman || '',
+      async (tanlangan) => {
+        await saqla({ viloyat: u.viloyat, tuman: tanlangan, address: $('#p-kocha')?.value || '' });
+        manzilniOch();
+      });
+  };
+  $('#t-manzil-saqla').onclick = async () => {
+    await saqla({ viloyat: u.viloyat || '', tuman: u.tuman || '', address: $('#p-kocha').value });
+    manzilniOch();
+  };
 
   // Buyurtmalar faqat bo'lim ochilganda yuklanadi
   const yb = $('#y-buyurtma');
@@ -2153,7 +2188,11 @@ function maslahatniUla() {
     if (!f) return;
     try {
       const r = await rasmniTayyorla(f);
-      chatRasm = { data: r.data, mime: r.mime };
+      // rasmniTayyorla data-URL qaytaradi ("data:image/jpeg;base64,…").
+      // Prefiksni SHU YERDA ajratamiz: aks holda oldindan ko'rishda
+      // "data:...;base64,data:...;base64,…" bo'lib, rasm ochilmaydi.
+      const mos = String(r.data).match(/^data:(image\/[\w+.-]+);base64,(.+)$/s);
+      chatRasm = mos ? { data: mos[2], mime: mos[1] } : { data: r.data, mime: r.mime };
       rasmOldindaniChiz();
       matn.focus();
     } catch (e) { ogohlantir(e.message || 'Rasmni o‘qib bo‘lmadi'); }
@@ -2236,10 +2275,34 @@ async function toplamniSavatga(idlar) {
 let ornatishHodisasi = null;
 
 function pwaniUla() {
-  // Brauzer "bu sayt o'rnatilishi mumkin" desa, tugmani ko'rsatamiz
+  // 1) TELEGRAM yo'li (Bot API 8.0+). Mini App ichida eng to'g'ri usul:
+  //    Telegram foydalanuvchidan so'raydi va KiOVO yorlig'ini telefon
+  //    bosh ekraniga qo'yadi. Brauzerning PWA taklifi kerak emas.
+  if (tg?.addToHomeScreen) {
+    holat.ornatishUsuli = 'telegram';
+    holat.ornatishMumkin = true;
+    // Allaqachon qo'shilgan bo'lsa tugmani ko'rsatmaymiz
+    try {
+      tg.checkHomeScreenStatus?.((h) => {
+        const bor = h === 'added';
+        if (bor !== !holat.ornatishMumkin) {
+          holat.ornatishMumkin = !bor;
+          if (holat.tab === 'profil') profilniChiz();
+        }
+      });
+    } catch { /* eski klient */ }
+    tg.onEvent?.('homeScreenAdded', () => {
+      holat.ornatishMumkin = false;
+      if (holat.tab === 'profil') profilniChiz();
+    });
+    return;
+  }
+
+  // 2) BRAUZER yo'li (PWA). Telegramdan tashqarida ochilganda ishlaydi.
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     ornatishHodisasi = e;
+    holat.ornatishUsuli = 'pwa';
     holat.ornatishMumkin = true;
     if (holat.tab === 'profil') profilniChiz();
   });
@@ -2249,20 +2312,23 @@ function pwaniUla() {
     if (holat.tab === 'profil') profilniChiz();
   });
 
-  // iPhone'da beforeinstallprompt yo'q — u yerda qo'lda qo'shiladi,
-  // shuning uchun tugmani ko'rsatib, yo'lini aytamiz.
-  // Brauzer hodisasini kutmaymiz: iPhone'da u umuman yo'q, Telegram
-  // ichidagi brauzerda ham kelmasligi mumkin. Ilova ALLAQACHON
-  // o'rnatilgan bo'lmasa — tugma ko'rinadi, bosilganda yo'riqnoma chiqadi.
+  // 3) Hech qaysisi bo'lmasa — qo'lda qo'shish yo'riqnomasi.
   const ornatilgan = matchMedia('(display-mode: standalone)').matches
     || navigator.standalone === true;
-  if (!ornatilgan) holat.ornatishMumkin = true;
+  if (!ornatilgan) { holat.ornatishMumkin = true; holat.ornatishUsuli ||= 'qolda'; }
 
   navigator.serviceWorker?.register('/app/sw.js').catch(() => { /* HTTPS yo'q */ });
 }
 
 async function ilovaniOrnat() {
   titra('medium');
+
+  // Telegram o'zi so'raydi — bizga yo'riqnoma ham, tugma ham kerak emas
+  if (tg?.addToHomeScreen) {
+    try { tg.addToHomeScreen(); return; }
+    catch { /* qo'llab-quvvatlamadi — pastdagi yo'lga tushamiz */ }
+  }
+
   if (ornatishHodisasi) {
     ornatishHodisasi.prompt();
     const { outcome } = await ornatishHodisasi.userChoice;
@@ -2270,24 +2336,25 @@ async function ilovaniOrnat() {
     profilniChiz();
     return;
   }
+
   // Qo'lda o'rnatish yo'riqnomasi
   const iOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   $('#modal-tan').innerHTML = `
     <div style="padding:18px 18px 0">
       <h2 style="margin-bottom:12px">Ilovani telefonga qo‘shish</h2>
       ${iOS ? `
-        <div class="qadam"><b>1</b><div>Pastdagi <b>Ulashish</b> tugmasini bosing
-          (kvadrat ichidan chiqayotgan strelka).</div></div>
-        <div class="qadam"><b>2</b><div><b>«Add to Home Screen»</b> ni tanlang.</div></div>
-        <div class="qadam"><b>3</b><div><b>Add</b> ni bosing — KiOVO ikonkasi
-          ekranda paydo bo‘ladi.</div></div>` : `
-        <div class="qadam"><b>1</b><div>Brauzer menyusini oching (yuqori o‘ngdagi <b>⋮</b>).</div></div>
-        <div class="qadam"><b>2</b><div><b>«Ilovani o‘rnatish»</b> yoki
-          <b>«Bosh ekranga qo‘shish»</b> ni tanlang.</div></div>
-        <div class="qadam"><b>3</b><div>Tasdiqlang — KiOVO ikonkasi ekranda paydo bo‘ladi.</div></div>`}
+        <div class="ornat-qadam"><i>1</i><span>Pastdagi <b>Ulashish</b> tugmasini bosing
+          (kvadrat ichidan chiqayotgan strelka).</span></div>
+        <div class="ornat-qadam"><i>2</i><span><b>Add to Home Screen</b> ni tanlang.</span></div>
+        <div class="ornat-qadam"><i>3</i><span><b>Add</b> ni bosing — KiOVO ikonkasi
+          ekranda paydo bo‘ladi.</span></div>` : `
+        <div class="ornat-qadam"><i>1</i><span>Brauzer menyusini oching — yuqori o‘ngdagi uch nuqta.</span></div>
+        <div class="ornat-qadam"><i>2</i><span><b>Ilovani o‘rnatish</b> yoki
+          <b>Bosh ekranga qo‘shish</b> ni tanlang.</span></div>
+        <div class="ornat-qadam"><i>3</i><span>Tasdiqlang — KiOVO ikonkasi ekranda paydo bo‘ladi.</span></div>`}
       <div class="ozgina" style="margin-top:12px">
-        Telegram ichidan ochsangiz bu tugma ishlamasligi mumkin — havolani
-        brauzerda oching.</div>
+        Telegram ilovangiz eski bo‘lsa bu tugma yo‘riqnoma ko‘rsatadi.
+        Telegramni yangilasangiz, qo‘shish bir bosishda bo‘ladi.</div>
       <button class="ikkilamchi" id="t-ornat-yop" style="margin-top:16px">Tushunarli</button>
     </div>`;
   modalOch();

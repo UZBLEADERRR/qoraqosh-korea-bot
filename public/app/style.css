@@ -449,15 +449,17 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
 /* ---------- Bosh sahifadagi karusel ---------- */
 /* Rasm o'zi gapiradi — ustiga matn yozilmaydi. Faqat kichik tugma
    pastki o'ng chetda: rasmning asosiy qismini to'smaydi. */
-.karusel{position:relative;margin:4px 16px 16px;border-radius:var(--r-katta);
+/* Karusel butun kenglikni egallaydi: ilgari ikki chetida 16px oq yo'l
+   qolib, rasm "yopishmagan" bo'lib ko'rinardi. */
+.karusel{position:relative;margin:0 0 14px;border-radius:0;
   overflow:hidden;background:var(--chiziq-och);aspect-ratio:16/10}
 .karusel-lenta{display:flex;height:100%;transition:transform .55s cubic-bezier(.4,0,.2,1)}
 .karusel-lenta img{flex:0 0 100%;width:100%;height:100%;object-fit:cover;display:block}
-.karusel-tugma{position:absolute;right:12px;bottom:12px;display:inline-flex;
+.karusel-tugma{position:absolute;right:14px;bottom:14px;display:inline-flex;
   align-items:center;gap:6px;background:var(--urgu);color:#fff;border-radius:10px;
   padding:0 13px;height:36px;font-size:13px;font-weight:700;
   box-shadow:0 4px 14px rgba(0,0,0,.28)}
-.karusel-nuqtalar{position:absolute;left:12px;bottom:20px;display:flex;gap:5px}
+.karusel-nuqtalar{position:absolute;left:16px;bottom:22px;display:flex;gap:5px}
 .karusel-nuqtalar i{width:5px;height:5px;border-radius:99px;background:rgba(255,255,255,.55)}
 .karusel-nuqtalar i.faol{width:16px;background:#fff}
 
@@ -634,7 +636,7 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 /* ---------- Qizil shapka ---------- */
 .shapka{position:sticky;top:0;z-index:35;background:var(--urgu);color:#fff;
   padding:calc(10px + env(safe-area-inset-top)) 14px 14px;
-  border-radius:0 0 20px 20px}
+  border-radius:0}
 .shapka-tepa{display:flex;align-items:center;justify-content:space-between;
   padding:2px 2px 12px}
 .logo{display:flex;flex-direction:column;align-items:flex-start;gap:1px;line-height:1}
@@ -666,12 +668,12 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
   border-radius:99px;background:var(--urgu)}
 
 /* ---------- Toifa kartalari ---------- */
-.toifalar{display:flex;gap:9px;overflow-x:auto;padding:16px 14px 4px;
+.toifalar{display:flex;gap:8px;overflow-x:auto;padding:2px 14px 4px;
   scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .toifalar::-webkit-scrollbar{display:none}
-.toifalar button{flex:0 0 auto;width:92px;min-height:84px;background:var(--panel);
-  border:1px solid var(--chiziq);border-radius:15px;padding:13px 8px 10px;
-  display:grid;justify-items:center;gap:7px;font-size:12.5px;font-weight:650;
+.toifalar button{flex:0 0 auto;width:76px;min-height:70px;background:var(--panel);
+  border:1px solid var(--chiziq);border-radius:13px;padding:10px 6px 8px;
+  display:grid;justify-items:center;gap:5px;font-size:11.5px;font-weight:650;
   color:var(--matn);line-height:1.2;text-align:center}
 .toifalar button i[data-ik]{color:var(--matn)}
 .toifalar button.tanlangan{border-color:var(--urgu);color:var(--urgu)}
@@ -780,10 +782,15 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 .tanlov-chiplar button.tanlangan{background:var(--urgu);border-color:var(--urgu);color:#fff}
 .yigma-ich .tanlov-tugma{margin-top:8px}
 
-/* O'rnatish yo'riqnomasi qadamlari */
-.qadam{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;font-size:15px}
-.qadam b{flex:0 0 auto;width:26px;height:26px;border-radius:99px;background:var(--urgu-och);
-  color:var(--urgu);display:grid;place-items:center;font-size:13.5px;font-weight:800}
+/* O'rnatish yo'riqnomasi qadamlari (`.qadam` band — u bosqich yorlig'i) */
+.ornat-qadam{display:flex;gap:12px;align-items:flex-start;margin-bottom:13px;
+  font-size:15px;line-height:1.5;text-transform:none;letter-spacing:0;
+  color:var(--matn);font-weight:400}
+.ornat-qadam>span{flex:1;min-width:0}
+.ornat-qadam>span b{font-weight:750}
+.ornat-qadam>i{flex:0 0 auto;width:26px;height:26px;border-radius:99px;
+  background:var(--urgu-och);color:var(--urgu);display:grid;place-items:center;
+  font-size:13.5px;font-weight:800;font-style:normal}
 
 /* ============================================================
    AI CHAT — formatlangan javob, savol, to'plam
@@ -867,3 +874,8 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 /* Skaner ekrani statusbar ostiga yopishmasin */
 #tab-skaner{padding-top:calc(10px + env(safe-area-inset-top))}
 #tab-savat,#tab-profil,#tab-natija{padding-top:calc(6px + env(safe-area-inset-top))}
+
+/* Mahsulot sahifasidagi poster to'liq ko'rinsin: eski rasmlar 3:4,
+   yangilari 1:1 — qat'iy kvadratga solsak tepasi yoki pasti kesiladi. */
+.modal .rasm{aspect-ratio:auto!important;height:auto;min-height:0}
+.modal .rasm img{height:auto;object-fit:contain;max-height:62vh}

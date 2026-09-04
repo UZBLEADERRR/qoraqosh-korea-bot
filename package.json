@@ -17,7 +17,8 @@
     "test:ops": "node test/operatsiya.mjs",
     "test:agent": "node test/agent.mjs",
     "test:maslahat": "node test/maslahat.mjs",
-    "test": "npm run test:emu && npm run test:bot && npm run test:ops && npm run test:agent && npm run test:maslahat",
+    "test:skrinshot": "node test/skrinshot.mjs",
+    "test": "npm run test:emu && npm run test:bot && npm run test:ops && npm run test:agent && npm run test:maslahat && npm run test:skrinshot",
     "test:emu": "node test/emu-tarif.mjs"
   },
   "dependencies": {

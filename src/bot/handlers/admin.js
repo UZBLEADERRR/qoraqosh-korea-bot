@@ -8,6 +8,8 @@ import { config } from '../../config.js';
 import { brendNomi } from '../../lib/brend.js';
 import { xabar } from '../shablon.js';
 import { keshniTashla } from '../../lib/kesh.js';
+import { qoidaniTozala } from '../../lib/narx.js';
+import { skrinshotQabul, importniTugat } from '../../services/skrinshot-import.js';
 import { BOSQICHLAR, bosqich, keyingi } from '../../lib/bosqichlar.js';
 import {
   ochiqPartiya, xaridRoyxati, xaridMatni, partiyaniQabulQil,
@@ -20,6 +22,7 @@ import { broadcastBoshla } from '../../services/broadcast.js';
 import { agentCallback, agentHolati, rejaMenyusi, tanitishBoshla } from './agent-oqim.js';
 
 export const BUYRUQLAR = [
+  ['/qosh',     'Skrinshotdan mahsulot qo‘shish'],
   ['/orders',   'Xarid ro‘yxati (Coupang/Daiso)'],
   ['/partiya',  'Partiyalar va pochta hujjati'],
   ['/reklama',  'Hammaga xabar yuborish'],
@@ -32,6 +35,7 @@ export const BUYRUQLAR = [
 /** Admin holati — ko'p qadamli buyruqlar uchun (users.state ustunida). */
 export const HOLAT = {
   REKLAMA_MATN: 'admin_reklama_matn',
+  SKRINSHOT:    'admin_skrinshot',
   BREND_NOM:    'admin_brend_nom',
   REJA_TOPSHIRIQ: 'admin_reja_topshiriq',
   REJA_SOAT:      'admin_reja_soat',
@@ -388,6 +392,8 @@ export async function adminBuyrugi(msg, user) {
   const argument = qolgan.join(' ');
 
   switch (buyruq) {
+    case '/qosh':    await skrinshotBoshla(chatId, user); return true;
+    case '/tugat':   await skrinshotTugat(chatId, user); return true;
     case '/orders':  await xaridRoyxatiniYubor(chatId, user); return true;
     case '/partiya': await partiyalarniKorsat(chatId); return true;
     case '/reklama': await reklamaBoshla(chatId, user); return true;
@@ -406,6 +412,51 @@ export async function adminBuyrugi(msg, user) {
   }
 }
 
+// ══════════════════ /qosh — SKRINSHOTDAN MAHSULOT ══════════════════
+//
+// Admin yuzta skrinshot tashlab ketadi, qolganini AI qiladi: nomi,
+// brendi, koreyadagi narxi va og'irligi rasmdan o'qiladi, sotuv narxi
+// narx qoidasi bo'yicha hisoblanadi, ombor 100 dona qilib qo'yiladi.
+
+export async function skrinshotBoshla(chatId, user) {
+  await holatSaqla(user.id, HOLAT.SKRINSHOT);
+  const q = qoidaniTozala(await sozlama('narx_qoidasi', {}));
+  await yubor(chatId, [
+    `📸 <b>Skrinshotdan mahsulot qo‘shish</b>`, ``,
+    `Koreya do‘konidagi mahsulot skrinshotlarini tashlang — bittalab yoki`,
+    `birdaniga yuztasini. Qolganini o‘zim qilaman:`, ``,
+    `• nomi, brendi va tavsifi rasmdan o‘qiladi`,
+    `• <b>narxi</b> ham rasmdan olinadi (₩ yoki so‘m)`,
+    `• sotuv narxi: <b>KRW × ${q.krw_kurs}</b> + har 100 g uchun`,
+    `  <b>${q.yetkazish_100g.toLocaleString('uz-UZ').replace(/,/g, ' ')}</b> so‘m + foyda`,
+    `• ombor har biriga <b>100 dona</b>`,
+    `• toifasi mos kelmasa yangi bo‘lim ochiladi`, ``,
+    `Havolalarni keyin admin panelda qo‘yasiz.`, ``,
+    `Tugatish: /tugat · Bekor qilish: /bekor`,
+  ].join('\n'));
+}
+
+async function skrinshotTugat(chatId, user) {
+  await holatTozala(user.id);
+  await importniTugat(user, chatId);
+}
+
+/** Admin skrinshot rejimida rasm yubordi. */
+export async function adminRasmi(msg, user) {
+  if (!adminmi(user) || user.state !== HOLAT.SKRINSHOT) return false;
+  const foto = Array.isArray(msg.photo) && msg.photo.length
+    ? msg.photo[msg.photo.length - 1] : null;
+  // Sifat muhim: hujjat sifatida yuborilgan rasm ham qabul qilinadi
+  const hujjat = msg.document && String(msg.document.mime_type || '').startsWith('image/')
+    ? msg.document : null;
+  const fileId = foto?.file_id || hujjat?.file_id;
+  // Rasm bo'lmasa aralashmaymiz: /tugat va /bekor kabi buyruqlar
+  // odatdagi yo'lidan o'tsin.
+  if (!fileId) return false;
+  await skrinshotQabul(user, msg.chat.id, fileId);
+  return true;
+}
+
 /** Admin ko'p qadamli holatda — javobini qabul qilamiz. */
 export async function adminHolati(msg, user) {
   if (!adminmi(user) || !user.state?.startsWith('admin_')) return false;
@@ -419,6 +470,10 @@ export async function adminHolati(msg, user) {
   }
   if (user.state === HOLAT.REKLAMA_MATN) return Boolean(await reklamaMatni(msg, user));
   if (user.state === HOLAT.BREND_NOM)    { await brendSaqla(msg.chat.id, user, matn); return true; }
+  if (user.state === HOLAT.SKRINSHOT) {
+    await yubor(msg.chat.id, 'Rasm kutyapman. Tugatish: /tugat');
+    return true;
+  }
   return await agentHolati(msg, user);
 }
 

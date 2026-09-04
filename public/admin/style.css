@@ -281,3 +281,8 @@ textarea{resize:vertical;min-height:80px}
 .karusel-och{position:absolute;top:5px;right:5px;width:24px;height:24px;border-radius:50%;
   border:0;background:rgba(0,0,0,.55);color:#fff;font-size:13px;line-height:1;cursor:pointer;
   display:grid;place-items:center}
+
+/* Ikki ustunli maydon juftligi (bo'lim tahriri, havolalar) */
+.ikki{display:grid;gap:10px}
+@media (min-width:520px){.ikki{grid-template-columns:1fr 1fr}}
+.ikki>div{min-width:0}

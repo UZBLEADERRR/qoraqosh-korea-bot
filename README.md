@@ -80,19 +80,23 @@ Google Gemini · Railway.
   panelidan `POST /api/admin/kalit-sozlar`. Klientda kirill→lotin
   translit ham bor, shuning uchun «пенка» va «penka» bir xil natija
   beradi.
-- **Ilovani telefonga o'rnatish (PWA).** Profildagi **«Ilovani
-  o'rnatish»** tugmasi ilovani telefon ekraniga chiqaradi: KiOVO
-  ikonkasi bosiladi va do'kon to'g'ridan-to'g'ri ochiladi — Telegramni
-  ochish, botni topish, tugmani bosish bosqichlari yo'qoladi.
-  Brauzer o'rnatish taklifini bermasa (iPhone, Telegram ichidagi
-  brauzer) qo'lda o'rnatish yo'riqnomasi ko'rsatiladi.
-  Service worker faqat QOBIQNI keshlaydi (HTML/CSS/JS/ikonka) —
-  katalog, savat va buyurtma har doim tarmoqdan olinadi, eski narx
-  ko'rsatilmaydi.
+- **Ilovani telefonga o'rnatish.** Profildagi **«Ilovani o'rnatish»**
+  tugmasi KiOVO ikonkasini telefon bosh ekraniga chiqaradi — Telegramni
+  ochish, botni topish, tugmani bosish bosqichlari yo'qoladi. Uch yo'l,
+  shu tartibda:
+  1. **Telegram** — `addToHomeScreen()` (Bot API 8.0+). Mini App ichida
+     eng to'g'ri usul: Telegram o'zi so'raydi va yorliqni qo'yadi.
+     `checkHomeScreenStatus()` allaqachon qo'shilganini bilsa tugma
+     ko'rsatilmaydi.
+  2. **Brauzer PWA** — `beforeinstallprompt` (Telegramdan tashqarida).
+  3. Ikkalasi ham bo'lmasa — qo'lda qo'shish yo'riqnomasi.
+  Service worker faqat QOBIQNI keshlaydi (HTML/CSS/JS/ikonka) — katalog,
+  savat va buyurtma har doim tarmoqdan olinadi, eski narx ko'rsatilmaydi.
 - **Profil** — Telegram avatari, ism va statistika. Bo'limlar YOPIQ
   turadi va bosilganda ochiladi: shaxsiy ma'lumot (tahrirlanadi),
-  **terim va sog'ligim** (teri turi, allergiya, kasallik — AI shularni
-  hisobga oladi), buyurtmalar tarixi, aloqa va yordam.
+  **terim va sog'liq** (teri turi, allergiya, kasallik — AI shularni
+  hisobga oladi), **manzilim** (viloyat, tuman, ko'cha — buyurtmada
+  tayyor turadi), buyurtmalar tarixi, aloqa va yordam.
 - **Skaner sahifasi sodda**: yuqorida qanday rasm kerakligi KO'RSATILADI,
   ostida bitta qatorlik maslahat, ostida tugma. Ilgari bu yerda to'rtta
   talab va ogohlantirish bor edi — odam o'qimay pastga sirg'ardi.
@@ -166,6 +170,51 @@ Google Gemini · Railway.
 - **Majburiy obuna** (ixtiyoriy) — kanalga a'zo bo'lmagan foydalanuvchi
   botdan foydalana olmaydi. Kanal havolasi tugmada ham, matnda ham
   ko'rinadi va bot uni o'zi topadi (pastga qarang).
+
+### 📸 Botga skrinshot tashlab mahsulot qo'shish
+
+Admin `/qosh` deb yozadi va Koreya do'konining skrinshotlarini tashlaydi —
+bittalab yoki birdaniga yuztasini. Qolganini AI qiladi:
+
+- **nomi, brendi, tavsifi** rasmdan o'qiladi;
+- **narxi ham rasmdan** olinadi (`3,200원` → 3200 KRW). Chegirmali narx
+  bo'lsa yangisini oladi, narx ko'rinmasa mahsulot o'tkazib yuboriladi —
+  o'ylab topilmaydi;
+- **og'irligi** hajmdan taxmin qilinadi (100 ml ≈ 120 g);
+- **sotuv narxi** narx qoidasi bo'yicha hisoblanadi:
+  `KRW × kurs` + `har boshlangan 100 g uchun pochta` + `foyda`,
+  1000 so'mgacha yaxlitlanadi. Standart qoidada
+  3 200 ₩ va 120 g → 30 400 + 30 000 + foyda ≈ **91 000 so'm**;
+- **ombor har biriga 100 dona** qilib belgilanadi;
+- mahsulot **mavjud bo'limlarning birortasiga ham tushmasa** (tuk
+  oluvchi, pinset, sochiq) — AI **yangi bo'lim ochadi** (`Aksessuar`),
+  keyin uni panelda tuzatasiz;
+- skrinshotning o'zi mahsulot posteri bo'lib qoladi;
+- qidiruv kalit so'zlari ham darrov to'ldiriladi.
+
+Navbat **bittalab** ishlanadi (yuzta AI chaqiruvi bir vaqtda ketsa
+provayder ham, baza ham bo'g'iladi) va holat xabari yangilanib turadi.
+`/tugat` — hisobot: nechtasi qo'shildi, o'rtacha narx, nimalar
+o'tkazildi va nima uchun.
+
+Ishonch 60% dan past bo'lsa katalogga chiqarilmaydi: chala o'qilgan
+mahsulot do'konda turgani eng yomon variant.
+
+**Uzum Market bilan solishtirish** (ixtiyoriy, `uzum_tekshir`
+sozlamasi). Yoqilgan bo'lsa, aynan shu mahsulot Uzum'da topilsa
+narxi undan `uzum_arzon_farq` (standart 1 000 so'm) arzon qo'yiladi.
+Moslik QAT'IY tekshiriladi — brend va kamida ikkita muhim so'z mos
+kelmasa hisobga olinmaydi, chunki noto'g'ri moslik narxni buzadi.
+Narx hech qachon tannarx + pochtadan pastga tushmaydi.
+
+**Havolalar keyin.** Skrinshotdan qo'shilgan mahsulotning manba havolasi
+yo'q. Admin panelning **«Havolasizlar»** bo'limida nomni bir bosishda
+nusxalab (yoki hammasini birdan), do'kondan topib, havolani qo'yasiz —
+`/orders` xarid ro'yxati shundan foydalanadi.
+
+**Bo'limlar** — panelning **«Bo'limlar»** bo'limida yangi bo'lim
+qo'shiladi, nomi, emojisi va tartibi o'zgartiriladi. AI o'zi ochgan
+bo'limlar ham shu yerda ko'rinadi.
 
 ### Admin uchun (`/admin`)
 - **Boshqaruv paneli** — daromad, yalpi foyda va marja, o'rtacha chek,
@@ -631,6 +680,7 @@ src/
     productEnrich.js   skrinshotdan mahsulotni tanish
     poster.js          poster g'oyalari va generatsiyasi
     maslahat.js        AI maslahatchi: savol, to'plam, tavsiya
+    skrinshot-mahsulot.js  skrinshotdan mahsulot + narx o'qish
     kalit-sozlar.js    qidiruv kalit so'zlari (partiyalab)
   bot/
     index.js           dispetcher
@@ -664,6 +714,8 @@ src/
     qollanma-hujjati.js mijozga qutiga qo'shiladigan parvarish qo'llanmasi
     mijoz-qollanma.js  to'lovdan keyin qo'llanmani yuborish (rasm + Word)
     kalit-sozlar.js    qoida + AI dan kalit so'zlarni to'ldirish
+    skrinshot-import.js botga tashlangan skrinshotlar navbati
+    uzum-narx.js       Uzum Market narxi bilan solishtirish
     broadcast.js       reklama yuborish (tezlik cheklovi bilan)
     majburiy-kanal.js  obuna tekshiruvi
     marketplace.js     Daiso/Coupang dan mahsulot olish va filtrlash
@@ -696,7 +748,7 @@ Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing
 
 `npm run check` — deploy oldidan fayllar, sxema va koddagi kalitlarni tekshiradi.
 `npm test` — barcha sinovlar (EMU tarifi, bot oqimi, operatsiya, agent,
-AI maslahatchi).
+AI maslahatchi, skrinshotdan import).
 
 ---
 

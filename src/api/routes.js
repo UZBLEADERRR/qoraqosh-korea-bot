@@ -69,7 +69,7 @@ export async function apiRoutes(req, res, yol) {
               jami_xarid: Number(stat?.jami_xarid ?? 0) },
       user: {
         id: user.id, full_name: user.full_name, phone: user.phone,
-        age: user.age, address: user.address,
+        age: user.age, address: user.address || '',
         viloyat: user.viloyat, tuman: user.tuman,
         // Profildagi tahrirlanadigan qismlar. Allergiya va kasallik AI
         // tavsiyasiga ta'sir qiladi — mos kelmaydigan mahsulot berilmasin.
@@ -152,7 +152,14 @@ export async function apiRoutes(req, res, yol) {
 
     const b = await tana(req);
     const savol = String(b.savol || '').trim().slice(0, 400);
-    const rasm = typeof b.rasm === 'string' && b.rasm.length > 100 ? b.rasm : null;
+
+    // Klient rasmni data-URL ko'rinishida yuboradi ("data:image/jpeg;base64,…").
+    // Prefiksni olib tashlamasak model uni base64 deb o'qiy olmaydi va
+    // butun so'rovni 400 bilan rad etadi.
+    const xomRasm = String(b.rasm || '');
+    const mos = xomRasm.match(/^data:(image\/[\w+.-]+);base64,(.+)$/s);
+    const rasm = mos ? mos[2] : (xomRasm.length > 100 ? xomRasm.replace(/\s/g, '') : null);
+    const rasmMime = mos ? mos[1] : String(b.mime || 'image/jpeg');
     if (savol.length < 2 && !rasm) return xato(res, 400, 'Savolingizni yozing.');
 
     // Kontekst: oldingi 8 xabar. Modelning "allaqachon so'radim" ni
@@ -167,7 +174,7 @@ export async function apiRoutes(req, res, yol) {
       const j = await maslahatBer(savol || 'Mana shu rasmga qarab maslahat bering',
         katalog.mahsulotlar || [], {
           tarix,
-          rasm, mime: String(b.mime || 'image/jpeg'),
+          rasm, mime: rasmMime,
           // Yosh, teri turi, allergiya — tavsiya shularga moslashadi
           profil: { age: user.age, teri_turi: user.teri_turi,
                     allergiya: user.allergiya, kasallik: user.kasallik },
@@ -195,19 +202,30 @@ export async function apiRoutes(req, res, yol) {
     const b = await tana(req);
     const matn = (v, n) => String(v ?? '').trim().slice(0, n) || null;
     const yosh = Number(b.age);
+    // Faqat yuborilgan maydonlar yangilanadi: profil bir necha bo'limdan
+    // saqlanadi (shaxsiy, teri, manzil) va biri ikkinchisini o'chirmasin.
+    const bor = (k) => Object.prototype.hasOwnProperty.call(b, k);
     const u = await qator(
       `update users set
           full_name = coalesce($2, full_name),
           age       = coalesce($3, age),
-          teri_turi = $4, allergiya = $5, kasallik = $6
+          teri_turi = case when $4 then $5  else teri_turi end,
+          allergiya = case when $4 then $6  else allergiya end,
+          kasallik  = case when $4 then $7  else kasallik  end,
+          viloyat   = case when $8 then $9  else viloyat   end,
+          tuman     = case when $8 then $10 else tuman     end,
+          address   = case when $8 then $11 else address   end
         where id = $1 returning *`,
       [user.id,
        matn(b.full_name, 80),
        Number.isFinite(yosh) && yosh >= 12 && yosh <= 90 ? Math.round(yosh) : null,
-       matn(b.teri_turi, 20), matn(b.allergiya, 300), matn(b.kasallik, 300)]);
+       bor('teri_turi') || bor('allergiya') || bor('kasallik'),
+       matn(b.teri_turi, 20), matn(b.allergiya, 300), matn(b.kasallik, 300),
+       bor('viloyat') || bor('tuman') || bor('address'),
+       matn(b.viloyat, 60), matn(b.tuman, 60), matn(b.address, 300)]);
     return ok(res, { user: {
       full_name: u.full_name, phone: u.phone, age: u.age,
-      viloyat: u.viloyat, tuman: u.tuman,
+      viloyat: u.viloyat || '', tuman: u.tuman || '', address: u.address || '',
       teri_turi: u.teri_turi || '', allergiya: u.allergiya || '', kasallik: u.kasallik || '',
       royxatdan_otgan: Boolean(u.phone && u.full_name && u.agreed_at),
     } });
