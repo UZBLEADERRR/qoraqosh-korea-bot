@@ -7,12 +7,17 @@
 //
 // MA'LUMOT keshlanmaydi: katalog, savat, buyurtma — hammasi tarmoqdan.
 // Eski narxni ko'rsatish eng yomon xato bo'lardi.
-const KESH = 'kiovo-qobiq-v1';
-const QOBIQ = [
-  '/app/', '/app/index.html', '/app/style.css', '/app/app.js',
-  '/app/ikon.js', '/app/hududlar.js', '/app/manifest.json',
-  '/app/ikon-192.png', '/app/ikon-512.png',
-];
+// Versiyani SERVER qo'yadi (src/server.js). Har deployda o'zgaradi,
+// shuning uchun brauzer yangi service worker ni o'rnatadi va eski
+// keshni tashlaydi. Ilgari bu nom qotib turgani uchun eski qobiq
+// oylab saqlanib qolishi mumkin edi.
+const VERSIYA = '__VERSIYA__';
+const KESH = `kiovo-${VERSIYA}`;
+
+// Faqat manzili O'ZGARMAYDIGAN fayllar oldindan keshlanadi.
+// app.js va style.css versiyalangan manzil bilan keladi
+// ("app.js?v=…") — ular so'ralganda keshga tushadi.
+const QOBIQ = ['/app/', '/app/manifest.json', '/app/ikon-192.png', '/app/ikon-512.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(KESH).then((k) => k.addAll(QOBIQ)).then(() => self.skipWaiting()));

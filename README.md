@@ -78,6 +78,19 @@ Google Gemini · Railway.
   - **Moslik yorlig'i** ham haqiqiy: oxirgi tahlildagi muammolar va
     profildagi teri turi bilan solishtiriladi. Mos kelmasa yorliq
     chiqmaydi.
+- **Sharhlar HAQIQIY.** Sharhni faqat shu mahsulotni **sotib olgan**
+  mijoz yozadi — server buyurtmalar ro'yxatidan tekshiradi. Reyting
+  qo'lda yozilmaydi: u sharhlardan bazadagi trigger orqali
+  hisoblanadi (`reytingni_yangila`). Bir odam bir mahsulotga bitta
+  sharh yozadi, keyin uni o'zgartirishi yoki o'chirishi mumkin.
+  Ro'yxatda ism qisqartiriladi («Aliyeva Malika» → «Malika A.»).
+  Yetkazilgan buyurtma kartasida «Shu mahsulotni baholash» tugmasi
+  chiqadi.
+  - Koreys do'konidagi baho (skrinshotdan o'qilgani) **alohida**
+    ustunda saqlanadi va «Koreyada · 124 sharh» deb belgilanadi —
+    u bizning mijozimizning bahosi emas, ikkalasini aralashtirish
+    mijozni chalg'itadi.
+  - Bizda sharh yo'q bo'lsa kartada yulduzcha umuman ko'rsatilmaydi.
 - **Sevimlilar** — katalogdagi yurakcha, profildagi «Sevimlilar»
   bo'limi va statistikadagi hisob.
 - **Savatda AI tavsiyasi** — savatdagi mahsulotlar qaysi parvarish
@@ -765,6 +778,7 @@ migrations/
   025_kalit_sozlar…    qidiruv kalit so'zlari + profil (allergiya)
   026_reyting_sevimli  manba reytingi va sevimlilar
   027_mavzu_kiovo      yangi standart mavzu (oq fon, yorqin qizil)
+  028_sharhlar         haqiqiy sharhlar + reyting triggeri
 ```
 
 Yangi o'zgarish kerak bo'lsa **yangi** migratsiya fayli qo'shing
@@ -777,6 +791,25 @@ AI maslahatchi, skrinshotdan import).
 ---
 
 ## Muhim texnik qarorlar
+
+### Yangilanish nega ko'rinmasdi (kesh)
+
+`index.html` har safar yangi kelardi, lekin `app.js` va `style.css`
+oddiy manzilda turgani uchun **Telegram ichidagi brauzer ularning
+eskisini saqlab qolardi**. Natijada yangi HTML eski kod bilan ishlab,
+o'zgarishlar umuman ko'rinmasdi.
+
+Endi server fayllar mazmunidan qisqa xesh hisoblaydi va havolaga
+qo'shadi: `app.js?v=a89f40c9`. Kod o'zgarsa manzil ham o'zgaradi va
+brauzer yangisini majburan oladi:
+
+- versiyalangan manzil — `max-age=31536000, immutable` (bir yil);
+- versiyasiz manzil — `no-cache, must-revalidate`;
+- `sw.js` ichiga ham versiya yoziladi, shuning uchun har deployda
+  service worker qayta o'rnatiladi va eski kesh o'chiriladi.
+
+Deploydan keyin o'zgarish ko'rinmasa — birinchi navbatda javob
+sarlavhasidagi `X-Ilova-Versiya` ni tekshiring.
 
 ### AI javobi uzilib qolsa
 

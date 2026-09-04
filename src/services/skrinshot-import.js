@@ -152,7 +152,7 @@ export async function bittaSkrinshot(fileId, qoida) {
   const p = await qator(
     `insert into products (name, brand, category_id, step, price, cost_price, stock,
         volume, country, description, usage_text, ingredients, actives, concerns,
-        skin_types, warnings, emoji, ogirlik, reyting, sharh_soni, ai_filled, is_active)
+        skin_types, warnings, emoji, ogirlik, manba_reyting, manba_sharh, ai_filled, is_active)
      values ($1,$2,$3,$4,$5,$6,$7,$8,'KR',$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,true,true)
      returning *`,
     [karta.name, karta.brand || null, kategoriyaId, karta.step,

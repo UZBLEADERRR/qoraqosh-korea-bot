@@ -57,7 +57,8 @@ const chaqir = (yol, usul, tana, imzo) => new Promise((res) => {
     end(x) { if (x) bolaklar.push(x); res({ kod: this.statusCode,
       tana: JSON.parse(Buffer.concat(bolaklar.map(Buffer.from)).toString() || '{}') }); },
   };
-  apiRoutes(req, javob, yol).catch((e) => res({ kod: 500, tana: { error: e.message } }));
+  apiRoutes(req, javob, yol.split('?')[0])
+    .catch((e) => res({ kod: 500, tana: { error: e.message } }));
 });
 
 console.log('\n== AI MASLAHATCHI ==');
@@ -162,6 +163,75 @@ console.log('\n== KALIT SO‘ZLAR ==');
   const kat = await chaqir('/api/catalog', 'GET');
   test('katalog kalit_sozlar ni qaytaradi',
     (kat.tana.mahsulotlar || []).some((p) => (p.kalit_sozlar || []).length > 0));
+}
+
+
+// ================= SHARHLAR =================
+// Sharh HAQIQIY bo'lishi kerak: uni faqat mahsulotni SOTIB OLGAN odam
+// yozadi, reyting esa shu sharhlardan hisoblanadi.
+console.log('\n== SHARHLAR ==');
+{
+  const u = await qator(`select id from users where telegram_id = '910001'`);
+  await sorov('delete from sharhlar where user_id = $1', [u.id]);
+  await sorov(`delete from orders where user_id = $1 and order_no like 'SH-%'`, [u.id]);
+
+  // Sotib olmagan odam sharh yozolmaydi
+  const rad = await chaqir('/api/sharh', 'POST', { product_id: 1, baho: 5, matn: 'Zo‘r' });
+  test('sotib olmagan odam sharh yozolmaydi', rad.kod === 403, `kod=${rad.kod}`);
+
+  // Buyurtma qo'shamiz
+  await sorov(
+    `insert into orders (order_no, user_id, customer_name, customer_phone, customer_address,
+        items, subtotal, delivery_fee, discount, total, status, payment_status)
+     values ('SH-1',$1,'Sinov','+998901112233','Manzil 12',
+       '[{"product_id":1,"name":"Sinov","qty":1,"price":80000}]'::jsonb,
+       80000,0,0,80000,'yetkazildi','tolangan')`, [u.id]);
+
+  const yoz = await chaqir('/api/sharh', 'POST',
+    { product_id: 1, baho: 4, matn: 'Yaxshi, lekin hidi kuchli.' });
+  test('sotib olgan odam sharh yozdi', yoz.kod === 200, `kod=${yoz.kod} ${yoz.tana.error || ''}`);
+  test('reyting sharhdan hisoblandi', Number(yoz.tana.reyting) === 4, String(yoz.tana.reyting));
+  test('sharh soni yangilandi', yoz.tana.sharh_soni === 1, String(yoz.tana.sharh_soni));
+
+  // Baho chegarasi
+  const yomon = await chaqir('/api/sharh', 'POST', { product_id: 1, baho: 9 });
+  test('9 ball rad etildi', yomon.kod === 400, `kod=${yomon.kod}`);
+
+  // Bir odam bitta sharh — ikkinchisi tahrir bo'ladi
+  const qayta = await chaqir('/api/sharh', 'POST', { product_id: 1, baho: 5, matn: 'Ko‘nikdim' });
+  test('takroriy sharh tahrirga aylandi', qayta.tana.sharh_soni === 1, String(qayta.tana.sharh_soni));
+  test('reyting yangi bahoga o‘zgardi', Number(qayta.tana.reyting) === 5, String(qayta.tana.reyting));
+
+  const royxat = await chaqir('/api/sharhlar?product_id=1', 'GET');
+  test('sharhlar ro‘yxati keldi', royxat.kod === 200 && royxat.tana.sharhlar.length === 1);
+  test('o‘z sharhi belgilangan', royxat.tana.sharhlar[0]?.meniki === true);
+  test('familiya to‘liq ko‘rsatilmaydi',
+    !/Sinov Familiya/.test(royxat.tana.sharhlar[0]?.ism || ''), royxat.tana.sharhlar[0]?.ism);
+  test('yozsa bo‘ladi deb belgilandi', royxat.tana.yozsa_boladi === true);
+
+  // Katalogda ham ko'rinadi
+  (await import('../src/lib/kesh.js')).keshniTashla('katalog');
+  const kat = await chaqir('/api/catalog', 'GET');
+  const p1 = (kat.tana.mahsulotlar || []).find((x) => x.id === 1);
+  test('katalogda reyting bor', Number(p1?.reyting) === 5 && p1?.sharh_soni === 1,
+    `${p1?.reyting} / ${p1?.sharh_soni}`);
+  test('manba bahosi alohida ustunda', 'manba_reyting' in (p1 || {}));
+
+  // Baholanmagan mahsulotlar ro'yxati
+  await sorov('delete from sharhlar where user_id = $1', [u.id]);
+  const kut = await chaqir('/api/sharh-kutilmoqda', 'GET');
+  test('baholanmagan mahsulot ro‘yxatda',
+    (kut.tana.mahsulotlar || []).some((x) => Number(x.product_id) === 1));
+
+  // O'chirish
+  await chaqir('/api/sharh', 'POST', { product_id: 1, baho: 3 });
+  const och = await chaqir('/api/sharh', 'DELETE', { product_id: 1 });
+  test('sharh o‘chirildi', och.kod === 200);
+  const p2 = await qator('select reyting, sharh_soni from products where id = 1');
+  test('o‘chirilgach reyting tozalandi', p2.reyting === null && p2.sharh_soni === 0,
+    `${p2.reyting} / ${p2.sharh_soni}`);
+
+  await sorov(`delete from orders where user_id = $1 and order_no like 'SH-%'`, [u.id]);
 }
 
 console.log(`\n${xato ? '✗' : '✓'} ${ok} o‘tdi, ${xato} yiqildi\n`);

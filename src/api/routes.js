@@ -8,7 +8,7 @@ import { maslahatBer } from '../ai/maslahat.js';
 import { savatniOl, savatgaQosh, savatOzgartir, savatniTozala, buyurtmaYarat } from '../services/orders.js';
 import { yubor } from '../bot/tg.js';
 import { esc, narx } from '../bot/format.js';
-import { kesh } from '../lib/kesh.js';
+import { kesh, keshniTashla } from '../lib/kesh.js';
 import { cheklov } from '../lib/cheklov.js';
 import { VILOYATLAR, tumanlar } from '../lib/hududlar.js';
 import { palitra } from '../lib/mavzu.js';
@@ -196,6 +196,91 @@ export async function apiRoutes(req, res, yol) {
       console.error('MASLAHAT XATOSI', x.log);
       return xato(res, 502, x.matn);
     }
+  }
+
+  // --- Sharhlar ---
+  // Sharh HAQIQIY: faqat shu mahsulotni SOTIB OLGAN odam yoza oladi.
+  // Aks holda reyting bir kechada soxta bahoga to'lib ketadi.
+  if (yol === '/api/sharhlar' && req.method === 'GET') {
+    const id = Number(new URL(req.url, 'http://x').searchParams.get('product_id'));
+    if (!id) return xato(res, 400, 'Mahsulot tanlanmadi.');
+    const royxat = await qatorlar(
+      `select s.id, s.baho, s.matn, s.created_at, s.user_id,
+              coalesce(u.full_name, '') as ism
+         from sharhlar s join users u on u.id = s.user_id
+        where s.product_id = $1
+        order by s.created_at desc limit 50`, [id]);
+    // Familiyani to'liq ko'rsatmaymiz: "Aliyeva Malika" -> "Malika A."
+    const qisqaIsm = (t) => {
+      const q = String(t || '').trim().split(/\s+/).filter(Boolean);
+      if (!q.length) return 'Mijoz';
+      if (q.length === 1) return q[0];
+      return `${q[q.length - 1]} ${q[0][0]}.`;
+    };
+    return ok(res, {
+      sharhlar: royxat.map((r) => ({
+        id: r.id, baho: r.baho, matn: r.matn || '', created_at: r.created_at,
+        ism: qisqaIsm(r.ism), meniki: Number(r.user_id) === Number(user.id),
+      })),
+      // Shu odam sharh yozishi mumkinmi
+      yozsa_boladi: Boolean(await qator(
+        `select 1 from orders o
+          where o.user_id = $1 and o.status <> 'bekor'
+            and exists (select 1 from jsonb_array_elements(o.items) it
+                         where (it->>'product_id')::bigint = $2)
+          limit 1`, [user.id, id])),
+    });
+  }
+
+  if (yol === '/api/sharh' && req.method === 'POST') {
+    const b = await tana(req);
+    const id = Number(b.product_id);
+    const baho = Math.round(Number(b.baho));
+    if (!id) return xato(res, 400, 'Mahsulot tanlanmadi.');
+    if (!(baho >= 1 && baho <= 5)) return xato(res, 400, 'Bahoni 1 dan 5 gacha tanlang.');
+
+    const sotibOlgan = await qator(
+      `select 1 from orders o
+        where o.user_id = $1 and o.status <> 'bekor'
+          and exists (select 1 from jsonb_array_elements(o.items) it
+                       where (it->>'product_id')::bigint = $2)
+        limit 1`, [user.id, id]);
+    if (!sotibOlgan) {
+      return xato(res, 403, 'Sharhni faqat shu mahsulotni sotib olgan mijoz yoza oladi.');
+    }
+
+    const s = await qator(
+      `insert into sharhlar (user_id, product_id, baho, matn)
+       values ($1,$2,$3,$4)
+       on conflict (user_id, product_id) do update
+         set baho = excluded.baho, matn = excluded.matn, updated_at = now()
+       returning *`,
+      [user.id, id, baho, String(b.matn || '').trim().slice(0, 600) || null]);
+    keshniTashla('katalog');
+    const p = await qator('select reyting, sharh_soni from products where id = $1', [id]);
+    return ok(res, { sharh: { id: s.id, baho: s.baho, matn: s.matn || '' },
+                     reyting: p?.reyting ?? null, sharh_soni: p?.sharh_soni ?? 0 });
+  }
+
+  if (yol === '/api/sharh' && req.method === 'DELETE') {
+    const id = Number((await tana(req)).product_id);
+    if (!id) return xato(res, 400, 'Mahsulot tanlanmadi.');
+    await sorov('delete from sharhlar where user_id = $1 and product_id = $2', [user.id, id]);
+    keshniTashla('katalog');
+    return ok(res, { ochirildi: true });
+  }
+
+  // Yetkazilgan, lekin hali baholanmagan mahsulotlar — profilda so'raymiz
+  if (yol === '/api/sharh-kutilmoqda' && req.method === 'GET') {
+    return ok(res, { mahsulotlar: await qatorlar(
+      `select distinct (it->>'product_id')::bigint as product_id,
+              it->>'name' as nom
+         from orders o, jsonb_array_elements(o.items) it
+        where o.user_id = $1 and o.status = 'yetkazildi'
+          and not exists (select 1 from sharhlar s
+                           where s.user_id = o.user_id
+                             and s.product_id = (it->>'product_id')::bigint)
+        limit 20`, [user.id]) });
   }
 
   // --- Sevimlilar: ilovadagi yurakcha ---

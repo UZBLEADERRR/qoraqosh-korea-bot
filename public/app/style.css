@@ -1063,3 +1063,34 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 .yol-qadam.joriy .d{background:var(--urgu);color:#fff}
 .yol-qadam.joriy{color:var(--urgu);font-weight:750}
 .yol-qadam.joriy::before{background:var(--yashil)}
+
+/* ============================================================
+   SHARHLAR — haqiqiy mijoz bahosi
+   ============================================================ */
+.mreyting.manba{color:var(--kul)}
+.mreyting.manba i[data-ik]{color:var(--och)}
+
+.yulduzlar{display:inline-flex;gap:2px;line-height:0}
+.yld{color:var(--chiziq);display:inline-flex}
+.yld.faol{color:#f0a92a}
+.yld.faol svg path{fill:currentColor}
+.mreyting i[data-ik] svg path{fill:currentColor}
+
+.sharh{padding:13px 0;border-bottom:1px solid var(--chiziq-och)}
+.sharh:last-child{border-bottom:0;padding-bottom:0}
+.sharh.meniki{background:var(--urgu-och);border:0;border-radius:13px;
+  padding:13px 14px;margin-bottom:12px}
+.sharh-bosh{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:6px}
+.sharh-bosh b{font-size:14px;font-weight:700}
+.sharh p{margin:0;font-size:14.5px;line-height:1.5;color:var(--kul)}
+.sharh-amal{display:flex;gap:14px;margin-top:10px}
+.matn-tugma.xavf{color:var(--qizil)}
+
+/* Baho tanlash */
+.baho-tanlov{display:flex;justify-content:center;gap:8px;margin:4px 0 6px}
+.baho-tanlov button{background:none;border:0;padding:4px;color:var(--chiziq);
+  display:grid;place-items:center;border-radius:8px}
+.baho-tanlov button.faol{color:#f0a92a}
+.baho-tanlov button.faol svg path{fill:currentColor}
+.baho-matn{text-align:center;font-size:14px;font-weight:700;color:var(--kul);
+  min-height:20px;margin-bottom:14px}

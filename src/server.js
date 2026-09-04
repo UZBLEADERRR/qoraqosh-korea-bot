@@ -7,6 +7,7 @@
 //   /api/admin/*      -> admin API
 //   /tg/<secret>      -> Telegram webhook
 import http from 'node:http';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
@@ -25,9 +26,35 @@ import { vazifaniTiklash, jadvalniIshgaTushir } from './services/marketplace-vaz
 import { qator, sozlama, ulanishniTekshir } from './db.js';
 import { brendNomi } from './lib/brend.js';
 import { verifyAdminToken } from './lib/auth.js';
+import { versiyaOl, versiyalaHtml, versiyalanganmi } from './lib/versiya.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(__dirname, '..', 'public');
+
+// Mini App va admin panel sahifalari. HTML har safar yangi (no-cache),
+// ichidagi css/js esa versiyalangan manzil bilan keladi — shuning uchun
+// ularni uzoq keshlash xavfsiz va yangilanish DARROV yetib boradi.
+const SAHIFA_FAYL = {
+  app:   { yol: 'app/index.html',   papka: 'app',
+           fayllar: ['index.html', 'app.js', 'style.css', 'ikon.js', 'hududlar.js'] },
+  admin: { yol: 'admin/index.html', papka: 'admin',
+           fayllar: ['index.html', 'admin.js', 'style.css'] },
+};
+
+function sahifa(res, nom) {
+  const s = SAHIFA_FAYL[nom];
+  const fayl = path.join(PUBLIC, s.yol);
+  if (!fs.existsSync(fayl)) return notFound(res);
+  const v = versiyaOl(PUBLIC, s.papka, s.fayllar);
+  const html = versiyalaHtml(fs.readFileSync(fayl, 'utf8'), v);
+  res.writeHead(200, {
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-cache',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Ilova-Versiya': v,
+  });
+  return res.end(html);
+}
 
 // Webhook yo'li — tokendan kelib chiqadi, tashqaridan topib bo'lmaydi
 const WEBHOOK_YOL = '/tg/' + crypto.createHash('sha256')
@@ -120,10 +147,23 @@ const server = http.createServer(async (req, res) => {
     if (yol === '/' )        return statik(res, PUBLIC, 'index.html') || notFound(res);
     if (yol === '/app' )     return redirect(res, '/app/');
     if (yol === '/admin')    return redirect(res, '/admin/');
-    if (yol === '/app/')     return statik(res, PUBLIC, 'app/index.html') || notFound(res);
-    if (yol === '/admin/')   return statik(res, PUBLIC, 'admin/index.html') || notFound(res);
+    // Mini App va admin panel HTML i: ichidagi css/js havolalariga
+    // versiya qo'shiladi. Aks holda Telegram brauzeri eski app.js ni
+    // saqlab qoladi va yangi kod umuman ishlamaydi.
+    // Service worker: versiya ichiga yoziladi, aks holda fayl bayt-baytga
+    // bir xil qolib, brauzer uni qayta o'rnatmaydi va eski kesh qoladi.
+    if (yol === '/app/sw.js') {
+      const v = versiyaOl(PUBLIC, 'app', SAHIFA_FAYL.app.fayllar);
+      const kod = fs.readFileSync(path.join(PUBLIC, 'app/sw.js'), 'utf8')
+        .replace('__VERSIYA__', v);
+      res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8',
+        'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/app/' });
+      return res.end(kod);
+    }
+    if (yol === '/app/')     return sahifa(res, 'app');
+    if (yol === '/admin/')   return sahifa(res, 'admin');
 
-    if (statik(res, PUBLIC, yol.replace(/^\/+/, ''))) return;
+    if (statik(res, PUBLIC, yol.replace(/^\/+/, ''), { uzoqKesh: versiyalanganmi(req.url) })) return;
     return notFound(res);
   } catch (e) {
     if (res.headersSent) return res.end();

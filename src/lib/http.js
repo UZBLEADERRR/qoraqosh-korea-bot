@@ -85,7 +85,7 @@ const MIME = {
 };
 
 /** Statik fayl. Path traversal yopilgan. */
-export function statik(res, ildiz, nisbiy) {
+export function statik(res, ildiz, nisbiy, { uzoqKesh = false } = {}) {
   const toza = path.normalize(nisbiy).replace(/^(\.\.[/\\])+/, '');
   const fayl = path.resolve(ildiz, toza);
   if (!fayl.startsWith(path.resolve(ildiz) + path.sep) && fayl !== path.resolve(ildiz)) {
@@ -96,7 +96,12 @@ export function statik(res, ildiz, nisbiy) {
   const kengaytma = path.extname(fayl).toLowerCase();
   const sarlavha = {
     'Content-Type': MIME[kengaytma] || 'application/octet-stream',
-    'Cache-Control': kengaytma === '.html' ? 'no-cache' : 'public, max-age=300',
+    // Versiyalangan manzil ("app.js?v=a1b2c3") — mazmuni o'zgarmaydi,
+    // shuning uchun uzoq keshlanadi. Versiyasiz manzil esa har safar
+    // tekshiriladi: aks holda Telegram brauzeri eski kodni ushlab
+    // qoladi va yangilanish umuman yetib bormaydi.
+    'Cache-Control': uzoqKesh ? 'public, max-age=31536000, immutable'
+      : kengaytma === '.html' ? 'no-cache' : 'no-cache, must-revalidate',
     'X-Content-Type-Options': 'nosniff',
   };
 

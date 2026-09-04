@@ -724,7 +724,10 @@ function mahsulotOyna(id) {
       <div class="oyna-baho">
         ${(p.sharh_soni > 0 && p.reyting > 0)
           ? `<span class="mreyting">${ik('yulduz', 14)}${Number(p.reyting).toFixed(1)}
-               <span class="soni">(${p.sharh_soni} sharh)</span></span>` : ''}
+               <span class="soni">(${p.sharh_soni} sharh)</span></span>`
+          : (p.manba_sharh > 0 && p.manba_reyting > 0)
+            ? `<span class="mreyting manba">${ik('yulduz', 14)}${Number(p.manba_reyting).toFixed(1)}
+                 <span class="soni">Koreyada · ${p.manba_sharh} sharh</span></span>` : ''}
         ${p.sold_count > 0 ? `<span class="ozgina">${p.sold_count}+ sotildi</span>` : ''}
       </div>
 
@@ -781,6 +784,8 @@ function mahsulotOyna(id) {
           <p>${esc(p.warnings)}</p>
         </div>` : ''}
 
+      <div id="sharh-bolim" class="bolim"></div>
+
       <button class="asosiy" style="margin-top:18px" id="t-savatga" ${p.stock > 0 ? '' : 'disabled'}>
         ${p.stock > 0
           ? `${ik('savat', 18)}${savatda ? `Savatda (${savatda}) · yana qo‘shish` : 'Savatga qo‘shish'}`
@@ -788,11 +793,137 @@ function mahsulotOyna(id) {
       </button>
     </div>`;
   modalOch();
+  sharhlarniYukla(p.id);
   const t = $('#t-savatga');
   if (t && p.stock > 0) t.onclick = async () => { await savatga(p.id); modalYop(); };
   const y = $('#modal-tan [data-yurak]');
   if (y) y.onclick = (e) => { e.stopPropagation(); sevimliAlmash(p.id); };
 }
+// ================= SHARHLAR =================
+// Sharh HAQIQIY: uni faqat shu mahsulotni SOTIB OLGAN odam yozadi
+// (serverda tekshiriladi), reyting esa shu sharhlardan hisoblanadi.
+// Koreys do'konidagi baho alohida — «Koreyada» yorlig'i bilan.
+
+const YULDUZLAR = (n, olcham = 14) => Array.from({ length: 5 }, (_, i) =>
+  `<i class="yld ${i < n ? 'faol' : ''}">${ik('yulduz', olcham)}</i>`).join('');
+
+const sanaQisqa = (t) => new Date(t).toLocaleDateString('uz-UZ',
+  { day: 'numeric', month: 'short', year: 'numeric' });
+
+async function sharhlarniYukla(id) {
+  const quti = $('#sharh-bolim');
+  if (!quti) return;
+  quti.innerHTML = `<div class="yuklanmoqda"><div class="aylana"></div></div>`;
+  let j;
+  try { j = await api(`/api/sharhlar?product_id=${id}`); }
+  catch { quti.innerHTML = ''; return; }
+
+  const meniki = j.sharhlar.find((x) => x.meniki);
+  const boshqalar = j.sharhlar.filter((x) => !x.meniki);
+
+  quti.innerHTML = `
+    <div class="bolim-bosh">${ik('yulduz', 16)}Sharhlar
+      <span class="ozgina" style="margin-left:auto">${j.sharhlar.length} ta</span></div>
+
+    ${meniki ? `
+      <div class="sharh meniki">
+        <div class="sharh-bosh">
+          <span class="yulduzlar">${YULDUZLAR(meniki.baho)}</span>
+          <span class="ozgina">Sizning sharhingiz</span>
+        </div>
+        ${meniki.matn ? `<p>${esc(meniki.matn)}</p>` : ''}
+        <div class="sharh-amal">
+          <button class="matn-tugma" data-sharh-tahrir="1">${ik('tahrir', 15)}O‘zgartirish</button>
+          <button class="matn-tugma xavf" data-sharh-ochir="1">${ik('ochirish', 15)}O‘chirish</button>
+        </div>
+      </div>` : (j.yozsa_boladi ? `
+      <button class="ikkilamchi" id="t-sharh-yoz" style="margin-bottom:12px">
+        ${ik('tahrir', 17)}Sharh yozish</button>` : `
+      <p class="ozgina" style="margin:0 0 12px">
+        Sharhni faqat shu mahsulotni sotib olgan mijozlar yozadi.</p>`)}
+
+    ${boshqalar.length ? boshqalar.map((x) => `
+      <div class="sharh">
+        <div class="sharh-bosh">
+          <span class="yulduzlar">${YULDUZLAR(x.baho)}</span>
+          <b>${esc(x.ism)}</b>
+          <span class="ozgina">${sanaQisqa(x.created_at)}</span>
+        </div>
+        ${x.matn ? `<p>${esc(x.matn)}</p>` : ''}
+      </div>`).join('')
+      : (meniki ? '' : `<p class="ozgina" style="margin:0">Hali sharh yo‘q — birinchi bo‘ling.</p>`)}`;
+
+  const yoz = $('#t-sharh-yoz');
+  if (yoz) yoz.onclick = () => sharhOyna(id, null);
+  const th = $('[data-sharh-tahrir]', quti);
+  if (th) th.onclick = () => sharhOyna(id, meniki);
+  const oc = $('[data-sharh-ochir]', quti);
+  if (oc) oc.onclick = async () => {
+    try {
+      await api('/api/sharh', { method: 'DELETE', body: JSON.stringify({ product_id: id }) });
+      titra(); await katalogniYangila(); sharhlarniYukla(id);
+    } catch (e) { ogohlantir(e.message); }
+  };
+}
+
+/** Sharh yozish oynasi — modal ustiga modal ochmaymiz, o'rnini almashtiramiz. */
+function sharhOyna(id, joriy) {
+  const p = holat.mahsulotlar.find((x) => x.id === id);
+  let baho = joriy?.baho || 5;
+  const chiz = () => {
+    $('#modal-tan').innerHTML = `
+      <div style="padding:18px 18px 0">
+        <h2 style="margin-bottom:4px">${joriy ? 'Sharhni o‘zgartirish' : 'Sharh yozish'}</h2>
+        <p class="ozgina" style="margin-bottom:16px">${esc(p?.name || '')}</p>
+
+        <div class="baho-tanlov" id="baho-tanlov">
+          ${Array.from({ length: 5 }, (_, i) => `
+            <button data-baho="${i + 1}" class="${i < baho ? 'faol' : ''}"
+              aria-label="${i + 1} yulduz">${ik('yulduz', 30)}</button>`).join('')}
+        </div>
+        <div class="baho-matn">${['', 'Yomon', 'Qoniqarli', 'Yaxshi', 'Juda yaxshi', 'Zo‘r'][baho]}</div>
+
+        <label for="sharh-matn">Fikringiz (ixtiyoriy)</label>
+        <textarea id="sharh-matn" maxlength="600" rows="4"
+          placeholder="Nima yoqdi, nima yoqmadi? Qancha vaqt ishlatdingiz?">${esc(joriy?.matn || '')}</textarea>
+
+        <button class="asosiy" id="t-sharh-saqla" style="margin-top:16px">Yuborish</button>
+        <button class="ikkilamchi" id="t-sharh-bekor" style="margin-top:9px">Bekor</button>
+      </div>`;
+    // Buyurtmalar ro'yxatidan chaqirilganda modal hali ochiq emas
+    modalOch();
+    $$('#baho-tanlov [data-baho]').forEach((b) => b.onclick = () => {
+      baho = Number(b.dataset.baho); titra(); chiz();
+    });
+    $('#t-sharh-bekor').onclick = () =>
+      (holat.mahsulotlar.some((x) => x.id === id) && holat.tab !== 'profil')
+        ? mahsulotOyna(id) : modalYop();
+    $('#t-sharh-saqla').onclick = async () => {
+      try {
+        await api('/api/sharh', { method: 'POST', body: JSON.stringify({
+          product_id: id, baho, matn: $('#sharh-matn').value }) });
+        titra('medium');
+        await katalogniYangila();
+        if (holat.tab === 'profil') { modalYop(); buyurtmalarniChiz({ majburiy: true }); }
+        else mahsulotOyna(id);
+      } catch (e) { ogohlantir(e.message); }
+    };
+  };
+  chiz();
+}
+
+/** Reyting o'zgargach katalogni yangilaymiz — kartadagi ★ ham yangilansin. */
+async function katalogniYangila() {
+  try {
+    const k = await api('/api/catalog');
+    const yangi = new Map(k.mahsulotlar.map((p) => [p.id, p]));
+    holat.mahsulotlar.forEach((p) => {
+      const y = yangi.get(p.id);
+      if (y) { p.reyting = y.reyting; p.sharh_soni = y.sharh_soni; }
+    });
+  } catch { /* keyingi ochilishda yangilanadi */ }
+}
+
 const qtr = (k, v) => `<div class="qtr"><span class="k">${k}</span><span class="v">${v}</span></div>`;
 /**
  * Oyna ochish/yopish.
@@ -2122,7 +2253,10 @@ async function buyurtmalarniChiz({ majburiy = false } = {}) {
         </div>
         ${bosqichYoli(o.status)}
         ${o.items.map((i) => `<div class="qtr"><span class="k">${esc(i.name)} × ${i.qty}</span>
-          <span class="v">${qisqaNarx(i.price * i.qty)}</span></div>`).join('')}
+          <span class="v">${qisqaNarx(i.price * i.qty)}</span></div>
+          ${o.status === 'yetkazildi' && i.product_id ? `
+            <button class="matn-tugma" data-baho="${i.product_id}"
+              style="margin:2px 0 8px">${ik('yulduz', 15)}Shu mahsulotni baholash</button>` : ''}`).join('')}
         ${o.discount ? `<div class="qtr"><span class="k">Chegirma</span>
           <span class="v chegirma">−${narx(o.discount)}</span></div>` : ''}
         <div class="qtr jami"><span class="k">Jami</span><span class="v">${narx(o.total)}</span></div>
@@ -2140,6 +2274,12 @@ async function buyurtmalarniChiz({ majburiy = false } = {}) {
 }
 
 function buyurtmaTugmalariniUla(el) {
+  // Yetkazilgan mahsulotni shu yerdan baholash mumkin
+  $$('[data-baho]', el).forEach((b) => b.onclick = () => {
+    const id = Number(b.dataset.baho);
+    if (holat.mahsulotlar.some((p) => p.id === id)) sharhOyna(id, null);
+    else ogohlantir('Bu mahsulot katalogdan olib tashlangan.');
+  });
   $$('[data-chek]', el).forEach((b) => b.onclick = () =>
     tolovOyna({ order_no: b.dataset.chek, total: Number(b.dataset.total),
                 subtotal: Number(b.dataset.total), discount: 0, delivery_fee: 0,
