@@ -172,7 +172,10 @@ Google Gemini · Railway.
   telefonidagi Telegram beradi. Token bazada XOM saqlanmaydi, faqat
   sha256 xeshi turadi. Bitta IP dan 15 daqiqada 5 ta urinish.
 
-  ⚠️ **Telegram yorlig'i ilovani ochishi uchun qisqa nom kerak.** Telegram yorliqni
+  ⚠️ **Qisqa nom faqat YORLIQ uchun.** Botdagi «Do'kon» tugmasi har
+  doim `web_app` bo'lib qoladi va hech qanday sozlamaga bog'liq emas:
+  qisqa nom BotFather'da ro'yxatdan o'tmagan bo'lsa `t.me/<bot>/<nom>`
+  o'lik havola bo'lib, do'kon umuman ochilmay qolardi. Telegram yorliqni
   ilova QANDAY ochilganiga qarab yasaydi: `web_app` tugmasidan ochilgan
   ilova bot suhbatiga bog'lanadi, shuning uchun yorliq ham bot suhbatini
   ochadi. To'g'ridan-to'g'ri havoladan (`t.me/<bot>/<nom>`) ochilgani

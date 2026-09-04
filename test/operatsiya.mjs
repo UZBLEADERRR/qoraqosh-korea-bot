@@ -1455,14 +1455,18 @@ console.log('\n── MINI APP HAVOLASI ──');
   const h1 = await ilovaHavolasi();
   test('qisqa nomsiz — startapp havolasi', /\?startapp=/.test(h1 || ''), h1);
   const t1 = await ilovaTugmasi('Do‘kon');
-  test('qisqa nomsiz — web_app tugmasi qoladi', Boolean(t1?.web_app), JSON.stringify(t1));
+  test('qisqa nomsiz — web_app tugmasi', Boolean(t1?.web_app), JSON.stringify(t1));
 
   await qoy('ilova');
   const h2 = await ilovaHavolasi();
   test('qisqa nom bilan — to‘g‘ridan-to‘g‘ri havola',
     /^https:\/\/t\.me\/[^/]+\/ilova$/.test(h2 || ''), h2);
+  // Do'kon tugmasi qisqa nomga BOG'LIQ EMAS: BotFather'da nom
+  // ro'yxatdan o'tmagan bo'lsa url tugmasi o'lik havola bo'lib,
+  // do'kon umuman ochilmay qolardi.
   const t2 = await ilovaTugmasi('Do‘kon');
-  test('tugma url ga aylandi', t2?.url === h2, JSON.stringify(t2));
+  test('qisqa nom bilan ham web_app qoladi', Boolean(t2?.web_app) && !t2?.url,
+    JSON.stringify(t2));
 
   // startapp parametri: mahsulotga to'g'ridan-to'g'ri o'tish uchun
   test('startapp qo‘shiladi', /\/ilova\?startapp=m12$/.test(await ilovaHavolasi('m12')));
@@ -1477,7 +1481,7 @@ console.log('\n── MINI APP HAVOLASI ──');
   const { asosiyMenyu } = await import('../src/bot/keyboards.js');
   const menyu = await asosiyMenyu(false);
   const dokon = menyu.inline_keyboard.flat().find((b) => /Do‘kon/.test(b.text));
-  test('menyudagi Do‘kon ilovaga olib boradi', Boolean(dokon?.url), JSON.stringify(dokon));
+  test('menyudagi Do‘kon ilovani ochadi', Boolean(dokon?.web_app?.url), JSON.stringify(dokon));
 }
 
 // ═══════════ PDF ═══════════

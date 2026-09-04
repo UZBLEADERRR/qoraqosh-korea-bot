@@ -55,19 +55,20 @@ export async function ilovaHavolasi(start = '') {
 }
 
 /**
- * Ilovani ochadigan inline tugma.
+ * Ilovani ochadigan inline tugma. HAR DOIM `web_app`.
  *
- * Qisqa nom sozlangan bo'lsa `url` tugmasi qaytadi — shundagina bosh
- * ekrandagi yorliq ilovani ochadi. Sozlanmagan bo'lsa eski `web_app`
- * tugmasi qoladi: ilova baribir ochiladi, faqat yorliq bot suhbatiga
- * olib boradi.
+ * Ilgari qisqa nom sozlangan bo'lsa `url` tugmasi qaytarilardi —
+ * bosh ekrandagi yorliq ilovaga bog'lansin deb. Lekin qisqa nom
+ * BotFather'da haqiqatan ro'yxatdan o'tmagan bo'lsa (yoki xato
+ * yozilgan bo'lsa) `t.me/<bot>/<nom>` o'lik havola bo'lib qoladi va
+ * DO'KON UMUMAN OCHILMAYDI. Do'kon — asosiy amal, u hech qanday
+ * sozlamaga bog'liq bo'lmasligi kerak.
+ *
+ * `web_app` esa har doim ishlaydi. Qisqa nom o'z ishini `/app/ochish`
+ * da bajaradi: brauzerdagi «Telegramda ochish» tugmasi va PWA yorlig'i
+ * o'sha manzilga boradi.
  */
 export async function ilovaTugmasi(matn, yol = '/app/') {
-  const qisqa = String(await sozlama('mini_app_nom', '') || '').trim();
-  if (qisqa && yol === '/app/') {
-    const havola = await ilovaHavolasi();
-    if (havola) return { text: matn, url: havola };
-  }
   return config.publicUrl
     ? { text: matn, web_app: { url: `${config.publicUrl}${yol}` } }
     : null;
