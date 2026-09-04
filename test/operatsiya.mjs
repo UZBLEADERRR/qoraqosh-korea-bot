@@ -105,6 +105,46 @@ test('buyurtmalar qadoqlashga o‘tdi',
   st.some(x=>x.status==='qadoqlanmoqda' && x.n===2), st.map(x=>`${x.status}:${x.n}`).join(', '));
 test('mijozga xabar bordi', yuborilgan.some(x=>String(x.chat_id)==='800001' && /qadoqlan/i.test(x.text||'')));
 
+// Buzuq buyurtma qatori /orders ni butunlay yiqitardi va admin HECH
+// QANDAY javob ko'rmasdi — bot ishlamayaptimi, ro'yxat bo'shmi bilib
+// bo'lmasdi. Endi bunday qator nomi bo'yicha ro'yxatga tushadi.
+console.log('\n── BUZUQ BUYURTMA /orders NI YIQITMAYDI ──');
+{
+  const u = await qator(`select id from users where telegram_id = '800001'`);
+  await sorov(`insert into orders (order_no,user_id,customer_name,customer_phone,
+      customer_address,items,subtotal,delivery_fee,discount,total,status,payment_status)
+    values ('QQ-BUZUQ',$1,'Sinov','+998901112233','Manzil',
+      '[{"name":"Product_id siz qator","qty":2,"price":50000}]'::jsonb,
+      100000,0,0,100000,'tasdiqlangan','tolangan')`, [u.id]);
+  yuborilgan.length = 0;
+  await yoz('700001', '/orders');
+  const b = hammasi();
+  test('buzuq qator bilan ham javob keldi', /XARID RO‘YXATI/.test(b), b.split('\n')[0]);
+  test('buzuq qator ro‘yxatda ko‘rinadi', /Product_id siz qator/.test(b));
+  await sorov(`delete from orders where order_no = 'QQ-BUZUQ'`);
+}
+
+// Buyruq ichida xato chiqsa ham admin jim qolmasligi kerak
+console.log('\n── XATO BO‘LSA ADMIN XABAR OLADI ──');
+{
+  // Ro'yxat bo'sh bo'lsa buyruq erta qaytadi va xatoga bormaydi
+  const u2 = await qator(`select id from users where telegram_id = '800001'`);
+  await sorov(`insert into orders (order_no,user_id,customer_name,customer_phone,
+      customer_address,items,subtotal,delivery_fee,discount,total,status,payment_status)
+    values ('QQ-XATO',$1,'Sinov','+998901112233','Manzil',
+      '[{"product_id":1,"name":"Cleansing Oil","qty":1,"price":50000}]'::jsonb,
+      50000,0,0,50000,'tasdiqlangan','tolangan')`, [u2.id]);
+  yuborilgan.length = 0;
+  // Bazani vaqtincha buzamiz — buyruq ichida haqiqiy istisno chiqsin
+  await sorov(`alter table products rename to products_vaqt`);
+  await yoz('700001', '/orders');
+  await sorov(`alter table products_vaqt rename to products`);
+  test('xato haqida xabar berildi', /bajarilmadi/i.test(hammasi()),
+    hammasi().split('\n')[0]);
+  test('admin jim qolmadi', yuborilgan.length > 0, `${yuborilgan.length} ta xabar`);
+  await sorov(`delete from orders where order_no = 'QQ-XATO'`);
+}
+
 console.log('\n── QAYTA /orders (yangi partiya) ──');
 await yoz('700001','/orders');
 test('ro‘yxat endi bo‘sh', /bo‘sh/i.test(hammasi()), hammasi().split('\n')[0]);
@@ -144,6 +184,7 @@ yuborilgan.length=0;
 await bos('700001', `pk:${par.id}`);
 const qol = yuborilgan.find(x=>x.hujjat);
 test('qo‘llanma fayli yuborildi', Boolean(qol), qol?`${(qol.hajm/1024).toFixed(1)} KB`:'');
+test('partiya qo‘llanmasi ham PDF', /\.pdf$/.test(qol?.nom||''), qol?.nom);
 test('izohda buyurtma soni bor', /ta buyurtma/.test(qol?.text||''));
 
 console.log('\n── KANALDAN TO‘LOVNI TASDIQLASH ──');
@@ -524,7 +565,13 @@ console.log('\n── MIJOZGA QO‘LLANMA ──');
     yuborilgan.map((x) => (x.rasm ? 'rasm' : x.hujjat ? 'hujjat' : 'matn')).join(', '));
   test('rasm bo‘sh emas', (yuborilgan.find((x) => x.rasm)?.hajm || 0) > 20000,
     `${((yuborilgan.find((x) => x.rasm)?.hajm || 0) / 1024).toFixed(0)} KB`);
-  test('WORD hujjati ham keldi', yuborilgan.some((x) => x.hujjat));
+  // PDF: mijoz telefonda .docx ni ocholmaydi va unda mahsulot rasmi yo'q
+  const hj = yuborilgan.find((x) => x.hujjat);
+  test('PDF hujjati ham keldi', Boolean(hj), hj?.nom);
+  test('fayl .pdf kengaytmasida', /\.pdf$/.test(hj?.nom || ''), hj?.nom);
+  test('mime application/pdf', hj?.mime === 'application/pdf', hj?.mime);
+  test('PDF tanasi haqiqiy', hj?.pdfmi === true);
+  test('izohda PDF ekani aytilgan', /PDF/.test(hj?.text || ''), hj?.text?.slice(0, 60));
   test('izohda tartib haqida aytilgan',
     /Tartibni buzmang/.test(yuborilgan.find((x) => x.rasm)?.text || ''));
 
@@ -963,6 +1010,81 @@ console.log('\n── MARKETPLACE ──');
   await sorov(`update settings set value = '600'::jsonb where key = 'marketplace_maks_ogirlik'`);
 }
 
+
+// ═══════════ MINI APP HAVOLASI ═══════════
+// Bosh ekranga qo'yilgan yorliq BOT SUHBATINI ochardi, ilovani emas.
+// Sabab: yorliq ilova qanday ochilganiga qarab yasaladi — to'g'ridan
+// -to'g'ri havoladan ochilsa (t.me/bot/ilova) ilovaga bog'lanadi.
+console.log('\n── MINI APP HAVOLASI ──');
+{
+  const { ilovaHavolasi, ilovaTugmasi, nomniUnut } =
+    await import('../src/lib/ilova-havola.js');
+  const qoy = async (v) => {
+    await sorov(`insert into settings (key, value) values ('mini_app_nom', $1::jsonb)
+                 on conflict (key) do update set value = excluded.value`,
+                [JSON.stringify(v)]);
+    nomniUnut();
+  };
+
+  await qoy('');
+  const h1 = await ilovaHavolasi();
+  test('qisqa nomsiz — startapp havolasi', /\?startapp=/.test(h1 || ''), h1);
+  const t1 = await ilovaTugmasi('Do‘kon');
+  test('qisqa nomsiz — web_app tugmasi qoladi', Boolean(t1?.web_app), JSON.stringify(t1));
+
+  await qoy('ilova');
+  const h2 = await ilovaHavolasi();
+  test('qisqa nom bilan — to‘g‘ridan-to‘g‘ri havola',
+    /^https:\/\/t\.me\/[^/]+\/ilova$/.test(h2 || ''), h2);
+  const t2 = await ilovaTugmasi('Do‘kon');
+  test('tugma url ga aylandi', t2?.url === h2, JSON.stringify(t2));
+
+  // startapp parametri: mahsulotga to'g'ridan-to'g'ri o'tish uchun
+  test('startapp qo‘shiladi', /\/ilova\?startapp=m12$/.test(await ilovaHavolasi('m12')));
+
+  // Xavfsizlik: sozlamaga tashlangan axlat havolani buzmasin
+  await qoy('@ilo va/../x');
+  test('nom tozalanadi', /\/ilova\.\.x$|\/ilovax$/.test(await ilovaHavolasi() || ''),
+    await ilovaHavolasi());
+  await qoy('ilova');
+
+  // Admin menyusidagi «Do'kon» ham shu havolani ishlatadi
+  const { asosiyMenyu } = await import('../src/bot/keyboards.js');
+  const menyu = await asosiyMenyu(false);
+  const dokon = menyu.inline_keyboard.flat().find((b) => /Do‘kon/.test(b.text));
+  test('menyudagi Do‘kon ilovaga olib boradi', Boolean(dokon?.url), JSON.stringify(dokon));
+}
+
+// ═══════════ PDF ═══════════
+// Qo'llanma PDF i kutubxonasiz yig'iladi — sahifalar to'g'ri
+// o'ralganini va faylni ocha olishini tekshiramiz.
+console.log('\n── PDF ──');
+{
+  const { pdfRasmlardan, pngdanRgb } = await import('../src/lib/pdf.js');
+  const { svgdanPng } = await import('../src/rasm/chiz.js');
+  const png = await svgdanPng(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300">
+       <rect width="200" height="300" fill="#e0242b"/>
+       <text x="20" y="60" font-family="Liberation Sans" font-size="24"
+         fill="#fff">Qo‘llanma</text></svg>`, 200);
+
+  const r = pngdanRgb(png);
+  test('PNG ochildi', r.eni === 200 && r.boyi === 300, `${r.eni}×${r.boyi}`);
+  test('RGB uzunligi to‘g‘ri', r.rgb.length === 200 * 300 * 3, String(r.rgb.length));
+  test('rang saqlandi (qizil)', r.rgb[0] > 200 && r.rgb[1] < 80, r.rgb.slice(0, 3).join(','));
+
+  const pdf = pdfRasmlardan([png, png, png]);
+  test('PDF sarlavhasi', pdf.subarray(0, 5).toString() === '%PDF-');
+  test('uchta sahifa', /\/Count 3\b/.test(pdf.toString('latin1')));
+  test('A4 o‘lchami', /MediaBox \[0 0 595\.28 841\.89\]/.test(pdf.toString('latin1')));
+  test('xref va trailer bor', /\nxref\n/.test(pdf.toString('latin1'))
+    && /%%EOF/.test(pdf.toString('latin1')));
+
+  // startxref haqiqiy joyni ko'rsatsin — aks holda o'quvchi faylni rad etadi
+  const xom = pdf.toString('latin1');
+  const joy = Number(/startxref\n(\d+)/.exec(xom)?.[1]);
+  test('startxref xref ga to‘g‘ri keladi', xom.slice(joy, joy + 4) === 'xref', String(joy));
+}
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

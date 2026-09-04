@@ -53,26 +53,37 @@ export async function xaridRoyxati(partiyaId) {
       where o.partiya_id = $1 and o.status = 'tasdiqlangan' order by o.created_at`, [partiyaId]);
 
   // items — jsonb massiv: [{product_id, name, qty, price}]
+  //
+  // product_id ishonchsiz bo'lishi mumkin (eski buyurtma, qo'lda tuzatilgan
+  // qator). Uni RAQAM deb hisoblab to'g'ridan-to'g'ri `id = any(...)` ga
+  // bersak Postgres «invalid input syntax for type bigint: NaN» deb
+  // yiqilardi va /orders admin uchun JIM qolardi. Endi bunday qator
+  // ro'yxatdan tushib qolmaydi — nomi bo'yicha alohida jamlanadi.
   const jam = new Map();
   for (const o of buyurtmalar) {
-    for (const it of o.items || []) {
-      const id = Number(it.product_id);
-      const bor = jam.get(id) || { product_id: id, nom: it.name, soni: 0, summa: 0 };
-      bor.soni  += Number(it.qty) || 0;
-      bor.summa += (Number(it.price) || 0) * (Number(it.qty) || 0);
-      jam.set(id, bor);
+    const elementlar = Array.isArray(o.items) ? o.items : [];
+    for (const it of elementlar) {
+      const xom = Number(it?.product_id);
+      const id  = Number.isFinite(xom) && xom > 0 ? xom : null;
+      const kalit = id ?? `nom:${String(it?.name || 'nomsiz').toLowerCase()}`;
+      const bor = jam.get(kalit)
+        || { product_id: id, nom: it?.name || 'Nomsiz mahsulot', soni: 0, summa: 0 };
+      bor.soni  += Number(it?.qty) || 0;
+      bor.summa += (Number(it?.price) || 0) * (Number(it?.qty) || 0);
+      jam.set(kalit, bor);
     }
   }
   if (!jam.size) return { buyurtmalar, qatorlar: [], jami: 0 };
 
   // Manba havolasini katalogdan olamiz
-  const mahsulotlar = await qatorlar(
+  const idlar = [...jam.values()].map((x) => x.product_id).filter((x) => x !== null);
+  const mahsulotlar = idlar.length ? await qatorlar(
     `select id, name, brand, manba, manba_url, cost_price from products where id = any($1)`,
-    [[...jam.keys()]]);
+    [idlar]) : [];
   const karta = new Map(mahsulotlar.map((p) => [Number(p.id), p]));
 
   const royxat = [...jam.values()].map((x) => {
-    const p = karta.get(x.product_id) || {};
+    const p = (x.product_id !== null && karta.get(x.product_id)) || {};
     return {
       ...x,
       nom: p.name || x.nom,

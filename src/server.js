@@ -17,6 +17,7 @@ import { statik, ok, xato, tana, sorovniEsla } from './lib/http.js';
 import { apiRoutes } from './api/routes.js';
 import { adminRoutes } from './api/admin.js';
 import { yangilanish } from './bot/index.js';
+import { ilovaHavolasi } from './lib/ilova-havola.js';
 import { tg } from './bot/tg.js';
 import { ofertaSahifasi } from './lib/oferta.js';
 import { postSahifasi, imzoTogrimi } from './lib/post-korinish.js';
@@ -159,6 +160,14 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8',
         'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/app/' });
       return res.end(kod);
+    }
+    // Bosh ekrandagi yorliq shu manzilga tushadi (manifest start_url).
+    // U yerdan Telegram ilovasiga yo'naltiriladi: brauzerda ochilgan
+    // Mini App initData siz ishlamaydi, ya'ni yorliq foydasiz bo'lardi.
+    if (yol === '/app/ochish') {
+      const havola = await ilovaHavolasi().catch(() => null);
+      if (havola) return redirect(res, havola);
+      return redirect(res, '/app/');
     }
     if (yol === '/app/')     return sahifa(res, 'app');
     if (yol === '/admin/')   return sahifa(res, 'admin');

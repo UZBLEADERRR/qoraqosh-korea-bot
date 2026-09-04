@@ -191,8 +191,13 @@ export function soxtaServer(port = 4444) {
         const xom = await tana(req);
         const izoh = /name="caption"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
         const chat = /name="chat_id"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
+        // Fayl nomi va turi: sinov PDF keldimi yoki Word ekanini bilishi kerak
+        const fayl = /name="document"; filename="([^"]*)"/.exec(xom);
+        const tur  = /name="document"[\s\S]*?Content-Type:\s*([^\r\n]+)/.exec(xom);
         yuborilgan.push({ id: ++xabarId, hujjat: true, chat_id: chat?.[1],
-          text: izoh?.[1] || '', hajm: xom.length });
+          text: izoh?.[1] || '', hajm: xom.length,
+          nom: fayl?.[1] || '', mime: (tur?.[1] || '').trim(),
+          pdfmi: /^%PDF-/.test(xom.slice(xom.indexOf('%PDF-'), xom.indexOf('%PDF-') + 5)) });
         return j({ ok: true, result: { message_id: xabarId } });
       }
       // O'chirilgan xabar chatda qolmaydi — sinov aynan foydalanuvchi

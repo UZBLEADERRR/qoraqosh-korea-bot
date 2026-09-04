@@ -6,16 +6,18 @@
 //
 // Ikki ko'rinishda yuboriladi:
 //   1. RASM — bir qarashda: tartib, qachon, qanchadan, mahsulot rasmi bilan;
-//   2. WORD hujjati — to'liq tavsif, tarkib va ehtiyot choralari.
+//   2. PDF — har mahsulot uchun alohida sahifa: katta surat, tavsif,
+//      tarkib va ehtiyot choralari. Word emas: .docx ni telefonda hamma
+//      ham ocholmaydi, PDF esa Telegram ichida darrov ko'rinadi.
 import { qatorlar, qator, sozlama } from '../db.js';
 import { brendNomi } from '../lib/brend.js';
 import { qollanmaSvg } from '../rasm/qollanma-kartochka.js';
 import { svgdanPng } from '../rasm/chiz.js';
-import { qollanmaHujjati } from './qollanma-hujjati.js';
+import { qollanmaPdf } from './qollanma-hujjati.js';
 import { rasmYubor, tgFayl } from '../bot/tg.js';
 
 const BOSQICH_TARTIB = ['tozalash', 'toner', 'davolash', 'namlash', 'himoya', 'qoshimcha', 'ichki'];
-const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const PDF_MIME = 'application/pdf';
 
 /** Buyurtmadagi mahsulotlar — parvarish tartibida, rasmi bilan. */
 export async function buyurtmaMahsulotlari(buyurtma) {
@@ -87,14 +89,15 @@ export async function qollanmaYubor(buyurtma, chatId) {
 
   let hujjatYuborildi = false;
   try {
-    const { bayt, nom } = await qollanmaHujjati(o);
+    const { bayt, nom } = await qollanmaPdf(o);
     await tgFayl('sendDocument', {
       chat_id: chatId,
       caption: rasmYuborildi
-        ? '📄 To‘liq qo‘llanma — tarkibi va ehtiyot choralari bilan.'
+        ? '📄 To‘liq qo‘llanma (PDF) — har mahsulot rasmi, tarkibi va '
+          + 'ehtiyot choralari bilan.'
         : izoh,
       parse_mode: 'HTML',
-    }, { document: { bayt, nom, mime: DOCX_MIME } });
+    }, { document: { bayt, nom, mime: PDF_MIME } });
     hujjatYuborildi = true;
   } catch (e) {
     console.error('Qo‘llanma hujjati yuborilmadi:', e.message);

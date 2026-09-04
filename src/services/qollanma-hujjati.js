@@ -1,4 +1,7 @@
-// Mijozga qutiga qo'shib yuboriladigan qo'llanma (.docx).
+// Mijozga qutiga qo'shib yuboriladigan qo'llanma.
+//
+// Ikki ko'rinishda: mijozga PDF (mahsulot rasmlari bilan, telefonda
+// darrov ochiladi), adminga esa .docx ham qoladi — tahrirlash uchun.
 //
 // Har buyurtma uchun alohida: mijoz aynan O'ZI olgan mahsulotlarni
 // qanday tartibda va qanday ishlatishini o'qiydi. Bu shikoyatni kamaytiradi
@@ -8,6 +11,9 @@ import { qatorlar } from '../db.js';
 import { docx } from '../lib/docx.js';
 import { sozlama } from '../db.js';
 import { brendNomi } from '../lib/brend.js';
+import { pdfRasmlardan } from '../lib/pdf.js';
+import { svgdanPng } from '../rasm/chiz.js';
+import { qollanmaSahifalari, SAHIFA_ENI } from '../rasm/qollanma-sahifa.js';
 
 // Parvarish tartibi — qutidagi mahsulotlar SHU tartibda joylashtiriladi
 const BOSQICH_TARTIB = ['tozalash', 'toner', 'davolash', 'namlash', 'himoya', 'qoshimcha'];
@@ -173,6 +179,94 @@ export async function partiyaQollanmasi(partiya, buyurtmalar) {
   return {
     bayt: docx(bloklar),
     nom: `qollanma-${partiya?.raqam || 'partiya'}.docx`,
+    soni: buyurtmalar.length,
+  };
+}
+
+// ══════════════════ PDF — mahsulot rasmlari bilan ══════════════════
+//
+// Word varianti matn uchun yaxshi, lekin mijoz telefonda .docx ni ochmaydi
+// va unda mahsulot SURATI yo'q. PDF esa Telegram ichida darrov ochiladi
+// va har mahsulot o'z rasmi bilan chiqadi.
+
+/** Bitta buyurtma uchun PDF sahifalarining ma'lumoti. */
+export async function qollanmaMalumoti(buyurtma) {
+  const idlar = [...new Set((buyurtma.items || [])
+    .map((i) => Number(i?.product_id)).filter((n) => Number.isFinite(n) && n > 0))];
+  const mahsulotlar = idlar.length
+    ? await qatorlar(
+        `select id, name, brand, step, volume, description, usage_text,
+                ingredients, warnings, actives, poster_id
+           from products where id = any($1)`, [idlar])
+    : [];
+
+  // Rasmlarni bittada olamiz
+  const rasmIdlar = mahsulotlar.map((r) => r.poster_id).filter(Boolean);
+  const rasmlar = rasmIdlar.length
+    ? await qatorlar('select id, bayt, mime from media where id = any($1)', [rasmIdlar])
+    : [];
+  const rasmKarta = new Map(rasmlar.map((m) => [m.id, m]));
+
+  const [brend, tel, konsult, mavzu] = await Promise.all([
+    brendNomi(), sozlama('menejer_telefon', ''), sozlama('konsultatsiya_user', ''),
+    sozlama('mavzu', {}),
+  ]);
+  const toza = (v) => String(v ?? '').replace(/"/g, '').trim();
+  const tartib = (p) => {
+    const i = BOSQICH_TARTIB.indexOf(String(p.step || 'qoshimcha'));
+    return i < 0 ? 99 : i;
+  };
+
+  return {
+    brend,
+    buyurtma: buyurtma.order_no || '',
+    mijoz: buyurtma.customer_name || '',
+    telefon: toza(tel),
+    konsultant: toza(konsult),
+    mavzu: (mavzu && typeof mavzu === 'object') ? mavzu : {},
+    mahsulotlar: [...mahsulotlar].sort((a, b) => tartib(a) - tartib(b)).map((r) => {
+      const m = rasmKarta.get(r.poster_id);
+      return {
+        nom: r.name, brend: r.brand, bosqich: r.step || 'qoshimcha', hajm: r.volume,
+        tavsif: r.description || '', qanday: r.usage_text || '',
+        tarkib: r.ingredients || '', ogohlantirish: r.warnings || '',
+        faol: r.actives || [],
+        rasmBase64: m?.bayt ? Buffer.from(m.bayt).toString('base64') : null,
+        rasmMime: m?.mime || 'image/png',
+      };
+    }),
+  };
+}
+
+/** SVG sahifalarni PNG ga chizib, PDF ga o'raydi. */
+async function pdfYig(sahifalar) {
+  const pnglar = [];
+  for (const svg of sahifalar) pnglar.push(await svgdanPng(svg, SAHIFA_ENI));
+  return pdfRasmlardan(pnglar);
+}
+
+/** Bitta buyurtma uchun PDF qo'llanma. */
+export async function qollanmaPdf(buyurtma) {
+  const d = await qollanmaMalumoti(buyurtma);
+  if (!d.mahsulotlar.length) throw new Error('Buyurtmada mahsulot yo‘q');
+  return {
+    bayt: await pdfYig(qollanmaSahifalari(d)),
+    nom: `qollanma-${buyurtma.order_no || 'buyurtma'}.pdf`,
+  };
+}
+
+/** Butun partiya uchun BITTA PDF — admin hammasini birdan chop etadi. */
+export async function partiyaQollanmasiPdf(partiya, buyurtmalar) {
+  const sahifalar = [];
+  for (const o of buyurtmalar) {
+    const d = await qollanmaMalumoti(o);
+    if (!d.mahsulotlar.length) continue;
+    sahifalar.push(...qollanmaSahifalari({ ...d, boshRaqam: sahifalar.length + 1 }));
+  }
+  if (!sahifalar.length) throw new Error('Qo‘llanma uchun mahsulot topilmadi');
+  return {
+    bayt: await pdfYig(sahifalar),
+    nom: `qollanma-${partiya?.raqam || 'partiya'}.pdf`,
     soni: buyurtmalar.length,
   };
 }

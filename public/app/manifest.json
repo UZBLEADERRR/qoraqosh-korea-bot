@@ -2,7 +2,7 @@
   "name": "KiOVO — Koreya kosmetikasi",
   "short_name": "KiOVO",
   "description": "Yuz skaneri, AI maslahatchi va Koreya kosmetikasi do‘koni",
-  "start_url": "/app/",
+  "start_url": "/app/ochish",
   "scope": "/app/",
   "display": "standalone",
   "orientation": "portrait",

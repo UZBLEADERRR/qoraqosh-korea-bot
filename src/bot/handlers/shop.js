@@ -97,5 +97,5 @@ export async function menyuniKorsat(chatId, user) {
   const ism = esc((user.full_name || '').split(' ')[0] || 'do‘stim');
   const qatorlar = [`🌸 <b>${esc(brend)}</b>`, ``, `Nima qilamiz, ${ism}?`];
   if (admin) qatorlar.push('', '⚙️ <i>Siz adminsiz — panel tugmasi quyida.</i>');
-  return yubor(chatId, qatorlar.join('\n'), { reply_markup: asosiyMenyu(admin) });
+  return yubor(chatId, qatorlar.join('\n'), { reply_markup: await asosiyMenyu(admin) });
 }

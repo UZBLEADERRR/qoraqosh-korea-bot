@@ -1,6 +1,7 @@
 // Barcha tugmalar inline. Yagona istisno — telefon so'rash:
 // Telegram `request_contact` ni faqat pastki (reply) klaviaturada beradi.
 import { config } from '../config.js';
+import { ilovaTugmasi } from '../lib/ilova-havola.js';
 
 export const appUrl = (yol = '/app/') => (config.publicUrl ? `${config.publicUrl}${yol}` : null);
 
@@ -21,10 +22,13 @@ export function appTugma(matn, yol = '/app/') {
  *
  * @param {boolean} adminmi  admin bo'lsa panel tugmasi ham qo'shiladi
  */
-export function asosiyMenyu(adminmi = false) {
+export async function asosiyMenyu(adminmi = false) {
   const qatorlar = [[{ text: '🔬 Yuz skaneri', callback_data: 'skaner' }]];
 
-  const katalog = appTugma('🛍 Do‘kon', '/app/');
+  // Do'kon tugmasi: qisqa nom sozlangan bo'lsa to'g'ridan-to'g'ri
+  // ilova havolasi bo'ladi — shunda bosh ekrandagi yorliq ham
+  // ilovani ochadi, bot suhbatini emas.
+  const katalog = await ilovaTugmasi('🛍 Do‘kon', '/app/');
   if (katalog) qatorlar.push([katalog]);
 
   // Admin panel — faqat adminlarga ko'rinadi. Panel Telegram ID orqali

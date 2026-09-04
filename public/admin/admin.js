@@ -2190,6 +2190,18 @@ async function sozlamalar() {
       </div>
 
       <div class="karta tor">
+        <div class="karta-bosh"><h2>📱 Mini App qisqa nomi</h2></div>
+        <p class="mayda" style="margin:0 0 12px">Telefon bosh ekraniga qo‘yilgan
+          yorliq <b>ilovani</b> ochishi uchun kerak — busiz u bot suhbatini ochadi.
+          Nomni <b>BotFather</b> beradi: <code>/mybots</code> → botingiz →
+          <b>Bot Settings</b> → <b>Configure Mini App</b> → <b>Enable</b>.
+          O‘sha yerdagi havoladagi oxirgi so‘zni (<code>t.me/bot/<b>ilova</b></code>)
+          shu yerga yozing.</p>
+        <label>Qisqa nom <span class="yordam">faqat harf, raqam va _</span></label>
+        <input id="s-miniapp" value="${esc(matn('mini_app_nom'))}" placeholder="ilova">
+      </div>
+
+      <div class="karta tor">
         <div class="karta-bosh"><h2>🎨 Ilova mavzusi</h2></div>
         <p class="mayda" style="margin:0 0 12px">Ikkita rang tanlaysiz —
           <b>sarlavha</b> va <b>fon</b>. Qolgan tuslar shulardan hisoblanadi,
@@ -2672,6 +2684,8 @@ async function sozlamalarniSaqla() {
       konsultatsiya_user: $('#s-konsult').value.trim().replace(/^@/, ''),
       menejer_telefon:    $('#s-tel').value.trim(),
       menejer_ish_vaqti:  $('#s-vaqt').value.trim(),
+      mini_app_nom:       $('#s-miniapp').value.trim().replace(/^@/, '')
+                            .replace(/[^A-Za-z0-9_]/g, ''),
       limit_yoqilgan:     $('#s-limit-yoq').checked,
       limit_bepul:        Math.max(0, Number($('#s-limit-bepul').value) || 0),
       limit_mijoz:        Math.max(0, Number($('#s-limit-mijoz').value) || 0),

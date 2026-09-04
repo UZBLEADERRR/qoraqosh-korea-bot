@@ -16,7 +16,7 @@ import {
   partiyaBuyurtmalari, partiyaniOl, oxirgiPartiyalar, partiyaHolati,
 } from '../../services/partiya.js';
 import { pochtaHujjati } from '../../services/pochta-hujjati.js';
-import { partiyaQollanmasi } from '../../services/qollanma-hujjati.js';
+import { partiyaQollanmasiPdf } from '../../services/qollanma-hujjati.js';
 import { qollanmaYubor } from '../../services/mijoz-qollanma.js';
 import { broadcastBoshla } from '../../services/broadcast.js';
 import { agentCallback, agentHolati, rejaMenyusi, tanitishBoshla } from './agent-oqim.js';
@@ -74,12 +74,17 @@ export async function xaridRoyxatiniYubor(chatId, user) {
 
   // Xarid kanali sozlangan bo'lsa ro'yxat o'sha yerga ham tushadi —
   // jamoa a'zolari bir joydan ishlaydi.
+  // Avval ADMINGA yuboramiz: kanal sozlamasi buzuq bo'lsa ham buyruq
+  // ishlagan bo'lib qolsin. Ilgari kanal birinchi edi va u yiqilsa
+  // admin hech narsa ko'rmasdi.
+  const javob = await yubor(chatId, matn, { reply_markup: kb });
+
   const kanal = String(await sozlama('xarid_kanal', '') || '');
   if (kanal) {
     await tg('sendMessage', { chat_id: kanal, text: matn, parse_mode: 'HTML',
-      reply_markup: kb, link_preview_options: { is_disabled: true } });
+      reply_markup: kb, link_preview_options: { is_disabled: true } }).catch(() => {});
   }
-  return yubor(chatId, matn, { reply_markup: kb });
+  return javob;
 }
 
 async function qabulQilindi(cq, user) {
@@ -257,14 +262,15 @@ async function qollanmaFayli(cq) {
   if (!buyurtmalar.length) return yubor(cq.message.chat.id, 'Bu partiyada buyurtma yo‘q.');
 
   await harakat(cq.message.chat.id, 'upload_document');
-  const { bayt, nom, soni } = await partiyaQollanmasi(p, buyurtmalar);
+  // PDF: rangli, mahsulot rasmlari bilan va print qilishga tayyor
+  const { bayt, nom, soni } = await partiyaQollanmasiPdf(p, buyurtmalar);
   return tgFayl('sendDocument', {
     chat_id: cq.message.chat.id,
     caption: `📘 <b>Parvarish qo‘llanmasi</b> · ${esc(p.raqam)}\n` +
              `${soni} ta buyurtma uchun, har biri yangi sahifadan.\n` +
              `<i>Print qilib har birini o‘z qutisiga soling.</i>`,
     parse_mode: 'HTML',
-  }, { document: { bayt, nom, mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' } });
+  }, { document: { bayt, nom, mime: 'application/pdf' } });
 }
 
 async function partiyaRoyxati(cq) {
@@ -383,14 +389,33 @@ async function panelHavolasi(chatId) {
 
 // ══════════════════ Dispetcher ══════════════════
 
-/** Admin buyrug'i bo'lsa bajaradi va true qaytaradi. */
+/**
+ * Admin buyrug'i bo'lsa bajaradi va true qaytaradi.
+ *
+ * Buyruq ichida xato chiqsa admin JIM QOLMAYDI: bitta buzuq buyurtma
+ * qatori tufayli /orders hech narsa yozmay qo'yishi — eng yomon holat,
+ * chunki admin bot ishlamayaptimi yoki ro'yxat bo'shmi bilmaydi.
+ */
 export async function adminBuyrugi(msg, user) {
   if (!adminmi(user)) return false;
   const matn = (msg.text || '').trim();
   const chatId = msg.chat.id;
   const [buyruq, ...qolgan] = matn.split(/\s+/);
   const argument = qolgan.join(' ');
+  try {
+    return await buyruqniBajar(buyruq, argument, chatId, user);
+  } catch (e) {
+    console.error(`Admin buyrug'i ${buyruq}:`, e);
+    await yubor(chatId, [
+      `⚠️ <b>Buyruq bajarilmadi</b>`, ``,
+      `<code>${esc(buyruq)}</code> — ${esc(e.message || 'noma’lum xato')}`, ``,
+      `<i>Qayta urinib ko‘ring. Takrorlansa — serverdagi jurnalga qarang.</i>`,
+    ].join('\n')).catch(() => {});
+    return true;                          // buyruq TANILDI, xabar berildi
+  }
+}
 
+async function buyruqniBajar(buyruq, argument, chatId, user) {
   switch (buyruq) {
     case '/qosh':    await skrinshotBoshla(chatId, user); return true;
     case '/tugat':   await skrinshotTugat(chatId, user); return true;

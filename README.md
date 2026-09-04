@@ -138,6 +138,20 @@ Google Gemini · Railway.
   3. Ikkalasi ham bo'lmasa — qo'lda qo'shish yo'riqnomasi.
   Service worker faqat QOBIQNI keshlaydi (HTML/CSS/JS/ikonka) — katalog,
   savat va buyurtma har doim tarmoqdan olinadi, eski narx ko'rsatilmaydi.
+
+  ⚠️ **Yorliq ilovani ochishi uchun qisqa nom kerak.** Telegram yorliqni
+  ilova QANDAY ochilganiga qarab yasaydi: `web_app` tugmasidan ochilgan
+  ilova bot suhbatiga bog'lanadi, shuning uchun yorliq ham bot suhbatini
+  ochadi. To'g'ridan-to'g'ri havoladan (`t.me/<bot>/<nom>`) ochilgani
+  esa ilovaning o'ziga bog'lanadi. Qisqa nomni BotFather beradi:
+  `/mybots` → bot → **Bot Settings** → **Configure Mini App** →
+  **Enable**. Keyin uni admin panelning **«Mini App qisqa nomi»**
+  bo'limiga yozasiz — botdagi «Do'kon» tugmasi o'sha havolaga aylanadi.
+
+  Brauzerdan o'rnatilgan PWA ning `start_url` i `/app/ochish` —
+  bu manzil Telegramdagi ilovaga yo'naltiradi. Ilova Telegramdan
+  tashqarida ochilsa `initData` bo'lmaydi va hech narsa yuklanmaydi,
+  shuning uchun bunday holda «Telegramda ochish» ekrani ko'rsatiladi.
 - **Profil** — Telegram avatari, ism va statistika. Bo'limlar YOPIQ
   turadi va bosilganda ochiladi: shaxsiy ma'lumot (tahrirlanadi),
   **terim va sog'liq** (teri turi, allergiya, kasallik — AI shularni
@@ -739,6 +753,7 @@ src/
   rasm/
     natija-kartochka.js tahlil natijasining SVG ko'rinishi
     qollanma-kartochka.js mijozga boradigan rasmli parvarish qo'llanmasi
+    qollanma-sahifa.js  PDF qo'llanmaning A4 sahifalari
     poster-tuzat.js    posterni nisbatga kesish va yozuvni o'zimiz yozish
     chiz.js            SVG -> PNG (resvg + repozitoriyadagi shriftlar)
   api/
@@ -761,7 +776,7 @@ src/
     yetkazish.js       og'irlik bo'yicha narx (API yoki tarif jadvali)
     pochta-hujjati.js  pochta uchun manzillar hujjati
     qollanma-hujjati.js mijozga qutiga qo'shiladigan parvarish qo'llanmasi
-    mijoz-qollanma.js  to'lovdan keyin qo'llanmani yuborish (rasm + Word)
+    mijoz-qollanma.js  to'lovdan keyin qo'llanmani yuborish (rasm + PDF)
     kalit-sozlar.js    qoida + AI dan kalit so'zlarni to'ldirish
     skrinshot-import.js botga tashlangan skrinshotlar navbati
     uzum-narx.js       Uzum Market narxi bilan solishtirish
@@ -876,6 +891,16 @@ to'liq tavsiya ko'ringani yaxshiroq.
 uchun u mavjud bo'lmagan mahsulotni o'ylab topa olmaydi. Qaytgan `product_id`
 lar baribir katalogga solishtiriladi; SPF bosqichi tushib qolsa server o'zi
 qo'shadi.
+
+**Qo'llanma PDF i ham kutubxonasiz.** Matnli PDF yozish uchun shriftni
+fayl ichiga joylash, CMap va glif jadvallarini qo'lda qurish kerak
+bo'lardi — o'zbekcha `oʻ`, `gʻ` belgilarida bu eng tez sinadigan joy.
+Shuning uchun sahifani ALLAQACHON bor SVG → PNG quvuri chizadi
+(`qollanma-sahifa.js` → resvg), `lib/pdf.js` esa PNG larni PDF ga
+o'raydi: PNG ochiladi (zlib), qator filtrlari yechiladi, alfa oq fonga
+qo'shiladi va xom RGB qayta siqiladi. Natija — A4, mahsulot suratlari
+bilan, brend ranglarida. Matn tanlanmaydi, lekin telefonda o'qiladigan
+qo'llanma uchun bu muhim emas.
 
 **Word hujjati kutubxonasiz.** `.docx` — bu ZIP ichidagi bir nechta XML.
 Word Unicode'ni o'zi biladi, shuning uchun PDF'dagi kabi shrift joylashtirish

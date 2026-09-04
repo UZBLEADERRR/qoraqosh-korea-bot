@@ -1132,3 +1132,13 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 .tavsiya-ich .tavsiyalar{padding:8px 10px 10px;gap:8px}
 .tavsiya-ich .t-karta{border:0;padding:2px}
 .tavsiya-ich .t-karta+.t-karta{border-top:1px solid var(--chiziq-och);padding-top:11px}
+
+/* Telegramdan tashqarida ochilgan ilova — yorliq bosilganda ko'rinadi */
+.tashqarida { min-height: 100vh; display: flex; align-items: center;
+  justify-content: center; padding: 24px; background: var(--fon); }
+.tashqarida-ichi { max-width: 340px; text-align: center; }
+.tashqarida-belgi { font-weight: 800; letter-spacing: 5px; font-size: 15px;
+  color: var(--urgu); margin-bottom: 18px; }
+.tashqarida h2 { font-size: 22px; font-weight: 800; margin-bottom: 10px; }
+.tashqarida p { color: var(--kul); line-height: 1.5; margin-bottom: 22px; }
+.tashqarida .asosiy { display: block; text-decoration: none; text-align: center; }

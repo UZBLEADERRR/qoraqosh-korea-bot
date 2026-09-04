@@ -97,5 +97,5 @@ export async function roziBol(chatId, user) {
   await yubor(chatId, await xabar('xabar_royxat_tugadi',
     { ism: esc((user.full_name || '').split(' ')[0] || '') },
     '🎉 <b>Tayyor!</b>\n\n<b>🔬 Yuz skaneri</b> ni bosing.'),
-    { reply_markup: asosiyMenyu(adminmi(user)) });
+    { reply_markup: await asosiyMenyu(adminmi(user)) });
 }

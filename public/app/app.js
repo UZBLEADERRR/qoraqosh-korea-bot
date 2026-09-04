@@ -135,7 +135,34 @@ const SARALASH = {
 };
 
 // ---------------- Ishga tushirish ----------------
+
+/**
+ * Ilova Telegramdan tashqarida ochilganmi?
+ *
+ * Bosh ekranga qo'yilgan brauzer yorlig'i bevosita /app/ ni ochsa
+ * initData bo'lmaydi va hech narsa yuklanmaydi — odam «ilova
+ * ishlamayapti» deb o'ylaydi. Bunday holda Telegramdagi ilovaga
+ * yo'naltiramiz.
+ */
+function telegramdanTashqarida() {
+  if (tg?.initData) return false;
+  document.body.innerHTML = `
+    <div class="tashqarida">
+      <div class="tashqarida-ichi">
+        <div class="tashqarida-belgi">KiOVO</div>
+        <h2>Ilova Telegram ichida ishlaydi</h2>
+        <p>Buyurtma, skaner va maslahat — hammasi Telegram hisobingizga
+           bog‘langan. Quyidagi tugma sizni ilovaga olib boradi.</p>
+        <a class="asosiy" href="/app/ochish">Telegramda ochish</a>
+      </div>
+    </div>`;
+  // Yorliqdan ochilgan bo'lsa kutib turishning ma'nosi yo'q
+  setTimeout(() => { location.href = '/app/ochish'; }, 1200);
+  return true;
+}
+
 async function boshla() {
+  if (telegramdanTashqarida()) return;
   // Statik razmetkadagi <i data-ik> larni chizma ikonga to'ldiramiz
   ikonlarniChiz();
   suhbatniYukla();

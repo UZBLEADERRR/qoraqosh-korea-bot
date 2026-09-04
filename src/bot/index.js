@@ -77,7 +77,7 @@ export async function yangilanish(upd) {
   if (await skaner.rasmniQabulQil(msg, user)) return;
 
   await yubor(chatId, '📸 Yuz tahlili uchun rasm yuboring yoki menyudan tanlang.',
-    { reply_markup: asosiyMenyu(adminmi(user)) });
+    { reply_markup: await asosiyMenyu(adminmi(user)) });
 }
 
 // ---------- Inline tugmalar ----------
