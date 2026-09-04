@@ -1,8 +1,8 @@
 // Google Generative Language API (to'g'ridan-to'g'ri).
 import { config } from '../config.js';
 import { hovuz, sabab } from './kalitlar.js';
-import { modelOl, modelBand, modelYoq, modelYaxshi, kvotaTuri, kutishMs }
-  from './modellar.js';
+import { modelOl, modelBand, modelYoq, modelYaxshi, kvotaTuri, kutishMs,
+  modellarniTaminla, rasmModeli } from './modellar.js';
 
 const kut = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -61,11 +61,16 @@ function xatoTashla(kod, matn) {
 export const geminiHovuz = hovuz(config.geminiKeys);
 
 export async function googleJson(parts, schema, opts = {}) {
+  // Admin panelda tanlangan ro'yxat (keshlangan, 30 soniyada bir marta)
+  await modellarniTaminla();
   let oxirgi;
   // 400 kelganda so'rovni soddalashtiramiz (tana() dagi izohga qarang)
   let rejim = 0;
   // Shu chaqiruvda yiqilgan modellar — ularga qaytmaymiz
   const otkaz = [];
+  // Admin ANIQ modelni so'ragan bo'lsa (sinov tugmasi) — boshqasiga
+  // o'tmaymiz, aks holda sinov boshqa modelni tekshirib qo'yadi.
+  const qatiy = Boolean(opts.model);
   let model = opts.model || modelOl();
   // Har model uchun 4 tadan urinish, lekin jami cheksiz emas
   const MAKS = 4 + (opts.model ? 0 : 3);
@@ -112,7 +117,7 @@ export async function googleJson(parts, schema, opts = {}) {
           matn ? ` · ${matn.replace(/\s+/g, ' ').slice(0, 200)}` : ''}`),
         { turkum: tur === 'kunlik' ? 'kvota_kunlik' : 'kvota', model: model, kvota: tur });
 
-      const keyingi = modelOl(otkaz);
+      const keyingi = qatiy ? null : modelOl(otkaz);
       // `otkaz` da bo'lsa — ro'yxat aylanib chiqdi, hammasi tugagan.
       // Qayta urinish behuda kvota sarflaydi.
       if (keyingi && keyingi !== model && !otkaz.includes(keyingi)) {
@@ -121,7 +126,7 @@ export async function googleJson(parts, schema, opts = {}) {
         continue;                     // yangi model bilan DARROV urinamiz
       }
       // Boshqa model qolmadi — kunlik kvotada qayta urinish behuda
-      if (tur === 'kunlik' || otkaz.length >= 2) break;
+      if (qatiy || tur === 'kunlik' || otkaz.length >= 2) break;
       await kut(Math.min(kutish || 900 * (urinish + 1), 3000));
       continue;
     }
@@ -136,7 +141,7 @@ export async function googleJson(parts, schema, opts = {}) {
       // behuda — ro'yxatdan chiqarib, keyingisiga o'tamiz.
       modelYoq(model);
       otkaz.push(model);
-      const keyingi = modelOl(otkaz);
+      const keyingi = qatiy ? null : modelOl(otkaz);
       oxirgi = Object.assign(new Error(`Google HTTP 404 · «${model}» mavjud emas`),
         { turkum: 'model', model });
       if (keyingi && keyingi !== model) { model = keyingi; continue; }
@@ -149,14 +154,25 @@ export async function googleJson(parts, schema, opts = {}) {
         continue;                       // boshqa kalit bilan urinamiz
       }
     }
-    if (res.status === 400 && rejim < 2) {
-      // Sozlamalardan biri yoqmadi — soddalashtirib qayta urinamiz.
-      // Haqiqiy sababni logga yozamiz: mijozga "JPG yuboring" deb
-      // aytish noto'g'ri bo'lardi, muammo rasmda emas.
+    if (res.status === 400) {
       const matn = await res.text().catch(() => '');
-      console.warn(`Google 400 (rejim ${rejim}) → soddalashtiramiz: ${matn.slice(0, 300)}`);
-      rejim += 1;
-      continue;
+      // Google KALIT noto'g'ri bo'lganda ham 400 beradi (401 emas).
+      // Buni «so'rov xatosi» deb ko'rsatish adminni chalg'itadi va
+      // so'rovni soddalashtirib qayta urinish behuda.
+      if (/API_KEY_INVALID|API key not valid|API key expired/i.test(matn)) {
+        if (k) geminiHovuz.yomon(k.indeks, 'notogri');
+        throw Object.assign(new Error(`Google: API kalit noto‘g‘ri yoki muddati tugagan`),
+          { turkum: 'kalit', kod: 400 });
+      }
+      if (rejim < 2) {
+        // Sozlamalardan biri yoqmadi — soddalashtirib qayta urinamiz.
+        // Haqiqiy sababni logga yozamiz: mijozga "JPG yuboring" deb
+        // aytish noto'g'ri bo'lardi, muammo rasmda emas.
+        console.warn(`Google 400 (rejim ${rejim}) → soddalashtiramiz: ${matn.slice(0, 300)}`);
+        rejim += 1;
+        continue;
+      }
+      xatoTashla(400, matn);
     }
     if (!res.ok) {
       if (k) geminiHovuz.yomon(k.indeks, sabab(new Error(`HTTP ${res.status}`)));
@@ -204,7 +220,8 @@ export async function googleJson(parts, schema, opts = {}) {
 
 /** Rasm chizish (gemini-*-image). */
 export async function googleRasm(parts, { nisbat, model, timeoutMs = 90000 } = {}) {
-  const m = model || config.geminiImageModel;
+  await modellarniTaminla();
+  const m = model || rasmModeli();
   const k = geminiHovuz.ol();
   const yubor = (imageConfigBilan) => {
     const ctrl = new AbortController();

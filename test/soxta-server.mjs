@@ -378,6 +378,14 @@ export function soxtaServer(port = 4444) {
               { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '31s' },
             ] } }));
         }
+        // Kalit noto'g'ri bo'lsa Google 400 (401 emas!) beradi
+        if (globalThis.AI_KALIT_YOMON) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: { code: 400,
+            message: 'API key not valid. Please pass a valid API key.',
+            status: 'INVALID_ARGUMENT',
+            details: [{ reason: 'API_KEY_INVALID' }] } }));
+        }
         // Model umuman yo'q bo'lsa Google 404 beradi
         if ((globalThis.AI_404_MODELLAR || []).includes(model)) {
           res.writeHead(404, { 'Content-Type': 'application/json' });

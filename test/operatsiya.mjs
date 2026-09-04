@@ -1772,5 +1772,101 @@ console.log('\n── BOSQICH XABARI (OMBOR YO‘Q) ──');
     STANDART.xabar_holat_omborda);
 }
 
+// ═══════════ AI MODELLARI ADMIN PANELDA ═══════════
+// Model nomi faqat muhit o'zgaruvchisida edi — o'zgartirish uchun
+// Railway'ga kirish kerak bo'lardi. Endi admin panelda tanlanadi.
+console.log('\n── AI MODELLARI (ADMIN PANEL) ──');
+{
+  const M = await import('../src/ai/modellar.js');
+  M.modellarniTozala();
+
+  const b1 = await chaqirAdmin('/api/admin/ai-modellar', 'GET');
+  test('ro‘yxat keldi', Array.isArray(b1.tana.modellar) && b1.tana.modellar.length > 0,
+    (b1.tana.modellar || []).join(', '));
+  test('boshida STANDART ro‘yxat', b1.tana.standart === true);
+  test('tanlash uchun variantlar bor', (b1.tana.tavsiya || []).length >= 5,
+    `${(b1.tana.tavsiya || []).length} ta`);
+  test('rasm modeli alohida ko‘rsatiladi', Boolean(b1.tana.rasm_model), b1.tana.rasm_model);
+
+  // ── Admin o'z tartibini saqlaydi ──
+  const tanlov = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-2.5-flash'];
+  const s1 = await chaqirAdmin('/api/admin/ai-modellar', 'POST',
+    { modellar: tanlov, rasm_model: 'gemini-2.5-flash-image' });
+  test('saqlandi', s1.kod === 200, JSON.stringify(s1.tana).slice(0, 90));
+  test('TARTIB SAQLANDI', s1.tana.modellar.join() === tanlov.join(), s1.tana.modellar.join());
+  test('endi standart emas', s1.tana.standart === false);
+
+  M.modellarniTozala();                       // keshni tashlab, bazadan o'qitamiz
+  await M.modellarniTaminla();
+  test('bazadan o‘qildi', M.royxat().join() === tanlov.join(), M.royxat().join());
+  test('birinchisi asosiy model', M.royxat()[0] === 'gemini-3.6-flash', M.royxat()[0]);
+  test('rasm modeli ham saqlandi', M.rasmModeli() === 'gemini-2.5-flash-image', M.rasmModeli());
+
+  // ── Takror va axlat tozalanadi ──
+  const s2 = await chaqirAdmin('/api/admin/ai-modellar', 'POST',
+    { modellar: ['gemini-3.8-flash', 'gemini-3.8-flash', '  ', '"gemini-3.7-flash"'],
+      rasm_model: '' });
+  test('takror olib tashlandi', s2.tana.modellar.length === 2, s2.tana.modellar.join(', '));
+  test('qo‘shtirnoq va bo‘shliq tozalandi',
+    s2.tana.modellar[1] === 'gemini-3.7-flash', s2.tana.modellar[1]);
+
+  // ── Bo'sh ro'yxat = standartga qaytarish ──
+  const s3 = await chaqirAdmin('/api/admin/ai-modellar', 'POST', { modellar: [], rasm_model: '' });
+  test('bo‘sh ro‘yxat standartga qaytaradi', s3.tana.standart === true);
+  test('standart ro‘yxat qaytdi', s3.tana.modellar[0] === 'gemini-3.8-flash',
+    s3.tana.modellar[0]);
+  test('ro‘yxatsiz emas', s3.tana.modellar.length >= 3, `${s3.tana.modellar.length} ta`);
+
+  const yomon = await chaqirAdmin('/api/admin/ai-modellar', 'POST', { modellar: 'salom' });
+  test('noto‘g‘ri ma’lumot rad etiladi', yomon.kod === 400, String(yomon.kod));
+
+  // ── «Sinash» tugmasi: model HAQIQATAN ishlaydimi ──
+  const sinov = await chaqirAdmin('/api/admin/ai-model-sinov', 'POST',
+    { model: 'gemini-3.8-flash' });
+  test('sinov o‘tdi', sinov.tana.ok === true, JSON.stringify(sinov.tana).slice(0, 120));
+
+  // Yo'q model — sinov buni ANIQ aytadi va boshqasini sinab qo'ymaydi
+  globalThis.AI_404_MODELLAR = ['gemini-yoq-model'];
+  const sinov2 = await chaqirAdmin('/api/admin/ai-model-sinov', 'POST',
+    { model: 'gemini-yoq-model' });
+  globalThis.AI_404_MODELLAR = [];
+  test('yo‘q model sinovda aniqlanadi', sinov2.tana.ok === false, JSON.stringify(sinov2.tana));
+  test('sabab «model» deb aytiladi', sinov2.tana.turkum === 'model', sinov2.tana.turkum);
+  test('QAYSI model yiqilgani aniq', sinov2.tana.model === 'gemini-yoq-model',
+    sinov2.tana.model);
+
+  // Kvota tugagan model — sinov BOSHQA modelga o'tib ketmasligi kerak,
+  // aks holda admin noto'g'ri modelni «ishlayapti» deb o'ylaydi
+  M.modellarniTozala();
+  globalThis.AI_429_MODELLAR = ['gemini-3.8-flash'];
+  const sinov3 = await chaqirAdmin('/api/admin/ai-model-sinov', 'POST',
+    { model: 'gemini-3.8-flash' });
+  globalThis.AI_429_MODELLAR = [];
+  test('kvota tugagan model «ishlayapti» demaydi', sinov3.tana.ok === false,
+    JSON.stringify(sinov3.tana).slice(0, 120));
+  test('sinov boshqa modelga O‘TMAYDI', sinov3.tana.model === 'gemini-3.8-flash',
+    sinov3.tana.model);
+  test('kunlik kvota deb belgilanadi', sinov3.tana.turkum === 'kvota_kunlik',
+    sinov3.tana.turkum);
+
+  // Google KALIT noto'g'ri bo'lsa ham 400 beradi (401 emas). Buni
+  // «so'rov xatosi» deb ko'rsatish adminni chalg'itardi: u kalitni
+  // emas, kodni qidirib ketardi.
+  M.modellarniTozala();
+  globalThis.AI_KALIT_YOMON = true;
+  const sinov4 = await chaqirAdmin('/api/admin/ai-model-sinov', 'POST',
+    { model: 'gemini-3.8-flash' });
+  globalThis.AI_KALIT_YOMON = false;
+  test('noto‘g‘ri kalit «kalit» deb aniqlanadi', sinov4.tana.turkum === 'kalit',
+    `${sinov4.tana.turkum} · ${sinov4.tana.xabar}`);
+  test('kalit xatosida so‘rov soddalashtirilmaydi', sinov4.tana.ms < 3000,
+    `${sinov4.tana.ms} ms`);
+
+  const bosh = await chaqirAdmin('/api/admin/ai-model-sinov', 'POST', { model: '' });
+  test('nomsiz sinov rad etiladi', bosh.kod === 400);
+
+  M.modellarniTozala();
+}
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

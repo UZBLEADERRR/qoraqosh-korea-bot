@@ -751,8 +751,27 @@ gemini-3.8-flash → 3.7 → 3.6 → 3.5 → 3.5-flash-lite
 
 Asosiysi 429 bersa keyingisiga **darrov** o'tiladi va tugagani vaqtincha
 chetga qo'yiladi. Bu kalit qo'shishdan ham tez ishlaydi — hech narsa
-sozlash kerak emas. `GEMINI_MODEL` va `GEMINI_MODELLAR` bilan
-o'zgartirsa bo'ladi.
+sozlash kerak emas.
+
+**Ro'yxat admin panelda tanlanadi** (Tizim holati → 🤖 AI modellari):
+tartibni ↑↓ bilan o'zgartirasiz, keraksizini ✕ bilan olib tashlaysiz,
+yangisini ro'yxatdan yoki qo'lda qo'shasiz. Rasm chizish modeli ham
+shu yerda — u alohida kvotada ishlaydi.
+
+Har model yonida **▶ Sinash** tugmasi bor: u HAQIQIY chaqiruv qiladi va
+uchta savolga birdan javob beradi — nomi to'g'rimi, kalitga ruxsat
+berilganmi, kvota qolganmi. Ro'yxatga qo'shishdan oldin tekshirib
+ko'rish uchun. Sinov aynan **shu modelni** tekshiradi va zaxiraga
+o'tib ketmaydi, aks holda «ishlayapti» degan javob boshqa modelniki
+bo'lib qolardi.
+
+«Standartga qaytarish» ro'yxatni koddagi holatga tiklaydi. Muhit
+o'zgaruvchilari (`GEMINI_MODEL`, `GEMINI_MODELLAR`) hamon ishlaydi —
+ular admin tanlamagan paytdagi standart bo'lib qoladi.
+
+> Kalit noto'g'ri bo'lsa Google **400** qaytaradi, 401 emas. Shuning
+> uchun javob tanasidagi `API_KEY_INVALID` alohida tekshiriladi va
+> xato «so'rov xatosi» emas, «kalit noto'g'ri» deb ko'rsatiladi.
 
 429 javobining **tanasi endi o'qiladi**: Google u yerda qaysi kvota
 tugaganini (`quotaId`) va qancha kutish kerakligini (`retryDelay`)

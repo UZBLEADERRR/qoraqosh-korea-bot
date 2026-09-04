@@ -17,6 +17,7 @@
 //     kalit bu modelga ruxsatga ega emas, qayta urinish behuda.
 
 import { config } from '../config.js';
+import { sozlama, sorov } from '../db.js';
 
 // Kunlik kvota ertaga tiklanadi, lekin aniq soatni bilmaymiz. Bir
 // soatdan keyin bitta so'rov bilan tekshirib ko'rgan arzon.
@@ -29,11 +30,76 @@ const olish = (m) => {
   return holat.get(m);
 };
 
-/** Ro'yxat: asosiy model birinchi, keyin zaxiralar. */
-export function royxat() {
+// ── Ro'yxat manbasi ──
+// Ustuvorlik: ADMIN PANELDA tanlangan ro'yxat → muhit o'zgaruvchisi →
+// koddagi standart. Admin panelda tanlash eng qulayi: Railway'ga
+// kirmasdan, telefondan ham o'zgartirsa bo'ladi.
+const STANDART = () => {
   const hammasi = [config.geminiModel, ...(config.geminiModellar || [])];
   return [...new Set(hammasi.filter(Boolean))];
+};
+
+let kesh = null;          // adminniki yoki null (standart ishlatiladi)
+let rasmKesh = null;
+let keshVaqti = 0;
+const TTL = 30_000;       // admin saqlasa yarim daqiqada hamma joyga yetadi
+
+const tozaNom = (v) => String(v ?? '').replace(/["'\s]/g, '').slice(0, 80);
+
+/**
+ * Ro'yxatni bazadan yangilaydi. Har chaqiruvdan oldin chaqiriladi,
+ * lekin 30 soniyada bir marta bazaga boradi.
+ */
+export async function modellarniTaminla() {
+  if (kesh !== null && Date.now() - keshVaqti < TTL) return;
+  try {
+    const [m, r] = await Promise.all([
+      sozlama('ai_modellar', []), sozlama('ai_rasm_model', ''),
+    ]);
+    const royxat = (Array.isArray(m) ? m : []).map(tozaNom).filter(Boolean);
+    kesh = royxat.length ? [...new Set(royxat)] : [];
+    rasmKesh = tozaNom(r);
+    keshVaqti = Date.now();
+  } catch (e) {
+    // Baza yiqilsa AI ham to'xtamasin — standart ro'yxat bilan ishlaymiz
+    console.error('AI modellarini o‘qishda xato:', e.message);
+    if (kesh === null) { kesh = []; rasmKesh = ''; }
+    keshVaqti = Date.now();
+  }
 }
+
+/** Ro'yxat: asosiy model birinchi, keyin zaxiralar. */
+export function royxat() {
+  return (kesh && kesh.length) ? kesh : STANDART();
+}
+
+/** Admin tanlagan rasm modeli (yoki standarti). */
+export const rasmModeli = () => rasmKesh || config.geminiImageModel;
+
+/** Admin panel nimani ko'rsatishini biladi. */
+export const standartmi = () => !(kesh && kesh.length);
+export const standartRoyxat = STANDART;
+
+/**
+ * Admin tanlovini saqlaydi.
+ * Bo'sh ro'yxat berilsa standartga qaytadi — bu «tiklash» tugmasi.
+ */
+export async function saqla(royxatYangi, rasmModel) {
+  const toza = [...new Set((royxatYangi || []).map(tozaNom).filter(Boolean))].slice(0, 12);
+  await sorov(
+    `insert into settings (key, value, updated_at) values
+       ('ai_modellar', $1::jsonb, now()), ('ai_rasm_model', $2::jsonb, now())
+     on conflict (key) do update set value = excluded.value, updated_at = now()`,
+    [JSON.stringify(toza), JSON.stringify(tozaNom(rasmModel))]);
+  // Yangi ro'yxatdagi modellar avvalgi «dam olish» belgisini
+  // yo'qotsin: admin ataylab tanladi, darrov sinab ko'rilsin.
+  for (const m of toza) holat.delete(m);
+  kesh = toza; rasmKesh = tozaNom(rasmModel); keshVaqti = Date.now();
+  return { modellar: royxat(), rasm_model: rasmModeli(), standart: standartmi() };
+}
+
+/** Admin saqlaganda keshni darhol bekor qilish. */
+export function keshniTashla() { kesh = null; keshVaqti = 0; }
 
 /**
  * Hozir ishlatiladigan model.
@@ -95,7 +161,9 @@ export const modelHolatlari = () => royxat().map((m) => {
 });
 
 /** Sinov uchun. */
-export const modellarniTozala = () => holat.clear();
+export const modellarniTozala = () => {
+  holat.clear(); kesh = null; rasmKesh = null; keshVaqti = 0;
+};
 
 /**
  * Google 429 javobidan kvota TURINI ajratadi.

@@ -27,6 +27,9 @@ import { rasmChizaOlamizmi, svgdanPng } from '../rasm/chiz.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
 import { brendNomi } from '../lib/brend.js';
 import { navbatHolati } from '../ai/navbat.js';
+import { modelHolatlari, royxat as modelRoyxati, rasmModeli, standartmi,
+  standartRoyxat, saqla as modellarniSaqla, modellarniTaminla } from '../ai/modellar.js';
+import { googleJson } from '../ai/google.js';
 import { kalitHolati } from '../ai/index.js';
 import { keshHolati } from '../lib/media-kesh.js';
 import { xaridHisoboti, havolasizSoni, mahsulotCsv, viloyatCsv }
@@ -89,6 +92,60 @@ export async function adminRoutes(req, res, yol) {
 
   // ================= TIZIM HOLATI =================
   // Nimadir ishlamay qolsa, sabab shu yerda ko'rinadi.
+
+  // ---------- AI MODELLARI ----------
+  // Admin o'zi tanlaydi: Railway'ga kirmasdan, telefondan ham.
+  // Tartib MUHIM — birinchisi asosiy, qolganlari zaxira. Biri kvotani
+  // tugatsa keyingisiga o'tiladi.
+  if (yol === '/api/admin/ai-modellar' && req.method === 'GET') {
+    await modellarniTaminla();
+    return ok(res, {
+      modellar:   modelRoyxati(),
+      rasm_model: rasmModeli(),
+      standart:   standartmi(),
+      standart_royxat: standartRoyxat(),
+      holatlar:   modelHolatlari(),
+      // Tanlash uchun tayyor variantlar. Ro'yxatda yo'q nomni ham
+      // qo'lda kiritsa bo'ladi — «Sinash» tugmasi uni tekshiradi.
+      tavsiya: [
+        'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash',
+        'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite',
+        'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite',
+      ],
+      rasm_tavsiya: ['gemini-2.5-flash-image', 'gemini-3-pro-image'],
+    });
+  }
+
+  if (yol === '/api/admin/ai-modellar' && req.method === 'POST') {
+    const b = await tana(req);
+    if (!Array.isArray(b.modellar)) return xato(res, 400, 'Modellar ro‘yxati kerak.');
+    // Bo'sh ro'yxat = standartga qaytarish (tiklash tugmasi)
+    const natija = await modellarniSaqla(b.modellar, b.rasm_model);
+    return ok(res, { ...natija, holatlar: modelHolatlari() });
+  }
+
+  // Modelni HAQIQIY chaqiruv bilan sinaydi. Nomi to'g'rimi, kalitga
+  // ruxsat berilganmi, kvota qolganmi — uchalasi ham shu yerda
+  // bilinadi. Ro'yxatga qo'shishdan oldin tekshirib olish uchun.
+  if (yol === '/api/admin/ai-model-sinov' && req.method === 'POST') {
+    const b = await tana(req);
+    const model = String(b.model || '').replace(/["'\s]/g, '').slice(0, 80);
+    if (!model) return xato(res, 400, 'Model nomi kerak.');
+    if (!googleBormi()) return xato(res, 400, 'GEMINI_API_KEY sozlanmagan.');
+    const boshlandi = Date.now();
+    try {
+      const j = await googleJson(
+        [{ text: 'Javob: {"javob":"ok"}' }],
+        { type: 'object', properties: { javob: { type: 'string' } }, required: ['javob'] },
+        { model, maxTokens: 256, timeoutMs: 25000 });
+      return ok(res, { ok: true, model, ms: Date.now() - boshlandi, javob: j?.javob || '' });
+    } catch (e) {
+      const x = xatoniTushuntir(e);
+      return ok(res, { ok: false, model, ms: Date.now() - boshlandi,
+        turkum: x.turkum, xabar: String(e?.message || e).slice(0, 300) });
+    }
+  }
+
   if (yol === '/api/admin/health' && req.method === 'GET') {
     return ok(res, {
       tekshiruvlar: await tizimTekshir(),

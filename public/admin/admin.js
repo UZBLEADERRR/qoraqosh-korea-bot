@@ -3380,6 +3380,7 @@ async function tizim() {
           <div class="v">${rs.foiz ?? 0}%</div>
           <div class="q">${rs.soni ?? 0} ta · ${rs.mb ?? 0}/${rs.chegara_mb ?? 0} MB</div></div>
       </div>
+      <div id="model-quti"></div>
       ${j.tekshiruvlar.map((t) => `
         <div class="qator-karta">
           <div class="qator-bosh">
@@ -3401,9 +3402,187 @@ async function tizim() {
           <li><b>Mini App manzili</b> qizil — <code>PUBLIC_URL</code> yo‘q, tugmalar chiqmaydi.</li>
         </ul>
       </div>`;
+    aiModellar();
   } catch (e) {
     $('#tizim-tan').innerHTML = `<div class="xabar-quti xato">${esc(e.message)}</div>`;
   }
+}
+
+// ─────────── AI MODELLARI ───────────
+// Google'da HAR MODELNING O'Z KVOTASI bor. Shuning uchun bu yerda
+// bitta model emas, RO'YXAT tanlanadi: birinchisi asosiy, qolganlari
+// zaxira. Asosiysi kunlik kvotasini tugatsa keyingisiga o'tiladi va
+// skaner ishlashda davom etadi.
+let mm = { modellar: [], rasm_model: '', tavsiya: [], holatlar: [], standart: true };
+
+async function aiModellar() {
+  try { mm = await api('/api/admin/ai-modellar'); } catch { return; }
+  modelChiz();
+}
+
+function modelBelgi(nom) {
+  const h = (mm.holatlar || []).find((x) => x.nom === nom);
+  if (!h) return '';
+  if (h.yoq) return `<span class="yor qizil">mavjud emas</span>`;
+  if (!h.tayyor) {
+    return `<span class="yor sariq">${h.sabab === 'kunlik' ? 'kunlik kvota'
+      : Math.ceil(h.dam_qoldi / 60) + ' daq'}</span>`;
+  }
+  return `<span class="yor yashil">tayyor</span>`;
+}
+
+function modelChiz() {
+  const qolgan = (mm.tavsiya || []).filter((t) => !mm.modellar.includes(t));
+  $('#model-quti').innerHTML = `
+    <div class="karta">
+      <h3>🤖 AI modellari</h3>
+      <p class="mayda" style="margin:6px 0 12px">
+        Tartib muhim: <b>birinchisi asosiy</b>, qolganlari zaxira.
+        Har modelning o‘z kunlik kvotasi bor — asosiysi tugasa
+        keyingisiga o‘tiladi va skaner to‘xtamaydi.
+        ${mm.standart ? '<br><i>Hozir standart ro‘yxat ishlayapti.</i>' : ''}
+      </p>
+
+      <div id="model-royxat">
+        ${mm.modellar.map((m, i) => `
+          <div style="display:flex;align-items:flex-start;gap:8px;
+               padding:10px 0;border-bottom:1px solid var(--chiziq)">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:14px;font-family:ui-monospace,monospace;
+                   overflow-wrap:anywhere;line-height:1.35">
+                <b style="font-family:inherit">${i + 1}.</b> ${esc(m)}</div>
+              <div style="margin-top:5px;display:flex;gap:5px;flex-wrap:wrap">
+                ${i === 0 ? '<span class="yor kok">asosiy</span>' : ''}${modelBelgi(m)}
+              </div>
+            </div>
+            <div style="display:flex;gap:4px;flex-shrink:0">
+              <button class="tug kichik" data-m-sina="${esc(m)}" title="Sinash">▶</button>
+              <button class="tug kichik" data-m-yuq="${i}" ${i === 0 ? 'disabled' : ''}>↑</button>
+              <button class="tug kichik" data-m-past="${i}"
+                ${i === mm.modellar.length - 1 ? 'disabled' : ''}>↓</button>
+              <button class="tug kichik xavf" data-m-ochir="${i}">✕</button>
+            </div>
+          </div>`).join('') || '<p class="mayda">Ro‘yxat bo‘sh — standart ishlatiladi.</p>'}
+      </div>
+
+      ${qolgan.length ? `<p class="mayda" style="margin:14px 0 6px">Qo‘shish:</p>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${qolgan.map((t) => `<button class="tug kichik" data-m-qosh="${esc(t)}"
+            style="white-space:nowrap">+ ${esc(t)}</button>`).join('')}
+        </div>` : ''}
+
+      <p class="mayda" style="margin:14px 0 6px">Yoki nomini qo‘lda yozing:</p>
+      <div style="display:flex;gap:8px">
+        <input id="m-yangi" placeholder="gemini-…" style="flex:1">
+        <button class="tug" id="t-m-qosh">Qo‘shish</button>
+      </div>
+
+      <p class="mayda" style="margin:16px 0 6px">🎨 Rasm chizish modeli
+        <i>(poster — alohida kvota)</i></p>
+      <div style="display:flex;gap:8px">
+        <input id="m-rasm" value="${esc(mm.rasm_model || '')}" placeholder="gemini-…" style="flex:1">
+        <button class="tug" data-m-sina-rasm>▶</button>
+      </div>
+
+      <div id="m-natija"></div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="tug asos" id="t-m-saqla" style="flex:1">Saqlash</button>
+        <button class="tug" id="t-m-tikla">Standartga qaytarish</button>
+      </div>
+    </div>`;
+
+  const yangila = () => modelChiz();
+  $$('[data-m-yuq]').forEach((b) => b.onclick = () => {
+    const i = Number(b.dataset.mYuq);
+    [mm.modellar[i - 1], mm.modellar[i]] = [mm.modellar[i], mm.modellar[i - 1]];
+    yangila();
+  });
+  $$('[data-m-past]').forEach((b) => b.onclick = () => {
+    const i = Number(b.dataset.mPast);
+    [mm.modellar[i + 1], mm.modellar[i]] = [mm.modellar[i], mm.modellar[i + 1]];
+    yangila();
+  });
+  $$('[data-m-ochir]').forEach((b) => b.onclick = () => {
+    mm.modellar.splice(Number(b.dataset.mOchir), 1); yangila();
+  });
+  $$('[data-m-qosh]').forEach((b) => b.onclick = () => {
+    mm.modellar.push(b.dataset.mQosh); yangila();
+  });
+  $$('[data-m-sina]').forEach((b) => b.onclick = () => modelSina(b.dataset.mSina));
+  const rasmSina = $('[data-m-sina-rasm]');
+  if (rasmSina) rasmSina.onclick = () => modelSina($('#m-rasm').value.trim());
+
+  $('#t-m-qosh').onclick = () => {
+    const v = $('#m-yangi').value.trim();
+    if (!v) return;
+    if (mm.modellar.includes(v)) return tost('Bu model allaqachon ro‘yxatda', 'xato');
+    mm.modellar.push(v); yangila();
+  };
+
+  $('#t-m-saqla').onclick = async () => {
+    try {
+      mm = { ...mm, ...await api('/api/admin/ai-modellar', { method: 'POST',
+        body: JSON.stringify({ modellar: mm.modellar, rasm_model: $('#m-rasm').value.trim() }) }) };
+      tost('Modellar saqlandi'); modelChiz();
+    } catch (e) { tost(e.message, 'xato'); }
+  };
+
+  $('#t-m-tikla').onclick = () => tasdiqla('Standartga qaytarilsinmi?',
+    'Ro‘yxat koddagi standart holatga qaytadi.', async () => {
+      try {
+        await api('/api/admin/ai-modellar', { method: 'POST',
+          body: JSON.stringify({ modellar: [], rasm_model: '' }) });
+        modalYop(); tost('Standart ro‘yxat tiklandi'); aiModellar();
+      } catch (e) { tost(e.message, 'xato'); }
+    });
+}
+
+// Xato turkumini odam tiliga o'giramiz: «sorov» yoki «kvota_kunlik»
+// admin uchun hech nima anglatmaydi.
+const MODEL_XATO = {
+  model:        'bunday model yo‘q yoki kalitga ruxsat berilmagan',
+  kalit:        'API kalit noto‘g‘ri',
+  kvota:        'daqiqalik kvota tugagan',
+  kvota_kunlik: 'kunlik kvota tugagan',
+  sorov:        'so‘rovni qabul qilmadi',
+  vaqt:         'javob bermadi (vaqt tugadi)',
+  tarmoq:       'ulanib bo‘lmadi',
+};
+
+/** Modelni HAQIQIY chaqiruv bilan sinaydi — nomi to'g'rimi, kvota bormi. */
+async function modelSina(model) {
+  if (!model) return;
+  $('#m-natija').innerHTML = `<div class="xabar-quti" style="margin-top:12px">
+    <span class="aylana"></span> <code>${esc(model)}</code> sinalmoqda…</div>`;
+  try {
+    const r = await api('/api/admin/ai-model-sinov', { method: 'POST',
+      body: JSON.stringify({ model }) });
+    $('#m-natija').innerHTML = r.ok
+      ? `<div class="xabar-quti ok" style="margin-top:12px">
+           ✅ <code>${esc(model)}</code> ishlayapti — ${r.ms} ms</div>`
+      : `<div class="xabar-quti xato" style="margin-top:12px">
+           ❌ <code>${esc(model)}</code> — <b>${esc(MODEL_XATO[r.turkum] || r.turkum || '')}</b>
+           <div style="margin-top:6px;max-height:96px;overflow:auto;font-weight:400;
+                font-size:12px;font-family:ui-monospace,monospace;opacity:.85;
+                overflow-wrap:anywhere">${esc(r.xabar || '')}</div></div>`;
+    aiModellarHolat();
+  } catch (e) {
+    $('#m-natija').innerHTML = `<div class="xabar-quti xato" style="margin-top:12px">
+      ${esc(e.message)}</div>`;
+  }
+}
+
+/** Sinovdan keyin holat belgilarini yangilaydi (ro'yxatni buzmasdan). */
+async function aiModellarHolat() {
+  try {
+    const j = await api('/api/admin/ai-modellar');
+    mm.holatlar = j.holatlar;
+    $$('[data-m-sina]').forEach((b) => {
+      const q = b.closest('.qator-satr')?.querySelector('.k');
+      if (q) q.innerHTML = q.innerHTML.replace(/<span class="yor (yashil|sariq|qizil)">[^<]*<\/span>/,
+        modelBelgi(b.dataset.mSina));
+    });
+  } catch { /* holat belgisi — muhim emas */ }
 }
 
 // ═══════════ 11. QO'LLANMA ═══════════
