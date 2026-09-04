@@ -355,6 +355,14 @@ export function soxtaServer(port = 4444) {
         const b = JSON.parse(await tana(req) || '{}');
         // Google ba'zi sozlamalarni qabul qilmay 400 qaytaradi. Server
         // so'rovni SODDALASHTIRIB qayta urinishi kerak — shuni sinaymiz.
+        // Kvota tugadi — provayder 429 qaytaradi. Aynan shu holat
+        // mijozga «Xatolik yuz berdi» bo'lib borardi.
+        if (globalThis.AI_429 > 0) {
+          globalThis.AI_429 -= 1;
+          res.writeHead(429, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: { code: 429,
+            message: 'Resource has been exhausted (e.g. check quota).' } }));
+        }
         if (globalThis.AI_400 > 0) {
           globalThis.AI_400 -= 1;
           res.writeHead(400, { 'Content-Type': 'application/json' });

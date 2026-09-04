@@ -8,6 +8,7 @@ import { natijaTugmalari, appUrl, ortga } from '../keyboards.js';
 import { bolakla, esc } from '../format.js';
 import { xabar } from '../shablon.js';
 import { xatoniTushuntir } from '../../lib/xatolar.js';
+import { adminmi } from '../../lib/admin.js';
 import { limitHolati } from '../../services/analysis.js';
 import { appTugma } from '../keyboards.js';
 
@@ -129,7 +130,12 @@ export async function rasmniQabulQil(msg, user) {
     const x = xatoniTushuntir(e);
     console.error('SKANER XATOSI', x.log);
     if (e?.stack) console.error(e.stack.split('\n').slice(0, 4).join('\n'));
-    await yubor(chatId, x.matn, { reply_markup: ortga() });
+    // ADMINGA texnik sababni ham ko'rsatamiz. Ilgari admin ham xuddi
+    // mijozdek umumiy xabarni ko'rardi va sababni bilish uchun Railway
+    // loglarini ochishga majbur edi — telefonda buni qilib bo'lmaydi.
+    const qosh = adminmi(user)
+      ? `\n\n<code>${esc(x.log.slice(0, 300))}</code>\n<i>/holat — batafsil</i>` : '';
+    await yubor(chatId, x.matn + qosh, { reply_markup: ortga() });
     return true;
   } finally {
     if (kutish?.result?.message_id) {

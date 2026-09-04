@@ -6,6 +6,8 @@ import { esc, narx } from '../format.js';
 import { adminmi } from '../../lib/admin.js';
 import { floodKutilmoqda, floodQolgan, floodTekshir } from '../../lib/flood.js';
 import { config } from '../../config.js';
+import { kalitHolati, provayder, aiBormi, jurnalHolati } from '../../ai/index.js';
+import { navbatHolati } from '../../ai/navbat.js';
 import { brendNomi } from '../../lib/brend.js';
 import { xabar, oringaQoy } from '../shablon.js';
 import { keshniTashla } from '../../lib/kesh.js';
@@ -31,7 +33,7 @@ export const BUYRUQLAR = [
   ['/tanitish', 'Mahsulotni kanalda reklama qilish'],
   ['/brend',    'Brend nomini o‘zgartirish'],
   ['/panel',    'Admin panelni ochish'],
-  ['/holat',    'Telegram cheklovi va bot holati'],
+  ['/holat',    'Bot va AI holati — nima yiqilganini ko‘rsatadi'],
 ];
 
 /** Admin holati — ko'p qadamli buyruqlar uchun (users.state ustunida). */
@@ -483,7 +485,75 @@ async function botHolati(chatId) {
     `select count(*)::int from yuborishlar where holat = 'toxtatildi'`);
   if (kutayotgan) q.push(`<i>To‘xtab qolgan yuborish: ${kutayotgan} ta.</i>`);
 
+  q.push(``, ...aiHolatSatri());
   return yubor(chatId, q.join('\n'));
+}
+
+/**
+ * AI holati — /holat ning eng kerakli qismi.
+ *
+ * Skaner «⚠️ Xatolik yuz berdi» desa, sabab shu yerda ko'rinadi:
+ * kvota tugadimi, kalit noto'g'rimi, tarmoqmi. Ilgari buni bilish
+ * uchun Railway loglarini ochish kerak edi — telefonda qiyin, tunda
+ * esa umuman imkonsiz.
+ */
+function aiHolatSatri() {
+  if (!aiBormi()) return [`🤖 <b>AI</b>`, `🔴 Kalit sozlanmagan — skaner va maslahat ishlamaydi.`];
+
+  const q = [`🤖 <b>AI</b> · ${esc(provayder().nom)}`];
+  const k = kalitHolati();
+  const n = navbatHolati();
+  const j = jurnalHolati();
+
+  for (const [nom, royxat] of [['Google', k.google], ['OpenRouter', k.openrouter]]) {
+    if (!royxat.length) continue;
+    const tayyor = royxat.filter((x) => x.tayyor).length;
+    q.push(`${tayyor === royxat.length ? '✅' : tayyor ? '🟡' : '🔴'} `
+      + `${nom}: ${tayyor}/${royxat.length} kalit tayyor`);
+    // Dam olayotgan kalit — qachon qaytishini aytamiz
+    for (const x of royxat.filter((y) => !y.tayyor)) {
+      q.push(`   • <code>${esc(x.nom)}</code> — ${Math.ceil(x.dam_qoldi / 60)} daqiqa dam oladi`);
+    }
+  }
+
+  if (n.pauza_qoldi) {
+    q.push(`⏸ Navbat <b>${n.pauza_qoldi} soniya</b> pauzada (provayder cheklovi).`);
+  }
+  if (n.navbatda || n.ishlayotgan) {
+    q.push(`📥 Navbatda ${n.navbatda} ta, bajarilmoqda ${n.ishlayotgan} ta.`);
+  }
+  q.push(`📊 ${j.muvaffaq}/${j.jami} chaqiruv muvaffaqiyatli`
+    + (j.xato ? `, ${j.xato} xato` : ''));
+
+  // Oxirgi uchta xato — nima yiqilganini darrov ko'rsatadi
+  if (j.oxirgi.length) {
+    q.push(``, `<b>Oxirgi xatolar:</b>`);
+    for (const x of j.oxirgi.slice(0, 3)) {
+      const oldin = Math.round((Date.now() - x.vaqt) / 60000);
+      q.push(`• <b>${esc(x.turkum)}</b>${x.qayerda ? ` · ${esc(x.qayerda)}` : ''}`
+        + ` — ${oldin < 1 ? 'hozirgina' : `${oldin} daqiqa oldin`}`,
+        `  <code>${esc(x.xabar.slice(0, 140))}</code>`);
+    }
+    q.push(``, ...nimaQilish(j.oxirgi[0].turkum));
+  }
+  return q;
+}
+
+/** Eng oxirgi xato turiga qarab aniq maslahat. */
+function nimaQilish(turkum) {
+  const M = {
+    kvota:   ['<b>Nima qilish:</b> kunlik kvota tugagan. 10–15 daqiqa kuting yoki',
+              'Railway’da <code>GEMINI_API_KEY</code> ga vergul bilan yana kalit qo‘shing —',
+              'chegara kalit soniga ko‘payadi.'],
+    cheklov: ['<b>Nima qilish:</b> kvota tugagan. Yana bir kalit qo‘shing yoki kuting.'],
+    kalit:   ['<b>Nima qilish:</b> kalit noto‘g‘ri yoki bekor qilingan.',
+              'Railway’dagi <code>GEMINI_API_KEY</code> ni tekshiring.'],
+    model:   ['<b>Nima qilish:</b> model nomi noto‘g‘ri. <code>GEMINI_MODEL</code> ni tekshiring.'],
+    tarmoq:  ['<b>Nima qilish:</b> serverdan AI ga ulanib bo‘lmayapti. Odatda o‘zi tuzaladi.'],
+    vaqt:    ['<b>Nima qilish:</b> AI juda sekin javob berdi. Qayta urinib ko‘ring.'],
+    sorov:   ['<b>Nima qilish:</b> so‘rov sozlamasida muammo — bu KOD xatosi, rasmda emas.'],
+  };
+  return M[turkum] || [];
 }
 
 const qiymatOl = async (sql) => {

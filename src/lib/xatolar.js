@@ -7,6 +7,12 @@ const TURKUM_MATNI = {
   model:       '🤖 AI modeli mavjud emas. Administratorga xabar bering.',
   xavfsizlik:  '🛡 AI bu rasmni tahlil qilishdan bosh tortdi. Boshqa surat yuboring — yuz aniq va yorug‘ ko‘rinsin.',
   band:        '⏳ AI hozir band. 1–2 daqiqadan so‘ng qayta urinib ko‘ring.',
+  // Provayder kunlik/daqiqalik chegarani berkitdi. Mijozga «xatolik yuz
+  // berdi» deyish YOMON: u aybni o'zidan yoki rasmdan qidiradi va
+  // rasmni almashtirib qayta-qayta uradi. Aniq aytamiz.
+  kvota:       '⏳ AI limiti vaqtincha tugadi. 10–15 daqiqadan so‘ng qayta urinib ko‘ring.',
+  cheklov:     '⏳ AI limiti vaqtincha tugadi. 10–15 daqiqadan so‘ng qayta urinib ko‘ring.',
+  tarmoq:      '📡 AI serveriga ulanib bo‘lmadi. Bir daqiqadan so‘ng qayta urinib ko‘ring.',
   vaqt:        '⏳ Tahlil juda uzoq davom etdi. Qayta urinib ko‘ring.',
   json:        '🤖 AI javobi tushunarsiz chiqdi. Qayta urinib ko‘ring.',
   bosh:        '🤖 AI javob qaytarmadi. Qayta urinib ko‘ring.',
@@ -37,7 +43,9 @@ export function xatoniTushuntir(e) {
 
   return {
     turkum: turkum || 'nomalum',
-    matn: TURKUM_MATNI[turkum] || '⚠️ Xatolik yuz berdi. Bir ozdan so‘ng qayta urinib ko‘ring.',
+    matn: TURKUM_MATNI[turkum]
+      || '⚠️ Kutilmagan xatolik. Bir ozdan so‘ng qayta urinib ko‘ring — '
+       + 'takrorlansa administratorga xabar bering.',
     log: `[${turkum || 'nomalum'}] ${String(e?.message || e).slice(0, 500)}`,
   };
 }

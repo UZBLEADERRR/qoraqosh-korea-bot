@@ -140,6 +140,79 @@ for (const [data, kutilgan] of [
     !korinadigan().some((x) => /tushunarsiz/.test(x.text || '')));
 }
 
+// ═══════════ KVOTA TUGAGANDA ═══════════
+// Aynan shu holat mijozga «⚠️ Xatolik yuz berdi» bo'lib borardi:
+// google.js 429 da `kvota` turkumini tashlaydi, xatolar.js da esa bu
+// turkum uchun matn yo'q edi va umumiy zaxira matn chiqardi. Mijoz
+// aybni rasmdan qidirib qayta-qayta urinardi, admin esa sababni faqat
+// Railway loglaridan bilardi.
+console.log('\n── KVOTA TUGAGANDA ──');
+{
+  const { jurnalniTozala, jurnalHolati } = await import('../src/ai/jurnal.js');
+  const { navbatniTozala } = await import('../src/ai/navbat.js');
+  jurnalniTozala(); navbatniTozala();
+
+  await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
+  globalThis.AI_429 = 99;                // hech qanaqa urinish o'tmaydi
+  yuborilgan.length = 0;
+  await rasmYubor();
+  globalThis.AI_429 = 0;
+
+  const xabarlar = korinadigan().map((x) => x.text || '').join('\n');
+  test('umumiy «Xatolik yuz berdi» CHIQMAYDI',
+    !/⚠️ Xatolik yuz berdi/.test(xabarlar), xabarlar.slice(-160));
+  test('mijozga aniq sabab aytiladi', /limiti vaqtincha tugadi/i.test(xabarlar),
+    xabarlar.slice(-160));
+  test('qachon urinishni ham aytadi', /10–15 daqiqa/.test(xabarlar));
+
+  // Jurnal sababni eslab qoldi — /holat shundan o'qiydi
+  const j = jurnalHolati();
+  test('jurnalga yozildi', j.xato > 0, `${j.muvaffaq}/${j.jami}, xato ${j.xato}`);
+  test('turkum «kvota» deb aniqlandi', j.oxirgi[0]?.turkum === 'kvota',
+    j.oxirgi[0]?.turkum);
+  test('qayerda bo‘lgani ham yozildi', j.oxirgi[0]?.qayerda === 'skaner',
+    j.oxirgi[0]?.qayerda);
+  test('KALIT jurnalga TUSHMAYDI', !/key=soxta/.test(j.oxirgi[0]?.xabar || ''),
+    j.oxirgi[0]?.xabar);
+
+  // 429 butun navbatni pauzaga qo'yishi kerak — aks holda navbatdagi
+  // hamma so'rov ketma-ket urilib cheklovni uzaytiradi
+  const { navbatHolati } = await import('../src/ai/navbat.js');
+  test('navbat pauzaga o‘tdi', navbatHolati().pauza_qoldi > 0,
+    `${navbatHolati().pauza_qoldi} s`);
+  navbatniTozala();
+
+  // ── ADMIN texnik sababni darrov ko'radi ──
+  // Ilgari admin ham mijozdek umumiy xabarni ko'rardi va sababni
+  // bilish uchun Railway loglarini ochishga majbur edi.
+  await sorov(`update users set is_admin = true where telegram_id = $1`, [TG]);
+  await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
+  navbatniTozala();
+  globalThis.AI_429 = 99;
+  yuborilgan.length = 0;
+  await rasmYubor();
+  globalThis.AI_429 = 0;
+  const adminga = korinadigan().map((x) => x.text || '').join('\n');
+  test('adminga texnik sabab ko‘rsatiladi', /Google HTTP 429/.test(adminga),
+    adminga.slice(-200));
+  test('adminga /holat tavsiya qilinadi', /\/holat/.test(adminga));
+  navbatniTozala();
+
+  // ── /holat sababni KO'RSATADI ──
+  yuborilgan.length = 0;
+  await yangilanish({ update_id: 1, message: { message_id: 1, chat: { id: Number(TG), type: 'private' },
+    from: { id: Number(TG) }, text: '/holat' } });
+  const holat = yuborilgan.map((x) => x.text || '').join('\n');
+  test('/holat AI bo‘limini ko‘rsatadi', /🤖 <b>AI<\/b>/.test(holat), holat.slice(0, 200));
+  test('/holat oxirgi xatoni ko‘rsatadi', /Oxirgi xatolar/.test(holat));
+  test('/holat SABABNI aytadi', /kvota/.test(holat));
+  test('/holat NIMA QILISHNI aytadi', /Nima qilish/.test(holat), holat.slice(-300));
+  test('/holat kalitni oshkor qilmaydi', !/soxta/.test(holat.replace(/soxta-server/g, '')));
+
+  jurnalniTozala();
+  await sorov(`update users set is_admin = false where telegram_id = $1`, [TG]);
+}
+
 // ═══════════ SKANER NAMUNASI ═══════════
 // «Yuz skaneri» bosilganda botda ham namuna surat kelishi kerak: odam
 // ko'rsatmani o'qib emas, ko'rib tushunadi.

@@ -462,7 +462,7 @@ Kompyuter oldiga o'tirmasdan, Telegram'dan:
 | `/tanitish` | **Mahsulot reklamasi.** Mahsulotni tanlaysiz, AI katalogdagi ma'lumotdan reklama posti yozadi va tasdiqlashga yuboradi. Qidirish: `/tanitish krem`. |
 | `/brend` | Brend nomini o'zgartirish. |
 | `/panel` | Admin panelni ochish. |
-| `/holat` | **Telegram cheklovi bormi.** PEER_FLOOD chiqqan bo'lsa qancha qolganini, nega bo'lganini va nima qilish kerakligini aytadi. |
+| `/holat` | **Bot va AI holati — nima yiqilganini ko'rsatadi.** PEER_FLOOD chiqqan bo'lsa qancha qolganini va nima qilish kerakligini aytadi. Pastida AI bo'limi: qaysi provayder, nechta kalit tayyor (dam olayotgani qachon qaytadi), navbat pauzada emasmi, nechta chaqiruv muvaffaqiyatli, va **oxirgi 3 ta xato** — turkumi, qayerda bo'lgani, qachon bo'lgani va aniq matni bilan. Oxirida turkumga qarab **nima qilish kerakligi** yoziladi. Shunday qilib «Xatolik yuz berdi» ning sababini telefonda, Railway loglarini ochmasdan bilib olasiz. |
 
 **Ikkita hujjat** (`/partiya` yoki `/orders` ostidagi tugmalardan):
 
@@ -733,6 +733,26 @@ qo'llash tartibi, kimga mos) — model o'zidan xususiyat o'ylab topa olmasligi
 uchun unga «faqat shu ma'lumotdan foydalan» deb aytiladi. Rasm sifatida
 mahsulotning o'z posteri ishlatiladi. Keyin xuddi oddiy post kabi tasdiqlash
 oqimidan o'tadi.
+
+
+### «Xatolik yuz berdi» endi chiqmaydi
+
+Ichki xato mijozga tushunarli xabarga aylanadi (`src/lib/xatolar.js`).
+Har xato turkumining o'z matni bor va u odamga NIMA QILISHNI aytadi.
+
+Ilgari `kvota` (provayder 429 — kunlik limit tugadi) va `tarmoq`
+turkumlari uchun matn yo'q edi, shuning uchun eng ko'p uchraydigan
+nosozlik mijozga umumiy «⚠️ Xatolik yuz berdi» bo'lib borardi. Mijoz
+aybni rasmdan qidirib qayta-qayta urinardi — bu esa cheklovni yanada
+uzaytirardi. Endi u «⏳ AI limiti vaqtincha tugadi. 10–15 daqiqadan
+so'ng qayta urinib ko'ring» ni ko'radi.
+
+**Admin** esa o'sha xabarning ostida texnik sababni ham ko'radi
+(`Google HTTP 429`) va `/holat` ga yo'naltiriladi. Oxirgi 20 ta AI
+xatosi xotirada saqlanadi (`src/ai/jurnal.js`) — bazaga yozilmaydi,
+chunki bu diagnostika, tarix emas. Kalit jurnalga hech qachon
+tushmaydi: URL dagi `key=…` niqoblanadi.
+
 
 ## Ishga tushirish
 

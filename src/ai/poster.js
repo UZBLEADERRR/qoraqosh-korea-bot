@@ -146,7 +146,7 @@ caption, do not — leave that area as clean background instead.`;
     ? [{ text: toliq }, rasmPart(base64, mime || 'image/jpeg')]
     : [{ text: toliq }];
 
-  const rasm = await aiRasm(parts, { nisbat: nis, muhim: true });
+  const rasm = await aiRasm(parts, { nisbat: nis, muhim: true, qayerda: 'poster' });
 
   // Model nisbatni har doim ham hurmat qilmaydi — o'zimiz markazdan kesamiz.
   // Yozuv qo'shmaymiz: rasm toza qoladi.

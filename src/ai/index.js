@@ -7,6 +7,7 @@ import { config } from '../config.js';
 import { googleJson, googleRasm, geminiHovuz } from './google.js';
 import { openrouterJson, orHovuz } from './openrouter.js';
 import { navbatga, pauzaQil, kutishSoniyasi } from './navbat.js';
+import * as jurnal from './jurnal.js';
 
 export const openrouterBormi = () => Boolean(config.openrouterKey);
 export const googleBormi     = () => Boolean(config.geminiKey);
@@ -28,7 +29,25 @@ export async function aiJson(parts, schema, opts = {}) {
   if (!aiBormi()) throw Object.assign(new Error('AI kaliti yo‘q'), { turkum: 'kalit' });
   // Hamma chaqiruv BITTA darvozadan o'tadi: minglab odam bir vaqtda
   // so'rasa ham provayder chegarasi buzilmaydi.
-  return navbatga(() => chaqir(parts, schema, opts), { muhim: opts.muhim });
+  return navbatga(() => yozibChaqir(parts, schema, opts), { muhim: opts.muhim });
+}
+
+/**
+ * Chaqiruvni jurnalga yozib bajaradi.
+ *
+ * Ilgari xato faqat Railway logiga tushardi. Yarim kechada telefonda
+ * log o'qib bo'lmaydi — endi oxirgi xatolar xotirada turadi va
+ * /holat buyrug'i bilan ko'rinadi.
+ */
+async function yozibChaqir(parts, schema, opts) {
+  try {
+    const j = await chaqir(parts, schema, opts);
+    jurnal.yaxshi();
+    return j;
+  } catch (e) {
+    jurnal.yomon(e, opts.qayerda || '');
+    throw e;
+  }
 }
 
 async function chaqir(parts, schema, opts) {
@@ -58,7 +77,10 @@ async function chaqir(parts, schema, opts) {
  */
 function cheklovmi(e) {
   const m = String(e?.message || '');
-  if (e?.turkum === 'cheklov' || /\b429\b|rate limit|too many requests|quota|resource_exhausted/i.test(m)) {
+  // google.js 429 da `kvota`, openrouter `cheklov` beradi — ikkalasi ham
+  // bir xil ma'noda: butun navbat pauza qilishi kerak.
+  if (e?.turkum === 'cheklov' || e?.turkum === 'kvota'
+      || /\b429\b|rate limit|too many requests|quota|resource_exhausted/i.test(m)) {
     pauzaQil(kutishSoniyasi(m));
   }
 }
@@ -73,8 +95,10 @@ export async function aiRasm(parts, opts = {}) {
   // Rasm chizish eng qimmat chaqiruv — u ham navbatdan o'tadi
   return navbatga(async () => {
     try {
-      return await googleRasm(parts, opts);
-    } catch (e) { cheklovmi(e); throw e; }
+      const r = await googleRasm(parts, opts);
+      jurnal.yaxshi();
+      return r;
+    } catch (e) { cheklovmi(e); jurnal.yomon(e, opts.qayerda || 'rasm'); throw e; }
   }, { muhim: opts.muhim });
 }
 
@@ -93,3 +117,5 @@ export function kalitHolati() {
     openrouter: orHovuz.holatlar(),
   };
 }
+
+export { jurnalHolati, oxirgiXatolar } from './jurnal.js';

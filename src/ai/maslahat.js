@@ -187,7 +187,7 @@ export async function maslahatBer(savol, products, o = {}) {
   }];
   if (o.rasm) parts.push(rasmPart(o.rasm, o.mime || 'image/jpeg'));
 
-  const j = await aiJson(parts, SXEMA, { temperature: 0.5, maxTokens: 3072 });
+  const j = await aiJson(parts, SXEMA, { temperature: 0.5, maxTokens: 3072, qayerda: 'maslahat' });
 
   const bor = new Map(products.map((p) => [p.id, p]));
   const s = (v, n) => String(v ?? '').slice(0, n);
