@@ -2092,5 +2092,100 @@ console.log('\n── BOSH SAHIFA / EKRANGA QO‘SHISH ──');
   test('ro‘yxatda yo‘q raqam rad etiladi', Boolean(yoq.xato), yoq.xato);
 }
 
+// ═══════════ MASLAHAT EKRANI: KAM MATN, TINCH PANEL ═══════════
+// Ikki shikoyat: kirish ekrani matnga to'lib ketgan, va tabdan tabga
+// o'tganda yozish paneli qimirlab, yo'q bo'lib paydo bo'lardi.
+console.log('\n── MASLAHAT EKRANI ──');
+{
+  const fs = await import('node:fs');
+  const js  = fs.readFileSync('public/app/app.js', 'utf8');
+  const css = fs.readFileSync('public/app/style.css', 'utf8');
+
+  // ── Kam matn ──
+  const namuna = (js.match(/const NAMUNA_SAVOL = \[([\s\S]*?)\];/) || [])[1] || '';
+  const qatorlar = namuna.split('\n').filter((q) => /matn:/.test(q));
+  test('namuna savol soni kamaydi', qatorlar.length === 3, `${qatorlar.length} ta`);
+  const uzun = qatorlar.map((q) => (q.match(/matn:\s*'([^']*)'/) || [])[1] || '')
+    .filter((t) => t.length > 22);
+  test('har biri BITTA qatorga sig‘adi', uzun.length === 0, uzun.join(' | '));
+  test('to‘liq savol AI ga ketadi', /sorov:/.test(namuna) && js.includes('n.sorov || n.matn'));
+  test('kirish matni qisqartirildi',
+    js.includes('mos mahsulotni topib beraman.')
+      && !js.includes('do‘kondagi mahsulotlardan mos kelganini topib beraman'));
+  test('uzun nom o‘ralmaydi', /\.namunalar button span\{[^}]*white-space:nowrap/.test(css));
+
+  // ── Panel qimirlamasin ──
+  test('tab almashuvi animatsiyasiz', js.includes('function animatsiyasiz'));
+  test('butun almashuv shu ichida', /animatsiyasiz\(\(\) => \{[\s\S]{0,400}TABLAR\.forEach/.test(js));
+  test('animatsiya bir kadrga o‘chadi',
+    /body\.tez \.menyu,body\.tez \.yozish\{transition:none!important\}/.test(css));
+  test('ikki kadrdan keyin qaytariladi',
+    /requestAnimationFrame\(\(\) => requestAnimationFrame\(/.test(js));
+  test('panel yumshoq paydo bo‘ladi',
+    /#tab-maslahat:not\(\.yashirin\) \.yozish\{animation:panel-kir/.test(css));
+  test('harakat kamaytirilganda animatsiya yo‘q',
+    /prefers-reduced-motion[\s\S]{0,200}panel-kir[\s\S]{0,40}none|prefers-reduced-motion[\s\S]{0,220}\.yozish\{animation:none\}/.test(css));
+}
+
+// ═══════════ YORDAMCHI EKRANI (DIZAYN QOIDALARI) ═══════════
+// Suhbat bo'lim ichida chizilganda sahifaning o'zi ham, xabarlar
+// ro'yxati ham skroll bo'lardi — klaviatura ochilganda ekran «o'ynab»
+// ketardi. Endi u alohida to'liq ekran. Bu qoidalar tasodifan
+// buzilsa ko'rinish jimgina yomonlashadi, shuning uchun tekshiramiz.
+console.log('\n── YORDAMCHI EKRANI ──');
+{
+  const fs = await import('node:fs');
+  const js  = fs.readFileSync('public/admin/admin.js', 'utf8');
+  const css = fs.readFileSync('public/admin/style.css', 'utf8');
+
+  // Bo'lim EMAS, alohida ekran
+  test('yordamchi bo‘limlar ro‘yxatida yo‘q', !/yordamchi:\s*\{\s*nom:/.test(js));
+  test('alohida ekran sifatida ochiladi', js.includes('function yordamchiOch'));
+  test('«Ko‘proq» menyusidan ochiladi', js.includes("id === 't-yordamchi'"));
+
+  // Pastki menyu ko'rinmasin: ekran butun sahifani qoplaydi
+  test('ekran fixed va to‘liq', /\.y-ekran\{[^}]*position:fixed[^}]*inset:0/.test(css),
+    (css.match(/\.y-ekran\{[^}]*/) || [''])[0].slice(0, 70));
+  test('pastki menyudan YUQORIDA turadi',
+    Number((css.match(/\.y-ekran\{[^}]*z-index:(\d+)/) || [])[1]) > 40,
+    (css.match(/\.y-ekran\{[^}]*z-index:(\d+)/) || [])[1]);
+  test('orqa fon skroll bo‘lmaydi', /body\.y-ochiq\{overflow:hidden\}/.test(css));
+
+  // SKROLL faqat bitta joyda
+  test('skroll faqat xabarlar ro‘yxatida', /\.y-oqim\{[^}]*overflow-y:auto/.test(css));
+  test('barmoq oxiriga yetganda orqa sahifa surilmaydi',
+    /\.y-oqim\{[^}]*overscroll-behavior:contain/.test(css));
+  test('yozish paneli qotib turadi', /\.y-yozish\{[^}]*flex:0 0 auto/.test(css));
+  // 100vh telefonda brauzer paneli ostida qolib ketadi — dvh kerak
+  test('klaviatura uchun dvh ishlatilgan', /\.y-ekran\{[^}]*height:100dvh/.test(css));
+  test('pastki xavfsiz zona hisobga olingan',
+    /\.y-yozish\{[^}]*safe-area-inset-bottom/.test(css));
+
+  // Skroll «o'ynamasin»: sahifaning o'zi emas, ro'yxat suriladi
+  test('sahifa emas, RO‘YXAT suriladi',
+    js.includes('oqim.scrollTop = oqim.scrollHeight') && !/y-oqim[\s\S]{0,80}scrollIntoView/.test(js));
+  test('eski javob o‘qilayotganda pastga tortilmaydi',
+    /const yaqin = /.test(js) && /majburiy \|\| yaqin/.test(js));
+
+  // Yozish maydoni qayta chizilmaydi — kursor va matn yo'qolmasin
+  // Maydon BIR MARTA yaratiladi (yordamchiOch da) va qayta
+  // chizilmaydi — aks holda yozayotgan matn va kursor yo'qoladi
+  test('yozish maydoni bir marta yaratiladi',
+    (js.match(/<textarea id="y-matn"/g) || []).length === 1);
+  test('qayta chizish faqat xabarlar ro‘yxatiga tegadi',
+    /function yordamchiChiz[\s\S]*?oqim\.innerHTML/.test(js)
+      && !/function yordamchiChiz[\s\S]*?\.y-yozish/.test(js));
+  test('maydon o‘zi o‘sadi va chegarasi bor',
+    /Math\.min\(132, m\.scrollHeight\)/.test(js) && /max-height:132px/.test(css));
+
+  // Suhbat BIR MARTALIK
+  test('yopilganda suhbat tozalanadi',
+    /function yordamchiYop[\s\S]{0,400}yordamchiSuhbat = \[\]/.test(js));
+  test('hech qayerga saqlanmaydi',
+    !/localStorage[^\n]*yordamchi/i.test(js) && !/yordamchi[^\n]*localStorage/i.test(js));
+  test('sarlavhada shu aytilgan', js.includes('Suhbat saqlanmaydi'));
+  test('telefonda «orqaga» ekranni yopadi', js.includes('popstate'));
+}
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

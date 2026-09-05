@@ -148,7 +148,6 @@ function ochil() {
 // ═══════════ MARSHRUT ═══════════
 const BOLIMLAR = {
   boshqaruv: { nom: 'Boshqaruv',    chiz: () => boshqaruv() },
-  yordamchi: { nom: 'Yordamchi',    chiz: () => yordamchi() },
   buyurtma:  { nom: 'Buyurtmalar',  chiz: () => buyurtmalar() },
   xarid:     { nom: 'Xarid ro‘yxati', chiz: () => xarid() },
   mahsulot:  { nom: 'Mahsulotlar',  chiz: () => mahsulotlar() },
@@ -187,9 +186,14 @@ window.addEventListener('hashchange', () => {
 });
 $('#t-yangila').onclick = () => { holat.kesh = {}; bolimOch(holat.bolim); tost('Yangilandi'); };
 
-const KOP_MENYU = ['yordamchi', 'mijoz', 'market', 'havola', 'bolim', 'sotuv', 'ombor', 'sozlama', 'xabar', 'tizim', 'qollanma'];
+const KOP_MENYU = ['mijoz', 'market', 'havola', 'bolim', 'sotuv', 'ombor', 'sozlama', 'xabar', 'tizim', 'qollanma'];
 const kopMenyu = () => modal('Ko‘proq', `
   <div style="display:grid;gap:8px">
+    <!-- Yordamchi bo'lim emas, alohida ekran: u ochilganda pastki
+         menyu ham, sarlavha ham ko'rinmaydi — suhbatga xalaqit
+         bermasin. -->
+    <button class="tug asos keng" id="t-yordamchi"
+      style="justify-content:flex-start">💬 Yordamchi</button>
     ${KOP_MENYU.map((k) => `<button class="tug keng" data-kop="${k}"
       style="justify-content:flex-start">${esc(BOLIMLAR[k].nom)}</button>`).join('')}
     <button class="tug xavf keng" id="t-chiq" style="margin-top:8px">↩︎ Chiqish</button>
@@ -199,6 +203,7 @@ $('#t-kop2').onclick = kopMenyu;
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-kop]');
   if (b) { modalYop(); bolimOch(b.dataset.kop); }
+  if (e.target.id === 't-yordamchi') { modalYop(); yordamchiOch(); }
   if (e.target.id === 't-chiq') { modalYop(); chiqish(); }
 });
 
@@ -3678,7 +3683,18 @@ async function aiModellarHolat() {
 //
 // BAZANI O'ZGARTIRADIGAN amal HECH QACHON o'z-o'zidan bajarilmaydi:
 // avval «shuni qilaman» degan taklif ko'rsatiladi, siz tasdiqlaysiz.
-// Bitta noto'g'ri tushunilgan jumla katalogni yo'q qilib qo'ymasin.
+//
+// Nega ALOHIDA EKRAN. Suhbat — uzun matn va o'sib boruvchi ro'yxat.
+// Uni oddiy bo'lim ichida chizsak: sahifaning o'zi ham, xabarlar
+// ro'yxati ham skroll bo'lib, klaviatura ochilganda ikkalasi bir-biriga
+// xalaqit beradi va ekran «o'ynab» ketadi. Shuning uchun yordamchi
+// butun ekranni egallaydi: SKROLL FAQAT BITTA joyda — xabarlar
+// ro'yxatida, yozish paneli esa pastda qotib turadi.
+//
+// SUHBAT SAQLANMAYDI. Ekran yopilganda tozalanadi va hech qayerga
+// yozilmaydi: bu ish quroli, yozishma emas. Ustiga suhbatda mijoz
+// telefoni, buyurtma summasi kabi ma'lumot bo'ladi — uni brauzerda
+// qoldirishning hojati yo'q.
 let yordamchiSuhbat = [];
 let yordamchiBand = false;
 
@@ -3689,54 +3705,105 @@ const YORDAMCHI_NAMUNA = [
   'Ombori tugagan mahsulotlar',
 ];
 
-function yordamchi() {
-  $('#tan').innerHTML = `
-    <div class="bosh"><h1>Yordamchi</h1>
-      ${yordamchiSuhbat.length ? '<button class="tug kichik" id="t-y-tozala">Tozalash</button>' : ''}</div>
-    <div id="y-oqim" style="padding:0 16px"></div>
-    <div style="padding:12px 16px 16px;display:flex;gap:8px;align-items:flex-end">
+function yordamchiOch() {
+  if ($('#y-ekran')) return;
+  const el = document.createElement('div');
+  el.id = 'y-ekran';
+  el.className = 'y-ekran';
+  el.innerHTML = `
+    <header class="y-tepa">
+      <button class="y-orqaga" id="t-y-yop" aria-label="Yopish">←</button>
+      <div class="y-nom"><b>Yordamchi</b><span>Suhbat saqlanmaydi</span></div>
+      <button class="y-tozala" id="t-y-tozala" hidden>Tozalash</button>
+    </header>
+    <div class="y-oqim" id="y-oqim"></div>
+    <div class="y-yozish">
       <textarea id="y-matn" rows="1" placeholder="Savol yoki topshiriq…"
-        style="flex:1;resize:none;min-height:44px;max-height:120px"></textarea>
-      <button class="tug asos" id="t-y-yubor" style="height:44px">Yuborish</button>
+        autocomplete="off"></textarea>
+      <button class="y-yubor" id="t-y-yubor" aria-label="Yuborish">↑</button>
     </div>`;
+  document.body.appendChild(el);
+  document.body.classList.add('y-ochiq');
 
-  const t = $('#t-y-tozala');
-  if (t) t.onclick = () => { yordamchiSuhbat = []; yordamchi(); };
+  $('#t-y-yop').onclick = yordamchiYop;
+  $('#t-y-tozala').onclick = () => { yordamchiSuhbat = []; yordamchiChiz(); };
   $('#t-y-yubor').onclick = yordamchiYubor;
+
   const m = $('#y-matn');
-  m.oninput = () => { m.style.height = 'auto'; m.style.height = Math.min(120, m.scrollHeight) + 'px'; };
+  m.oninput = () => {
+    // Balandlikni O'ZI bo'yicha o'lchaymiz: avval nolga tushiramiz,
+    // aks holda matn qisqarganda maydon kichraymaydi.
+    m.style.height = 'auto';
+    m.style.height = Math.min(132, m.scrollHeight) + 'px';
+  };
   m.onkeydown = (e) => {
+    // Enter — yuborish, Shift+Enter — yangi qator. Telefonda
+    // klaviatura «yuborish» tugmasi ham shu yo'l bilan ishlaydi.
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); yordamchiYubor(); }
   };
+
+  // Telefonda «orqaga» tugmasi ekranni yopsin, panelni emas
+  history.pushState({ yordamchi: true }, '');
+  window.addEventListener('popstate', yordamchiOrqaga);
+
   yordamchiChiz();
+  // Klaviaturani o'zi ochib yubormaymiz: birinchi ko'rinishda namuna
+  // savollar o'qilishi kerak
+}
+
+function yordamchiOrqaga() { if ($('#y-ekran')) yordamchiYop(true); }
+
+function yordamchiYop(orqadan = false) {
+  const el = $('#y-ekran');
+  if (!el) return;
+  window.removeEventListener('popstate', yordamchiOrqaga);
+  el.remove();
+  document.body.classList.remove('y-ochiq');
+  // Suhbat bir martalik — yopilgach qoldiq qolmaydi
+  yordamchiSuhbat = [];
+  yordamchiBand = false;
+  if (!orqadan && history.state?.yordamchi) history.back();
+}
+
+/** Skrollni pastga tushiradi — LEKIN faqat kerak bo'lsa. */
+function pastga(majburiy = false) {
+  const oqim = $('#y-oqim');
+  if (!oqim) return;
+  // Odam yuqoriga chiqib eski javobni o'qiyotgan bo'lsa uni pastga
+  // tortib tashlamaymiz. «Yaqin» — 120 px.
+  const yaqin = oqim.scrollHeight - oqim.scrollTop - oqim.clientHeight < 120;
+  if (majburiy || yaqin) {
+    requestAnimationFrame(() => { oqim.scrollTop = oqim.scrollHeight; });
+  }
 }
 
 function yordamchiChiz() {
-  const el = $('#y-oqim'); if (!el) return;
+  const oqim = $('#y-oqim'); if (!oqim) return;
+  const tozala = $('#t-y-tozala');
+  if (tozala) tozala.hidden = !yordamchiSuhbat.length;
+
   if (!yordamchiSuhbat.length) {
-    el.innerHTML = `
-      <div class="karta">
-        <h3>Nima qila olaman</h3>
-        <p class="mayda" style="margin:6px 0 12px">Do‘kon ma’lumotlarini o‘qiyman va
-          savolingizga aniq javob beraman. O‘zgartirish kerak bo‘lsa avval
-          <b>taklif</b> ko‘rsataman — siz tasdiqlaganingizdan keyin bajaraman.</p>
-        <div style="display:flex;flex-direction:column;gap:7px">
-          ${YORDAMCHI_NAMUNA.map((x) => `<button class="tug" data-y-namuna="${esc(x)}"
-            style="justify-content:flex-start;text-align:left">${esc(x)}</button>`).join('')}
+    oqim.innerHTML = `
+      <div class="y-bosh">
+        <div class="y-halqa">💬</div>
+        <h2>Nima bilmoqchisiz?</h2>
+        <p>Do‘kon ma’lumotlarini o‘qiyman va aniq javob beraman.
+          O‘zgartirish kerak bo‘lsa avval <b>taklif</b> ko‘rsataman —
+          siz tasdiqlaganingizdan keyin bajaraman.</p>
+        <div class="y-namunalar">
+          ${YORDAMCHI_NAMUNA.map((x) => `<button data-y-namuna="${esc(x)}">
+            <span>${esc(x)}</span><i>→</i></button>`).join('')}
         </div>
       </div>`;
-    $$('[data-y-namuna]').forEach((b) => b.onclick = () => {
-      $('#y-matn').value = b.dataset.yNamuna; yordamchiYubor();
-    });
+    namunalarniUla();
     return;
   }
 
-  el.innerHTML = yordamchiSuhbat.map((x) => {
-    if (x.kim === 'admin') {
-      return `<div class="y-xabar y-men">${esc(x.matn)}</div>`;
-    }
+  oqim.innerHTML = yordamchiSuhbat.map((x) => {
+    if (x.kim === 'admin') return `<div class="y-xabar y-men">${esc(x.matn)}</div>`;
     if (x.kim === 'kutish') {
-      return `<div class="y-xabar y-ai"><span class="aylana"></span> O‘ylayapti…</div>`;
+      return `<div class="y-xabar y-ai y-kutish">
+        <span></span><span></span><span></span></div>`;
     }
     return `
       <div class="y-xabar y-ai">
@@ -3744,57 +3811,63 @@ function yordamchiChiz() {
         ${(x.qadamlar || []).length ? `
           <details class="y-qadamlar">
             <summary>${x.qadamlar.length} ta qadam bajarildi</summary>
-            ${x.qadamlar.map((k) => `<div class="mayda">
-              <code>${esc(k.vosita)}</code> — ${esc(k.qisqa || '')}</div>`).join('')}
+            ${x.qadamlar.map((k) => `<div>
+              <code>${esc(k.vosita)}</code> ${esc(k.qisqa || '')}</div>`).join('')}
           </details>` : ''}
         ${x.reja ? rejaHtml(x.reja) : ''}
-        ${(x.takliflar || []).length ? `
-          <div class="y-takliflar">
-            ${x.takliflar.map((s) => `<button data-y-namuna="${esc(s)}">${esc(s)}</button>`).join('')}
-          </div>` : ''}
-      </div>`;
+      </div>
+      ${(x.takliflar || []).length ? `
+        <div class="y-takliflar">
+          ${x.takliflar.map((t) => `<button data-y-namuna="${esc(t)}">${esc(t)}</button>`).join('')}
+        </div>` : ''}`;
   }).join('');
 
-  $$('[data-y-namuna]').forEach((b) => b.onclick = () => {
-    $('#y-matn').value = b.dataset.yNamuna; yordamchiYubor();
-  });
+  namunalarniUla();
   $$('[data-y-tasdiq]').forEach((b) => b.onclick = () => rejaniTasdiqla(b.dataset.yTasdiq, b));
   $$('[data-y-bekor]').forEach((b) => b.onclick = () => {
     const x = yordamchiSuhbat.find((y) => y.reja?.token === b.dataset.yBekor);
-    if (x) { x.reja = null; x.bekor = true; }
+    if (x) { x.reja = null; x.matn += '\n\n<i>Taklif bekor qilindi.</i>'; }
     yordamchiChiz();
   });
-  el.scrollIntoView({ block: 'end' });
+  pastga();
 }
+
+const namunalarniUla = () => $$('[data-y-namuna]').forEach((b) => b.onclick = () => {
+  const m = $('#y-matn');
+  m.value = b.dataset.yNamuna;
+  yordamchiYubor();
+});
 
 /** Taklif kartasi — nima o'zgarishini ANIQ ko'rsatadi. */
 function rejaHtml(r) {
   return `
     <div class="y-reja ${r.qaytarib_bolmaydi ? 'xavf' : ''}">
       <div class="y-reja-bosh">
-        ${r.qaytarib_bolmaydi ? '⚠️ Qaytarib bo‘lmaydi' : 'Tasdiq kerak'}
-      </div>
-      <p style="margin:6px 0 0"><b>${esc(r.izoh || r.tavsif)}</b></p>
-      <p class="mayda" style="margin:6px 0 0">
-        Amal: <code>${esc(r.vosita)}</code> · ${r.soni} ta yozuv</p>
-      <div style="display:flex;gap:8px;margin-top:12px">
+        ${r.qaytarib_bolmaydi ? '⚠️ Qaytarib bo‘lmaydi' : '✋ Tasdiq kerak'}</div>
+      <p class="y-reja-izoh">${esc(r.izoh || r.tavsif)}</p>
+      <div class="y-reja-tafsil">
+        <code>${esc(r.vosita)}</code><span>${r.soni} ta yozuv</span></div>
+      <div class="y-reja-tugma">
         <button class="tug ${r.qaytarib_bolmaydi ? 'xavf' : 'asos'}"
-          data-y-tasdiq="${esc(r.token)}" style="flex:1">Tasdiqlash</button>
+          data-y-tasdiq="${esc(r.token)}">Tasdiqlash</button>
         <button class="tug" data-y-bekor="${esc(r.token)}">Bekor</button>
       </div>
     </div>`;
 }
 
-/** Oddiy matn belgilarini HTML ga: **qalin**, "• " ro'yxat. */
+/** Oddiy matn belgilarini HTML ga: **qalin**, "• " ro'yxat, "## " sarlavha. */
 function matnHtml(matn) {
   return String(matn || '').split('\n').map((q) => {
-    const s = esc(q.trim());
-    if (!s) return '';
+    const xom = q.trim();
+    if (!xom) return '';
+    // <i> teglari faqat BIZ qo'shganimiz (bekor qilindi kabi) — ular
+    // esc dan keyin tiklanadi, model matni esa ekranlangan qoladi
+    const s = esc(xom).replace(/&lt;(\/?i)&gt;/g, '<$1>');
     const qalin = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
-    if (/^[•·-]\s/.test(s)) return `<div class="y-band">${qalin.replace(/^[•·-]\s/, '')}</div>`;
-    if (/^\d+\.\s/.test(s)) return `<div class="y-band">${qalin}</div>`;
-    if (/^##\s/.test(s)) return `<h4 style="margin:10px 0 4px">${qalin.replace(/^##\s/, '')}</h4>`;
-    return `<p style="margin:6px 0 0">${qalin}</p>`;
+    if (/^##\s/.test(xom)) return `<h4>${qalin.replace(/^##\s/, '')}</h4>`;
+    if (/^[•·-]\s/.test(xom)) return `<div class="y-band">${qalin.replace(/^[•·-]\s/, '')}</div>`;
+    if (/^\d+\.\s/.test(xom)) return `<div class="y-band y-raqam">${qalin}</div>`;
+    return `<p>${qalin}</p>`;
   }).join('');
 }
 
@@ -3805,13 +3878,16 @@ async function yordamchiYubor() {
   if (savol.length < 2) return;
 
   yordamchiBand = true;
-  m.value = ''; m.style.height = '44px';
+  m.value = ''; m.style.height = 'auto';
+  $('#t-y-yubor').disabled = true;
+
   // Tarixga faqat matn ketadi — qadamlar va rejalar modelga kerak emas
   const tarix = yordamchiSuhbat.filter((x) => x.matn)
     .map((x) => ({ kim: x.kim === 'admin' ? 'admin' : 'ai', matn: x.matn }));
   yordamchiSuhbat.push({ kim: 'admin', matn: savol });
   yordamchiSuhbat.push({ kim: 'kutish' });
   yordamchiChiz();
+  pastga(true);            // o'z savolini albatta ko'rsin
 
   try {
     const j = await api('/api/admin/agent', { method: 'POST',
@@ -3824,6 +3900,7 @@ async function yordamchiYubor() {
     yordamchiSuhbat.push({ kim: 'ai', matn: e.message });
   } finally {
     yordamchiBand = false;
+    const t = $('#t-y-yubor'); if (t) t.disabled = false;
     yordamchiChiz();
   }
 }
@@ -3836,12 +3913,13 @@ async function rejaniTasdiqla(token, tugma) {
     const x = yordamchiSuhbat.find((y) => y.reja?.token === token);
     if (x) {
       x.reja = null;
-      x.matn = (x.matn || '') + '\n\n✅ Bajarildi: '
-        + Object.entries(j.natija || {})
-            .filter(([, v]) => typeof v === 'number')
-            .map(([k, v]) => `${k} ${v}`).join(', ');
+      const son = Object.entries(j.natija || {})
+        .filter(([, v]) => typeof v === 'number')
+        .map(([k, v]) => `${k} ${v}`).join(', ');
+      x.matn = `${x.matn}\n\n✅ Bajarildi${son ? ` — ${son}` : ''}.`;
     }
     tost('Bajarildi');
+    holat.kesh = {};          // katalog o'zgargan bo'lishi mumkin
     yordamchiChiz();
   } catch (e) {
     tost(e.message, 'xato');

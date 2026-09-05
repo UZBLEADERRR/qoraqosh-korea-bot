@@ -604,11 +604,14 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
 .chat-eslatma{margin:10px auto;max-width:88%;text-align:center;font-size:13px;
   line-height:1.5;color:var(--kul);background:var(--fon);border:1px solid var(--chiziq);
   border-radius:12px;padding:9px 13px}
-.suhbat-bosh-ekran{text-align:center;padding:34px 20px 10px}
+.suhbat-bosh-ekran{text-align:center;padding:26px 20px 10px}
 .suhbat-bosh-ekran .halqa{width:74px;height:74px;margin:0 auto 16px;border-radius:99px;
   display:grid;place-items:center;background:var(--urgu-och);color:var(--urgu)}
 .suhbat-bosh-ekran h2{margin-bottom:8px}
-.suhbat-bosh-ekran p{color:var(--kul);font-size:14.5px;max-width:320px;margin:0 auto}
+.suhbat-bosh-ekran p{color:var(--kul);font-size:14.5px;max-width:300px;margin:0 auto}
+/* Namuna savol bitta qatorda: matn o'ralmasin, aks holda tugmalar
+   ikki barobar balandlashib ekranni to'ldiradi */
+.namunalar button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .namunalar{display:flex;flex-direction:column;gap:8px;margin-top:20px}
 .namunalar button{display:flex;align-items:center;gap:10px;background:var(--panel);
   border:1px solid var(--chiziq);border-radius:14px;padding:13px 15px;font-size:14.5px;
@@ -640,8 +643,17 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
 .menyu{transition:transform .22s ease}
 body.yozilmoqda .menyu{transform:translateY(105%)}
 body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
+/* Tab almashganda animatsiya bo'lmasin: panel bo'sh joyda sirg'alib
+   miltillab ko'rinardi. JS bir kadrga shu sinfni qo'yadi. */
+body.tez .menyu,body.tez .yozish{transition:none!important}
+/* Maslahat tabi ochilganda panel keskin «otilib» chiqmasin — qisqa
+   yumshoq paydo bo'lish. Bu display:none dan qaytishda har safar
+   ishlaydi va sakrashni bosadi. */
+#tab-maslahat:not(.yashirin) .yozish{animation:panel-kir .16s ease-out}
+@keyframes panel-kir{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){
   .menyu,.yozish{transition:none}
+  #tab-maslahat:not(.yashirin) .yozish{animation:none}
   .xabar,.nuqtalar span,.suhbat-holat.oylanmoqda::before{animation:none}
 }
 

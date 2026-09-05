@@ -2584,11 +2584,15 @@ function buyurtmalarniYangila() {
 //   to'plam — bosqichma-bosqich parvarish, bir necha mahsulot birga
 //   bitta   — bitta narsa yetadi (surtma, tuk oluvchi, lab balzami)
 
+// Namuna savollar QISQA: har biri bitta qatorga sig'adi. Ilgari
+// ular ikki qatordan edi va bo'sh ekran matnga to'lib ketardi —
+// odam o'qishga erinib, hech qaysisini bosmasdi.
+// `sorov` — bosilganda AI ga ketadigan to'liq savol; ko'rinishda esa
+// faqat qisqa nomi turadi.
 const NAMUNA_SAVOL = [
-  { ik: 'tomchi', matn: 'Yuzim juda quruq, nima yordam beradi?' },
-  { ik: 'tozalik', matn: 'Aknega qarshi to‘liq parvarish tuzing' },
-  { ik: 'quyosh', matn: 'Yozda quyoshdan himoya uchun nima olay?' },
-  { ik: 'barg',   matn: 'Ichimdan ichadigan kollagen bormi?' },
+  { ik: 'tomchi',  matn: 'Terim quruq',       sorov: 'Yuzim juda quruq, nima yordam beradi?' },
+  { ik: 'tozalik', matn: 'Akne bor',          sorov: 'Aknega qarshi to‘liq parvarish tuzing' },
+  { ik: 'quyosh',  matn: 'Quyoshdan himoya',  sorov: 'Yozda quyoshdan himoya uchun nima olay?' },
 ];
 
 const BOSQICH_NOM = {
@@ -2774,11 +2778,10 @@ function maslahatniChiz() {
       <div class="suhbat-bosh-ekran">
         <div class="halqa">${ik('robot', 34)}</div>
         <h2>Nima bezovta qilyapti?</h2>
-        <p>O‘z so‘zingiz bilan yozing — muammoni tushuntiraman va
-          do‘kondagi mahsulotlardan mos kelganini topib beraman.</p>
+        <p>O‘z so‘zingiz bilan yozing — mos mahsulotni topib beraman.</p>
         <div class="namunalar">
           ${NAMUNA_SAVOL.map((n) => `
-            <button data-savol="${esc(n.matn)}">${ik(n.ik, 19)}<span>${esc(n.matn)}</span>
+            <button data-savol="${esc(n.sorov || n.matn)}">${ik(n.ik, 19)}<span>${esc(n.matn)}</span>
               <span class="strelka">${ik('keyingi', 16)}</span></button>`).join('')}
         </div>
       </div>`;
@@ -3087,16 +3090,42 @@ const TABLAR = ['katalog','skaner','maslahat','savat','profil','natija'];
 // Eski havolalar (botdagi «?tab=buyurtma») profilga olib boradi —
 // buyurtmalar ro'yxati endi shu yerda.
 const TAB_TAQMOQ = { buyurtma: 'profil' };
+/**
+ * O'zgarishni ANIMATSIYASIZ bajaradi.
+ *
+ * Yozish paneli `position:fixed` va uning `bottom` i klaviatura
+ * ochilganda siljiydi — buning uchun `transition` qo'yilgan. Lekin
+ * tab almashganda ham o'sha `bottom` o'zgaradi va panel bo'sh joyda
+ * sirg'alib, miltillab ko'rinadi. Bu yerda o'zgarish bir kadrga
+ * animatsiyasiz qilinadi: brauzer to'g'ridan-to'g'ri oxirgi holatni
+ * chizadi.
+ */
+function animatsiyasiz(ozgartir) {
+  document.body.classList.add('tez');
+  ozgartir();
+  // Ikki kadr: birinchisida brauzer yangi holatni hisoblaydi,
+  // ikkinchisida animatsiyani qaytaramiz
+  requestAnimationFrame(() => requestAnimationFrame(
+    () => document.body.classList.remove('tez')));
+}
+
 function tabOch(nom) {
   nom = TAB_TAQMOQ[nom] || nom;
   holat.tab = nom;
   sessionStorage.setItem('qq_tab', nom);
-  TABLAR.forEach((t) => kor($(`#tab-${t}`), t === nom));
-  $$('.menyu button').forEach((b) =>
-    b.classList.toggle('tanlangan', b.dataset.tab === nom || (nom === 'natija' && b.dataset.tab === 'skaner')));
+  // Butun almashuv ANIMATSIYASIZ: yozish paneli `position:fixed` va
+  // uning `bottom` i klaviatura uchun animatsiyalangan. Tab
+  // almashganda o'sha animatsiya ishga tushib, panel bo'sh joyda
+  // sirg'alardi — «qimirlab, yo'q bo'lib paydo bo'lardi».
+  animatsiyasiz(() => {
+    TABLAR.forEach((t) => kor($(`#tab-${t}`), t === nom));
+    $$('.menyu button').forEach((b) =>
+      b.classList.toggle('tanlangan',
+        b.dataset.tab === nom || (nom === 'natija' && b.dataset.tab === 'skaner')));
+    if (nom !== 'maslahat') document.body.classList.remove('yozilmoqda');
+  });
   if (nom === 'profil') profilniChiz();   // buyurtmalar bo'lim ochilganda yuklanadi
   if (nom === 'maslahat') maslahatniChiz();
-  else document.body.classList.remove('yozilmoqda');
   if (nom === 'natija' && !holat.natijaKesh) natijaniChiz();
   scrollTo({ top: 0 });
 }

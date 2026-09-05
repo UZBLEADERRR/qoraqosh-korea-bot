@@ -390,24 +390,108 @@ a.tug.asos{color:#fff}
 .mah-teglar:empty{display:none}
 
 
-/* ───────── Admin yordamchisi (agent chati) ───────── */
-.y-xabar{margin:10px 0;padding:12px 14px;border-radius:14px;font-size:14.5px;line-height:1.55}
-.y-men{background:var(--urgu);color:#fff;margin-left:auto;max-width:85%;width:fit-content;
-  border-bottom-right-radius:5px}
-.y-ai{background:var(--panel);border:1px solid var(--chiziq);border-bottom-left-radius:5px}
-.y-band{margin:4px 0 0;padding-left:14px;position:relative}
-.y-band::before{content:'•';position:absolute;left:2px;color:var(--urgu)}
-.y-qadamlar{margin-top:10px;font-size:12.5px}
-.y-qadamlar summary{cursor:pointer;color:var(--kul)}
-.y-qadamlar .mayda{margin-top:5px;word-break:break-word}
-.y-takliflar{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-.y-takliflar button{border:1px solid var(--chiziq);background:var(--fon);border-radius:99px;
-  padding:7px 12px;font-size:12.5px;cursor:pointer;color:var(--matn)}
+/* ═════════ Admin yordamchisi — ALOHIDA EKRAN ═════════
+   Suhbat butun ekranni egallaydi: pastki menyu ham, sarlavha ham
+   ko'rinmaydi. Sabab — skroll. Bo'lim ichida chizilsa sahifaning
+   o'zi ham, xabarlar ro'yxati ham skroll bo'lardi va klaviatura
+   ochilganda ekran «o'ynab» ketardi. Bu yerda skroll FAQAT
+   .y-oqim da, yozish paneli esa qotib turadi. */
+.y-ekran{position:fixed;inset:0;z-index:80;background:var(--fon);
+  display:flex;flex-direction:column;
+  /* dvh — klaviatura ochilganda balandlik to'g'ri qisqaradi.
+     100vh telefonda brauzer paneli ostida qolib ketardi. */
+  height:100dvh}
+/* Ekran ochiqda orqa fon skroll bo'lmasin */
+body.y-ochiq{overflow:hidden}
 
-/* Taklif kartasi — bu yerda TASDIQ so'raladi */
+.y-tepa{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:10px 12px;padding-top:calc(10px + env(safe-area-inset-top));
+  background:var(--panel);border-bottom:1px solid var(--chiziq)}
+.y-orqaga{background:none;border:0;font-size:24px;line-height:1;color:var(--matn);
+  width:40px;height:40px;border-radius:10px;cursor:pointer}
+.y-orqaga:hover{background:var(--fon)}
+.y-nom{flex:1;min-width:0;display:grid;line-height:1.25}
+.y-nom b{font-size:16px}
+.y-nom span{font-size:11.5px;color:var(--och)}
+.y-tozala{background:none;border:1px solid var(--chiziq);border-radius:99px;
+  padding:7px 13px;font-size:12.5px;color:var(--kul);cursor:pointer}
+
+/* Yagona skroll maydoni. overscroll-behavior — barmoq oxiriga
+   yetganda orqadagi sahifa surilib ketmasin. */
+.y-oqim{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;padding:14px 14px 6px;
+  max-width:760px;width:100%;margin:0 auto}
+
+.y-xabar{margin:0 0 10px;padding:11px 14px;border-radius:16px;font-size:14.5px;
+  line-height:1.55;max-width:88%;width:fit-content;overflow-wrap:anywhere}
+.y-men{background:var(--urgu);color:#fff;margin-left:auto;border-bottom-right-radius:5px}
+.y-ai{background:var(--panel);border:1px solid var(--chiziq);border-bottom-left-radius:5px}
+.y-ai p{margin:6px 0 0}
+.y-ai p:first-child{margin-top:0}
+.y-ai h4{margin:12px 0 4px;font-size:14px}
+.y-band{margin:5px 0 0;padding-left:15px;position:relative}
+.y-band::before{content:'•';position:absolute;left:2px;color:var(--urgu)}
+.y-band.y-raqam{padding-left:0}
+.y-band.y-raqam::before{content:none}
+
+/* «O'ylayapti» — uchta nuqta */
+.y-kutish{display:flex;gap:5px;align-items:center;padding:15px 16px}
+.y-kutish span{width:7px;height:7px;border-radius:50%;background:var(--och);
+  animation:y-nuqta 1.2s infinite ease-in-out}
+.y-kutish span:nth-child(2){animation-delay:.15s}
+.y-kutish span:nth-child(3){animation-delay:.3s}
+@keyframes y-nuqta{0%,60%,100%{opacity:.28;transform:translateY(0)}
+  30%{opacity:1;transform:translateY(-3px)}}
+
+.y-qadamlar{margin-top:10px;font-size:12.5px;color:var(--kul)}
+.y-qadamlar summary{cursor:pointer;color:var(--och);list-style:none}
+.y-qadamlar summary::-webkit-details-marker{display:none}
+.y-qadamlar summary::before{content:'▸ ';font-size:11px}
+.y-qadamlar[open] summary::before{content:'▾ '}
+.y-qadamlar div{margin-top:5px;overflow-wrap:anywhere}
+.y-qadamlar code{background:var(--fon);padding:1px 5px;border-radius:5px}
+
+.y-takliflar{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
+.y-takliflar button{border:1px solid var(--chiziq);background:var(--panel);
+  border-radius:99px;padding:7px 13px;font-size:12.5px;cursor:pointer;color:var(--kul)}
+.y-takliflar button:hover{border-color:var(--urgu);color:var(--urgu)}
+
+/* Taklif kartasi — TASDIQ shu yerda so'raladi */
 .y-reja{margin-top:12px;padding:13px;border-radius:12px;background:var(--fon);
   border:1px solid var(--urgu)}
-.y-reja.xavf{border-color:var(--qizil)}
-.y-reja-bosh{font-size:12px;font-weight:700;text-transform:uppercase;
-  letter-spacing:.04em;color:var(--urgu)}
+.y-reja.xavf{border-color:var(--qizil);background:var(--qizil-och)}
+.y-reja-bosh{font-size:11.5px;font-weight:750;letter-spacing:.03em;color:var(--urgu)}
 .y-reja.xavf .y-reja-bosh{color:var(--qizil)}
+.y-reja-izoh{margin:7px 0 0;font-weight:600}
+.y-reja-tafsil{margin-top:7px;font-size:12.5px;color:var(--kul);
+  display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.y-reja-tafsil code{background:var(--panel);padding:2px 7px;border-radius:6px}
+.y-reja-tugma{display:flex;gap:8px;margin-top:12px}
+.y-reja-tugma .tug{flex:1}
+
+/* Bosh ekran — namuna savollar */
+.y-bosh{text-align:center;padding:32px 8px 8px}
+.y-halqa{width:64px;height:64px;margin:0 auto 14px;border-radius:50%;
+  background:var(--urgu-och);display:grid;place-items:center;font-size:28px}
+.y-bosh h2{margin:0 0 8px;font-size:21px}
+.y-bosh p{color:var(--kul);font-size:14px;max-width:380px;margin:0 auto 20px}
+.y-namunalar{display:grid;gap:8px;text-align:left;max-width:420px;margin:0 auto}
+.y-namunalar button{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;background:var(--panel);border:1px solid var(--chiziq);border-radius:12px;
+  padding:13px 15px;font-size:14px;color:var(--matn);cursor:pointer;text-align:left}
+.y-namunalar button:hover{border-color:var(--urgu)}
+.y-namunalar i{color:var(--och);font-style:normal}
+
+/* Yozish paneli — QOTIB turadi, skroll bo'lmaydi */
+.y-yozish{flex:0 0 auto;display:flex;gap:8px;align-items:flex-end;
+  padding:10px 12px;padding-bottom:calc(10px + env(safe-area-inset-bottom));
+  background:var(--panel);border-top:1px solid var(--chiziq);
+  max-width:760px;width:100%;margin:0 auto}
+.y-yozish textarea{flex:1;resize:none;min-height:44px;max-height:132px;
+  padding:11px 14px;border:1px solid var(--chiziq);border-radius:22px;
+  background:var(--fon);color:var(--matn);font:inherit;font-size:15px;line-height:1.4;
+  overflow-y:auto}
+.y-yozish textarea:focus{outline:none;border-color:var(--urgu)}
+.y-yubor{flex:0 0 44px;width:44px;height:44px;border-radius:50%;border:0;
+  background:var(--urgu);color:#fff;font-size:19px;cursor:pointer}
+.y-yubor:disabled{opacity:.45;cursor:default}
