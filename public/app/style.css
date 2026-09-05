@@ -393,6 +393,16 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
 @keyframes ekran-kir{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .ekran:not(.yashirin){animation:ekran-kir .18s ease}
 
+/* MASLAHAT bo'limi — transformsiz.
+   Sabab: ichida `position:fixed` yozish paneli bor. Ota-elementda
+   `transform` (hatto animatsiya davomida ham) ishlatilsa, `fixed`
+   element EKRANGA emas, o'sha ota-elementga nisbatan joylashadi.
+   Natijada panel bo'lim qutisining o'rtasida paydo bo'lib, animatsiya
+   tugagach pastga sakrardi — «centerda paydo bo'lib pastga tushdi»
+   degan holat aynan shu. Bu yerda faqat shaffoflik o'zgaradi. */
+@keyframes ekran-kir-shaffof{from{opacity:0}to{opacity:1}}
+#tab-maslahat.ekran:not(.yashirin){animation:ekran-kir-shaffof .18s ease}
+
 @media (prefers-reduced-motion: reduce){
   button,.mahsulot,.tanlov-tugma,.tanlov-qator{transition:none}
   .menyu .nishon,.ekran:not(.yashirin){animation:none}
@@ -599,6 +609,20 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
 .takliflar button:active{background:var(--urgu-och);border-color:var(--urgu)}
 
 /* --- Bo'sh ekran (birinchi kirish) --- */
+/* Ilovani qo'shish oynasi: ikki xil yorliqni ajratib ko'rsatamiz */
+.ornat-tanlov{border:1px solid var(--chiziq);border-radius:var(--r);padding:14px;
+  margin-bottom:12px;background:var(--panel)}
+/* Faqat BEVOSITA farzand — aks holda izoh ichidagi <b>Chrome</b> ham
+   blok bo'lib, matn bo'laklarga bo'linib ketadi */
+.ornat-tanlov > b{display:block;font-size:15px;margin-bottom:5px}
+.ornat-tanlov > span{display:block;font-size:13.5px;line-height:1.55;color:var(--kul);
+  margin-bottom:12px}
+.ornat-tanlov > span b{color:var(--matn)}
+.ornat-tanlov.ikkilamchi-quti{background:var(--fon)}
+.ornat-havola{font-size:12.5px;font-family:ui-monospace,monospace;color:var(--matn);
+  background:var(--fon);border:1px solid var(--chiziq);border-radius:9px;
+  padding:9px 11px;margin-bottom:10px;overflow-wrap:anywhere;user-select:all}
+.ornat-tanlov button{width:100%}
 /* Chatdagi tizim eslatmasi (rasm chegarasi kabi) — javob emas,
    shuning uchun pufaksiz, markazda va so'niqroq. */
 .chat-eslatma{margin:10px auto;max-width:88%;text-align:center;font-size:13px;
@@ -646,14 +670,10 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 /* Tab almashganda animatsiya bo'lmasin: panel bo'sh joyda sirg'alib
    miltillab ko'rinardi. JS bir kadrga shu sinfni qo'yadi. */
 body.tez .menyu,body.tez .yozish{transition:none!important}
-/* Maslahat tabi ochilganda panel keskin «otilib» chiqmasin — qisqa
-   yumshoq paydo bo'lish. Bu display:none dan qaytishda har safar
-   ishlaydi va sakrashni bosadi. */
-#tab-maslahat:not(.yashirin) .yozish{animation:panel-kir .16s ease-out}
-@keyframes panel-kir{from{opacity:0}to{opacity:1}}
+/* Panelga alohida animatsiya QO'YILMAYDI: u bo'lim bilan birga
+   ko'rinadi. Ortiqcha animatsiya yana sakrash beradi. */
 @media (prefers-reduced-motion:reduce){
   .menyu,.yozish{transition:none}
-  #tab-maslahat:not(.yashirin) .yozish{animation:none}
   .xabar,.nuqtalar span,.suhbat-holat.oylanmoqda::before{animation:none}
 }
 

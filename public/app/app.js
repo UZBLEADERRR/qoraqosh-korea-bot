@@ -3044,16 +3044,28 @@ function pwaniUla() {
   navigator.serviceWorker?.register('/app/sw.js').catch(() => { /* HTTPS yo'q */ });
 }
 
+/**
+ * Ilovani telefonga qo'shish.
+ *
+ * MUHIM FARQ — ikki xil yorliq bor va ular BOSHQACHA ishlaydi:
+ *
+ *   1. Telegram yorlig'i (`tg.addToHomeScreen`). Uni Telegramning o'zi
+ *      yasaydi va u HAR DOIM TELEGRAMNI ochadi — ichida mini ilovani
+ *      ko'rsatadi. Bu Telegram API sining ishlash usuli, sozlab
+ *      bo'lmaydi. Odam «ilova» kutayotgan bo'lsa bu uni chalg'itadi.
+ *
+ *   2. Haqiqiy ilova (PWA). Uni BRAUZER yasaydi va u to'g'ridan-to'g'ri
+ *      do'konni ochadi — Telegramsiz, alohida oyna bo'lib. Buning
+ *      uchun sahifa brauzerda (Chrome/Safari) ochilgan bo'lishi shart.
+ *
+ * Shuning uchun Telegram ichida turganda TANLOV beramiz, jimgina
+ * Telegram yorlig'ini yasab qo'ymaymiz.
+ */
 async function ilovaniOrnat() {
   titra('medium');
 
-  // Telegram o'zi so'raydi — bizga yo'riqnoma ham, tugma ham kerak emas
-  if (tg?.addToHomeScreen) {
-    try { tg.addToHomeScreen(); return; }
-    catch { /* qo'llab-quvvatlamadi — pastdagi yo'lga tushamiz */ }
-  }
-
-  if (ornatishHodisasi) {
+  // ── Brauzerda: haqiqiy o'rnatish taklifi bo'lsa darrov ishlatamiz
+  if (!tg?.initData && ornatishHodisasi) {
     ornatishHodisasi.prompt();
     const { outcome } = await ornatishHodisasi.userChoice;
     if (outcome === 'accepted') { ornatishHodisasi = null; holat.ornatishMumkin = false; }
@@ -3061,7 +3073,58 @@ async function ilovaniOrnat() {
     return;
   }
 
-  // Qo'lda o'rnatish yo'riqnomasi
+  // ── Telegram ichida: ikki yo'lni ochiq aytamiz
+  if (tg?.initData) {
+    const havola = location.origin + '/app/';
+    $('#modal-tan').innerHTML = `
+      <div style="padding:18px 18px 0">
+        <h2 style="margin-bottom:6px">Ilovani qo‘shish</h2>
+        <p class="ozgina" style="margin-bottom:16px">Ikki xil yorliq bor —
+          qaysi biri kerakligini tanlang.</p>
+
+        <div class="ornat-tanlov">
+          <b>📱 Haqiqiy ilova</b>
+          <span>Telegramsiz, alohida oyna bo‘lib ochiladi. Buning uchun
+            havolani <b>Chrome</b> yoki <b>Safari</b> da oching va
+            menyudan «Ekranga qo‘shish» ni bosing.</span>
+          <div class="ornat-havola" id="ornat-havola">${esc(havola)}</div>
+          <button class="asosiy" id="t-havola-nusxa">Havoladan nusxa olish</button>
+        </div>
+
+        <div class="ornat-tanlov ikkilamchi-quti">
+          <b>💬 Telegram yorlig‘i</b>
+          <span>Tez qo‘shiladi, lekin bosilganda <b>Telegram ochiladi</b>
+            va ilova uning ichida ko‘rinadi.</span>
+          <button class="ikkilamchi" id="t-tg-yorliq">Telegramga qo‘shish</button>
+        </div>
+
+        <button class="ikkilamchi" id="t-ornat-yop"
+          style="margin-top:4px;width:100%">Yopish</button>
+      </div>`;
+    modalOch();
+
+    $('#t-havola-nusxa').onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(havola);
+        $('#t-havola-nusxa').textContent = '✓ Nusxa olindi';
+      } catch {
+        // Clipboard ishlamasa havolani belgilab beramiz — qo'lda nusxa olsin
+        const el = $('#ornat-havola');
+        const r = document.createRange(); r.selectNodeContents(el);
+        const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        $('#t-havola-nusxa').textContent = 'Belgilandi — nusxa oling';
+      }
+      titra();
+    };
+    $('#t-tg-yorliq').onclick = () => {
+      try { tg.addToHomeScreen(); } catch { ogohlantir('Telegramni yangilang.'); }
+      modalYop();
+    };
+    $('#t-ornat-yop').onclick = modalYop;
+    return;
+  }
+
+  // ── Brauzerda, lekin avtomatik taklif yo'q — qo'lda yo'riqnoma
   const iOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
   $('#modal-tan').innerHTML = `
     <div style="padding:18px 18px 0">
@@ -3076,9 +3139,6 @@ async function ilovaniOrnat() {
         <div class="ornat-qadam"><i>2</i><span><b>Ilovani o‘rnatish</b> yoki
           <b>Bosh ekranga qo‘shish</b> ni tanlang.</span></div>
         <div class="ornat-qadam"><i>3</i><span>Tasdiqlang — KiOVO ikonkasi ekranda paydo bo‘ladi.</span></div>`}
-      <div class="ozgina" style="margin-top:12px">
-        Telegram ilovangiz eski bo‘lsa bu tugma yo‘riqnoma ko‘rsatadi.
-        Telegramni yangilasangiz, qo‘shish bir bosishda bo‘ladi.</div>
       <button class="ikkilamchi" id="t-ornat-yop" style="margin-top:16px">Tushunarli</button>
     </div>`;
   modalOch();

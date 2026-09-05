@@ -760,6 +760,22 @@ ortiqchalarini yopish taklif qilinadi → siz tasdiqlaysiz. Qaysi
 nusxa qolishi modelga qoldirilmaydi: buyurtmada uchragani → sotuvi
 ko'pi → ombori ko'pi → eng eskisi.
 
+### Ikki xil yorliq — nega Telegram yorlig'i botni ochadi
+
+Bu ko'p chalkashlik tug'diradi, shuning uchun ilovada ochiq aytiladi:
+
+| Yorliq | Kim yasaydi | Bosilganda |
+|---|---|---|
+| **Telegram yorlig'i** (`addToHomeScreen`) | Telegram | **Telegram ochiladi**, ilova uning ichida ko'rinadi |
+| **Haqiqiy ilova** (PWA) | Brauzer | Do'kon to'g'ridan-to'g'ri, Telegramsiz, alohida oyna |
+
+Telegram yorlig'ining bu xatti-harakati Telegram API sining ishlash
+usuli — uni sozlab bo'lmaydi. Shuning uchun «Ilovani qo'shish»
+Telegram ichida bosilganda TANLOV beriladi: jimgina Telegram yorlig'i
+yasab qo'yilmaydi. Haqiqiy ilova kerak bo'lsa havoladan nusxa olinadi,
+Chrome yoki Safari da ochiladi va o'sha yerdan «Ekranga qo'shish»
+qilinadi.
+
 ### Brauzerdan kirish va ekranga qo'shish
 
 Do'kon manzilini brauzerda ochsangiz **«Do'konni ochish»** tugmasi

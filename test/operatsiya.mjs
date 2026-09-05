@@ -2121,10 +2121,34 @@ console.log('\n── MASLAHAT EKRANI ──');
     /body\.tez \.menyu,body\.tez \.yozish\{transition:none!important\}/.test(css));
   test('ikki kadrdan keyin qaytariladi',
     /requestAnimationFrame\(\(\) => requestAnimationFrame\(/.test(js));
-  test('panel yumshoq paydo bo‘ladi',
-    /#tab-maslahat:not\(\.yashirin\) \.yozish\{animation:panel-kir/.test(css));
-  test('harakat kamaytirilganda animatsiya yo‘q',
-    /prefers-reduced-motion[\s\S]{0,200}panel-kir[\s\S]{0,40}none|prefers-reduced-motion[\s\S]{0,220}\.yozish\{animation:none\}/.test(css));
+  // ── ASOSIY SABAB ──
+  // Bo'lim ochilishida `transform` li animatsiya bor edi. Ota-elementda
+  // transform ishlatilsa (animatsiya davomida ham) ichidagi
+  // `position:fixed` element EKRANGA emas, o'sha ota-elementga
+  // nisbatan joylashadi. Panel bo'lim qutisining o'rtasida paydo
+  // bo'lib, animatsiya tugagach pastga sakrardi.
+  // Brauzerda o'lchandi: transform bilan 429 → 696, transformsiz 696.
+  test('MASLAHAT bo‘limi transformsiz ochiladi',
+    /#tab-maslahat\.ekran:not\(\.yashirin\)\{animation:ekran-kir-shaffof/.test(css));
+  test('shaffoflik animatsiyasida transform YO‘Q',
+    /@keyframes ekran-kir-shaffof\{from\{opacity:0\}to\{opacity:1\}\}/.test(css));
+  test('panelga ortiqcha animatsiya qo‘yilmagan',
+    !/\.yozish\{animation:/.test(css));
+
+  // ── Ekranga qo'shish: ikki xil yorliq ──
+  // Telegram ichidan qo'shilgan yorliq HAR DOIM Telegramni ochadi —
+  // bu Telegram API sining ishlash usuli, sozlab bo'lmaydi.
+  test('Telegram ichida TANLOV beriladi',
+    js.includes('Haqiqiy ilova') && js.includes('Telegram yorlig‘i'));
+  test('jimgina Telegram yorlig‘i yasalmaydi',
+    !/if \(tg\?\.addToHomeScreen\) \{\s*try \{ tg\.addToHomeScreen\(\); return;/.test(js));
+  test('Telegram yorlig‘i nima qilishi ochiq aytiladi',
+    js.includes('Telegram ochiladi'));
+  test('brauzer havolasi ko‘rsatiladi va nusxalanadi',
+    js.includes('clipboard.writeText') && js.includes('ornat-havola'));
+  test('nusxa olinmasa havola belgilanadi', js.includes('selectNodeContents'));
+  test('izoh ichidagi qalin so‘z matnni buzmaydi',
+    /\.ornat-tanlov > b\{display:block/.test(css));
 }
 
 // ═══════════ YORDAMCHI EKRANI (DIZAYN QOIDALARI) ═══════════
