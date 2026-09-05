@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>KiOVO — Koreya kosmetikasi</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<!-- Manifest shu sahifada ham ulanadi: odam bosh sahifadan «Ekranga
+     qo'shish» qilsa yorliq /app/ ni ochsin. Manifestsiz Android oddiy
+     xatcho'p yasaydi va u shu sahifani, ya'ni «Telegramda ochish»
+     tugmasini ochib qo'yadi. -->
+<link rel="manifest" href="/app/manifest.json">
+<meta name="theme-color" content="#8a5a3d">
+<meta name="mobile-web-app-capable" content="yes">
 <style>
 :root{--fon:#fbfaf9;--matn:#1c1a19;--kul:#6f6a66;--chiziq:#e8e3df;--urgu:#8a5a3d;--urgu-och:#f3ece6}
 @media(prefers-color-scheme:dark){:root{--fon:#151312;--matn:#eceae8;--kul:#a09a95;--chiziq:#2e2a28;--urgu:#c99a72;--urgu-och:#2a2320}}
@@ -23,8 +30,12 @@ h1{font-size:34px;line-height:1.15;margin:8px 0 12px;letter-spacing:-.02em}
  display:grid;place-items:center;font-size:12px;font-weight:600}
 .qadam b{display:block;font-size:15px}
 .qadam span{font-size:13.5px;color:var(--kul)}
-.tugma{display:inline-block;background:var(--urgu);color:#fff;text-decoration:none;
- padding:14px 30px;border-radius:11px;font-weight:600}
+.tugma{display:block;background:var(--urgu);color:#fff;text-decoration:none;
+ padding:15px 30px;border-radius:11px;font-weight:600}
+.ikkilamchi{margin-top:12px}
+.ikkilamchi a{color:var(--kul);font-size:14.5px;text-decoration:none;
+ border-bottom:1px solid var(--chiziq);padding-bottom:2px}
+.mayda-izoh{margin:14px 0 0;font-size:13px;color:var(--kul)}
 footer{margin-top:30px;font-size:13px;color:var(--kul)}
 footer a{color:var(--kul)}
 </style>
@@ -44,7 +55,15 @@ footer a{color:var(--kul)}
       <b>Parvarishni oling</b><span>Tozalash → namlash → himoya: qaysi mahsulot, nima uchun</span></div></div>
   </div>
 
-  <a class="tugma" id="bot-havola" href="https://t.me/">Telegramda ochish</a>
+  <a class="tugma" href="/app/">Do‘konni ochish</a>
+  <div class="ikkilamchi">
+    <!-- Bot manzili sozlamadan olinadi, shuning uchun havolani
+         server /app/ochish orqali yo'naltiradi. Ilgari bu yerda bo'sh
+         "https://t.me/" turardi va tugma hech qayerga olib bormasdi. -->
+    <a id="bot-havola" href="/app/ochish">Telegramda ochish</a>
+  </div>
+  <p class="mayda-izoh">Telefon raqamingiz bilan ham kirishingiz mumkin —
+    botga tasdiqlash so‘rovi keladi. Parol kerak emas.</p>
 
   <footer>
     <a href="/oferta">Ommaviy oferta</a><br><br>

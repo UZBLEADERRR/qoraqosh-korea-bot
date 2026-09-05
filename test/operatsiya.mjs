@@ -2048,5 +2048,49 @@ console.log('\n── ADMIN YORDAMCHISI ──');
   test('rejalar tozalandi', rejaSoni() === 0);
 }
 
+// ═══════════ BOSH SAHIFA VA EKRANGA QO'SHISH ═══════════
+// Odam do'kon manzilini brauzerda ochsa faqat «Telegramda ochish»
+// tugmasini ko'rardi — telefon bilan kirish yo'li ko'rinmasdi.
+// Ekranga qo'shganda esa manifest yo'qligi uchun Android oddiy
+// xatcho'p yasab, o'sha sahifani ochardi — ya'ni yorliq mini
+// ilovani emas, botni ochardi.
+console.log('\n── BOSH SAHIFA / EKRANGA QO‘SHISH ──');
+{
+  const fs = await import('node:fs');
+  const bosh = fs.readFileSync('public/index.html', 'utf8');
+  const manifest = JSON.parse(fs.readFileSync('public/app/manifest.json', 'utf8'));
+
+  test('bosh sahifada MANIFEST ulangan', /rel="manifest"/.test(bosh),
+    (bosh.match(/<link rel="manifest"[^>]*>/) || [''])[0]);
+  test('yorliq MINI ILOVANI ochadi', manifest.start_url === '/app/', manifest.start_url);
+  test('qamrov bosh sahifani ham o‘z ichiga oladi', manifest.scope === '/', manifest.scope);
+  test('start_url qamrov ichida', manifest.start_url.startsWith(manifest.scope));
+
+  test('asosiy tugma do‘konni ochadi', /class="tugma" href="\/app\/"/.test(bosh));
+  test('telefon bilan kirish haqida aytilgan', /Telefon raqamingiz bilan/.test(bosh));
+  // Ilgari bu havola bo'sh "https://t.me/" edi va hech qayerga
+  // olib bormasdi
+  test('Telegram havolasi tirik', !/href="https:\/\/t\.me\/"/.test(bosh));
+  test('Telegram havolasi serverga yo‘naltiradi', /href="\/app\/ochish"/.test(bosh));
+
+  // Kirish oqimi bot bilan BIR XIL foydalanuvchiga bog'lanadi —
+  // ya'ni ma'lumot avtomatik sinxron
+  const K = await import('../src/services/ilova-kirish.js');
+  const u = await qator(`select id, phone from users where telegram_id = '800001'`);
+  const sorovNat = await K.sorovYarat(u.phone);
+  test('mavjud raqamga so‘rov yaratildi', !sorovNat.xato, sorovNat.xato || 'ok');
+  // Kalit bo'yicha topamiz: sorovYarat id qaytarmaydi (u faqat
+  // brauzerga kerakli narsalarni qaytaradi)
+  const bogliq = await qiymat(
+    `select user_id from kirish_sorovlari where kalit = $1`, [sorovNat.kalit]);
+  test('so‘rov BOTDAGI foydalanuvchiga bog‘landi', Number(bogliq) === Number(u.id),
+    `${bogliq} vs ${u.id}`);
+  test('tasdiqlash kodi berildi', /^\d{4}$/.test(sorovNat.kod || ''), sorovNat.kod);
+  test('raqam to‘liq ko‘rsatilmaydi', /\*/.test(sorovNat.raqam || ''), sorovNat.raqam);
+
+  const yoq = await K.sorovYarat('+998900000000');
+  test('ro‘yxatda yo‘q raqam rad etiladi', Boolean(yoq.xato), yoq.xato);
+}
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

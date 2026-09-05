@@ -3,17 +3,35 @@
   "short_name": "KiOVO",
   "description": "Yuz skaneri, AI maslahatchi va Koreya kosmetikasi do‘koni",
   "start_url": "/app/",
-  "scope": "/app/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#fbf8f3",
   "theme_color": "#b3161c",
   "lang": "uz",
   "dir": "ltr",
-  "categories": ["shopping", "beauty", "health"],
+  "categories": [
+    "shopping",
+    "beauty",
+    "health"
+  ],
   "icons": [
-    { "src": "/app/ikon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/app/ikon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/app/ikon-maska.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
+    {
+      "src": "/app/ikon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/app/ikon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/app/ikon-maska.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "/app/"
 }

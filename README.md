@@ -735,6 +735,45 @@ mahsulotning o'z posteri ishlatiladi. Keyin xuddi oddiy post kabi tasdiqlash
 oqimidan o'tadi.
 
 
+### Admin yordamchisi — savolga javob, topshiriqqa taklif
+
+Admin panel → **Yordamchi**. Savol yozasiz, u bazadan o'qib javob
+beradi. Topshiriqni bir necha qadamda bajaradi: avval qidiradi,
+natijani ko'radi, keyin keyingi qadamni tanlaydi.
+
+Agent bazaga **SQL yozmaydi**. Ikki sabab: model o'ylab topgan SQL
+jonli do'konni buzishi mumkin, va erkin SQL ni oldindan tekshirib
+bo'lmaydi — ya'ni sizga «shuni qilaman» deb aniq ko'rsatib ham
+bo'lmaydi. Buning o'rniga qat'iy vosita ro'yxati:
+
+| Vosita | Turi |
+|---|---|
+| mahsulotlar, takrorlar, buyurtmalar, buyurtma, statistika, mijozlar | o'qish — erkin |
+| mahsulot_yop, mahsulot_ochir, narx_ozgartir, ombor_ozgartir | **YOZISH — tasdiq bilan** |
+
+Yozish vositasi tanlansa u darrov bajarilmaydi: panelda taklif
+kartasi chiqadi — qaysi amal, nechta yozuvga tegadi, qaytarib
+bo'ladimi. Tasdiq tokeni bir martalik va 10 daqiqada eskiradi.
+
+«Bir xil tovarlarni tozala» shunday ishlaydi: takrorlar topiladi →
+ortiqchalarini yopish taklif qilinadi → siz tasdiqlaysiz. Qaysi
+nusxa qolishi modelga qoldirilmaydi: buyurtmada uchragani → sotuvi
+ko'pi → ombori ko'pi → eng eskisi.
+
+### Brauzerdan kirish va ekranga qo'shish
+
+Do'kon manzilini brauzerda ochsangiz **«Do'konni ochish»** tugmasi
+`/app/` ga olib boradi va u yerda telefon raqami bilan kirasiz —
+botga tasdiqlash so'rovi keladi, parol kerak emas. Kirish botdagi
+**o'sha foydalanuvchiga** bog'lanadi, ya'ni savat, buyurtmalar va
+tahlillar avtomatik sinxron.
+
+Bosh sahifada ham manifest ulangan va uning `scope` i `/`, `start_url`
+i `/app/`. Shuning uchun «Ekranga qo'shish» qilinganda yorliq **mini
+ilovani** ochadi. Ilgari bosh sahifada manifest yo'q edi: Android
+oddiy xatcho'p yasardi va yorliq «Telegramda ochish» sahifasini,
+ya'ni botni ochardi.
+
 ### Zaxira modellar — bittasi tugasa ikkinchisi ishlaydi
 
 Google'da **har modelning o'z kvotasi bor**. Shuning uchun skaner va
