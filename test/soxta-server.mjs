@@ -133,6 +133,16 @@ function javobMatni(sxemaMatni, prompt = '') {
       ],
       takliflar: ['Qishda nima mos?', 'Kechqurun tartib qanday?'] });
   }
+  // Admin yordamchisi. globalThis.AGENT_QADAMLAR — ketma-ket
+  // qaytariladigan javoblar ro'yxati (har chaqiruvda bittasi).
+  if (sxemaMatni.includes('argumentlar_json')) {
+    const navbat = globalThis.AGENT_QADAMLAR || [];
+    const q = navbat.length ? navbat.shift() : null;
+    return JSON.stringify(q || {
+      fikr: 'Mahsulotlarni ko‘raman', amal: 'javob', vosita: '',
+      argumentlar_json: '{}', javob: 'Standart javob.', reja_izoh: '',
+      takliflar: [] });
+  }
   if (sxemaMatni.includes('goyalar'))   return JSON.stringify({ goyalar: [] });
   // Marketplace: do'kon sahifasidan mahsulot o'qish
   if (sxemaMatni.includes('kosmetikami')) return JSON.stringify({

@@ -148,6 +148,7 @@ function ochil() {
 // ═══════════ MARSHRUT ═══════════
 const BOLIMLAR = {
   boshqaruv: { nom: 'Boshqaruv',    chiz: () => boshqaruv() },
+  yordamchi: { nom: 'Yordamchi',    chiz: () => yordamchi() },
   buyurtma:  { nom: 'Buyurtmalar',  chiz: () => buyurtmalar() },
   xarid:     { nom: 'Xarid ro‘yxati', chiz: () => xarid() },
   mahsulot:  { nom: 'Mahsulotlar',  chiz: () => mahsulotlar() },
@@ -186,7 +187,7 @@ window.addEventListener('hashchange', () => {
 });
 $('#t-yangila').onclick = () => { holat.kesh = {}; bolimOch(holat.bolim); tost('Yangilandi'); };
 
-const KOP_MENYU = ['mijoz', 'market', 'havola', 'bolim', 'sotuv', 'ombor', 'sozlama', 'xabar', 'tizim', 'qollanma'];
+const KOP_MENYU = ['yordamchi', 'mijoz', 'market', 'havola', 'bolim', 'sotuv', 'ombor', 'sozlama', 'xabar', 'tizim', 'qollanma'];
 const kopMenyu = () => modal('Ko‘proq', `
   <div style="display:grid;gap:8px">
     ${KOP_MENYU.map((k) => `<button class="tug keng" data-kop="${k}"
@@ -3668,6 +3669,184 @@ async function aiModellarHolat() {
         modelBelgi(b.dataset.mSina));
     });
   } catch { /* holat belgisi — muhim emas */ }
+}
+
+
+// ═══════════ ADMIN YORDAMCHISI ═══════════
+// Savol yozasiz — u bazadan o'qib javob beradi. Topshiriqni bir necha
+// qadamda bajaradi (avval qidiradi, keyin taklif qiladi).
+//
+// BAZANI O'ZGARTIRADIGAN amal HECH QACHON o'z-o'zidan bajarilmaydi:
+// avval «shuni qilaman» degan taklif ko'rsatiladi, siz tasdiqlaysiz.
+// Bitta noto'g'ri tushunilgan jumla katalogni yo'q qilib qo'ymasin.
+let yordamchiSuhbat = [];
+let yordamchiBand = false;
+
+const YORDAMCHI_NAMUNA = [
+  'Do‘konda nechta mahsulot bor?',
+  'Bir xil tovarlar bormi?',
+  'Oxirgi 7 kunda nechta buyurtma tushdi?',
+  'Ombori tugagan mahsulotlar',
+];
+
+function yordamchi() {
+  $('#tan').innerHTML = `
+    <div class="bosh"><h1>Yordamchi</h1>
+      ${yordamchiSuhbat.length ? '<button class="tug kichik" id="t-y-tozala">Tozalash</button>' : ''}</div>
+    <div id="y-oqim" style="padding:0 16px"></div>
+    <div style="padding:12px 16px 16px;display:flex;gap:8px;align-items:flex-end">
+      <textarea id="y-matn" rows="1" placeholder="Savol yoki topshiriq…"
+        style="flex:1;resize:none;min-height:44px;max-height:120px"></textarea>
+      <button class="tug asos" id="t-y-yubor" style="height:44px">Yuborish</button>
+    </div>`;
+
+  const t = $('#t-y-tozala');
+  if (t) t.onclick = () => { yordamchiSuhbat = []; yordamchi(); };
+  $('#t-y-yubor').onclick = yordamchiYubor;
+  const m = $('#y-matn');
+  m.oninput = () => { m.style.height = 'auto'; m.style.height = Math.min(120, m.scrollHeight) + 'px'; };
+  m.onkeydown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); yordamchiYubor(); }
+  };
+  yordamchiChiz();
+}
+
+function yordamchiChiz() {
+  const el = $('#y-oqim'); if (!el) return;
+  if (!yordamchiSuhbat.length) {
+    el.innerHTML = `
+      <div class="karta">
+        <h3>Nima qila olaman</h3>
+        <p class="mayda" style="margin:6px 0 12px">Do‘kon ma’lumotlarini o‘qiyman va
+          savolingizga aniq javob beraman. O‘zgartirish kerak bo‘lsa avval
+          <b>taklif</b> ko‘rsataman — siz tasdiqlaganingizdan keyin bajaraman.</p>
+        <div style="display:flex;flex-direction:column;gap:7px">
+          ${YORDAMCHI_NAMUNA.map((x) => `<button class="tug" data-y-namuna="${esc(x)}"
+            style="justify-content:flex-start;text-align:left">${esc(x)}</button>`).join('')}
+        </div>
+      </div>`;
+    $$('[data-y-namuna]').forEach((b) => b.onclick = () => {
+      $('#y-matn').value = b.dataset.yNamuna; yordamchiYubor();
+    });
+    return;
+  }
+
+  el.innerHTML = yordamchiSuhbat.map((x) => {
+    if (x.kim === 'admin') {
+      return `<div class="y-xabar y-men">${esc(x.matn)}</div>`;
+    }
+    if (x.kim === 'kutish') {
+      return `<div class="y-xabar y-ai"><span class="aylana"></span> O‘ylayapti…</div>`;
+    }
+    return `
+      <div class="y-xabar y-ai">
+        ${matnHtml(x.matn)}
+        ${(x.qadamlar || []).length ? `
+          <details class="y-qadamlar">
+            <summary>${x.qadamlar.length} ta qadam bajarildi</summary>
+            ${x.qadamlar.map((k) => `<div class="mayda">
+              <code>${esc(k.vosita)}</code> — ${esc(k.qisqa || '')}</div>`).join('')}
+          </details>` : ''}
+        ${x.reja ? rejaHtml(x.reja) : ''}
+        ${(x.takliflar || []).length ? `
+          <div class="y-takliflar">
+            ${x.takliflar.map((s) => `<button data-y-namuna="${esc(s)}">${esc(s)}</button>`).join('')}
+          </div>` : ''}
+      </div>`;
+  }).join('');
+
+  $$('[data-y-namuna]').forEach((b) => b.onclick = () => {
+    $('#y-matn').value = b.dataset.yNamuna; yordamchiYubor();
+  });
+  $$('[data-y-tasdiq]').forEach((b) => b.onclick = () => rejaniTasdiqla(b.dataset.yTasdiq, b));
+  $$('[data-y-bekor]').forEach((b) => b.onclick = () => {
+    const x = yordamchiSuhbat.find((y) => y.reja?.token === b.dataset.yBekor);
+    if (x) { x.reja = null; x.bekor = true; }
+    yordamchiChiz();
+  });
+  el.scrollIntoView({ block: 'end' });
+}
+
+/** Taklif kartasi — nima o'zgarishini ANIQ ko'rsatadi. */
+function rejaHtml(r) {
+  return `
+    <div class="y-reja ${r.qaytarib_bolmaydi ? 'xavf' : ''}">
+      <div class="y-reja-bosh">
+        ${r.qaytarib_bolmaydi ? '⚠️ Qaytarib bo‘lmaydi' : 'Tasdiq kerak'}
+      </div>
+      <p style="margin:6px 0 0"><b>${esc(r.izoh || r.tavsif)}</b></p>
+      <p class="mayda" style="margin:6px 0 0">
+        Amal: <code>${esc(r.vosita)}</code> · ${r.soni} ta yozuv</p>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="tug ${r.qaytarib_bolmaydi ? 'xavf' : 'asos'}"
+          data-y-tasdiq="${esc(r.token)}" style="flex:1">Tasdiqlash</button>
+        <button class="tug" data-y-bekor="${esc(r.token)}">Bekor</button>
+      </div>
+    </div>`;
+}
+
+/** Oddiy matn belgilarini HTML ga: **qalin**, "• " ro'yxat. */
+function matnHtml(matn) {
+  return String(matn || '').split('\n').map((q) => {
+    const s = esc(q.trim());
+    if (!s) return '';
+    const qalin = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    if (/^[•·-]\s/.test(s)) return `<div class="y-band">${qalin.replace(/^[•·-]\s/, '')}</div>`;
+    if (/^\d+\.\s/.test(s)) return `<div class="y-band">${qalin}</div>`;
+    if (/^##\s/.test(s)) return `<h4 style="margin:10px 0 4px">${qalin.replace(/^##\s/, '')}</h4>`;
+    return `<p style="margin:6px 0 0">${qalin}</p>`;
+  }).join('');
+}
+
+async function yordamchiYubor() {
+  if (yordamchiBand) return;
+  const m = $('#y-matn');
+  const savol = (m?.value || '').trim();
+  if (savol.length < 2) return;
+
+  yordamchiBand = true;
+  m.value = ''; m.style.height = '44px';
+  // Tarixga faqat matn ketadi — qadamlar va rejalar modelga kerak emas
+  const tarix = yordamchiSuhbat.filter((x) => x.matn)
+    .map((x) => ({ kim: x.kim === 'admin' ? 'admin' : 'ai', matn: x.matn }));
+  yordamchiSuhbat.push({ kim: 'admin', matn: savol });
+  yordamchiSuhbat.push({ kim: 'kutish' });
+  yordamchiChiz();
+
+  try {
+    const j = await api('/api/admin/agent', { method: 'POST',
+      body: JSON.stringify({ savol, tarix }) });
+    yordamchiSuhbat.pop();
+    yordamchiSuhbat.push({ kim: 'ai', matn: j.javob, qadamlar: j.qadamlar,
+      reja: j.reja || null, takliflar: j.takliflar || [] });
+  } catch (e) {
+    yordamchiSuhbat.pop();
+    yordamchiSuhbat.push({ kim: 'ai', matn: e.message });
+  } finally {
+    yordamchiBand = false;
+    yordamchiChiz();
+  }
+}
+
+async function rejaniTasdiqla(token, tugma) {
+  tugma.disabled = true; tugma.textContent = 'Bajarilmoqda…';
+  try {
+    const j = await api('/api/admin/agent-tasdiq', { method: 'POST',
+      body: JSON.stringify({ token }) });
+    const x = yordamchiSuhbat.find((y) => y.reja?.token === token);
+    if (x) {
+      x.reja = null;
+      x.matn = (x.matn || '') + '\n\n✅ Bajarildi: '
+        + Object.entries(j.natija || {})
+            .filter(([, v]) => typeof v === 'number')
+            .map(([k, v]) => `${k} ${v}`).join(', ');
+    }
+    tost('Bajarildi');
+    yordamchiChiz();
+  } catch (e) {
+    tost(e.message, 'xato');
+    tugma.disabled = false; tugma.textContent = 'Tasdiqlash';
+  }
 }
 
 // ═══════════ 11. QO'LLANMA ═══════════

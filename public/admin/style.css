@@ -388,3 +388,26 @@ a.tug.asos{color:#fff}
 .mah-rasm i{font-style:normal;font-size:24px}
 .mah-teglar{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
 .mah-teglar:empty{display:none}
+
+
+/* ───────── Admin yordamchisi (agent chati) ───────── */
+.y-xabar{margin:10px 0;padding:12px 14px;border-radius:14px;font-size:14.5px;line-height:1.55}
+.y-men{background:var(--urgu);color:#fff;margin-left:auto;max-width:85%;width:fit-content;
+  border-bottom-right-radius:5px}
+.y-ai{background:var(--panel);border:1px solid var(--chiziq);border-bottom-left-radius:5px}
+.y-band{margin:4px 0 0;padding-left:14px;position:relative}
+.y-band::before{content:'•';position:absolute;left:2px;color:var(--urgu)}
+.y-qadamlar{margin-top:10px;font-size:12.5px}
+.y-qadamlar summary{cursor:pointer;color:var(--kul)}
+.y-qadamlar .mayda{margin-top:5px;word-break:break-word}
+.y-takliflar{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.y-takliflar button{border:1px solid var(--chiziq);background:var(--fon);border-radius:99px;
+  padding:7px 12px;font-size:12.5px;cursor:pointer;color:var(--matn)}
+
+/* Taklif kartasi — bu yerda TASDIQ so'raladi */
+.y-reja{margin-top:12px;padding:13px;border-radius:12px;background:var(--fon);
+  border:1px solid var(--urgu)}
+.y-reja.xavf{border-color:var(--qizil)}
+.y-reja-bosh{font-size:12px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--urgu)}
+.y-reja.xavf .y-reja-bosh{color:var(--qizil)}

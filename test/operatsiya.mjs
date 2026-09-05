@@ -1910,5 +1910,143 @@ console.log('\n── KO‘RINISH (KUNDUZGI/TUNGI) ──');
   }
 }
 
+// ═══════════ ADMIN YORDAMCHISI (AGENT) ═══════════
+// Do'kon haqidagi savolga javob beradi va topshiriqni bosqichma-
+// bosqich bajaradi. Eng muhimi: bazani O'ZGARTIRADIGAN amal
+// TASDIQSIZ bajarilmaydi — bitta noto'g'ri tushunilgan jumla
+// katalogni yo'q qilib qo'ymasin.
+console.log('\n── ADMIN YORDAMCHISI ──');
+{
+  const { rejalarniTozala, rejaSoni } = await import('../src/services/admin-agent.js');
+  const V = await import('../src/services/admin-vositalar.js');
+  rejalarniTozala();
+
+  // ── Vositalarning o'zi ── (agentsiz, to'g'ridan-to'g'ri)
+  const mh = await V.vositaniBajar('mahsulotlar', { chegara: 5 });
+  test('mahsulotlar vositasi ishlaydi', mh.jami > 0 && mh.mahsulotlar.length <= 5,
+    `jami ${mh.jami}, ko‘rsatilgan ${mh.korsatilgan}`);
+  const qid = await V.vositaniBajar('mahsulotlar', { qidiruv: 'Heartleaf' });
+  test('qidiruv ishlaydi', qid.mahsulotlar.some((p) => /Heartleaf/i.test(p.name)),
+    `${qid.jami} ta`);
+
+  const st = await V.vositaniBajar('statistika', { kun: 90 });
+  test('statistika keladi', typeof st.umumiy?.buyurtma === 'number',
+    JSON.stringify(st.umumiy).slice(0, 90));
+  const bz = await V.vositaniBajar('buyurtmalar', { chegara: 5 });
+  test('buyurtmalar keladi', Array.isArray(bz.buyurtmalar), `${bz.jami} ta`);
+  const mj = await V.vositaniBajar('mijozlar', { chegara: 5 });
+  test('mijozlar keladi', Array.isArray(mj.mijozlar), `${mj.jami} ta`);
+
+  let yoq = '';
+  try { await V.vositaniBajar('rm_rf', {}); } catch (e) { yoq = e.message; }
+  test('NOMA’LUM vosita rad etiladi', /Noma'lum vosita/.test(yoq), yoq);
+
+  // ── TAKRORLARNI TOPISH ──
+  await sorov(`insert into products (name, brand, price, cost_price, stock, is_active)
+    values ('Takror Sinov Krem','TESTBRAND',50000,20000,5,true),
+           ('takror   sinov krem','testbrand',52000,21000,3,true),
+           ('Takror Sinov Krem!','TESTBRAND',51000,20500,0,true)`);
+  const tk = await V.vositaniBajar('takrorlar', {});
+  const guruh = tk.guruhlar.find((g) => /takror sinov krem/.test(g.kalit));
+  test('TAKRORLAR topildi', Boolean(guruh), `${tk.guruh_soni} guruh`);
+  test('guruhda 3 ta yozuv bor', guruh && guruh.ortiqcha.length === 2,
+    `${guruh?.ortiqcha.length} ta ortiqcha`);
+  // Qaysi biri qolishi MODELGA emas, qoidaga bog'liq: ombori ko'pi
+  test('ombori ko‘pi qoladi', guruh?.qoladi?.stock === 5, String(guruh?.qoladi?.stock));
+
+  // ── AGENT: O'QISH erkin bajariladi ──
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'Avval ro‘yxatni olaman', amal: 'vosita', vosita: 'mahsulotlar',
+      argumentlar_json: '{"chegara":5}', javob: '', reja_izoh: '', takliflar: [] },
+    { fikr: 'Yetarli', amal: 'javob', vosita: '', argumentlar_json: '{}',
+      javob: 'Do‘konda mahsulotlar bor.', reja_izoh: '',
+      takliflar: ['Nechta tugagan?'] },
+  ];
+  const a1 = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'Qanday mahsulotlar bor?' });
+  test('agent javob berdi', a1.kod === 200 && a1.tana.javob.length > 5,
+    `${a1.kod} ${a1.tana.javob?.slice(0, 50)}`);
+  test('o‘qish vositasi BAJARILDI', a1.tana.qadamlar?.[0]?.vosita === 'mahsulotlar',
+    JSON.stringify(a1.tana.qadamlar));
+  test('natija qisqartirib ko‘rsatiladi', /jami/.test(a1.tana.qadamlar?.[0]?.qisqa || ''),
+    a1.tana.qadamlar?.[0]?.qisqa);
+  test('tasdiq so‘ralmadi', !a1.tana.reja);
+  test('takliflar keldi', (a1.tana.takliflar || []).length > 0);
+
+  // ── AGENT: YOZISH tasdiqsiz BAJARILMAYDI ──
+  // Haqiqiy oqim: agent avval takrorlarni topadi, keyin O'SHA
+  // guruhdagi ortiqchalarni yopishni taklif qiladi.
+  const yopiladigan = guruh.ortiqcha.map((p) => p.id);
+  test('yopiladigan ikkita nusxa aniqlandi', yopiladigan.length === 2,
+    `${yopiladigan.length} ta`);
+
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'Takrorlarni ko‘raman', amal: 'vosita', vosita: 'takrorlar',
+      argumentlar_json: '{}', javob: '', reja_izoh: '', takliflar: [] },
+    { fikr: 'Ortiqchalarini yopaman', amal: 'vosita', vosita: 'mahsulot_yop',
+      argumentlar_json: JSON.stringify({ idlar: yopiladigan }),
+      javob: 'Ikkita takror topildi.',
+      reja_izoh: '2 ta mahsulot sotuvdan olinadi.', takliflar: [] },
+  ];
+  const a2 = await chaqirAdmin('/api/admin/agent', 'POST',
+    { savol: 'Bir xil tovarlarni olib tashla' });
+  test('YOZISH uchun REJA qaytdi', Boolean(a2.tana.reja), JSON.stringify(a2.tana).slice(0, 120));
+  test('rejada vosita nomi bor', a2.tana.reja?.vosita === 'mahsulot_yop', a2.tana.reja?.vosita);
+  test('nechta yozuvga tegishi aytiladi', a2.tana.reja?.soni === 2, String(a2.tana.reja?.soni));
+  test('reja izohi bor', (a2.tana.reja?.izoh || '').length > 5, a2.tana.reja?.izoh);
+  test('tasdiq tokeni berildi', (a2.tana.reja?.token || '').length > 10);
+
+  // ENG MUHIMI: hali HECH NARSA o'zgarmagan
+  const faolOldin = await qiymat(
+    `select count(*)::int from products where is_active and id = any($1)`, [yopiladigan]);
+  test('TASDIQGACHA BAZA O‘ZGARMAYDI', faolOldin === 2, `${faolOldin} ta faol`);
+
+  // ── TASDIQ ──
+  const t1 = await chaqirAdmin('/api/admin/agent-tasdiq', 'POST',
+    { token: a2.tana.reja.token });
+  test('tasdiqlangach bajarildi', t1.kod === 200 && t1.tana.natija?.ozgardi === 2,
+    JSON.stringify(t1.tana).slice(0, 100));
+  const faolKeyin = await qiymat(
+    `select count(*)::int from products where is_active and id = any($1)`, [yopiladigan]);
+  test('ikkalasi ham sotuvdan olindi', faolKeyin === 0, `${faolKeyin} ta faol qoldi`);
+  const qoldi = await qiymat(
+    `select is_active from products where id = $1`, [guruh.qoladi.id]);
+  test('QOLADIGANI tegilmadi', qoldi === true, String(qoldi));
+
+  // Token BIR MARTALIK — takroriy so'rov ishlamaydi
+  const t2 = await chaqirAdmin('/api/admin/agent-tasdiq', 'POST',
+    { token: a2.tana.reja.token });
+  test('token qayta ishlatilmaydi', t2.kod === 400, `${t2.kod} ${t2.tana.error}`);
+  const soxta = await chaqirAdmin('/api/admin/agent-tasdiq', 'POST', { token: 'oydirma' });
+  test('o‘ydirma token rad etiladi', soxta.kod === 400);
+
+  // ── Aylana cheksiz bo'lmasin ──
+  globalThis.AGENT_QADAMLAR = Array.from({ length: 20 }, () => (
+    { fikr: 'yana', amal: 'vosita', vosita: 'mahsulotlar',
+      argumentlar_json: '{"chegara":1}', javob: '', reja_izoh: '', takliflar: [] }));
+  const a3 = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'Cheksiz aylana' });
+  test('QADAM SONI cheklangan', (a3.tana.qadamlar || []).length <= 6,
+    `${a3.tana.qadamlar?.length} qadam`);
+  test('cheklovda ham tushunarli javob', /bo‘laklarga/.test(a3.tana.javob || ''),
+    a3.tana.javob?.slice(0, 60));
+
+  // Model yo'q vositani tanlasa yiqilmaydi
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'x', amal: 'vosita', vosita: 'yoq_vosita', argumentlar_json: '{}',
+      javob: '', reja_izoh: '', takliflar: [] },
+    { fikr: 'x', amal: 'javob', vosita: '', argumentlar_json: '{}',
+      javob: 'Tushunmadim, aniqroq yozing.', reja_izoh: '', takliflar: [] },
+  ];
+  const a4 = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'noaniq' });
+  test('yo‘q vosita tanlansa ham yiqilmaydi', a4.kod === 200, String(a4.kod));
+
+  const bosh = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'a' });
+  test('bo‘sh savol rad etiladi', bosh.kod === 400);
+
+  globalThis.AGENT_QADAMLAR = [];
+  await sorov(`delete from products where name ilike 'Takror Sinov%' or name ilike 'takror%'`);
+  rejalarniTozala();
+  test('rejalar tozalandi', rejaSoni() === 0);
+}
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

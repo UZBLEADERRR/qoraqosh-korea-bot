@@ -27,6 +27,7 @@ import { rasmChizaOlamizmi, svgdanPng } from '../rasm/chiz.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
 import { brendNomi } from '../lib/brend.js';
 import { navbatHolati } from '../ai/navbat.js';
+import { agentJavobi, rejaniBajar } from '../services/admin-agent.js';
 import { modelHolatlari, royxat as modelRoyxati, rasmModeli, standartmi,
   standartRoyxat, saqla as modellarniSaqla, modellarniTaminla } from '../ai/modellar.js';
 import { googleJson } from '../ai/google.js';
@@ -92,6 +93,40 @@ export async function adminRoutes(req, res, yol) {
 
   // ================= TIZIM HOLATI =================
   // Nimadir ishlamay qolsa, sabab shu yerda ko'rinadi.
+
+
+  // ---------- ADMIN YORDAMCHISI ----------
+  // Do'kon haqidagi savolga javob beradi va topshiriqni bosqichma-
+  // bosqich bajaradi. Bazaga o'zi SQL yozmaydi — faqat belgilangan
+  // vositalardan foydalanadi, YOZISH esa tasdiqsiz bajarilmaydi.
+  if (yol === '/api/admin/agent' && req.method === 'POST') {
+    const b = await tana(req);
+    const savol = String(b.savol || '').trim().slice(0, 500);
+    if (savol.length < 2) return xato(res, 400, 'Savolingizni yozing.');
+    if (!aiBormi()) return xato(res, 400, 'AI kaliti sozlanmagan.');
+
+    const tarix = (Array.isArray(b.tarix) ? b.tarix : []).slice(-6).map((x) => ({
+      kim: x?.kim === 'ai' ? 'ai' : 'admin',
+      matn: String(x?.matn || '').slice(0, 400),
+    })).filter((x) => x.matn);
+
+    try {
+      return ok(res, await agentJavobi(savol, tarix));
+    } catch (e) {
+      const x = xatoniTushuntir(e);
+      console.error('ADMIN AGENT:', x.log);
+      return xato(res, 502, x.matn);
+    }
+  }
+
+  // Taklif qilingan o'zgarishni bajarish. Token bir martalik.
+  if (yol === '/api/admin/agent-tasdiq' && req.method === 'POST') {
+    const b = await tana(req);
+    const r = await rejaniBajar(b.token);
+    if (!r.ok) return xato(res, 400, r.xabar);
+    katalogYangilandi();
+    return ok(res, r);
+  }
 
   // ---------- AI MODELLARI ----------
   // Admin o'zi tanlaydi: Railway'ga kirmasdan, telefondan ham.
