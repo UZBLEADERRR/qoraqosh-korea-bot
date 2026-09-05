@@ -58,11 +58,19 @@ const OCHILADI = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/gif']);
  */
 export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime, tahlil, mahsulotlar }) {
   const mos = OCHILADI.has(String(mime || '').toLowerCase());
-  const [brend, logo, tavsiyalar, mavzu] = await Promise.all([
+  const [brend, logo, tavsiyalar, mavzu, mavzuErkak] = await Promise.all([
     brendNomi(), brendLogosi(),
     tavsiyaRasmlari(tavsiyaRoyxati(tahlil, mahsulotlar)),
     sozlama('mavzu', {}),
+    sozlama('mavzu_erkak', {}),
   ]);
+
+  // Erkaklar uchun alohida rang — kartochka pushti-qizil bo'lsa
+  // erkak mijoz uni «o'ziniki emas» deb his qiladi. Sozlanmagan
+  // bo'lsa umumiy mavzu ishlatiladi, ya'ni hech nima o'zgarmaydi.
+  const asos = (mavzu && typeof mavzu === 'object') ? mavzu : {};
+  const erkak = (mavzuErkak && typeof mavzuErkak === 'object') ? mavzuErkak : {};
+  const tanlanganMavzu = (tahlil?.jins === 'erkak' && erkak.asosiy) ? erkak : asos;
 
   const svg = natijaSvg({
     rasmBase64: mos ? rasmBase64 : null,
@@ -72,7 +80,7 @@ export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime,
     brend,
     logoBase64: logo && OCHILADI.has(logo.mime) ? logo.base64 : null,
     logoMime: logo?.mime || 'image/png',
-    mavzu: (mavzu && typeof mavzu === 'object') ? mavzu : {},
+    mavzu: tanlanganMavzu,
   });
 
   let bayt;

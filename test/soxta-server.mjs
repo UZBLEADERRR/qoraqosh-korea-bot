@@ -34,7 +34,8 @@ function png(w = 400, h = 400) {
 
 const TAHLIL = {
   sifat: { yaroqli: true, sabab: 'yaroqli', ishonch: 92, izoh: '' },
-  umumiy: { taxminiy_yosh: '22–26', teri_rangi: "och bug'doyrang, iliq ton",
+  umumiy: { taxminiy_yosh: '22–26', jins: 'erkak',
+            teri_rangi: "och bug'doyrang, iliq ton",
             teri_turi: 'aralash', ball: 64, xulosa: 'Teri umuman sog‘lom.' },
   muammolar: [
     { kalit:'teshik', nom:'Kengaygan teshiklar', foiz:71, zona:'Burun qanotlari va peshona',

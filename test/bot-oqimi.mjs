@@ -342,6 +342,80 @@ test('limit tugaganda ogohlantiradi', /limit tugadi/i.test(oxirgi().text || ''))
 test('limit xabarida do‘kon tugmasi bor',
   (oxirgi().reply_markup?.inline_keyboard || []).flat().some((b) => /Do‘kon|Dokon/i.test(b.text)));
 
+// ═══════════ JINS VA ERKAKLAR RANGI ═══════════
+// Erkak terisi qalinroq, yog' ko'proq ishlab chiqadi va soqol olish
+// qirilishi ayollarda umuman uchramaydi. Buni bilmasdan berilgan
+// tavsiya erkaklar uchun deyarli har doim noto'g'ri chiqadi.
+console.log('\n── JINS ──');
+{
+  await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
+  yuborilgan.length = 0;
+  await rasmYubor();
+
+  const a = await qator(
+    `select jins, age_estimate from analyses
+      where user_id = (select id from users where telegram_id = $1)
+      order by created_at desc limit 1`, [TG]);
+  test('jins bazaga yozildi', a?.jins === 'erkak', a?.jins);
+
+  // Kartochkada jins yorliq bo'lib chiqadi
+  const { natijaSvg } = await import('../src/rasm/natija-kartochka.js');
+  const svg = natijaSvg({ tahlil: { ball: 70, jins: 'erkak', taxminiy_yosh: '24-28',
+    teri_turi: 'aralash', muammolar: [] } });
+  test('kartochkada «erkak» yorlig‘i bor', /erkak/.test(svg), '');
+  const ayolSvg = natijaSvg({ tahlil: { ball: 70, jins: 'ayol', taxminiy_yosh: '24-28',
+    teri_turi: 'aralash', muammolar: [] } });
+  test('«ayol» ham chiqadi', /ayol/.test(ayolSvg));
+  // Noma'lum bo'lsa yorliq UMUMAN chiqmaydi — «noma'lum jins» degan
+  // yozuv odamga hech nima bermaydi
+  const nomalum = natijaSvg({ tahlil: { ball: 70, jins: 'nomalum', taxminiy_yosh: '24-28',
+    teri_turi: 'aralash', muammolar: [] } });
+  test('noma’lum jins yorlig‘i chiqmaydi', !/nomalum|noma’lum/.test(nomalum));
+
+  // ── Erkaklar uchun boshqa rang ──
+  const { natijaRasminiYarat } = await import('../src/services/natija-rasm.js');
+  await sorov(`insert into settings (key, value) values
+      ('mavzu', '{"asosiy":"#E0242B","fon":"#F6F6F7","urgu":"#E0242B"}'::jsonb)
+    on conflict (key) do update set value = excluded.value`);
+  await sorov(`insert into settings (key, value) values
+      ('mavzu_erkak', '{"asosiy":"#123A63","fon":"#E7F0F7","urgu":"#1D6FA5"}'::jsonb)
+    on conflict (key) do update set value = excluded.value`);
+
+  // Faqat RANG ta'sirini ajratamiz: jins bir xil (erkak) qoladi,
+  // sozlama esa o'zgaradi. Aks holda jins yorlig'i baytlarni baribir
+  // farqlantirib, sinov hech nima isbotlamasdi.
+  const u = await qator(`select id from users where telegram_id = $1`, [TG]);
+  const chiz = () => natijaRasminiYarat({ analysisId: null, userId: u.id,
+    rasmBase64: null, mime: 'image/jpeg',
+    tahlil: { ball: 70, jins: 'erkak', muammolar: [], tavsiya: [] }, mahsulotlar: [] });
+
+  const kokBilan = await chiz();
+  await sorov(`delete from settings where key = 'mavzu_erkak'`);
+  const kokSiz = await chiz();
+  test('ERKAKLAR RANGI kartochkani o‘zgartiradi',
+    kokBilan && kokSiz && !kokBilan.bayt.equals(kokSiz.bayt),
+    `${kokBilan?.bayt.length} vs ${kokSiz?.bayt.length} bayt`);
+
+  // O'chirilgach umumiy mavzuga qaytadi — takroriy chizish bir xil
+  const kokSiz2 = await chiz();
+  test('o‘chirilgach umumiy mavzu barqaror',
+    kokSiz2 && kokSiz2.bayt.equals(kokSiz.bayt));
+
+  // Ayol kartochkasi rangi hech qachon erkaknikiga o'tmaydi
+  await sorov(`insert into settings (key, value) values
+      ('mavzu_erkak', '{"asosiy":"#123A63","fon":"#E7F0F7","urgu":"#1D6FA5"}'::jsonb)
+    on conflict (key) do update set value = excluded.value`);
+  const ayol1 = await natijaRasminiYarat({ analysisId: null, userId: u.id,
+    rasmBase64: null, mime: 'image/jpeg',
+    tahlil: { ball: 70, jins: 'ayol', muammolar: [], tavsiya: [] }, mahsulotlar: [] });
+  await sorov(`delete from settings where key = 'mavzu_erkak'`);
+  const ayol2 = await natijaRasminiYarat({ analysisId: null, userId: u.id,
+    rasmBase64: null, mime: 'image/jpeg',
+    tahlil: { ball: 70, jins: 'ayol', muammolar: [], tavsiya: [] }, mahsulotlar: [] });
+  test('AYOL kartochkasiga erkaklar rangi TEGMAYDI',
+    ayol1 && ayol2 && ayol1.bayt.equals(ayol2.bayt));
+}
+
 // ═══════════ NATIJA RASMI ═══════════
 console.log('\n── NATIJA RASMI ──');
 await sorov(`update settings set value = '9'::jsonb where key = 'limit_bepul'`);

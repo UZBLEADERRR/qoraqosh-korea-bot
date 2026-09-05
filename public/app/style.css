@@ -17,7 +17,7 @@
   --serif:"Instrument Serif","Times New Roman",Georgia,serif;
   --sans:Manrope,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
 }
-@media (prefers-color-scheme:dark){:root{
+@media (prefers-color-scheme:dark){:root:not([data-mavzu="kunduzgi"]){
   --fon:#0f0f11; --panel:#1a1a1d; --matn:#f2f2f4; --kul:#a0a0a8; --och:#77777f;
   --chiziq:#28282c; --chiziq-och:#202024;
   --urgu:#ef5057; --urgu-och:#2a1618; --urgu-tim:#f5878c;
@@ -26,6 +26,16 @@
   --kok:#6b9df0; --kok-och:#141d2b;
   --sh:0 1px 2px rgba(0,0,0,.25);
 }}
+:root[data-mavzu="tungi"]{
+  --fon:#0f0f11; --panel:#1a1a1d; --matn:#f2f2f4; --kul:#a0a0a8; --och:#77777f;
+  --chiziq:#28282c; --chiziq-och:#202024;
+  --urgu:#ef5057; --urgu-och:#2a1618; --urgu-tim:#f5878c;
+  --yashil:#5cbb8b; --yashil-och:#132420; --qizil:#ef5057; --qizil-och:#2a1618;
+  --sariq:#d9ab4a; --sariq-och:#251f12;
+  --kok:#6b9df0; --kok-och:#141d2b;
+  --sh:0 1px 2px rgba(0,0,0,.25);
+}
+
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 /* Chizma ikon: rangni matndan oladi, o'lchamda sakramaydi */
@@ -719,14 +729,23 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 .toifalar .t-toplam  {background:#e9f2f5;color:#2b6d80}
 .toifalar .t-ichimlik{background:#eef6e4;color:#557a24}
 .toifalar .t-hammasi {background:var(--urgu-och);color:var(--urgu)}
-@media (prefers-color-scheme:dark){
-  .toifalar .doira{background:var(--chiziq);color:var(--kul)}
-  .toifalar .t-tozalash,.toifalar .t-toner,.toifalar .t-serum,.toifalar .t-krem,
-  .toifalar .t-quyosh,.toifalar .t-niqob,.toifalar .t-lab,.toifalar .t-toplam,
-  .toifalar .t-ichimlik{background:var(--chiziq)}
-  .toifalar .t-hammasi{background:var(--urgu-och);color:var(--urgu)}
+@media (prefers-color-scheme:dark){html:not([data-mavzu="kunduzgi"]) .toifalar .doira{background:var(--chiziq);color:var(--kul)}
+html:not([data-mavzu="kunduzgi"]) .toifalar .t-tozalash,html:not([data-mavzu="kunduzgi"]) .toifalar .t-toner,html:not([data-mavzu="kunduzgi"]) .toifalar .t-serum,html:not([data-mavzu="kunduzgi"]) .toifalar .t-krem,html:not([data-mavzu="kunduzgi"]) .toifalar .t-quyosh,html:not([data-mavzu="kunduzgi"]) .toifalar .t-niqob,html:not([data-mavzu="kunduzgi"]) .toifalar .t-lab,html:not([data-mavzu="kunduzgi"]) .toifalar .t-toplam,html:not([data-mavzu="kunduzgi"]) .toifalar .t-ichimlik{background:var(--chiziq)}
+html:not([data-mavzu="kunduzgi"]) .toifalar .t-hammasi{background:var(--urgu-och);color:var(--urgu)}
 }
+html[data-mavzu="tungi"] .toifalar .doira{background:var(--chiziq);color:var(--kul)}
+html[data-mavzu="tungi"] .toifalar .t-tozalash,html[data-mavzu="tungi"] .toifalar .t-toner,html[data-mavzu="tungi"] .toifalar .t-serum,html[data-mavzu="tungi"] .toifalar .t-krem,html[data-mavzu="tungi"] .toifalar .t-quyosh,html[data-mavzu="tungi"] .toifalar .t-niqob,html[data-mavzu="tungi"] .toifalar .t-lab,html[data-mavzu="tungi"] .toifalar .t-toplam,html[data-mavzu="tungi"] .toifalar .t-ichimlik{background:var(--chiziq)}
+html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:var(--urgu)}
 
+
+
+/* Ko'rinish tanlovi (kunduzgi / tungi) — profil bo'limida */
+.korinish-tanlov{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.korinish-tanlov button{display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:14px 6px;border:1px solid var(--chiziq);border-radius:var(--r);
+  background:var(--panel);color:var(--kul);font-size:13px;font-weight:600;cursor:pointer}
+.korinish-tanlov button.tanlangan{border-color:var(--urgu);color:var(--urgu);
+  background:var(--urgu-och)}
 /* ---------- Bo'lim sarlavhasi ---------- */
 .bolim-satr{display:flex;align-items:baseline;justify-content:space-between;
   padding:22px 16px 12px;gap:12px}
@@ -960,7 +979,9 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
   z-index:2;box-shadow:0 1px 4px rgba(0,0,0,.1)}
 .yurak.faol{color:var(--urgu)}
 .yurak.faol svg path{fill:currentColor}
-@media (prefers-color-scheme:dark){.yurak{background:rgba(30,30,34,.9)}}
+@media (prefers-color-scheme:dark){html:not([data-mavzu="kunduzgi"]) .yurak{background:rgba(30,30,34,.9)}}
+html[data-mavzu="tungi"] .yurak{background:rgba(30,30,34,.9)}
+
 
 /* Pastki qator: moslik yorlig'i va «+» */
 .mpast{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px}
@@ -1003,7 +1024,9 @@ body.yozilmoqda .yozish{bottom:env(safe-area-inset-bottom)}
 .skan-belgilar .b-sariq{background:var(--sariq-och);color:var(--sariq)}
 .skan-belgilar .b-yashil{background:var(--yashil-och);color:var(--yashil)}
 .skan-belgilar .b-binafsha{background:#f2ecfb;color:#6b46c1}
-@media (prefers-color-scheme:dark){.skan-belgilar .b-binafsha{background:#1d1729;color:#a98ae0}}
+@media (prefers-color-scheme:dark){html:not([data-mavzu="kunduzgi"]) .skan-belgilar .b-binafsha{background:#1d1729;color:#a98ae0}}
+html[data-mavzu="tungi"] .skan-belgilar .b-binafsha{background:#1d1729;color:#a98ae0}
+
 
 /* ============================================================
    SAVAT — namunadagidek

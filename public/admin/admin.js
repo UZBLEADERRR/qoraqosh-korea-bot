@@ -2437,6 +2437,8 @@ async function sozlamalar() {
     const j = await api('/api/admin/settings');
     const st = j.settings;
     holat.kesh.mavzu = { ...(st.mavzu || {}) };
+    holat.kesh.mavzuErkak = st.mavzu_erkak && typeof st.mavzu_erkak === 'object'
+      ? { ...st.mavzu_erkak } : null;
     holat.kesh.mavzuToplamlar = j.mavzu_toplamlar || [];
     const matn = (k, z = '') => String(st[k] ?? z).replace(/^"|"$/g, '');
     holat.kesh.pogonalar = Array.isArray(st.chegirma_pogonalari) ? [...st.chegirma_pogonalari] : [];
@@ -2557,6 +2559,38 @@ async function sozlamalar() {
         <div id="mavzu-holat"></div>
         <button class="tug asos keng" id="t-mavzu-saqla" style="margin-top:10px">
           Mavzuni saqlash</button>
+
+        <!-- Erkaklar uchun alohida rang. Pushti-qizil kartochka erkak
+             mijozga «o'ziniki emas» bo'lib tuyuladi. -->
+        <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--chiziq)">
+          <label style="display:flex;align-items:center;gap:9px;cursor:pointer">
+            <input type="checkbox" id="s-mv-erkak-yoq" style="width:auto;margin:0">
+            <span><b>Erkaklar uchun boshqa rang</b></span>
+          </label>
+          <p class="mayda" style="margin:6px 0 0">Skaner erkakni aniqlasa
+            tahlil rasmi shu rangda chiziladi. O‘chirilgan bo‘lsa hamma
+            uchun yuqoridagi mavzu ishlatiladi.</p>
+          <div id="mavzu-erkak-quti" hidden style="margin-top:12px">
+            <div class="forma-tor">
+              <div><label>Sarlavha</label>
+                <div class="rang-tanlov">
+                  <input type="color" id="s-mve-asosiy">
+                  <input type="text" id="s-mve-asosiy-hex" spellcheck="false" maxlength="7">
+                </div></div>
+              <div><label>Fon</label>
+                <div class="rang-tanlov">
+                  <input type="color" id="s-mve-fon">
+                  <input type="text" id="s-mve-fon-hex" spellcheck="false" maxlength="7">
+                </div></div>
+              <div><label>Urg‘u</label>
+                <div class="rang-tanlov">
+                  <input type="color" id="s-mve-urgu">
+                  <input type="text" id="s-mve-urgu-hex" spellcheck="false" maxlength="7">
+                </div></div>
+            </div>
+            <div id="mavzu-erkak-namuna" style="margin-top:10px"></div>
+          </div>
+        </div>
       </div>
 
       <div class="karta tor">
@@ -2889,8 +2923,47 @@ function mavzuniUla() {
     });
   }
 
+  // ── Erkaklar mavzusi ──
+  const E = holat.kesh.mavzuErkak;
+  const yoq = $('#s-mv-erkak-yoq');
+  const quti = $('#mavzu-erkak-quti');
+  if (yoq && quti) {
+    const STANDART_E = { asosiy: '#123A63', fon: '#E7F0F7', urgu: '#1D6FA5' };
+    for (const kalit of ['asosiy', 'fon', 'urgu']) {
+      const rang = $('#s-mve-' + kalit);
+      const hex  = $('#s-mve-' + kalit + '-hex');
+      if (!rang || !hex) continue;
+      const q = (E && E[kalit]) || STANDART_E[kalit];
+      rang.value = q; hex.value = q;
+      rang.oninput = () => { hex.value = rang.value; erkakNamuna(); };
+      hex.oninput = () => {
+        const v = hex.value.trim();
+        if (/^#?[0-9a-fA-F]{6}$/.test(v)) { rang.value = v.startsWith('#') ? v : '#' + v; erkakNamuna(); }
+      };
+    }
+    yoq.checked = Boolean(E);
+    quti.hidden = !E;
+    yoq.onchange = () => { quti.hidden = !yoq.checked; erkakNamuna(); };
+    erkakNamuna();
+  }
+
   $('#t-mavzu-saqla').onclick = mavzuniSaqla;
   mavzuOzgardi();
+}
+
+/** Erkaklar rangi qanday ko'rinishini bir qatorda ko'rsatamiz. */
+function erkakNamuna() {
+  const el = $('#mavzu-erkak-namuna'); if (!el) return;
+  const a = $('#s-mve-asosiy')?.value, f = $('#s-mve-fon')?.value, u = $('#s-mve-urgu')?.value;
+  if (!a) return;
+  el.innerHTML = `
+    <div style="border-radius:12px;overflow:hidden;border:1px solid var(--chiziq)">
+      <div style="background:${a};color:${kontrastMatn(a)};padding:12px 14px;font-size:13px">
+        <b>Teri holati</b> · 24–28 yosh · erkak</div>
+      <div style="background:${f};padding:10px 14px">
+        <span style="display:inline-block;height:8px;width:60%;border-radius:9px;background:${u}"></span>
+      </div>
+    </div>`;
 }
 
 /** Jonli ko'rinish — tahlil rasmining kichraytirilgan taqlidi. */
@@ -2949,6 +3022,18 @@ async function mavzuniSaqla() {
       urgu:   $('#s-mv-urgu').value,
     })});
     holat.kesh.mavzu = j.palitra;
+
+    // Erkaklar mavzusi alohida saqlanadi (yoki o'chiriladi)
+    const yoq = $('#s-mv-erkak-yoq');
+    if (yoq) {
+      const e = await api('/api/admin/mavzu', { method: 'POST', body: JSON.stringify(
+        yoq.checked
+          ? { kalit: 'erkak', asosiy: $('#s-mve-asosiy').value,
+              fon: $('#s-mve-fon').value, urgu: $('#s-mve-urgu').value }
+          : { kalit: 'erkak', ochir: true })});
+      holat.kesh.mavzuErkak = e.mavzu || null;
+    }
+
     $('#mavzu-holat').innerHTML =
       `<div class="xabar-quti ok" style="margin:10px 0 0">✓ Saqlandi — ilovada va tahlil rasmida ko‘rinadi</div>`;
     setTimeout(() => { const h = $('#mavzu-holat'); if (h) h.innerHTML = ''; }, 4000);

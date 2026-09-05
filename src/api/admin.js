@@ -1294,17 +1294,25 @@ export async function adminRoutes(req, res, yol) {
   // bazaga tushib, ilova o'qib bo'lmaydigan holga kelmasligi kerak.
   if (yol === '/api/admin/mavzu' && req.method === 'POST') {
     const b = await tana(req);
+    // `kalit` — qaysi mavzu: umumiy yoki erkaklar uchun natija
+    // kartochkasi. Erkaklarniki bo'shatilsa umumiysi ishlatiladi.
+    const kalit = b.kalit === 'erkak' ? 'mavzu_erkak' : 'mavzu';
+    if (kalit === 'mavzu_erkak' && b.ochir) {
+      await sorov(`delete from settings where key = 'mavzu_erkak'`);
+      katalogYangilandi();
+      return ok(res, { mavzu: null, kalit });
+    }
     const toza = {
       asosiy: rangTozala(b.asosiy, MAVZU_STANDART.asosiy),
       fon:    rangTozala(b.fon,    MAVZU_STANDART.fon),
       urgu:   rangTozala(b.urgu,   b.asosiy || MAVZU_STANDART.urgu),
     };
     await sorov(
-      `insert into settings (key, value, updated_at) values ('mavzu', $1, now())
+      `insert into settings (key, value, updated_at) values ($2, $1, now())
        on conflict (key) do update set value = excluded.value, updated_at = now()`,
-      [JSON.stringify(toza)]);
+      [JSON.stringify(toza), kalit]);
     katalogYangilandi();
-    return ok(res, { mavzu: toza, palitra: palitra(toza) });
+    return ok(res, { mavzu: toza, kalit, palitra: palitra(toza) });
   }
 
   if (yol === '/api/admin/settings' && req.method === 'POST') {

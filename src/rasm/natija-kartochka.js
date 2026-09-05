@@ -107,6 +107,7 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   const muammolar = (t.muammolar || t.problems || []).slice(0, 5);
   const ball = Math.round(Number(t.ball ?? t.score ?? 0));
   const yosh = t.taxminiy_yosh || t.age_estimate || '';
+  const jins = t.jins || '';
   const teriTuri = t.teri_turi || t.skin_type || '';
   const teriRangi = t.teri_rangi || t.skin_tone || '';
 
@@ -166,7 +167,10 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
 
   // AI ba'zan «18-22 yosh» deb qaytaradi — «yosh» ikki marta yozilmasin
   const soz = (v, q) => (v && !new RegExp(q, 'i').test(v) ? `${v} ${q}` : v);
-  const yorliqlar = [soz(yosh, 'yosh'), soz(teriTuri, 'teri')].filter(Boolean);
+  // Jins TAXMIN — «nomalum» bo'lsa yorliq umuman chiqmaydi, chunki
+  // «noma'lum jins» degan yorliq odamga hech nima bermaydi.
+  const jinsYorliq = jins === 'erkak' ? 'erkak' : jins === 'ayol' ? 'ayol' : '';
+  const yorliqlar = [soz(yosh, 'yosh'), jinsYorliq, soz(teriTuri, 'teri')].filter(Boolean);
   let yx = ONG;
   for (const s of yorliqlar) {
     const ken = Math.round(s.length * 13.4) + 34;

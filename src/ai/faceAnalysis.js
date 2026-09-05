@@ -38,13 +38,14 @@ const SXEMA = {
       type: 'object',
       properties: {
         taxminiy_yosh: { type: 'string' },
+        jins:          { type: 'string', enum: ['erkak', 'ayol', 'nomalum'] },
         teri_rangi:    { type: 'string' },
         teri_turi:     { type: 'string', enum: ['quruq', 'yogli', 'aralash', 'normal', 'sezgir'] },
         ball:          { type: 'integer' },
         xulosa:        { type: 'string' },
       },
-      required: ['taxminiy_yosh', 'teri_rangi', 'teri_turi', 'ball', 'xulosa'],
-      propertyOrdering: ['taxminiy_yosh', 'teri_rangi', 'teri_turi', 'ball', 'xulosa'],
+      required: ['taxminiy_yosh', 'jins', 'teri_rangi', 'teri_turi', 'ball', 'xulosa'],
+      propertyOrdering: ['taxminiy_yosh', 'jins', 'teri_rangi', 'teri_turi', 'ball', 'xulosa'],
     },
     muammolar: {
       type: 'array',
@@ -157,6 +158,14 @@ umumiy maydonlarini bo'sh satr / 0 qilib qo'y). Taxmin qilma.
 
 QADAM 2 — faqat sifat yaroqli bo'lsa tahlil qil:
   umumiy.taxminiy_yosh — oraliq, masalan "24-28"
+  umumiy.jins          — "erkak", "ayol" yoki "nomalum".
+                         TAXMIN, aniq hukm emas. Ishonching bo'lmasa
+                         "nomalum" qo'y — noto'g'ri aytgandan ko'ra
+                         aytmagan yaxshi. Bu faqat parvarishni
+                         moslashtirish uchun: erkak terisi qalinroq,
+                         yog' ko'proq ishlab chiqadi va soqol olish
+                         qirilishi (aftershave qichishishi, ichkariga
+                         o'sgan tuk) qo'shimcha muammo bo'ladi.
   umumiy.teri_rangi    — o'zbekcha tavsif, masalan "och bug'doyrang, iliq tonli"
   umumiy.teri_turi     — bitta qiymat
   umumiy.ball          — terining umumiy holati 0-100 (100 = ideal)
@@ -165,7 +174,8 @@ QADAM 2 — faqat sifat yaroqli bo'lsa tahlil qil:
 QADAM 3 — muammolar. ENG MUHIM QOIDA:
   FAQAT rasmda O'Z KO'ZING BILAN KO'RIB TURGAN narsani yoz.
   Ko'rinmayotgan muammoni O'YLAB TOPMA. Sog'lom teriga "har kimda bo'ladi"
-  degan mulohaza bilan muammo qo'shma. Yoshi yoki jinsi bo'yicha taxmin qilma.
+  degan mulohaza bilan muammo qo'shma. «Shu yoshda odatda…» yoki
+  «erkaklarda ko'pincha…» deb MUAMMO qo'shma — faqat ko'rinayotgani.
   Ro'yxat to'ldirish uchun muammo qo'shish — QAT'IYAN MAN ETILADI.
   Teri toza bo'lsa muammolar ro'yxati bo'sh [] yoki 1 ta bo'lishi mumkin —
   bu MUTLAQO normal va to'g'ri javob. Ko'pi bilan 5 ta.
@@ -369,6 +379,7 @@ function tozala(javob, products) {
   const u = javob.umumiy || {};
   return {
     taxminiy_yosh: String(u.taxminiy_yosh || "noma'lum").slice(0, 20),
+    jins: ['erkak', 'ayol'].includes(u.jins) ? u.jins : 'nomalum',
     teri_rangi:    String(u.teri_rangi || "aniqlanmadi").slice(0, 60),
     teri_turi:     String(u.teri_turi || 'normal').slice(0, 20),
     ball:          Math.min(100, Math.max(0, Number(u.ball) || 60)),
@@ -393,7 +404,7 @@ function oflaynTahlil(products) {
     if (p) tavsiya.push({ bosqich: step, product_id: p.id, sabab });
   }
   return {
-    taxminiy_yosh: '—', teri_rangi: '—', teri_turi: 'normal', ball: 0,
+    taxminiy_yosh: '—', jins: 'nomalum', teri_rangi: '—', teri_turi: 'normal', ball: 0,
     xulosa: "AI tahlili hozir mavjud emas. Quyida barcha teri turlariga mos bazaviy parvarish ko'rsatilgan.",
     muammolar: [], prognoz: [], tavsiya,
   };

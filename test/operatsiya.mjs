@@ -1868,5 +1868,47 @@ console.log('\n── AI MODELLARI (ADMIN PANEL) ──');
   M.modellarniTozala();
 }
 
+// ═══════════ KUNDUZGI / TUNGI KO'RINISH ═══════════
+// Tungi ko'rinish faqat telefon sozlamasiga bog'liq edi — odam o'zi
+// tanlay olmasdi. Endi tanlov `data-mavzu` atributi bilan ustun
+// turadi. Bu CSS ishi, lekin himoyalar tasodifan olib tashlansa
+// tanlov jimgina ishlamay qoladi — shuning uchun tekshiramiz.
+console.log('\n── KO‘RINISH (KUNDUZGI/TUNGI) ──');
+{
+  const fs = await import('node:fs');
+  const css = fs.readFileSync('public/app/style.css', 'utf8');
+  const js  = fs.readFileSync('public/app/app.js', 'utf8');
+
+  const media = [...css.matchAll(/@media \(prefers-color-scheme:dark\)/g)].length;
+  test('tungi bloklar bor', media >= 4, `${media} ta`);
+
+  // Har bir tungi media blok «kunduzgi» tanlovidan himoyalangan
+  const himoyasiz = [...css.matchAll(/@media \(prefers-color-scheme:dark\)\{([^{]*)\{/g)]
+    .filter((m) => !m[1].includes('data-mavzu="kunduzgi"'));
+  test('HAR BIR tungi blok himoyalangan', himoyasiz.length === 0,
+    himoyasiz.map((m) => m[1].slice(0, 40)).join(' | '));
+
+  // Majburiy tungi uchun takror bloklar
+  const tungi = [...css.matchAll(/\[data-mavzu="tungi"\]/g)].length;
+  test('majburiy tungi qoidalar bor', tungi >= 4, `${tungi} ta`);
+  test('tungi tokenlar to‘liq ko‘chirilgan',
+    /:root\[data-mavzu="tungi"\][^}]*--fon:#0f0f11/.test(css));
+  test('ko‘rinish tanlovi uslubi bor', css.includes('.korinish-tanlov'));
+
+  // JS tomoni
+  test('tanlov qurilmada saqlanadi', js.includes('kiovo_korinish'));
+  test('«tizim» da atribut QO‘YILMAYDI',
+    /removeAttribute\('data-mavzu'\)/.test(js));
+  test('uchta variant bor',
+    /kalit: 'tizim'/.test(js) && /kalit: 'kunduzgi'/.test(js) && /kalit: 'tungi'/.test(js));
+  test('profilda tanlov chiziladi', js.includes("'y-korinish'"));
+
+  // Ikonlar mavjud — yo'q ikon bo'sh joy bo'lib qoladi
+  const ikon = fs.readFileSync('public/app/ikon.js', 'utf8');
+  for (const nom of ['quyosh', 'oy', 'ekran']) {
+    test(`«${nom}» ikoni bor`, new RegExp(`\\n\\s*${nom}:`).test(ikon));
+  }
+}
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

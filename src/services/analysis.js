@@ -88,12 +88,13 @@ export async function tahlilQil(user, base64, mime) {
   const a = natija.natija;
   const saqlangan = await qator(
     `insert into analyses
-       (user_id, age_estimate, skin_tone, skin_type, score, problems, forecast, routine, is_offline, raw)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       (user_id, age_estimate, jins, skin_tone, skin_type, score,
+        problems, forecast, routine, is_offline, raw)
+     values ($1,$2,$11,$3,$4,$5,$6,$7,$8,$9,$10)
      returning id`,
     [user.id, a.taxminiy_yosh, a.teri_rangi, a.teri_turi, a.ball,
      JSON.stringify(a.muammolar), JSON.stringify(a.prognoz), JSON.stringify(a.tavsiya),
-     Boolean(natija.oflayn), JSON.stringify({ xulosa: a.xulosa })],
+     Boolean(natija.oflayn), JSON.stringify({ xulosa: a.xulosa }), a.jins || 'nomalum'],
   );
 
   await hodisa(user.id, 'scan', { ball: a.ball, muammo: a.muammolar.length });

@@ -161,6 +161,44 @@ const SARALASH = {
 // Parol yo'q — u yo'qoladi, o'g'irlanadi va tiklashni talab qiladi.
 // Tasdiq esa allaqachon telefonida turgan Telegramdan keladi.
 
+// ═══════════ KO'RINISH: KUNDUZGI / TUNGI ═══════════
+// Uchta holat bor: «tizim» (telefon sozlamasiga ergashadi), «kunduzgi»
+// va «tungi». Tanlov FAQAT shu qurilmada saqlanadi — odam ishda oq,
+// uyda qora ko'rinishni afzal ko'rishi mumkin va buni serverga
+// bog'lash noqulaylik tug'diradi.
+//
+// CSS tomonda: `prefers-color-scheme` bloklari
+// `:not([data-mavzu="kunduzgi"])` bilan himoyalangan, tungi tokenlar
+// esa `[data-mavzu="tungi"]` uchun takrorlangan. Shunda tanlov
+// telefon sozlamasidan ustun turadi.
+const MAVZU_KALIT = 'kiovo_korinish';
+const MAVZULAR = [
+  { kalit: 'tizim',    nom: 'Tizim',    ik: 'ekran' },
+  { kalit: 'kunduzgi', nom: 'Kunduzgi', ik: 'quyosh' },
+  { kalit: 'tungi',    nom: 'Tungi',    ik: 'oy' },
+];
+
+const mavzuOqi = () => {
+  try { return localStorage.getItem(MAVZU_KALIT) || 'tizim'; } catch { return 'tizim'; }
+};
+
+function mavzuniQoy(kalit) {
+  const k = MAVZULAR.some((x) => x.kalit === kalit) ? kalit : 'tizim';
+  try { localStorage.setItem(MAVZU_KALIT, k); } catch {}
+  // «tizim» da atribut umuman qo'yilmaydi — shunda media so'rov ishlaydi
+  if (k === 'tizim') document.documentElement.removeAttribute('data-mavzu');
+  else document.documentElement.setAttribute('data-mavzu', k);
+  // Telegram va brauzer yuqori panelini ham moslashtiramiz
+  const fon = getComputedStyle(document.documentElement)
+    .getPropertyValue('--fon').trim();
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta && fon) meta.setAttribute('content', fon);
+}
+
+// Sahifa chizilishidan OLDIN qo'llanadi, aks holda oq ekran bir
+// lahzaga ko'rinib «miltillash» bo'ladi
+mavzuniQoy(mavzuOqi());
+
 const TOKEN_KALIT = 'kiovo_seans';
 const seansToken = () => { try { return localStorage.getItem(TOKEN_KALIT) || ''; } catch { return ''; } };
 const seansSaqla = (t) => { try { localStorage.setItem(TOKEN_KALIT, t); } catch {} };
@@ -1236,7 +1274,8 @@ async function tahlilQil() {
     }
     holat.tahlil = {
       id: j.analysisId || null,
-      age_estimate: j.tahlil.taxminiy_yosh, skin_tone: j.tahlil.teri_rangi,
+      age_estimate: j.tahlil.taxminiy_yosh, jins: j.tahlil.jins,
+      skin_tone: j.tahlil.teri_rangi,
       skin_type: j.tahlil.teri_turi, score: j.tahlil.ball,
       problems: j.tahlil.muammolar, forecast: j.tahlil.prognoz,
       routine: j.tahlil.tavsiya, raw: { xulosa: j.tahlil.xulosa }, is_offline: j.tahlil.oflayn,
@@ -1308,6 +1347,11 @@ const BOSQICH = { tozalash:'Tozalash', toner:'Toner', davolash:'Davolash',
                   namlash:'Namlash', himoya:'Quyoshdan himoya', qoshimcha:'Qo‘shimcha',
                   ichki:'Ichki qabul' };
 
+// Jins TAXMIN qilinadi. Ishonch bo'lmasa AI «nomalum» qaytaradi va
+// biz qatorni umuman ko'rsatmaymiz — «noma'lum» deb yozish odamga
+// hech nima bermaydi, faqat xato taassurot qoldiradi.
+const JINS = { erkak: 'Erkak', ayol: 'Ayol' };
+
 function natijaniChiz() {
   const t = holat.tahlil;
   const el = $('#natija-tan');
@@ -1350,6 +1394,7 @@ function natijaniChiz() {
     <div class="shkala"><i style="width:${ball}%"></i></div>
     <div style="margin-top:16px">
       ${qtr('Taxminiy yosh', esc(t.age_estimate || '—'))}
+      ${JINS[t.jins] ? qtr('Jinsi', JINS[t.jins]) : ''}
       ${qtr('Teri rangi',   esc(t.skin_tone || '—'))}
       ${qtr('Teri turi',    esc(t.skin_type || '—'))}
     </div>
@@ -2244,6 +2289,16 @@ function profilniChiz() {
     ${yigma('y-buyurtma', 'quti', 'Buyurtmalarim', String(st.buyurtma ?? 0),
       `<div id="buyurtma-tan"></div>`)}
 
+    ${yigma('y-korinish', 'quyosh', 'Ko‘rinish',
+      MAVZULAR.find((x) => x.kalit === mavzuOqi())?.nom || 'Tizim', `
+      <p class="mayda" style="margin:0 0 10px">Tungi ko‘rinish kechqurun
+        ko‘zni charchatmaydi. «Tizim» telefon sozlamasiga ergashadi.</p>
+      <div class="korinish-tanlov" id="p-korinish">
+        ${MAVZULAR.map((x) => `
+          <button data-mavzu="${x.kalit}" class="${mavzuOqi() === x.kalit ? 'tanlangan' : ''}">
+            ${ik(x.ik, 20)}<span>${esc(x.nom)}</span></button>`).join('')}
+      </div>`)}
+
     ${yigma('y-aloqa', 'suhbat', 'Aloqa va yordam', '', `
       ${tgNom ? `<a class="tanlov-tugma" href="https://t.me/${esc(tgNom)}" target="_blank">
         <span>Konsultatsiya${m.ish_vaqti ? ` · <span class="ozgina">${esc(m.ish_vaqti)}</span>` : ''}</span>
@@ -2263,6 +2318,15 @@ function profilniChiz() {
           <span class="oq">${ik('keyingi', 17)}</span></button>` : ''}`)}`;
 
   // --- Ulanishlar ---
+  $$('#p-korinish [data-mavzu]').forEach((b) => b.onclick = () => {
+    mavzuniQoy(b.dataset.mavzu);
+    $$('#p-korinish [data-mavzu]').forEach((x) => x.classList.toggle('tanlangan', x === b));
+    // Yig'ma sarlavhasidagi qiymat ham yangilansin
+    const y = $('#y-korinish'); const ochiq = y?.open;
+    profilniChiz();
+    if (ochiq) { const q = $('#y-korinish'); if (q) q.open = true; }
+    titra();
+  });
   $('#t-ornat') && ($('#t-ornat').onclick = ilovaniOrnat);
   $('#t-chiqish') && ($('#t-chiqish').onclick = async () => {
     try { await api('/api/chiqish', { method: 'POST' }); } catch {}
