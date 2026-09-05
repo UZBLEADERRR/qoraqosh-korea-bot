@@ -13,8 +13,11 @@
 //   • parametrlari — boshqa hech nima qabul qilinmaydi;
 //   • `oqish` bayrog'i — o'qish erkin bajariladi, YOZISH esa admin
 //     tasdiqlamaguncha bajarilmaydi.
-import { qator, qatorlar, qiymat, sorov } from '../db.js';
+import { qator, qatorlar, qiymat, sorov, sozlama } from '../db.js';
 import { HOLATLAR } from '../lib/bosqichlar.js';
+import { palitra, rangTozala, kontrast, MAVZU_STANDART } from '../lib/mavzu.js';
+import { TAVSIF as SHABLON_TAVSIF } from '../bot/shablonlar-standart.js';
+import { eksportHajmi, BOLIMLAR as EKSPORT_BOLIMLAR } from './eksport.js';
 
 const son = (v, zaxira = 0) => (Number.isFinite(Number(v)) ? Number(v) : zaxira);
 const matn = (v, n = 200) => String(v ?? '').trim().slice(0, n);
@@ -240,6 +243,156 @@ async function omborOzgartir(a) {
   return r ? { ozgardi: 1, mahsulot: r } : { ozgardi: 0, xabar: 'Topilmadi' };
 }
 
+// ── Sozlamalar ──
+// Agent sozlamalarni O'QIY oladi va o'zgartirishni TAKLIF qila oladi.
+// Hamma kalit emas: ro'yxat qat'iy, chunki noto'g'ri kalitga yozish
+// ilovani jimgina buzadi (masalan narx qoidasi yoki mavzu).
+const OZGARTIRSA_BOLADI = new Set([
+  'limit_bepul', 'limit_mijoz', 'limit_yoqilgan', 'limit_maslahat_rasm',
+  'minimal_buyurtma', 'mahsulot_chegirma', 'free_delivery_from',
+  'dona_chegirma', 'dona_chegirma_dan',
+  'menejer_telefon', 'menejer_ish_vaqti',
+  'karta_raqam', 'karta_egasi',
+  'skrinshot_poster', 'brend_nomi',
+  'kanal_post_soati', 'kanal_kunlik_post',
+]);
+
+async function sozlamalar(a) {
+  const q = matn(a.qidiruv, 60).toLowerCase();
+  const r = await qatorlar(`select key, value, updated_at from settings order by key`);
+  const royxat = r
+    .filter((x) => !q || x.key.toLowerCase().includes(q))
+    .map((x) => ({
+      kalit: x.key,
+      qiymat: typeof x.value === 'string' ? x.value.slice(0, 300) : x.value,
+      ozgartirsa_boladi: OZGARTIRSA_BOLADI.has(x.key),
+      // Xabar shablonlari uchun tushuntirish bor — agent nimaligini bilsin
+      izoh: SHABLON_TAVSIF[x.key]?.nom || '',
+    }));
+  return { jami: royxat.length, sozlamalar: royxat.slice(0, chegara(a.chegara, 60, 200)) };
+}
+
+async function sozlamaOzgartir(a) {
+  const kalit = matn(a.kalit, 60);
+  if (!OZGARTIRSA_BOLADI.has(kalit)) {
+    return { ozgardi: 0, xabar: `«${kalit}» ni bu yerdan o‘zgartirib bo‘lmaydi.` };
+  }
+  // Qiymat turini saqlaymiz: raqam raqam bo'lib, matn matn bo'lib qolsin
+  let q = a.qiymat;
+  if (typeof q === 'string' && /^-?\d+$/.test(q.trim())) q = Number(q.trim());
+  if (q === 'true') q = true;
+  if (q === 'false') q = false;
+  await sorov(
+    `insert into settings (key, value, updated_at) values ($1, $2::jsonb, now())
+     on conflict (key) do update set value = excluded.value, updated_at = now()`,
+    [kalit, JSON.stringify(q)]);
+  return { ozgardi: 1, kalit, qiymat: q };
+}
+
+// ── Mavzu: hozirgi ranglar va ULARNING O'QILISHI ──
+// Agent «yaxshi ko'rinadi» deb taxmin qilmasin: kontrast HISOBLANADI
+// (WCAG nisbiy yorqinligi) va raqam bilan beriladi.
+async function mavzuHolati() {
+  const [xom, erkak] = await Promise.all([sozlama('mavzu', {}), sozlama('mavzu_erkak', null)]);
+  const baho = (m) => {
+    const p = palitra(m && typeof m === 'object' ? m : {});
+    const kSarlavha = kontrast(p.asosiy, p.asosiyMatn);
+    const kFon = kontrast(p.fon, p.matn);
+    return {
+      ranglar: { asosiy: p.asosiy, fon: p.fon, urgu: p.urgu },
+      sarlavha_kontrasti: Number(kSarlavha.toFixed(2)),
+      fon_kontrasti: Number(kFon.toFixed(2)),
+      // WCAG AA: oddiy matn uchun 4.5, yirik matn uchun 3
+      sarlavha_okiladi: kSarlavha >= 4.5,
+      fon_okiladi: kFon >= 4.5,
+    };
+  };
+  return {
+    umumiy: baho(xom),
+    erkaklar: erkak && typeof erkak === 'object' ? baho(erkak) : null,
+    izoh: 'Kontrast 4.5 dan past bo‘lsa matn qiyin o‘qiladi (WCAG AA).',
+  };
+}
+
+async function mavzuOzgartir(a) {
+  const kalit = a.kim === 'erkak' ? 'mavzu_erkak' : 'mavzu';
+  const toza = {
+    asosiy: rangTozala(a.asosiy, MAVZU_STANDART.asosiy),
+    fon:    rangTozala(a.fon,    MAVZU_STANDART.fon),
+    urgu:   rangTozala(a.urgu,   a.asosiy || MAVZU_STANDART.urgu),
+  };
+  await sorov(
+    `insert into settings (key, value, updated_at) values ($2, $1::jsonb, now())
+     on conflict (key) do update set value = excluded.value, updated_at = now()`,
+    [JSON.stringify(toza), kalit]);
+  const p = palitra(toza);
+  return { ozgardi: 1, kim: kalit, ranglar: toza,
+    sarlavha_kontrasti: Number(kontrast(p.asosiy, p.asosiyMatn).toFixed(2)) };
+}
+
+// ── Mijozlarda qaysi muammo ko'p uchraydi ──
+// Tahlil natijasi `analyses.problems` da jsonb massiv bo'lib turadi.
+// Bu do'kon uchun eng qimmatli raqam: nimani ko'proq olib kelish kerak.
+async function muammoStatistikasi(a) {
+  const kun = son(a.kun, 90);
+  const r = await qatorlar(
+    `select coalesce(e->>'nom', e->>'kalit', '—') as muammo,
+            count(*)::int as odam,
+            round(avg((e->>'foiz')::numeric))::int as ortacha_foiz
+       from analyses an
+       cross join lateral jsonb_array_elements(coalesce(an.problems,'[]'::jsonb)) e
+      where an.created_at >= now() - ($1 || ' days')::interval
+      group by 1 order by odam desc limit 20`, [kun]);
+
+  const jami = await qator(
+    `select count(*)::int as tahlil,
+            count(distinct user_id)::int as odam,
+            round(avg(score))::int as ortacha_ball
+       from analyses where created_at >= now() - ($1 || ' days')::interval`, [kun]);
+
+  const teri = await qatorlar(
+    `select coalesce(skin_type,'—') as turi, count(*)::int as soni
+       from analyses where created_at >= now() - ($1 || ' days')::interval
+      group by 1 order by soni desc`, [kun]);
+
+  const jins = await qatorlar(
+    `select coalesce(jins,'nomalum') as jins, count(*)::int as soni
+       from analyses where created_at >= now() - ($1 || ' days')::interval
+      group by 1 order by soni desc`, [kun]);
+
+  return { kun, umumiy: jami, eng_kop_muammolar: r, teri_turlari: teri, jins };
+}
+
+// ── Mahsulotni tahrirlash ──
+const TAHRIR_MAYDON = {
+  name: 'text', nom_uz: 'text', brand: 'text', description: 'text',
+  usage_text: 'text', warnings: 'text', volume: 'text', emoji: 'text',
+  manba_url: 'text', step: 'text',
+  price: 'int', cost_price: 'int', old_price: 'int', stock: 'int',
+  is_active: 'bool',
+};
+
+async function mahsulotTahrir(a) {
+  const id = son(a.id, 0);
+  if (!id) return { ozgardi: 0, xabar: 'ID berilmadi' };
+  const qoy = [];
+  const p = [id];
+  for (const [maydon, tur] of Object.entries(TAHRIR_MAYDON)) {
+    if (a[maydon] === undefined) continue;
+    let v = a[maydon];
+    if (tur === 'int')  v = Math.max(0, Math.round(son(v, 0)));
+    if (tur === 'bool') v = v === true || v === 'true';
+    if (tur === 'text') v = matn(v, 2000) || null;
+    p.push(v);
+    qoy.push(`${maydon} = $${p.length}`);
+  }
+  if (!qoy.length) return { ozgardi: 0, xabar: 'O‘zgartiriladigan maydon berilmadi' };
+  const r = await qator(
+    `update products set ${qoy.join(', ')}, updated_at = now()
+      where id = $1 returning id, name, nom_uz, brand, price, stock, is_active`, p);
+  return r ? { ozgardi: 1, mahsulot: r } : { ozgardi: 0, xabar: 'Topilmadi' };
+}
+
 // ─────────────────────────── RO'YXAT ───────────────────────────
 
 export const VOSITALAR = {
@@ -274,6 +427,38 @@ export const VOSITALAR = {
     tavsif: 'Mijozlar ro‘yxati.',
     parametrlar: 'qidiruv, faqat_xaridorlar, chegara',
   },
+  muammo_statistikasi: {
+    oqish: true, ishla: muammoStatistikasi,
+    tavsif: 'Mijozlarda QAYSI MUAMMO ko‘p uchraydi: teri muammolari reytingi, '
+          + 'teri turlari, jins taqsimoti, o‘rtacha ball. «Nimani olib kelaylik» '
+          + 'degan savolga javob shu yerda.',
+    parametrlar: 'kun',
+  },
+  sozlamalar: {
+    oqish: true, ishla: sozlamalar,
+    tavsif: 'Ilova sozlamalari va ularning hozirgi qiymati.',
+    parametrlar: 'qidiruv, chegara',
+  },
+  eksport: {
+    oqish: true,
+    ishla: async () => ({
+      hajm: await eksportHajmi(),
+      bolimlar: Object.keys(EKSPORT_BOLIMLAR),
+      // Agent faylni o'zi yasay olmaydi — havolani beradi, admin bosadi
+      havola: '/api/admin/eksport',
+      izoh: 'Admin panel → Tizim holati → «Ma’lumotni yuklab olish» tugmasi. '
+          + 'Yoki bo‘limni tanlab CSV: /api/admin/eksport?tur=csv&bolimlar=<bolim>',
+    }),
+    tavsif: 'Ma’lumotni faylga saqlash: nechta yozuv borligi va qanday '
+          + 'yuklab olish. JSON — hammasi, CSV — bitta bo‘lim (Excel uchun).',
+    parametrlar: 'yo‘q',
+  },
+  mavzu: {
+    oqish: true, ishla: mavzuHolati,
+    tavsif: 'Ilova ranglari va ularning KONTRASTI (o‘qiladimi). '
+          + 'Rang haqida maslahat berishdan oldin shuni ko‘r — taxmin qilma.',
+    parametrlar: 'yo‘q',
+  },
 
   mahsulot_yop: {
     oqish: false, ishla: mahsulotYop,
@@ -296,6 +481,25 @@ export const VOSITALAR = {
     oqish: false, ishla: omborOzgartir,
     tavsif: 'Bitta mahsulot ombor sonini o‘zgartiradi.',
     parametrlar: 'id, soni',
+  },
+  mahsulot_tahrir: {
+    oqish: false, ishla: mahsulotTahrir,
+    tavsif: 'Mahsulot maydonlarini tahrirlaydi: nomi, o‘zbekcha nomi, brendi, '
+          + 'tavsifi, ishlatish tartibi, hajmi, havolasi, narxi, ombori.',
+    parametrlar: 'id + o‘zgartiriladigan maydonlar (name, nom_uz, brand, '
+               + 'description, usage_text, volume, manba_url, price, stock…)',
+  },
+  sozlama_ozgartir: {
+    oqish: false, ishla: sozlamaOzgartir,
+    tavsif: 'Sozlamani o‘zgartiradi (limitlar, chegirmalar, menejer telefoni, '
+          + 'karta raqami kabi). Avval «sozlamalar» bilan hozirgisini ko‘r.',
+    parametrlar: 'kalit, qiymat',
+  },
+  mavzu_ozgartir: {
+    oqish: false, ishla: mavzuOzgartir,
+    tavsif: 'Ilova ranglarini o‘zgartiradi. Avval «mavzu» bilan kontrastni '
+          + 'tekshir — o‘qilmaydigan rang taklif qilma.',
+    parametrlar: 'asosiy, fon, urgu, kim (umumiy | erkak)',
   },
 };
 

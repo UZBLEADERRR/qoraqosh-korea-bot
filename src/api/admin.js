@@ -28,6 +28,8 @@ import { natijaSvg } from '../rasm/natija-kartochka.js';
 import { brendNomi } from '../lib/brend.js';
 import { navbatHolati } from '../ai/navbat.js';
 import { agentJavobi, rejaniBajar } from '../services/admin-agent.js';
+import { eksportYig, eksportHajmi, csvQil, BOLIMLAR as EKSPORT_BOLIMLAR }
+  from '../services/eksport.js';
 import { modelHolatlari, royxat as modelRoyxati, rasmModeli, standartmi,
   standartRoyxat, saqla as modellarniSaqla, modellarniTaminla } from '../ai/modellar.js';
 import { googleJson } from '../ai/google.js';
@@ -94,6 +96,44 @@ export async function adminRoutes(req, res, yol) {
   // ================= TIZIM HOLATI =================
   // Nimadir ishlamay qolsa, sabab shu yerda ko'rinadi.
 
+
+
+  // ---------- EKSPORT ----------
+  // Butun ma'lumot bitta faylda: zaxira, buxgalteriya yoki tahlil uchun.
+  // Fayl diskda saqlanmaydi — to'g'ridan-to'g'ri brauzerga oqadi.
+  if (yol === '/api/admin/eksport' && req.method === 'GET') {
+    const url = new URL(req.url, 'http://x');
+    const tur = url.searchParams.get('tur') === 'csv' ? 'csv' : 'json';
+    const tanlangan = String(url.searchParams.get('bolimlar') || '')
+      .split(',').map((x) => x.trim()).filter(Boolean);
+    const sana = new Date().toISOString().slice(0, 10);
+
+    if (tur === 'csv') {
+      // CSV bitta jadval uchun — Excel ko'p jadvalli faylni ocholmaydi
+      const bolim = tanlangan[0];
+      if (!EKSPORT_BOLIMLAR[bolim]) return xato(res, 400, 'Bo‘lim tanlanmadi.');
+      const matn = csvQil(await EKSPORT_BOLIMLAR[bolim].ol());
+      return javob(res, 200, Buffer.from(matn, 'utf8'), {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="kiovo-${bolim}-${sana}.csv"`,
+        'Cache-Control': 'no-store',
+      }, req);
+    }
+
+    const bayt = Buffer.from(JSON.stringify(await eksportYig(tanlangan), null, 2), 'utf8');
+    return javob(res, 200, bayt, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Disposition': `attachment; filename="kiovo-${sana}.json"`,
+      'Cache-Control': 'no-store',
+    }, req);
+  }
+
+  if (yol === '/api/admin/eksport-hajmi' && req.method === 'GET') {
+    return ok(res, {
+      hajm: await eksportHajmi(),
+      bolimlar: Object.entries(EKSPORT_BOLIMLAR).map(([k, v]) => ({ kalit: k, nom: v.nom })),
+    });
+  }
 
   // ---------- ADMIN YORDAMCHISI ----------
   // Do'kon haqidagi savolga javob beradi va topshiriqni bosqichma-

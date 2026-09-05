@@ -62,6 +62,29 @@ export function qoraytirish(hex, ulush) {
   return rgbHex(c.map((v) => v * (1 - ulush)));
 }
 
+/** Rangning WCAG nisbiy yorqinligi (0 — qora, 1 — oq). */
+export function yorqinlik(hex) {
+  const c = hexRgb(hex) || [255, 255, 255];
+  const [r, g, b] = c.map((v) => {
+    const x = v / 255;
+    return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/**
+ * Ikki rang orasidagi kontrast nisbati (1 dan 21 gacha).
+ *
+ * WCAG AA: oddiy matn uchun kamida 4.5, yirik matn uchun 3.
+ * Bu RAQAM kerak, chunki «chiroyli ko'rinadi» degan taxmin bilan
+ * o'qib bo'lmaydigan mavzu tanlanib qolishi mumkin.
+ */
+export function kontrast(a, b) {
+  const x = yorqinlik(a);
+  const y = yorqinlik(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
 /**
  * Fon ustida qaysi matn rangi o'qiladi — oqmi yoki qoramai.
  * WCAG nisbiy yorqinligi bo'yicha: taxminiy formula emas, haqiqiy hisob,

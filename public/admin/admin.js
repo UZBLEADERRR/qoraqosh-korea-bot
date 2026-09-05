@@ -3472,6 +3472,7 @@ async function tizim() {
           <div class="q">${rs.soni ?? 0} ta · ${rs.mb ?? 0}/${rs.chegara_mb ?? 0} MB</div></div>
       </div>
       <div id="model-quti"></div>
+      <div id="eksport-quti"></div>
       ${j.tekshiruvlar.map((t) => `
         <div class="qator-karta">
           <div class="qator-bosh">
@@ -3494,9 +3495,63 @@ async function tizim() {
         </ul>
       </div>`;
     aiModellar();
+    eksportChiz();
   } catch (e) {
     $('#tizim-tan').innerHTML = `<div class="xabar-quti xato">${esc(e.message)}</div>`;
   }
+}
+
+// ─────────── MA'LUMOTNI YUKLAB OLISH ───────────
+// Zaxira, buxgalteriya yoki oddiy tahlil uchun. Fayl serverda
+// saqlanmaydi — to'g'ridan-to'g'ri brauzerga oqadi.
+async function eksportChiz() {
+  const el = $('#eksport-quti'); if (!el) return;
+  let j;
+  try { j = await api('/api/admin/eksport-hajmi'); } catch { return; }
+
+  const NOM = { mahsulotlar: 'mahsulot', buyurtmalar: 'buyurtma', mijozlar: 'mijoz',
+                tahlillar: 'tahlil', sharhlar: 'sharh', sozlamalar: 'sozlama' };
+  el.innerHTML = `
+    <div class="karta">
+      <h3>💾 Ma’lumotni yuklab olish</h3>
+      <p class="mayda" style="margin:6px 0 12px">Zaxira yoki tahlil uchun.
+        Ichida <b>mijoz telefonlari</b> bor — begonaga bermang.</p>
+      <div class="kpi-tor" style="margin-bottom:12px">
+        ${Object.entries(j.hajm || {}).map(([k, v]) => `
+          <div class="kpi"><div class="k">${esc(NOM[k] || k)}</div>
+            <div class="v">${v}</div></div>`).join('')}
+      </div>
+      <button class="tug asos keng" id="t-eksport-json">Hammasini JSON qilib olish</button>
+      <p class="mayda" style="margin:14px 0 6px">Yoki bitta bo‘limni Excel uchun:</p>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${(j.bolimlar || []).map((b) => `<button class="tug kichik"
+          data-csv="${esc(b.kalit)}">${esc(b.nom)} · CSV</button>`).join('')}
+      </div>
+    </div>`;
+
+  // Yuklab olish tokenli bo'lishi kerak — oddiy havola sarlavha
+  // qo'sholmaydi, shuning uchun faylni fetch bilan olib, blob qilamiz
+  const yukla = async (yol, nom) => {
+    try {
+      tost('Tayyorlanmoqda…');
+      const r = await fetch(yol, { headers: { Authorization: `Bearer ${holat.token}` } });
+      if (!r.ok) throw new Error('Yuklab bo‘lmadi');
+      const blob = await r.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = nom;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      tost('Yuklandi');
+    } catch (e) { tost(e.message, 'xato'); }
+  };
+
+  const sana = new Date().toISOString().slice(0, 10);
+  $('#t-eksport-json').onclick = () =>
+    yukla('/api/admin/eksport', `kiovo-${sana}.json`);
+  $$('[data-csv]').forEach((b) => b.onclick = () =>
+    yukla(`/api/admin/eksport?tur=csv&bolimlar=${encodeURIComponent(b.dataset.csv)}`,
+      `kiovo-${b.dataset.csv}-${sana}.csv`));
 }
 
 // ─────────── AI MODELLARI ───────────

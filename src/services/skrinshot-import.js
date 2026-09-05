@@ -37,6 +37,10 @@ const navbatlar = new Map();   // userId -> {royxat, ishlamoqda, xabarId, chatId
 const bosh = () => ({
   royxat: [], ishlamoqda: false, xabarId: null, chatId: null,
   qoshildi: [], otkazildi: [], xato: 0, jami: 0,
+  // /tugat bosilganda shu bayroq qo'yiladi. Ish tugagach hisobot
+  // O'ZI yuboriladi — admin kutib o'tirmasin, lekin hisobot ham
+  // chala bo'lmasin.
+  tugatilsin: false, user: null,
 });
 
 export const navbatHolati = (userId) => navbatlar.get(userId) || null;
@@ -70,7 +74,9 @@ const holatMatni = (n) => {
     + (n.otkazildi.length ? `⏭ O‘tkazildi: <b>${n.otkazildi.length}</b>\n` : '')
     + (n.xato ? `⚠️ Xato: <b>${n.xato}</b>\n` : '')
     + (n.poster ? `\n🎨 Poster chizilmoqda: <b>${n.poster.tayyor}</b>/${n.poster.jami}\n` : '')
-    + `\nRasm tashlashda davom eting. Tugatish: /tugat`;
+    + (n.tugatilsin
+        ? `\n<i>Tugatish so‘raldi — qolgani ishlanib bo‘lgach hisobot keladi.</i>`
+        : `\nRasm tashlashda davom eting. Tugatish: /tugat`);
 };
 
 let oxirgiYangilash = 0;
@@ -285,24 +291,65 @@ async function ishlovchi(user, n) {
 
   n.ishlamoqda = false;
   await holatniYangila(n, true);
+
+  // Admin ish tugashidan oldin /tugat bosgan bo'lsa — hisobot ENDI
+  // yuboriladi. Ilgari hisobot o'sha zahoti chiqar va faqat o'sha
+  // paytgacha ishlangani ko'rinardi: yuzta rasmdan o'ntasi.
+  if (n.tugatilsin) {
+    navbatlar.delete(n.user?.id);
+    await hisobot(n);
+  }
 }
 
 /** /tugat — natijani yakunlab, hisobotni yuboradi. */
 export async function importniTugat(user, chatId) {
   const n = navbatlar.get(user.id);
-  navbatlar.delete(user.id);
   if (!n || !n.jami) {
+    navbatlar.delete(user.id);
     await yubor(chatId, 'Hozircha rasm yuborilmadi.');
     return null;
   }
+
+  // ── Ish HALI TUGAMAGAN ──
+  // Har rasm bittalab ishlanadi (bitta AI chaqiruvi), shuning uchun
+  // yuzta rasm bir necha daqiqa oladi. Ilgari /tugat shu zahoti
+  // hisobot chiqarar va navbatni ro'yxatdan o'chirardi: hisobotda
+  // faqat o'sha paytgacha ishlangani ko'rinardi, qolganlari esa
+  // jimgina katalogga tushaverardi. Endi so'rov ESLAB QOLINADI va
+  // hisobot ish tugagach o'zi keladi.
+  if (n.ishlamoqda) {
+    n.tugatilsin = true;
+    n.user = user;
+    const qoldi = n.royxat.length;
+    await yubor(chatId,
+      `⏳ <b>Hali ishlanmoqda</b>\n\n`
+      + `Navbatda: <b>${qoldi}</b> ta rasm\n`
+      + `Har rasm alohida o‘qiladi, shuning uchun vaqt oladi.\n\n`
+      + `<i>Kutib o‘tirmang — tugagach hisobot o‘zi keladi.</i>`);
+    return null;
+  }
+
+  navbatlar.delete(user.id);
+  return hisobot(n);
+}
+
+/** Yakuniy hisobot. */
+async function hisobot(n) {
+  const chatId = n.chatId;
 
   const jamiNarx = n.qoshildi.reduce((s, r) => s + (r.mahsulot?.price || 0), 0);
   const uzumga = n.qoshildi.filter((r) => r.uzum).length;
   const royxat = n.qoshildi.slice(0, 25)
     .map((r, i) => `${i + 1}. <b>${r.mahsulot.name}</b> — ${r.mahsulot.price.toLocaleString('uz-UZ').replace(/,/g, ' ')} so‘m`)
     .join('\n');
-  const otkazildi = n.otkazildi.slice(0, 10)
-    .map((x) => `• ${x.nom} — ${x.sabab}`).join('\n');
+  // Sabablarni GURUHLAB ko'rsatamiz. «1000 ta rasm yuborib, yo'qlarini
+  // qo'sh» degan ish uchun eng muhim raqam — nechtasi allaqachon
+  // katalogda bo'lgani; uni o'nta nom orasidan qidirib o'tirmasin.
+  const sabablar = new Map();
+  for (const x of n.otkazildi) sabablar.set(x.sabab, (sabablar.get(x.sabab) || 0) + 1);
+  const otkazildi = [...sabablar.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([sabab, soni]) => `• ${sabab}: <b>${soni}</b> ta`).join('\n');
 
   await yubor(chatId,
     `✅ <b>Tayyor</b>\n\n`

@@ -2092,6 +2092,109 @@ console.log('\n── BOSH SAHIFA / EKRANGA QO‘SHISH ──');
   test('ro‘yxatda yo‘q raqam rad etiladi', Boolean(yoq.xato), yoq.xato);
 }
 
+// ═══════════ EKSPORT VA YANGI AGENT VOSITALARI ═══════════
+console.log('\n── EKSPORT VA AGENT VOSITALARI ──');
+{
+  const V = await import('../src/services/admin-vositalar.js');
+  const E = await import('../src/services/eksport.js');
+
+  // ── Muammo statistikasi: «nimani olib kelaylik» degan savolga javob
+  const st = await V.vositaniBajar('muammo_statistikasi', { kun: 3650 });
+  test('muammo statistikasi keladi', Array.isArray(st.eng_kop_muammolar),
+    `${st.eng_kop_muammolar?.length} ta muammo`);
+  test('teri turlari ham bor', Array.isArray(st.teri_turlari));
+  test('jins taqsimoti bor', Array.isArray(st.jins));
+  test('umumiy raqamlar bor', typeof st.umumiy?.tahlil === 'number',
+    JSON.stringify(st.umumiy));
+
+  // ── Sozlamalar
+  const sz = await V.vositaniBajar('sozlamalar', { qidiruv: 'limit' });
+  test('sozlamalar qidiruv bilan keladi', sz.sozlamalar.length > 0,
+    sz.sozlamalar.map((x) => x.kalit).join(', ').slice(0, 90));
+  test('qaysisini o‘zgartirsa bo‘lishi ko‘rsatiladi',
+    sz.sozlamalar.some((x) => x.ozgartirsa_boladi === true));
+
+  const oz = await V.vositaniBajar('sozlama_ozgartir',
+    { kalit: 'limit_maslahat_rasm', qiymat: '5' });
+  test('ruxsat etilgan sozlama o‘zgardi', oz.ozgardi === 1 && oz.qiymat === 5,
+    JSON.stringify(oz));
+  test('raqam RAQAM bo‘lib saqlanadi',
+    (await qiymat(`select value::text from settings where key='limit_maslahat_rasm'`)) === '5');
+  await sorov(`update settings set value='3'::jsonb where key='limit_maslahat_rasm'`);
+
+  // Ro'yxatda yo'q kalitga yozib bo'lmaydi — noto'g'ri kalit ilovani
+  // jimgina buzib qo'yishi mumkin
+  const man = await V.vositaniBajar('sozlama_ozgartir', { kalit: 'narx_qoidasi', qiymat: 'x' });
+  test('RUXSATSIZ sozlama o‘zgarmaydi', man.ozgardi === 0, man.xabar);
+
+  // ── Mavzu: kontrast HISOBLANADI, taxmin qilinmaydi
+  const mv = await V.vositaniBajar('mavzu', {});
+  test('mavzu ranglari keladi', Boolean(mv.umumiy?.ranglar?.asosiy), mv.umumiy?.ranglar?.asosiy);
+  test('kontrast raqam bilan', typeof mv.umumiy?.sarlavha_kontrasti === 'number',
+    String(mv.umumiy?.sarlavha_kontrasti));
+  test('o‘qiladimi degan xulosa bor', typeof mv.umumiy?.sarlavha_okiladi === 'boolean');
+
+  const { kontrast } = await import('../src/lib/mavzu.js');
+  test('oq/qora kontrasti 21', Math.round(kontrast('#ffffff', '#000000')) === 21);
+  test('bir xil rangda kontrast 1', Math.round(kontrast('#123456', '#123456')) === 1);
+
+  const mo = await V.vositaniBajar('mavzu_ozgartir',
+    { asosiy: '#123A63', fon: '#E7F0F7', urgu: '#1D6FA5', kim: 'erkak' });
+  test('erkaklar mavzusi o‘zgardi', mo.ozgardi === 1 && mo.kim === 'mavzu_erkak', mo.kim);
+  await sorov(`delete from settings where key = 'mavzu_erkak'`);
+
+  // ── Mahsulotni tahrirlash
+  const m1 = (await V.vositaniBajar('mahsulotlar', { chegara: 1 })).mahsulotlar[0];
+  const th = await V.vositaniBajar('mahsulot_tahrir',
+    { id: m1.id, nom_uz: 'Sinov o‘zbekcha', price: '77000' });
+  test('mahsulot tahrirlandi', th.ozgardi === 1 && th.mahsulot.price === 77000,
+    JSON.stringify(th.mahsulot).slice(0, 90));
+  test('faqat berilgan maydon o‘zgardi', th.mahsulot.name === m1.name);
+  await sorov(`update products set nom_uz = null, price = $2 where id = $1`, [m1.id, m1.price]);
+
+  const bosh2 = await V.vositaniBajar('mahsulot_tahrir', { id: m1.id });
+  test('maydonsiz tahrir rad etiladi', bosh2.ozgardi === 0, bosh2.xabar);
+
+  // ── EKSPORT
+  const hajm = await V.vositaniBajar('eksport', {});
+  test('eksport hajmi keladi', typeof hajm.hajm?.mahsulotlar === 'number',
+    JSON.stringify(hajm.hajm));
+
+  const yig = await E.eksportYig(['mahsulotlar', 'sozlamalar']);
+  test('faqat tanlangan bo‘limlar', Object.keys(yig).sort().join() === '_haqida,mahsulotlar,sozlamalar',
+    Object.keys(yig).join());
+  test('mahsulotlar ichida bor', yig.mahsulotlar.length > 0, `${yig.mahsulotlar.length} ta`);
+  test('faylda sana va ogohlantirish bor',
+    Boolean(yig._haqida?.sana) && /telefon/i.test(yig._haqida?.ogohlantirish || ''));
+
+  const hammasi = await E.eksportYig();
+  test('bo‘limsiz chaqirilsa HAMMASI', Object.keys(hammasi).length >= 7,
+    `${Object.keys(hammasi).length} ta kalit`);
+
+  const csv = E.csvQil(yig.mahsulotlar.slice(0, 3));
+  test('CSV sarlavhasi bor', csv.split('\n')[0].includes('name'), csv.split('\n')[0].slice(0, 60));
+  test('CSV BOM bilan (Excel uchun)', csv.charCodeAt(0) === 0xFEFF);
+  test('nuqta-vergul ajratgich', csv.split('\n')[0].split(';').length > 3);
+  // Ichida `;` yoki qo'shtirnoq bo'lgan matn ustunni buzmasin
+  const xavfli = E.csvQil([{ a: 'bir;ikki', b: 'u "dedi"', c: 'qator\nikki' }]);
+  test('xavfli belgilar qo‘shtirnoqqa olinadi',
+    xavfli.includes('"bir;ikki"') && xavfli.includes('"u ""dedi"""'),
+    xavfli.split('\n')[1]);
+
+  // ── API orqali
+  const eks = await chaqirXom('/api/admin/eksport');
+  test('JSON eksport API ishlaydi', eks.kod === 200, String(eks.kod));
+  test('fayl nomi berilgan', /attachment; filename="kiovo-/.test(
+    eks.sarlavhalar['Content-Disposition'] || ''), eks.sarlavhalar['Content-Disposition']);
+  test('JSON o‘qiladi', Boolean(JSON.parse(eks.tana)._haqida));
+
+  const csvApi = await chaqirXom('/api/admin/eksport?tur=csv&bolimlar=mahsulotlar');
+  test('CSV eksport API ishlaydi', csvApi.kod === 200 && csvApi.tana.includes(';'),
+    String(csvApi.kod));
+  const yomonB = await chaqirXom('/api/admin/eksport?tur=csv&bolimlar=yoq');
+  test('noto‘g‘ri bo‘lim rad etiladi', yomonB.kod === 400, String(yomonB.kod));
+}
+
 // ═══════════ MASLAHAT EKRANI: KAM MATN, TINCH PANEL ═══════════
 // Ikki shikoyat: kirish ekrani matnga to'lib ketgan, va tabdan tabga
 // o'tganda yozish paneli qimirlab, yo'q bo'lib paydo bo'lardi.

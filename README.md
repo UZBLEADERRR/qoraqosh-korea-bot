@@ -735,6 +735,38 @@ mahsulotning o'z posteri ishlatiladi. Keyin xuddi oddiy post kabi tasdiqlash
 oqimidan o'tadi.
 
 
+### Ko'p rasmni birdan qo'shish — /qosh va /tugat
+
+Har rasm **bittalab** ishlanadi: bitta rasm = bitta AI chaqiruvi.
+Shuning uchun 100 ta rasm bir necha daqiqa oladi, ustiga poster
+chizish bosqichi bor. Bu ataylab: yuzta chaqiruvni bir vaqtda
+yuborsak provayder ham, baza ham bo'g'iladi.
+
+`/tugat` ni **istalgan paytda** bosishingiz mumkin. Ish tugamagan
+bo'lsa bot «hali ishlanmoqda, navbatda N ta» deb javob beradi va
+hisobot tugagach **o'zi** keladi.
+
+> Ilgari `/tugat` shu zahoti hisobot chiqarardi: unda faqat o'sha
+> paytgacha ishlangani ko'rinardi, qolgan mahsulotlar esa jimgina
+> katalogga tushaverardi.
+
+**Takrorlar o'zi o'tkazib yuboriladi.** Nom+brend katalogda bo'lsa
+mahsulot qayta qo'shilmaydi. Ya'ni «1000 ta rasm yuborib, do'konda
+yo'qlarini qo'sh» degan ish shundoq ishlaydi — hisobotda
+«Katalogda bor: N ta» bo'lib ko'rinadi.
+
+### Ma'lumotni faylga saqlash
+
+Admin panel → Tizim holati → **💾 Ma'lumotni yuklab olish**.
+
+* **JSON** — hammasi bitta faylda: mahsulotlar, buyurtmalar, mijozlar,
+  tahlillar, sharhlar, sozlamalar, bo'limlar.
+* **CSV** — bitta bo'lim, Excel uchun (BOM va `;` ajratgich bilan).
+
+Fayl serverda saqlanmaydi — to'g'ridan-to'g'ri brauzerga oqadi.
+Ichida mijoz telefonlari bor, shuning uchun fayl ichida ogohlantirish
+ham yozilgan.
+
 ### Admin yordamchisi — savolga javob, topshiriqqa taklif
 
 Admin panel → **Yordamchi**. Savol yozasiz, u bazadan o'qib javob
@@ -748,8 +780,21 @@ bo'lmaydi. Buning o'rniga qat'iy vosita ro'yxati:
 
 | Vosita | Turi |
 |---|---|
-| mahsulotlar, takrorlar, buyurtmalar, buyurtma, statistika, mijozlar | o'qish — erkin |
-| mahsulot_yop, mahsulot_ochir, narx_ozgartir, ombor_ozgartir | **YOZISH — tasdiq bilan** |
+| mahsulotlar, takrorlar, buyurtmalar, buyurtma, statistika, mijozlar, **muammo_statistikasi**, **sozlamalar**, **mavzu**, **eksport** | o'qish — erkin |
+| mahsulot_yop, mahsulot_ochir, narx_ozgartir, ombor_ozgartir, **mahsulot_tahrir**, **sozlama_ozgartir**, **mavzu_ozgartir** | **YOZISH — tasdiq bilan** |
+
+`muammo_statistikasi` — mijozlarda qaysi teri muammosi ko'p uchraydi,
+teri turlari, jins taqsimoti. «Nimani ko'proq olib kelaylik» degan
+savolga javob shu yerda.
+
+`mavzu` rang haqida maslahat berishdan oldin **kontrastni hisoblaydi**
+(WCAG nisbiy yorqinligi). Shuning uchun agent «chiroyli ko'rinadi» deb
+taxmin qilmaydi — o'qib bo'lmaydigan rangni raqam bilan rad etadi.
+
+`sozlama_ozgartir` faqat **ro'yxatdagi** kalitlarga yozadi: limitlar,
+chegirmalar, menejer telefoni, karta raqami. Narx qoidasi kabi
+nozik sozlamalar bu yerdan o'zgarmaydi — noto'g'ri kalitga yozish
+ilovani jimgina buzadi.
 
 Yozish vositasi tanlansa u darrov bajarilmaydi: panelda taklif
 kartasi chiqadi — qaysi amal, nechta yozuvga tegadi, qaytarib

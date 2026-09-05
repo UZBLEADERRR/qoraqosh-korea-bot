@@ -342,6 +342,68 @@ test('limit tugaganda ogohlantiradi', /limit tugadi/i.test(oxirgi().text || ''))
 test('limit xabarida do‘kon tugmasi bor',
   (oxirgi().reply_markup?.inline_keyboard || []).flat().some((b) => /Do‘kon|Dokon/i.test(b.text)));
 
+// ═══════════ /tugat: ISH TUGAMAGUNCHA KUTADI ═══════════
+// Har rasm bittalab (bitta AI chaqiruvi) ishlanadi, ya'ni yuzta rasm
+// bir necha daqiqa oladi. Ilgari /tugat shu zahoti hisobot chiqarar va
+// navbatni o'chirardi: hisobotda faqat o'sha paytgacha ishlangani
+// ko'rinardi, qolganlari esa jimgina katalogga tushaverardi.
+console.log('\n── /tugat KUTADI ──');
+{
+  const I = await import('../src/services/skrinshot-import.js');
+
+  // Navbat ishlayotgan holatni yasaymiz
+  const soxtaNavbat = {
+    royxat: ['a', 'b', 'c'], ishlamoqda: true, xabarId: null,
+    chatId: Number(TG), qoshildi: [], otkazildi: [], xato: 0, jami: 5,
+    tugatilsin: false, user: null,
+  };
+  // Ichki Map ga to'g'ridan-to'g'ri kira olmaymiz — haqiqiy oqim bilan
+  // sinaymiz: rasm yuboramiz va DARROV /tugat bosamiz
+  const u = await qator(`select id from users where telegram_id = $1`, [TG]);
+  await sorov(`update users set is_admin = true, state = 'admin_skrinshot' where id = $1`, [u.id]);
+
+  yuborilgan.length = 0;
+  // Bir nechta rasm — ishlov boshlanadi
+  for (let i = 0; i < 3; i++) {
+    await yangilanish({ update_id: 1, message: { message_id: 10 + i,
+      chat: { id: Number(TG), type: 'private' }, from: { id: Number(TG) },
+      photo: [{ file_id: `sinov-rasm-${i}`, width: 800, height: 800 }] } });
+  }
+  // Ishlov hali tugamagan bo'lishi mumkin — DARROV /tugat
+  await yangilanish({ update_id: 2, message: { message_id: 20,
+    chat: { id: Number(TG), type: 'private' }, from: { id: Number(TG) }, text: '/tugat' } });
+
+  const matnlar = yuborilgan.map((x) => x.text || '').join('\n');
+  const kutdi = /Hali ishlanmoqda/.test(matnlar);
+  const tayyor = /✅ <b>Tayyor<\/b>/.test(matnlar);
+  test('/tugat javobsiz qolmaydi', kutdi || tayyor,
+    matnlar.slice(-160));
+  if (kutdi) {
+    test('nechta qolgani aytiladi', /Navbatda: <b>\d+<\/b>/.test(matnlar));
+    test('kutib o‘tirmaslik aytiladi', /tugagach hisobot o‘zi keladi/.test(matnlar));
+  }
+
+  // Ish tugagach hisobot O'ZI kelishi kerak
+  for (let i = 0; i < 40 && !/✅ <b>Tayyor<\/b>/.test(
+    yuborilgan.map((x) => x.text || '').join('\n')); i++) {
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  const oxir = yuborilgan.map((x) => x.text || '').join('\n');
+  test('HISOBOT O‘ZI KELDI', /✅ <b>Tayyor<\/b>/.test(oxir), oxir.slice(-200));
+  test('hisobotda qo‘shilganlar soni bor', /Katalogga qo‘shildi: <b>\d+<\/b>/.test(oxir));
+
+  // Ikkinchi marta /tugat — navbat yo'q, tushunarli javob
+  yuborilgan.length = 0;
+  await yangilanish({ update_id: 3, message: { message_id: 21,
+    chat: { id: Number(TG), type: 'private' }, from: { id: Number(TG) }, text: '/tugat' } });
+  test('navbatsiz /tugat tushunarli javob beradi',
+    /rasm yuborilmadi/i.test(yuborilgan.map((x) => x.text || '').join('\n')),
+    yuborilgan.map((x) => (x.text || '').slice(0, 50)).join(' | '));
+
+  await sorov(`update users set is_admin = false, state = null where id = $1`, [u.id]);
+  void soxtaNavbat;
+}
+
 // ═══════════ JINS VA ERKAKLAR RANGI ═══════════
 // Erkak terisi qalinroq, yog' ko'proq ishlab chiqadi va soqol olish
 // qirilishi ayollarda umuman uchramaydi. Buni bilmasdan berilgan
