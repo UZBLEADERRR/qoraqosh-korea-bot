@@ -150,8 +150,18 @@ export async function adminRoutes(req, res, yol) {
       matn: String(x?.matn || '').slice(0, 400),
     })).filter((x) => x.matn);
 
+    // Biriktirilgan suratlar. Klient data-URL yuboradi; prefiksni
+    // olib tashlamasak model uni base64 deb o'qiy olmaydi.
+    const rasmlar = (Array.isArray(b.rasmlar) ? b.rasmlar : []).slice(0, 4)
+      .map((x) => {
+        const xom = String(x?.data || x || '');
+        const mos = xom.match(/^data:(image\/[\w+.-]+);base64,(.+)$/s);
+        if (mos) return { mime: mos[1], base64: mos[2] };
+        return xom.length > 100 ? { mime: 'image/jpeg', base64: xom.replace(/\s/g, '') } : null;
+      }).filter(Boolean);
+
     try {
-      return ok(res, await agentJavobi(savol, tarix));
+      return ok(res, await agentJavobi(savol, tarix, rasmlar));
     } catch (e) {
       const x = xatoniTushuntir(e);
       console.error('ADMIN AGENT:', x.log);

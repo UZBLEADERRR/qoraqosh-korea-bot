@@ -1990,9 +1990,11 @@ console.log('\n── ADMIN YORDAMCHISI ──');
   const a2 = await chaqirAdmin('/api/admin/agent', 'POST',
     { savol: 'Bir xil tovarlarni olib tashla' });
   test('YOZISH uchun REJA qaytdi', Boolean(a2.tana.reja), JSON.stringify(a2.tana).slice(0, 120));
-  test('rejada vosita nomi bor', a2.tana.reja?.vosita === 'mahsulot_yop', a2.tana.reja?.vosita);
+  test('rejada vosita nomi bor', a2.tana.reja?.qadamlar?.[0]?.vosita === 'mahsulot_yop',
+    JSON.stringify(a2.tana.reja?.qadamlar));
   test('nechta yozuvga tegishi aytiladi', a2.tana.reja?.soni === 2, String(a2.tana.reja?.soni));
-  test('reja izohi bor', (a2.tana.reja?.izoh || '').length > 5, a2.tana.reja?.izoh);
+  test('reja izohi bor', (a2.tana.reja?.qadamlar?.[0]?.izoh || '').length > 5,
+    a2.tana.reja?.qadamlar?.[0]?.izoh);
   test('tasdiq tokeni berildi', (a2.tana.reja?.token || '').length > 10);
 
   // ENG MUHIMI: hali HECH NARSA o'zgarmagan
@@ -2003,8 +2005,8 @@ console.log('\n── ADMIN YORDAMCHISI ──');
   // ── TASDIQ ──
   const t1 = await chaqirAdmin('/api/admin/agent-tasdiq', 'POST',
     { token: a2.tana.reja.token });
-  test('tasdiqlangach bajarildi', t1.kod === 200 && t1.tana.natija?.ozgardi === 2,
-    JSON.stringify(t1.tana).slice(0, 100));
+  test('tasdiqlangach bajarildi', t1.kod === 200 && t1.tana.ozgardi === 2,
+    JSON.stringify(t1.tana).slice(0, 120));
   const faolKeyin = await qiymat(
     `select count(*)::int from products where is_active and id = any($1)`, [yopiladigan]);
   test('ikkalasi ham sotuvdan olindi', faolKeyin === 0, `${faolKeyin} ta faol qoldi`);
@@ -2024,7 +2026,7 @@ console.log('\n── ADMIN YORDAMCHISI ──');
     { fikr: 'yana', amal: 'vosita', vosita: 'mahsulotlar',
       argumentlar_json: '{"chegara":1}', javob: '', reja_izoh: '', takliflar: [] }));
   const a3 = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'Cheksiz aylana' });
-  test('QADAM SONI cheklangan', (a3.tana.qadamlar || []).length <= 6,
+  test('QADAM SONI cheklangan', (a3.tana.qadamlar || []).length <= 12,
     `${a3.tana.qadamlar?.length} qadam`);
   test('cheklovda ham tushunarli javob', /bo‘laklarga/.test(a3.tana.javob || ''),
     a3.tana.javob?.slice(0, 60));
@@ -2041,6 +2043,94 @@ console.log('\n── ADMIN YORDAMCHISI ──');
 
   const bosh = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'a' });
   test('bo‘sh savol rad etiladi', bosh.kod === 400);
+
+  // ── BIR XABARDA BIR NECHA ISH ──
+  // Admin «toifasini o'zgartir VA takrorlarni tozala» desa agent
+  // birinchisidayoq to'xtab qolardi. Endi yozish amallari navbatga
+  // qo'yiladi va ish davom etadi.
+  await sorov(`insert into products (name, brand, price, cost_price, stock, is_active)
+    values ('Kop Ish Sinov','KOPISH',50000,20000,5,true)`);
+  const kopId = await qiymat(`select id from products where name='Kop Ish Sinov'`);
+  const bolimId = await qiymat(`select id from categories order by sort, id limit 1`);
+  const bolimNom = await qiymat(`select name from categories where id=$1`, [bolimId]);
+
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'Bo‘limlarni ko‘raman', amal: 'vosita', vosita: 'bolimlar',
+      argumentlar_json: '{}', javob: '', reja_izoh: '', takliflar: [] },
+    { fikr: 'Toifasini o‘zgartiraman', amal: 'vosita', vosita: 'toifa_ozgartir',
+      argumentlar_json: JSON.stringify({ idlar: [kopId], bolim: bolimNom }),
+      javob: '', reja_izoh: 'Toifa o‘zgartiriladi', takliflar: [] },
+    { fikr: 'Narxni ham', amal: 'vosita', vosita: 'narx_ozgartir',
+      argumentlar_json: JSON.stringify({ id: kopId, narx: 99000 }),
+      javob: '', reja_izoh: 'Narx 99000 bo‘ladi', takliflar: [] },
+    { fikr: 'Tayyor', amal: 'javob', vosita: '', argumentlar_json: '{}',
+      javob: 'Ikkita o‘zgarish taklif qilaman.', reja_izoh: '', takliflar: [] },
+  ];
+  const kop = await chaqirAdmin('/api/admin/agent', 'POST',
+    { savol: 'Toifasini o‘zgartir va narxini ko‘tar' });
+  test('BIR REJADA IKKI AMAL', kop.tana.reja?.qadamlar?.length === 2,
+    `${kop.tana.reja?.qadamlar?.length} qadam`);
+  test('ikkalasi ham to‘xtatmadi',
+    kop.tana.reja.qadamlar.map((q) => q.vosita).join() === 'toifa_ozgartir,narx_ozgartir',
+    kop.tana.reja.qadamlar.map((q) => q.vosita).join());
+
+  const kopT = await chaqirAdmin('/api/admin/agent-tasdiq', 'POST',
+    { token: kop.tana.reja.token });
+  test('ikkala amal ham bajarildi', kopT.tana.ozgardi === 2, JSON.stringify(kopT.tana.qadamlar));
+  const keyingiHolat = await qator(
+    `select category_id, price from products where id = $1`, [kopId]);
+  test('TOIFA HAQIQATAN o‘zgardi', Number(keyingiHolat.category_id) === Number(bolimId),
+    `${keyingiHolat.category_id} vs ${bolimId}`);
+  test('narx ham o‘zgardi', keyingiHolat.price === 99000, String(keyingiHolat.price));
+
+  // Yo'q bo'lim so'ralsa aniq aytiladi
+  const yoqBolim = await V.vositaniBajar('toifa_ozgartir',
+    { idlar: [kopId], bolim: 'bunday-bolim-yoq' });
+  test('yo‘q bo‘lim aniq aytiladi', yoqBolim.ozgardi === 0
+    && Array.isArray(yoqBolim.mavjud_bolimlar), yoqBolim.xabar);
+
+  // ── YOLG'ON DA'VO ──
+  // Model hech narsa qilmasdan «o'chirdim» deb yozsa — bu admin
+  // uchun eng yomon holat: u ishonadi, mahsulot esa joyida turadi.
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'x', amal: 'javob', vosita: '', argumentlar_json: '{}',
+      javob: 'Bir xil mahsulotlarni o‘chirdim, endi katalog toza.',
+      reja_izoh: '', takliflar: [] },
+  ];
+  const yolgon = await chaqirAdmin('/api/admin/agent', 'POST',
+    { savol: 'Takrorlarni o‘chir' });
+  test('YOLG‘ON DA’VO to‘xtatiladi', !/o‘chirdim/.test(yolgon.tana.javob),
+    yolgon.tana.javob);
+  test('rostini aytadi', /bajara olmadim|o‘zgarish qilinmadi/.test(yolgon.tana.javob),
+    yolgon.tana.javob);
+  test('reja ham berilmaydi', !yolgon.tana.reja);
+
+  // Taklif bor, lekin model uni bajarilgandek yozsa ham to'g'rilanadi
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'x', amal: 'vosita', vosita: 'mahsulot_yop',
+      argumentlar_json: JSON.stringify({ idlar: [kopId] }),
+      javob: 'Mahsulotni yopdim.', reja_izoh: 'Yopiladi', takliflar: [] },
+    { fikr: 'x', amal: 'javob', vosita: '', argumentlar_json: '{}',
+      javob: 'Mahsulotni yopdim, tayyor.', reja_izoh: '', takliflar: [] },
+  ];
+  const taklif = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'Yop' });
+  test('taklifni bajarilgandek yozmaydi', !/yopdim/.test(taklif.tana.javob),
+    taklif.tana.javob);
+  test('tasdiq kutayotgani aytiladi', /taklif|tasdiq/i.test(taklif.tana.javob),
+    taklif.tana.javob);
+  test('reja baribir beriladi', Boolean(taklif.tana.reja));
+
+  // ── RASM BILAN SAVOL ──
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'x', amal: 'javob', vosita: '', argumentlar_json: '{}',
+      javob: 'Rasmni ko‘rdim.', reja_izoh: '', takliflar: [] },
+  ];
+  const rasmB64 = 'data:image/jpeg;base64,' + Buffer.alloc(400, 9).toString('base64');
+  const rasmli = await chaqirAdmin('/api/admin/agent', 'POST',
+    { savol: 'Bu qanaqa mahsulot?', rasmlar: [rasmB64] });
+  test('RASM bilan savol qabul qilinadi', rasmli.kod === 200, String(rasmli.kod));
+
+  await sorov(`delete from products where name = 'Kop Ish Sinov'`);
 
   globalThis.AGENT_QADAMLAR = [];
   await sorov(`delete from products where name ilike 'Takror Sinov%' or name ilike 'takror%'`);

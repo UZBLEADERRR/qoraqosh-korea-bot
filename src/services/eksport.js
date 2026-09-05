@@ -57,7 +57,9 @@ export const BOLIMLAR = {
   },
   bolimlar: {
     nom: 'Bo‘limlar',
-    ol: () => qatorlar(`select id, slug, nom, ikon, tartib from categories order by tartib, id`),
+    ol: () => qatorlar(
+      `select id, slug, name as nom, emoji, ikon, sort as tartib
+         from categories order by sort, id`),
   },
 };
 

@@ -463,7 +463,9 @@ body.y-ochiq{overflow:hidden}
 .y-reja-bosh{font-size:11.5px;font-weight:750;letter-spacing:.03em;color:var(--urgu)}
 .y-reja.xavf .y-reja-bosh{color:var(--qizil)}
 .y-reja-izoh{margin:7px 0 0;font-weight:600}
-.y-reja-tafsil{margin-top:7px;font-size:12.5px;color:var(--kul);
+.y-reja-qadam{margin-top:9px;font-weight:600;font-size:14px}
+.y-reja-qadam + .y-reja-qadam{padding-top:9px;border-top:1px dashed var(--chiziq)}
+.y-reja-tafsil{margin-top:5px;font-size:12.5px;color:var(--kul);font-weight:400;
   display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .y-reja-tafsil code{background:var(--panel);padding:2px 7px;border-radius:6px}
 .y-reja-tugma{display:flex;gap:8px;margin-top:12px}
@@ -495,3 +497,17 @@ body.y-ochiq{overflow:hidden}
 .y-yubor{flex:0 0 44px;width:44px;height:44px;border-radius:50%;border:0;
   background:var(--urgu);color:#fff;font-size:19px;cursor:pointer}
 .y-yubor:disabled{opacity:.45;cursor:default}
+
+/* Yordamchiga biriktirilgan suratlar */
+.y-rasmlar{flex:0 0 auto;display:flex;gap:8px;padding:8px 12px 0;overflow-x:auto;
+  max-width:760px;width:100%;margin:0 auto}
+.y-rasm{position:relative;flex:0 0 auto}
+.y-rasm img{width:62px;height:62px;object-fit:cover;border-radius:10px;
+  border:1px solid var(--chiziq);display:block}
+.y-rasm button{position:absolute;top:-6px;right:-6px;width:22px;height:22px;
+  border-radius:50%;border:0;background:var(--matn);color:var(--panel);
+  font-size:12px;line-height:1;cursor:pointer}
+.y-biriktir{flex:0 0 40px;width:40px;height:44px;border:0;background:none;
+  font-size:19px;color:var(--kul);cursor:pointer}
+.y-men-rasm{display:block;width:100%;max-width:200px;border-radius:10px;
+  margin-bottom:7px}

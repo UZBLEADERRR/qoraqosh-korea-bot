@@ -3750,6 +3750,45 @@ async function aiModellarHolat() {
 // yozilmaydi: bu ish quroli, yozishma emas. Ustiga suhbatda mijoz
 // telefoni, buyurtma summasi kabi ma'lumot bo'ladi — uni brauzerda
 // qoldirishning hojati yo'q.
+// Biriktirilgan suratlar (bir xabarga 4 tagacha — undan ko'pi
+// modelning e'tiborini suyultiradi va tokenni behuda yeydi)
+let yordamchiRasmlar = [];
+
+/** Faylni kichraytirib base64 qiladi — katta surat behuda token. */
+function faylniOqi(fayl) {
+  return new Promise((hal, rad) => {
+    const o = new FileReader();
+    o.onerror = () => rad(new Error('o‘qilmadi'));
+    o.onload = () => {
+      const img = new Image();
+      img.onerror = () => rad(new Error('rasm emas'));
+      img.onload = () => {
+        // Eng uzun tomoni 900 px — model uchun yetarli, hajmi esa
+        // bir necha barobar kichik
+        const k = Math.min(1, 900 / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * k);
+        c.height = Math.round(img.height * k);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        hal({ data: c.toDataURL('image/jpeg', 0.82), nom: fayl.name });
+      };
+      img.src = o.result;
+    };
+    o.readAsDataURL(fayl);
+  });
+}
+
+function rasmlarniChiz() {
+  const q = $('#y-rasmlar'); if (!q) return;
+  q.hidden = !yordamchiRasmlar.length;
+  q.innerHTML = yordamchiRasmlar.map((r, i) => `
+    <div class="y-rasm"><img src="${r.data}" alt="">
+      <button data-rasm-ochir="${i}" aria-label="O‘chirish">✕</button></div>`).join('');
+  $$('[data-rasm-ochir]').forEach((b) => b.onclick = () => {
+    yordamchiRasmlar.splice(Number(b.dataset.rasmOchir), 1); rasmlarniChiz();
+  });
+}
+
 let yordamchiSuhbat = [];
 let yordamchiBand = false;
 
@@ -3772,17 +3811,33 @@ function yordamchiOch() {
       <button class="y-tozala" id="t-y-tozala" hidden>Tozalash</button>
     </header>
     <div class="y-oqim" id="y-oqim"></div>
+    <div class="y-rasmlar" id="y-rasmlar" hidden></div>
     <div class="y-yozish">
+      <button class="y-biriktir" id="t-y-biriktir" aria-label="Rasm biriktirish">📎</button>
       <textarea id="y-matn" rows="1" placeholder="Savol yoki topshiriq…"
         autocomplete="off"></textarea>
       <button class="y-yubor" id="t-y-yubor" aria-label="Yuborish">↑</button>
+      <input id="y-fayl" type="file" accept="image/*" multiple hidden>
     </div>`;
   document.body.appendChild(el);
   document.body.classList.add('y-ochiq');
 
   $('#t-y-yop').onclick = yordamchiYop;
-  $('#t-y-tozala').onclick = () => { yordamchiSuhbat = []; yordamchiChiz(); };
+  $('#t-y-tozala').onclick = () => {
+    yordamchiSuhbat = []; yordamchiRasmlar = []; rasmlarniChiz(); yordamchiChiz();
+  };
   $('#t-y-yubor').onclick = yordamchiYubor;
+  $('#t-y-biriktir').onclick = () => $('#y-fayl').click();
+  $('#y-fayl').onchange = async (e) => {
+    // Rasmni base64 qilib olamiz. Model uni KO'RADI: «bu qanaqa
+    // mahsulot», «shu skrinshotdagi narxni qo'y» kabi ishlar uchun.
+    for (const f of [...(e.target.files || [])].slice(0, 4 - yordamchiRasmlar.length)) {
+      try { yordamchiRasmlar.push(await faylniOqi(f)); }
+      catch { tost('Rasm o‘qilmadi', 'xato'); }
+    }
+    e.target.value = '';
+    rasmlarniChiz();
+  };
 
   const m = $('#y-matn');
   m.oninput = () => {
@@ -3816,6 +3871,7 @@ function yordamchiYop(orqadan = false) {
   document.body.classList.remove('y-ochiq');
   // Suhbat bir martalik — yopilgach qoldiq qolmaydi
   yordamchiSuhbat = [];
+  yordamchiRasmlar = [];
   yordamchiBand = false;
   if (!orqadan && history.state?.yordamchi) history.back();
 }
@@ -3855,7 +3911,11 @@ function yordamchiChiz() {
   }
 
   oqim.innerHTML = yordamchiSuhbat.map((x) => {
-    if (x.kim === 'admin') return `<div class="y-xabar y-men">${esc(x.matn)}</div>`;
+    if (x.kim === 'admin') {
+      return `<div class="y-xabar y-men">
+        ${(x.rasmlar || []).map((r) => `<img class="y-men-rasm" src="${r}" alt="">`).join('')}
+        ${esc(x.matn)}</div>`;
+    }
     if (x.kim === 'kutish') {
       return `<div class="y-xabar y-ai y-kutish">
         <span></span><span></span><span></span></div>`;
@@ -3895,13 +3955,23 @@ const namunalarniUla = () => $$('[data-y-namuna]').forEach((b) => b.onclick = ()
 
 /** Taklif kartasi — nima o'zgarishini ANIQ ko'rsatadi. */
 function rejaHtml(r) {
+  // Reja bir nechta qadamdan iborat bo'lishi mumkin: admin bir
+  // xabarda uch ish so'rasa uchalasi ham shu yerda ko'rinadi va
+  // BITTA tasdiq bilan bajariladi.
+  const qadamlar = r.qadamlar || [{ vosita: r.vosita, izoh: r.izoh, soni: r.soni }];
   return `
     <div class="y-reja ${r.qaytarib_bolmaydi ? 'xavf' : ''}">
       <div class="y-reja-bosh">
-        ${r.qaytarib_bolmaydi ? '⚠️ Qaytarib bo‘lmaydi' : '✋ Tasdiq kerak'}</div>
-      <p class="y-reja-izoh">${esc(r.izoh || r.tavsif)}</p>
-      <div class="y-reja-tafsil">
-        <code>${esc(r.vosita)}</code><span>${r.soni} ta yozuv</span></div>
+        ${r.qaytarib_bolmaydi ? '⚠️ Qaytarib bo‘lmaydi' : '✋ Tasdiq kerak'}
+        ${qadamlar.length > 1 ? ` · ${qadamlar.length} ta amal` : ''}</div>
+      ${qadamlar.map((q, i) => `
+        <div class="y-reja-qadam">
+          ${qadamlar.length > 1 ? `<b>${i + 1}.</b> ` : ''}${esc(q.izoh || q.vosita)}
+          <div class="y-reja-tafsil">
+            <code>${esc(q.vosita)}</code><span>${q.soni} ta yozuv</span>
+            ${q.qaytarib_bolmaydi ? '<span class="yor qizil">qaytmas</span>' : ''}
+          </div>
+        </div>`).join('')}
       <div class="y-reja-tugma">
         <button class="tug ${r.qaytarib_bolmaydi ? 'xavf' : 'asos'}"
           data-y-tasdiq="${esc(r.token)}">Tasdiqlash</button>
@@ -3939,14 +4009,16 @@ async function yordamchiYubor() {
   // Tarixga faqat matn ketadi — qadamlar va rejalar modelga kerak emas
   const tarix = yordamchiSuhbat.filter((x) => x.matn)
     .map((x) => ({ kim: x.kim === 'admin' ? 'admin' : 'ai', matn: x.matn }));
-  yordamchiSuhbat.push({ kim: 'admin', matn: savol });
+  const rasmlar = yordamchiRasmlar.map((r) => r.data);
+  yordamchiSuhbat.push({ kim: 'admin', matn: savol, rasmlar });
+  yordamchiRasmlar = []; rasmlarniChiz();
   yordamchiSuhbat.push({ kim: 'kutish' });
   yordamchiChiz();
   pastga(true);            // o'z savolini albatta ko'rsin
 
   try {
     const j = await api('/api/admin/agent', { method: 'POST',
-      body: JSON.stringify({ savol, tarix }) });
+      body: JSON.stringify({ savol, tarix, rasmlar }) });
     yordamchiSuhbat.pop();
     yordamchiSuhbat.push({ kim: 'ai', matn: j.javob, qadamlar: j.qadamlar,
       reja: j.reja || null, takliflar: j.takliflar || [] });
@@ -3968,12 +4040,14 @@ async function rejaniTasdiqla(token, tugma) {
     const x = yordamchiSuhbat.find((y) => y.reja?.token === token);
     if (x) {
       x.reja = null;
-      const son = Object.entries(j.natija || {})
-        .filter(([, v]) => typeof v === 'number')
-        .map(([k, v]) => `${k} ${v}`).join(', ');
-      x.matn = `${x.matn}\n\n✅ Bajarildi${son ? ` — ${son}` : ''}.`;
+      // NATIJA ko'rsatiladi, da'vo emas: nechta yozuv haqiqatan
+      // o'zgardi va qaysi qadam yiqildi
+      const yiqilgan = (j.qadamlar || []).filter((q) => !q.ok);
+      x.matn = `${x.matn}\n\n✅ Bajarildi — <b>${j.ozgardi ?? 0}</b> ta yozuv o‘zgardi.`
+        + (yiqilgan.length ? `\n⚠️ ${yiqilgan.length} ta amal yiqildi: `
+            + yiqilgan.map((q) => `${q.vosita} (${q.xato})`).join('; ') : '');
     }
-    tost('Bajarildi');
+    tost(`Bajarildi — ${j.ozgardi ?? 0} ta yozuv`);
     holat.kesh = {};          // katalog o'zgargan bo'lishi mumkin
     yordamchiChiz();
   } catch (e) {

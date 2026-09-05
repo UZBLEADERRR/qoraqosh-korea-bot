@@ -393,6 +393,50 @@ async function mahsulotTahrir(a) {
   return r ? { ozgardi: 1, mahsulot: r } : { ozgardi: 0, xabar: 'Topilmadi' };
 }
 
+// ── Bo'limlar (toifalar) ──
+// Mahsulot toifasini o'zgartirish uchun avval qaysi bo'limlar borligini
+// bilish kerak. Ilgari bu vosita yo'q edi va agent toifani
+// o'zgartirolmasdi — lekin «o'zgartirdim» deb yozardi.
+async function bolimlar() {
+  const r = await qatorlar(
+    `select c.id, c.slug, c.name as nom, c.emoji, c.ikon, c.sort as tartib,
+            (select count(*)::int from products p where p.category_id = c.id) as mahsulot
+       from categories c order by c.sort, c.id`);
+  return { jami: r.length, bolimlar: r };
+}
+
+/** Nom yoki slug bo'yicha bo'limni topadi. */
+async function bolimniTop(nomOrSlug) {
+  const t = matn(nomOrSlug, 60);
+  if (!t) return null;
+  if (/^\d+$/.test(t)) {
+    return qator('select id, name as nom, slug from categories where id = $1', [Number(t)]);
+  }
+  return qator(
+    `select id, name as nom, slug from categories
+      where lower(slug) = lower($1) or lower(name) = lower($1)
+         or name ilike '%' || $1 || '%'
+      order by (lower(slug) = lower($1)) desc, (lower(name) = lower($1)) desc
+      limit 1`, [t]);
+}
+
+async function toifaOzgartir(a) {
+  const idlar = (a.idlar || []).map((x) => son(x, 0)).filter((x) => x > 0).slice(0, 200);
+  if (!idlar.length) return { ozgardi: 0, xabar: 'Mahsulot ID lari berilmadi' };
+
+  const b = await bolimniTop(a.bolim ?? a.toifa);
+  if (!b) {
+    const bor = await qatorlar('select name as nom, slug from categories order by sort, id');
+    return { ozgardi: 0,
+      xabar: `«${matn(a.bolim ?? a.toifa, 40)}» degan bo‘lim yo‘q.`,
+      mavjud_bolimlar: bor.map((x) => x.nom) };
+  }
+  const r = await qatorlar(
+    `update products set category_id = $2, updated_at = now()
+      where id = any($1) returning id, name`, [idlar, b.id]);
+  return { ozgardi: r.length, bolim: b.nom, mahsulotlar: r };
+}
+
 // ─────────────────────────── RO'YXAT ───────────────────────────
 
 export const VOSITALAR = {
@@ -433,6 +477,12 @@ export const VOSITALAR = {
           + 'teri turlari, jins taqsimoti, o‘rtacha ball. «Nimani olib kelaylik» '
           + 'degan savolga javob shu yerda.',
     parametrlar: 'kun',
+  },
+  bolimlar: {
+    oqish: true, ishla: bolimlar,
+    tavsif: 'Do‘kon bo‘limlari (toifalari) va har birida nechta mahsulot borligi. '
+          + 'Mahsulot toifasini o‘zgartirishdan OLDIN shuni ko‘r.',
+    parametrlar: 'yo‘q',
   },
   sozlamalar: {
     oqish: true, ishla: sozlamalar,
@@ -481,6 +531,12 @@ export const VOSITALAR = {
     oqish: false, ishla: omborOzgartir,
     tavsif: 'Bitta mahsulot ombor sonini o‘zgartiradi.',
     parametrlar: 'id, soni',
+  },
+  toifa_ozgartir: {
+    oqish: false, ishla: toifaOzgartir,
+    tavsif: 'Mahsulot(lar)ning BO‘LIMINI (toifasini) o‘zgartiradi. '
+          + 'Bo‘lim nomini yoki slug ini berasan.',
+    parametrlar: 'idlar (ro‘yxat), bolim (nomi yoki slug)',
   },
   mahsulot_tahrir: {
     oqish: false, ishla: mahsulotTahrir,

@@ -13,7 +13,7 @@
 // tanlansa u DARROV bajarilmaydi — admin ko'rib tasdiqlaguncha kutadi.
 // Sabab oddiy: «o'chir» so'zi noto'g'ri tushunilsa katalog yo'qoladi
 // va uni qaytarib bo'lmaydi.
-import { aiJson, aiBormi } from './index.js';
+import { aiJson, aiBormi, rasmPart } from './index.js';
 import { vositalarMatni } from '../services/admin-vositalar.js';
 
 const SXEMA = {
@@ -56,6 +56,15 @@ berishing mumkin. Ma'lumot yetarli bo'lsa CHO'ZMA — javob ber.
 - reja_izoh ga NIMA o'zgarishini aniq yoz: nechta yozuv, qaysilari.
 - Bu darrov bajarilmaydi — admin tasdiqlaydi. Shuning uchun taklifing
   TO'LIQ va ANIQ bo'lsin.
+
+  ENG MUHIM QOIDA: «o'chirdim», «yopdim», «o'zgartirdim» deb HECH
+  QACHON yozma. Sen amalni BAJARMAYSAN — faqat taklif qilasan.
+  «Taklif qilaman», «tasdiqlasangiz bajaraman» deb yoz.
+
+- Admin BIR XABARDA bir necha ish so'rasa (masalan «toifasini
+  o'zgartir va takrorlarni tozala») — HAMMASINI qil. Har yozish
+  vositasi navbatga qo'yiladi, keyin ishni davom ettirasan.
+  Birinchisidan keyin to'xtama.
 - O'chirishdan oldin ALBATTA o'qish vositasi bilan tekshir. Ko'rmasdan
   o'chirish taklif qilma.
 - Ikkilansang "mahsulot_ochir" emas, "mahsulot_yop" ni tanla:
@@ -69,6 +78,7 @@ berishing mumkin. Ma'lumot yetarli bo'lsa CHO'ZMA — javob ber.
 - **qalin** bilan muhim raqamni ajrat.
 - HECH NARSA O'YLAB TOPMA. Vosita qaytarmagan raqamni yozma.
   Ma'lumot yo'q bo'lsa "ma'lumot topilmadi" deb ayt.
+- Vosita xato qaytargan bo'lsa buni YASHIRMA — nima bo'lganini ayt.
 - takliflar: admin keyin so'rashi mumkin bo'lgan 2-3 ta qisqa savol.
 
 Faqat JSON qaytar.`;
@@ -81,7 +91,7 @@ const q = (v, n) => String(v ?? '').slice(0, n);
  * @param {Array} qadamlar  [{vosita, argumentlar, natija}]
  * @param {Array} tarix     [{kim, matn}]
  */
-export async function keyingiQadam(savol, qadamlar = [], tarix = []) {
+export async function keyingiQadam(savol, qadamlar = [], tarix = [], rasmlar = []) {
   if (!aiBormi()) throw Object.assign(new Error('AI kaliti yo‘q'), { turkum: 'kalit' });
 
   const oldingi = tarix.length
@@ -98,11 +108,15 @@ export async function keyingiQadam(savol, qadamlar = [], tarix = []) {
         + `   natija: ${q(JSON.stringify(k.natija), 3000)}`).join('\n')
     : '';
 
-  const j = await aiJson(
-    [{ text: `${KORSATMA()}${oldingi}${bajarilgan}\n\nADMIN SAVOLI: ${savol}` }],
-    SXEMA,
-    { temperature: 0.2, maxTokens: 3072, muhim: true, qayerda: 'admin-agent' },
-  );
+  // Admin surat biriktirgan bo'lsa model uni KO'RADI: «bu qanaqa
+  // mahsulot», «shu skrinshotdagi narxni qo'y» kabi ishlar uchun.
+  const parts = [{ text: `${KORSATMA()}${oldingi}${bajarilgan}\n\nADMIN SAVOLI: ${savol}` }];
+  for (const r of (rasmlar || []).slice(0, 4)) {
+    if (r?.base64) parts.push(rasmPart(r.base64, r.mime || 'image/jpeg'));
+  }
+
+  const j = await aiJson(parts, SXEMA,
+    { temperature: 0.2, maxTokens: 3072, muhim: true, qayerda: 'admin-agent' });
 
   let argumentlar = {};
   try {

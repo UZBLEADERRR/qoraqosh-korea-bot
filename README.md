@@ -780,8 +780,8 @@ bo'lmaydi. Buning o'rniga qat'iy vosita ro'yxati:
 
 | Vosita | Turi |
 |---|---|
-| mahsulotlar, takrorlar, buyurtmalar, buyurtma, statistika, mijozlar, **muammo_statistikasi**, **sozlamalar**, **mavzu**, **eksport** | o'qish — erkin |
-| mahsulot_yop, mahsulot_ochir, narx_ozgartir, ombor_ozgartir, **mahsulot_tahrir**, **sozlama_ozgartir**, **mavzu_ozgartir** | **YOZISH — tasdiq bilan** |
+| mahsulotlar, takrorlar, buyurtmalar, buyurtma, statistika, mijozlar, **bolimlar**, **muammo_statistikasi**, **sozlamalar**, **mavzu**, **eksport** | o'qish — erkin |
+| mahsulot_yop, mahsulot_ochir, narx_ozgartir, ombor_ozgartir, **mahsulot_tahrir**, **toifa_ozgartir**, **sozlama_ozgartir**, **mavzu_ozgartir** | **YOZISH — tasdiq bilan** |
 
 `muammo_statistikasi` — mijozlarda qaysi teri muammosi ko'p uchraydi,
 teri turlari, jins taqsimoti. «Nimani ko'proq olib kelaylik» degan
@@ -795,6 +795,27 @@ taxmin qilmaydi — o'qib bo'lmaydigan rangni raqam bilan rad etadi.
 chegirmalar, menejer telefoni, karta raqami. Narx qoidasi kabi
 nozik sozlamalar bu yerdan o'zgarmaydi — noto'g'ri kalitga yozish
 ilovani jimgina buzadi.
+
+**Agent «qildim» deb yolg'on aytolmaydi.** Model matn yozadi, amalni
+esa biz bajaramiz — ikkalasi bir narsa emas. Model «takrorlarni
+o'chirdim» deb yozishi, lekin hech qanday yozish vositasini
+tanlamagan bo'lishi mumkin; admin ishonadi, mahsulot esa joyida
+turadi. Shuning uchun da'vo tekshiriladi: hech narsa navbatga
+qo'yilmagan bo'lsa-yu javobda «o'chirdim / yopdim / o'zgartirdim»
+bo'lsa, javob rostiga almashtiriladi. Tasdiqdan keyin ko'rsatiladigan
+raqam ham da'vo emas — **haqiqatan** o'zgargan yozuvlar soni.
+
+**Bir xabarda bir necha ish.** «Toifasini o'zgartir va narxini
+ko'tar» desangiz agent birinchisidayoq to'xtamaydi: har yozish amali
+navbatga qo'yiladi, ish davom etadi va oxirida **bitta** taklif
+bo'lib ko'rsatiladi. Bitta tasdiq — hammasi bajariladi. Bittasi
+yiqilsa qolganlari baribir bajariladi va qaysi biri yiqilgani
+hisobotda ko'rinadi.
+
+**Rasm biriktirsa bo'ladi.** Yozish panelidagi 📎 orqali 4 tagacha
+surat — model ularni ko'radi («bu qanaqa mahsulot?», «shu
+skrinshotdagi narxni qo'y»). Surat brauzerda 900 px gacha
+kichraytirib yuboriladi: katta rasm token va vaqtni behuda yeydi.
 
 Yozish vositasi tanlansa u darrov bajarilmaydi: panelda taklif
 kartasi chiqadi — qaysi amal, nechta yozuvga tegadi, qaytarib
