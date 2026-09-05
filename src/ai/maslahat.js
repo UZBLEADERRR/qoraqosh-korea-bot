@@ -12,6 +12,7 @@
 //     TO'PLAM beradi (tozalash → davolash → namlash). Tizza og'rig'i kabi
 //     bitta narsa yetadigan holatda esa bitta mahsulot.
 import { aiJson, rasmPart, aiBormi } from './index.js';
+import { katalogniTanla } from './katalog-tanlov.js';
 
 const TURLAR = ['javob', 'tavsiya', 'savol', 'yoq', 'tibbiy', 'mavzudan_tashqari'];
 
@@ -147,10 +148,19 @@ Butun javob O'ZBEK tilida (lotin alifbosida). Faqat JSON qaytar.
 KATALOG (id|brend nom|bosqich|muammo|teri|faol modda|narx):
 `;
 
-const katalogMatni = (products) => products.map((p) =>
-  `${p.id}|${p.brand ?? ''} ${p.nom_uz || p.name}|${p.step ?? '-'}|${(p.concerns || []).join(',') || '-'}`
-  + `|${(p.skin_types || []).join(',') || '-'}|${(p.actives || []).join(',') || '-'}|${p.price}`
-).join('\n');
+// Bo'sh maydonga «-» yozish behuda: modelga hech nima bermaydi,
+// lekin har qatorda bir necha belgi yeydi. Ustun O'RNI saqlanadi —
+// bo'sh joy shunchaki bo'sh qoladi, aks holda ustunlar surilib
+// ketadi va model muammoni teri turi deb o'qiydi.
+const katalogMatni = (products) => products.map((p) => [
+  p.id,
+  `${p.brand ? p.brand + ' ' : ''}${p.nom_uz || p.name}`,
+  p.step || '',
+  (p.concerns || []).join(','),
+  (p.skin_types || []).join(','),
+  (p.actives || []).join(','),
+  p.price,
+].join('|')).join('\n');
 
 /** Foydalanuvchi haqida bilganimiz — tavsiya shunga moslashadi. */
 function profilMatni(profil = {}) {
@@ -160,6 +170,35 @@ function profilMatni(profil = {}) {
   if (profil.allergiya) q.push(`ALLERGIYA: ${profil.allergiya}`);
   if (profil.kasallik) q.push(`kasallik: ${profil.kasallik}`);
   return q.length ? `\n\nMIJOZ HAQIDA (shuni hisobga ol): ${q.join('; ')}` : '';
+}
+
+// Nechta mahsulot yuboriladi. Katalog shundan kichik bo'lsa hammasi
+// ketadi — tanlash faqat katta katalogda ma'noga ega.
+const KATALOG_CHEGARA = Number(process.env.MASLAHAT_KATALOG) > 0
+  ? Number(process.env.MASLAHAT_KATALOG) : 60;
+
+// Suhbat tarixi ham promptga kiradi va u BIR TEKIS o'sib boradi:
+// yigirmanchi xabarda tarix katalogdan uzunroq bo'lib qolishi mumkin.
+// Shuning uchun ikki tomondan cheklaymiz — nechta xabar va jami
+// qancha belgi. Eng oxirgi xabarlar to'liq qoladi: kontekst uchun
+// aynan ular kerak.
+const TARIX_XABAR = 8;
+const TARIX_BELGI = 1400;
+
+function tarixMatni(tarix) {
+  if (!tarix.length) return '';
+  const olingan = [];
+  let jami = 0;
+  for (const x of tarix.slice(-TARIX_XABAR).reverse()) {
+    const matn = String(x.matn || '').slice(0, 300);
+    if (!matn) continue;
+    if (jami + matn.length > TARIX_BELGI && olingan.length >= 2) break;
+    jami += matn.length;
+    olingan.unshift(`${x.kim === 'ai' ? 'Maslahatchi' : 'Mijoz'}: ${matn}`);
+  }
+  if (!olingan.length) return '';
+  return '\n\nOLDINGI SUHBAT (eng oxirgisi pastda — kontekstni saqla, '
+    + 'allaqachon so‘ralgan narsani qayta so‘rama):\n' + olingan.join('\n');
 }
 
 /**
@@ -175,17 +214,26 @@ export async function maslahatBer(savol, products, o = {}) {
   if (!aiBormi()) throw Object.assign(new Error('AI kaliti yo‘q'), { turkum: 'kalit' });
 
   const tarix = Array.isArray(o.tarix) ? o.tarix : [];
-  const oldingi = tarix.length
-    ? '\n\nOLDINGI SUHBAT (eng oxirgisi pastda — kontekstni saqla, '
-      + 'allaqachon so‘ralgan narsani qayta so‘rama):\n'
-      + tarix.slice(-8).map((x) => `${x.kim === 'ai' ? 'Maslahatchi' : 'Mijoz'}: ${x.matn}`).join('\n')
-    : '';
+  const oldingi = tarixMatni(tarix);
+
+  // Butun katalog emas, savolga MOS qismi. Kichik katalogda hammasi
+  // ketaveradi, kattasida esa faqat kerakli qismi — token va vaqt
+  // shunda tejaladi.
+  const { royxat, jami, tanlandi } = katalogniTanla(products, {
+    savol, tarix, profil: o.profil, chegara: o.katalogChegarasi ?? KATALOG_CHEGARA,
+  });
 
   const parts = [{
-    text: `${KORSATMA}${katalogMatni(products)}${profilMatni(o.profil)}${oldingi}`
+    text: `${KORSATMA}${katalogMatni(royxat)}${profilMatni(o.profil)}${oldingi}`
         + `\n\nMIJOZ SAVOLI: ${savol}`,
   }];
   if (o.rasm) parts.push(rasmPart(o.rasm, o.mime || 'image/jpeg'));
+
+  // Tejash o'lchanadigan bo'lsin: nima yuborilgani logga tushadi
+  const belgi = parts[0].text.length;
+  if (tanlandi < jami) {
+    console.log(`Maslahat: katalogdan ${tanlandi}/${jami} ta yuborildi (${belgi} belgi)`);
+  }
 
   const j = await aiJson(parts, SXEMA, { temperature: 0.5, maxTokens: 3072, qayerda: 'maslahat' });
 

@@ -18,6 +18,24 @@ export async function limitHolati(userId) {
 }
 
 /**
+ * Maslahatchiga bugun nechta rasm yuborilgan.
+ *
+ * Rasm eng qimmat chaqiruv: matn savoli bir necha yuz token bo'lsa,
+ * rasm mingdan ortiq. Chegarasiz bitta odam butun kunlik kvotani
+ * yeb qo'yishi mumkin. Matnli savol chegarasi alohida va o'z joyida.
+ */
+export async function rasmLimiti(userId) {
+  const r = await qator('select * from maslahat_rasm_limiti($1)', [userId]);
+  const h = r || { ishlatilgan: 0, limit_soni: 3 };
+  return {
+    ishlatilgan: h.ishlatilgan,
+    limit: h.limit_soni,
+    qolgan: Math.max(0, h.limit_soni - h.ishlatilgan),
+    tugadi: h.ishlatilgan >= h.limit_soni,
+  };
+}
+
+/**
  * Ilgari tavsiya qilingan mahsulotlar — bir xilini qayta-qayta bermaslik uchun.
  * Oxirgi 5 ta tahlildan yig'iladi.
  */

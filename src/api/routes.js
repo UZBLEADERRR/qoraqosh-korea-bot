@@ -4,7 +4,7 @@ import { verifyInitData } from '../lib/auth.js';
 import { sorovYarat, sorovHolati, seansdanUser, seansniYop, seanslarSoni }
   from '../services/ilova-kirish.js';
 import { ok, xato, tana, json, ipOl } from '../lib/http.js';
-import { faolMahsulotlar, tahlilQil, oxirgiTahlil, limitHolati } from '../services/analysis.js';
+import { faolMahsulotlar, tahlilQil, oxirgiTahlil, limitHolati, rasmLimiti } from '../services/analysis.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { maslahatBer } from '../ai/maslahat.js';
 import { savatniOl, savatgaQosh, savatOzgartir, savatniTozala, buyurtmaYarat } from '../services/orders.js';
@@ -201,6 +201,25 @@ export async function apiRoutes(req, res, yol) {
     const rasmMime = mos ? mos[1] : String(b.mime || 'image/jpeg');
     if (savol.length < 2 && !rasm) return xato(res, 400, 'Savolingizni yozing.');
 
+    // Rasm — eng qimmat chaqiruv, shuning uchun uning KUNLIK chegarasi
+    // alohida. Chegara tugasa savolning o'zi baribir ishlaydi: odamni
+    // butunlay to'xtatib qo'ymaymiz, faqat rasmini olmaymiz.
+    let rasmHolati = null;
+    let rasmniOl = rasm;
+    if (rasm) {
+      rasmHolati = await rasmLimiti(user.id);
+      if (rasmHolati.tugadi) {
+        rasmniOl = null;
+        if (savol.length < 2) {
+          return json(res, 429, {
+            error: `Bugun ${rasmHolati.limit} ta rasm yuborib bo‘ldingiz. `
+                 + 'Ertaga yana mumkin — hozir savolingizni matn bilan yozing.',
+            rasm_limit: rasmHolati,
+          });
+        }
+      }
+    }
+
     // Kontekst: oldingi 8 xabar. Modelning "allaqachon so'radim" ni
     // bilishi uchun shart — aks holda bir savolni ikki marta beradi.
     const tarix = (Array.isArray(b.tarix) ? b.tarix : []).slice(-8).map((x) => ({
@@ -213,7 +232,7 @@ export async function apiRoutes(req, res, yol) {
       const j = await maslahatBer(savol || 'Mana shu rasmga qarab maslahat bering',
         katalog.mahsulotlar || [], {
           tarix,
-          rasm, mime: rasmMime,
+          rasm: rasmniOl, mime: rasmMime,
           // Yosh, teri turi, allergiya — tavsiya shularga moslashadi
           profil: { age: user.age, teri_turi: user.teri_turi,
                     allergiya: user.allergiya, kasallik: user.kasallik },
@@ -222,9 +241,19 @@ export async function apiRoutes(req, res, yol) {
       // Mahsulotning to'liq kartochkasini qaytaramiz — klient katalogdan
       // qidirib o'tirmasin (u sahifalab yuklanadi, mahsulot hali kelmagan
       // bo'lishi mumkin)
+      // Rasm HAQIQATAN yuborilgan bo'lsagina hisobga olamiz — chegara
+      // tugagach rasmsiz ketgan savol kunlik hisobni oshirmasin.
+      if (rasmniOl) {
+        await hodisa(user.id, 'maslahat_rasm', {});
+        rasmHolati = await rasmLimiti(user.id);
+      }
+
       const karta = new Map((katalog.mahsulotlar || []).map((p) => [p.id, p]));
       return ok(res, {
         ...j,
+        // Chegara tugagani uchun rasm o'qilmagan bo'lsa odam buni bilsin
+        rasm_otkazildi: Boolean(rasm && !rasmniOl),
+        rasm_limit: rasmHolati,
         tavsiya: j.tavsiya
           .map((t) => ({ ...t, mahsulot: karta.get(t.product_id) }))
           .filter((t) => t.mahsulot),

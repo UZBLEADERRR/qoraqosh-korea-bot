@@ -123,6 +123,106 @@ const rs = await chaqir('/api/maslahat', 'POST',
   { savol: 'Shu toshma nima?', rasm: rasmB64, mime: 'image/jpeg' });
 test('rasm bilan ham javob keldi', rs.kod === 200, `kod=${rs.kod} ${rs.tana.error || ''}`);
 
+// --- RASM: KUNLIK CHEGARA ---
+// Rasm eng qimmat chaqiruv. Chegarasiz bitta odam butun kunlik
+// kvotani yeb qo'yishi mumkin edi.
+console.log('\n== RASM CHEGARASI ==');
+{
+  const u = await qator(`select id from users where telegram_id = '910001'`);
+  await sorov(`delete from events where user_id = $1 and type = 'maslahat_rasm'`, [u.id]);
+  await sorov(`update settings set value = '2'::jsonb where key = 'limit_maslahat_rasm'`);
+
+  const b1 = await chaqir('/api/maslahat', 'POST',
+    { savol: 'Shu toshma nima?', rasm: rasmB64, mime: 'image/jpeg' });
+  test('1-rasm o‘tdi', b1.kod === 200 && !b1.tana.rasm_otkazildi,
+    `kod=${b1.kod} otkazildi=${b1.tana.rasm_otkazildi}`);
+  test('qolgani ko‘rsatiladi', b1.tana.rasm_limit?.qolgan === 1,
+    JSON.stringify(b1.tana.rasm_limit));
+
+  const b2 = await chaqir('/api/maslahat', 'POST',
+    { savol: 'Yana bir surat', rasm: rasmB64, mime: 'image/jpeg' });
+  test('2-rasm ham o‘tdi', b2.kod === 200 && !b2.tana.rasm_otkazildi);
+  test('chegara tugadi', b2.tana.rasm_limit?.qolgan === 0,
+    JSON.stringify(b2.tana.rasm_limit));
+
+  // 3-si: rasm O'QILMAYDI, lekin savolning o'zi ishlayveradi —
+  // odamni butunlay to'xtatib qo'ymaymiz
+  const b3 = await chaqir('/api/maslahat', 'POST',
+    { savol: 'Uchinchi surat, terim nega quruq?', rasm: rasmB64, mime: 'image/jpeg' });
+  test('3-rasmda ham JAVOB keladi', b3.kod === 200, `kod=${b3.kod}`);
+  test('rasm o‘tkazib yuborildi', b3.tana.rasm_otkazildi === true,
+    String(b3.tana.rasm_otkazildi));
+  test('javob matni bo‘sh emas', String(b3.tana.javob || '').length > 5);
+
+  // O'tkazib yuborilgan rasm HISOBGA OLINMAYDI — aks holda chegara
+  // o'z-o'zidan cheksiz o'sib ketardi
+  const soni = await qiymat(
+    `select count(*)::int from events where user_id = $1 and type = 'maslahat_rasm'`, [u.id]);
+  test('o‘tkazilgan rasm hisobga olinmaydi', soni === 2, `${soni} ta`);
+
+  // Faqat RASM yuborilsa (savolsiz) — aniq xato, chunki javob berish
+  // uchun hech narsa qolmaydi
+  const b4 = await chaqir('/api/maslahat', 'POST', { rasm: rasmB64, mime: 'image/jpeg' });
+  test('savolsiz rasmda aniq xato', b4.kod === 429 && /rasm/i.test(b4.tana.error || ''),
+    `${b4.kod} ${b4.tana.error}`);
+
+  // Rasmsiz savol chegaradan keyin ham bemalol ishlaydi
+  const b5 = await chaqir('/api/maslahat', 'POST', { savol: 'Matn bilan savol' });
+  test('rasmsiz savol cheklanmaydi', b5.kod === 200, `kod=${b5.kod}`);
+
+  await sorov(`update settings set value = '3'::jsonb where key = 'limit_maslahat_rasm'`);
+  await sorov(`delete from events where user_id = $1 and type = 'maslahat_rasm'`, [u.id]);
+}
+
+// --- TOKEN TEJASH: KATALOG TANLOVI ---
+// Butun katalog har savolda yuborilardi. 300 mahsulotda bu har
+// savolga o'n minglab token demakdi.
+console.log('\n== KATALOG TANLOVI ==');
+{
+  const { katalogniTanla, sozlar } = await import('../src/ai/katalog-tanlov.js');
+
+  const yasa = (n) => Array.from({ length: n }, (_, i) => ({
+    id: i + 1, name: `Mahsulot ${i + 1}`, brand: 'X',
+    step: ['tozalash', 'toner', 'serum', 'krem', 'himoya'][i % 5],
+    concerns: i % 7 === 0 ? ['akne'] : ['quruqlik'],
+    actives: i % 11 === 0 ? ['salicylic acid'] : [],
+    skin_types: ['aralash'], kalit_sozlar: [], price: 100000, stock: 5, sold_count: i,
+  }));
+
+  const kichik = katalogniTanla(yasa(20), { savol: 'akne', chegara: 60 });
+  test('kichik katalog to‘liq ketadi', kichik.tanlandi === 20, `${kichik.tanlandi}/20`);
+
+  const katta = yasa(300);
+  const t = katalogniTanla(katta, { savol: 'aknega qarshi nimadir kerak', chegara: 60 });
+  test('KATTA KATALOG QISQARDI', t.tanlandi === 60, `${t.tanlandi}/${t.jami}`);
+  const akneli = t.royxat.filter((p) => (p.concerns || []).includes('akne')).length;
+  test('mos mahsulotlar tanlandi', akneli >= 20, `${akneli} ta akneli`);
+
+  // QAMROV: model to'plam tuzishi uchun har bosqichdan mahsulot kerak
+  const bosqichlar = new Set(t.royxat.map((p) => p.step));
+  test('HAR BOSQICH vakili bor', bosqichlar.size === 5,
+    [...bosqichlar].join(', '));
+  for (const b of ['tozalash', 'toner', 'serum', 'krem', 'himoya']) {
+    const n = t.royxat.filter((p) => p.step === b).length;
+    if (n < 2) test(`«${b}» bosqichidan yetarli`, false, `${n} ta`);
+  }
+  test('har bosqichdan kamida 2 ta',
+    ['tozalash', 'toner', 'serum', 'krem', 'himoya']
+      .every((b) => t.royxat.filter((p) => p.step === b).length >= 2));
+
+  // Takror bo'lmasin — bitta mahsulot ikki marta ketsa token behuda
+  test('takror yo‘q', new Set(t.royxat.map((p) => p.id)).size === t.royxat.length);
+
+  // Vaqtinchalik ball maydoni mahsulotda qolib ketmasin
+  test('vaqtinchalik maydon tozalandi', katta.every((p) => p.__ball === undefined));
+
+  // So'zlarga ajratish: o'zbek yozuvi bir ko'rinishga keladi
+  test('yozuv birxillashtiriladi', sozlar('yog‘li teri').includes('yogli'),
+    sozlar('yog‘li teri').join(','));
+  test('ma’nosiz so‘zlar tashlanadi', !sozlar('menga nima kerak').includes('menga'),
+    sozlar('menga nima kerak').join(','));
+}
+
 // --- KONTEKST ---
 const kt = await chaqir('/api/maslahat', 'POST', { savol: 'Yana nima?',
   tarix: [{ kim: 'odam', matn: 'Terim quruq' }, { kim: 'ai', matn: 'Namlash kerak' }] });

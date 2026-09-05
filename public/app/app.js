@@ -2733,6 +2733,9 @@ function maslahatniChiz() {
       return `<div class="xabar ai"><div class="pufak"><div class="nuqtalar">
         <span></span><span></span><span></span></div></div></div>`;
     }
+    // Tizim eslatmasi (masalan rasm chegarasi) — javob emas, shuning
+    // uchun pufaksiz va so'niqroq ko'rinadi
+    if (x.tizim) return `<div class="chat-eslatma">${esc(x.matn)}</div>`;
     return aiXabarHtml(x.javob || { javob: x.matn, tavsiya: [] });
   }).join('');
 
@@ -2771,6 +2774,19 @@ async function maslahatYubor(savol) {
       savol, tarix, rasm: rasm?.data, mime: rasm?.mime }) });
     holat.suhbat.pop();
     holat.suhbat.push({ kim: 'ai', matn: j.javob, javob: j });
+    // Rasm chegarasi: qolgani ozayganda ogohlantiramiz, tugaganda
+    // esa rasm O'QILMAGANINI aytamiz — odam javobni surat asosida
+    // deb o'ylab yurmasin.
+    if (j.rasm_otkazildi) {
+      holat.suhbat.push({ kim: 'ai', tizim: true,
+        matn: `📷 Bugungi rasm chegarangiz tugadi (${j.rasm_limit?.limit || 3} ta). `
+            + 'Bu javob faqat matningizga asoslangan. Ertaga rasm yana ishlaydi.' });
+    } else if (j.rasm_limit && j.rasm_limit.qolgan <= 1) {
+      holat.suhbat.push({ kim: 'ai', tizim: true,
+        matn: j.rasm_limit.qolgan === 0
+          ? '📷 Bugun rasm chegarangiz tugadi. Ertaga yana mumkin.'
+          : '📷 Bugun yana 1 ta rasm yuborishingiz mumkin.' });
+    }
   } catch (e) {
     holat.suhbat.pop();
     holat.suhbat.push({ kim: 'ai', matn: e.message,
