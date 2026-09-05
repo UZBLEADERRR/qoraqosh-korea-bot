@@ -164,11 +164,13 @@ function qisqaNatija(n) {
 export async function rejaniBajar(token) {
   const reja = rejalar.get(String(token || ''));
   if (!reja) {
-    return { ok: false, xabar: 'Taklif eskirdi yoki allaqachon bajarilgan. Qaytadan so‘rang.' };
+    // Token yaroqsiz — bu SO'ROV xatosi, ish natijasi emas
+    return { topilmadi: true,
+      xabar: 'Taklif eskirdi yoki allaqachon bajarilgan. Qaytadan so‘rang.' };
   }
   rejalar.delete(String(token));
   if (Date.now() - reja.vaqt > REJA_MS) {
-    return { ok: false, xabar: 'Taklif eskirdi. Qaytadan so‘rang.' };
+    return { topilmadi: true, xabar: 'Taklif eskirdi. Qaytadan so‘rang.' };
   }
 
   // Qadamlar KETMA-KET bajariladi. Bittasi yiqilsa qolganlari
@@ -177,7 +179,16 @@ export async function rejaniBajar(token) {
   const natijalar = [];
   for (const q of reja.qadamlar) {
     try {
-      natijalar.push({ vosita: q.vosita, ok: true, natija: await vositaniBajar(q.vosita, q.argumentlar) });
+      const n = await vositaniBajar(q.vosita, q.argumentlar);
+      // MUHIM: vosita xato TASHLAMAY ham ishni bajarmagan bo'lishi
+      // mumkin — masalan «Mahsulot ID lari berilmadi». Ilgari bunday
+      // qadam «ok» hisoblanardi va admin faqat «0 ta yozuv o'zgardi»
+      // degan raqamni ko'rardi, SABABINI esa ko'rmasdi.
+      const ozgardi = Number(n?.ozgardi) || Number(n?.ochirildi) || 0;
+      const bajarilmadi = ozgardi === 0 && (n?.xabar || n?.xato);
+      natijalar.push(bajarilmadi
+        ? { vosita: q.vosita, ok: false, xato: String(n.xabar || n.xato).slice(0, 200), natija: n }
+        : { vosita: q.vosita, ok: true, natija: n });
     } catch (e) {
       natijalar.push({ vosita: q.vosita, ok: false, xato: String(e.message).slice(0, 200) });
     }
@@ -189,12 +200,14 @@ export async function rejaniBajar(token) {
     return s + (Number(n.ozgardi) || Number(n.ochirildi) || 0);
   }, 0);
 
+  const yiqilgan = natijalar.filter((x) => !x.ok);
   return {
-    ok: natijalar.some((x) => x.ok),
+    // Hech nima o'zgarmagan bo'lsa bu MUVAFFAQIYAT emas
+    ok: ozgardi > 0 || natijalar.some((x) => x.ok),
     qadamlar: natijalar,
     ozgardi,
-    xabar: natijalar.filter((x) => !x.ok).length
-      ? `${natijalar.filter((x) => x.ok).length}/${natijalar.length} qadam bajarildi`
+    xabar: yiqilgan.length
+      ? `${natijalar.length - yiqilgan.length}/${natijalar.length} qadam bajarildi`
       : '',
   };
 }

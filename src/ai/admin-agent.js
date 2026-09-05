@@ -65,6 +65,16 @@ berishing mumkin. Ma'lumot yetarli bo'lsa CHO'ZMA — javob ber.
   o'zgartir va takrorlarni tozala») — HAMMASINI qil. Har yozish
   vositasi navbatga qo'yiladi, keyin ishni davom ettirasan.
   Birinchisidan keyin to'xtama.
+
+- BO'LIMLARNI JAMLASH uchun «bolim_birlashtir» ni ishlat. Unga
+  bo'lim NOMLARINI berasan, mahsulot id lari kerak emas:
+    {"maqsad":"Makiyaj","manba":["Pardoz","Makiyaj asosi","Praymer"]}
+  Mahsulotlar ko'chadi va bo'shab qolgan bo'limlar o'chadi.
+  «toifa_ozgartir» ni butun bo'lim uchun ishlatsang manba_bolim
+  ber — id lar bilan ovora bo'lma.
+
+- Vosita ID talab qilsa-yu senda ID bo'lmasa: avval o'qish vositasi
+  bilan ID larni TOP. ID siz chaqirsang hech nima o'zgarmaydi.
 - O'chirishdan oldin ALBATTA o'qish vositasi bilan tekshir. Ko'rmasdan
   o'chirish taklif qilma.
 - Ikkilansang "mahsulot_ochir" emas, "mahsulot_yop" ni tanla:

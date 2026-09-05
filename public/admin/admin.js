@@ -3985,9 +3985,11 @@ function matnHtml(matn) {
   return String(matn || '').split('\n').map((q) => {
     const xom = q.trim();
     if (!xom) return '';
-    // <i> teglari faqat BIZ qo'shganimiz (bekor qilindi kabi) — ular
-    // esc dan keyin tiklanadi, model matni esa ekranlangan qoladi
-    const s = esc(xom).replace(/&lt;(\/?i)&gt;/g, '<$1>');
+    // <i> va <b> teglari faqat BIZ qo'shganimiz (bekor qilindi,
+    // bajarildi kabi) — ular esc dan keyin tiklanadi, model matni esa
+    // ekranlangan qoladi. Ilgari faqat <i> tiklanardi va bizning
+    // «<b>0</b> ta yozuv» xom matn bo'lib ko'rinardi.
+    const s = esc(xom).replace(/&lt;(\/?[ib])&gt;/g, '<$1>');
     const qalin = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
     if (/^##\s/.test(xom)) return `<h4>${qalin.replace(/^##\s/, '')}</h4>`;
     if (/^[•·-]\s/.test(xom)) return `<div class="y-band">${qalin.replace(/^[•·-]\s/, '')}</div>`;
@@ -4043,11 +4045,18 @@ async function rejaniTasdiqla(token, tugma) {
       // NATIJA ko'rsatiladi, da'vo emas: nechta yozuv haqiqatan
       // o'zgardi va qaysi qadam yiqildi
       const yiqilgan = (j.qadamlar || []).filter((q) => !q.ok);
-      x.matn = `${x.matn}\n\n✅ Bajarildi — <b>${j.ozgardi ?? 0}</b> ta yozuv o‘zgardi.`
-        + (yiqilgan.length ? `\n⚠️ ${yiqilgan.length} ta amal yiqildi: `
-            + yiqilgan.map((q) => `${q.vosita} (${q.xato})`).join('; ') : '');
+      const soni = j.ozgardi ?? 0;
+      x.matn = `${x.matn}\n\n`
+        + (soni
+          ? `✅ Bajarildi — <b>${soni}</b> ta yozuv o‘zgardi.`
+          : `⚠️ Hech narsa o‘zgarmadi.`)
+        + (yiqilgan.length
+          ? `\n\nBajarilmagan amallar:\n`
+            + yiqilgan.map((q) => `• <b>${q.vosita}</b> — ${q.xato}`).join('\n')
+          : '');
     }
-    tost(`Bajarildi — ${j.ozgardi ?? 0} ta yozuv`);
+    tost(j.ozgardi ? `Bajarildi — ${j.ozgardi} ta yozuv`
+                   : 'Hech narsa o‘zgarmadi', j.ozgardi ? '' : 'xato');
     holat.kesh = {};          // katalog o'zgargan bo'lishi mumkin
     yordamchiChiz();
   } catch (e) {

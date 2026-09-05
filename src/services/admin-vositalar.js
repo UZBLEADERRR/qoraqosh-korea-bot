@@ -421,9 +421,6 @@ async function bolimniTop(nomOrSlug) {
 }
 
 async function toifaOzgartir(a) {
-  const idlar = (a.idlar || []).map((x) => son(x, 0)).filter((x) => x > 0).slice(0, 200);
-  if (!idlar.length) return { ozgardi: 0, xabar: 'Mahsulot ID lari berilmadi' };
-
   const b = await bolimniTop(a.bolim ?? a.toifa);
   if (!b) {
     const bor = await qatorlar('select name as nom, slug from categories order by sort, id');
@@ -431,10 +428,109 @@ async function toifaOzgartir(a) {
       xabar: `«${matn(a.bolim ?? a.toifa, 40)}» degan bo‘lim yo‘q.`,
       mavjud_bolimlar: bor.map((x) => x.nom) };
   }
+
+  // Ikki xil ishlatish mumkin:
+  //   idlar        — aniq mahsulotlar
+  //   manba_bolim  — BUTUN bo'limdagi hamma mahsulot
+  // Ikkinchisi bo'lmasa agent bo'lim birlashtira olmasdi: u bo'lim
+  // nomini biladi, lekin ichidagi yuzta mahsulotning id sini emas.
+  if (a.manba_bolim) {
+    const m = await bolimniTop(a.manba_bolim);
+    if (!m) return { ozgardi: 0, xabar: `«${matn(a.manba_bolim, 40)}» degan bo‘lim yo‘q.` };
+    const r = await qatorlar(
+      `update products set category_id = $2, updated_at = now()
+        where category_id = $1 returning id, name`, [m.id, b.id]);
+    return { ozgardi: r.length, manba: m.nom, bolim: b.nom };
+  }
+
+  const idlar = (a.idlar || []).map((x) => son(x, 0)).filter((x) => x > 0).slice(0, 500);
+  if (!idlar.length) {
+    return { ozgardi: 0,
+      xabar: 'Mahsulot ID lari ham, manba bo‘lim ham berilmadi. '
+           + 'Butun bo‘limni ko‘chirish uchun `manba_bolim` bering.' };
+  }
   const r = await qatorlar(
     `update products set category_id = $2, updated_at = now()
       where id = any($1) returning id, name`, [idlar, b.id]);
   return { ozgardi: r.length, bolim: b.nom, mahsulotlar: r };
+}
+
+/**
+ * Bir nechta bo'limni BITTASIGA jamlaydi.
+ *
+ * Aynan shu ish so'ralgan edi: «bir xil turdagi tovarlarni bitta
+ * bo'limda jamla, keraksiz bo'limlarni o'chir». Ilgari buni bajarib
+ * bo'lmasdi — agent bo'lim nomlarini bilardi, lekin ichidagi
+ * mahsulotlarning id sini bilmasdi va `toifa_ozgartir` id talab
+ * qilardi. Natijada «0 ta yozuv o'zgardi» bo'lardi.
+ */
+async function bolimBirlashtir(a) {
+  const maqsad = await bolimniTop(a.maqsad ?? a.bolim);
+  if (!maqsad) {
+    const bor = await qatorlar('select name as nom from categories order by sort, id');
+    return { ozgardi: 0, xabar: `«${matn(a.maqsad ?? a.bolim, 40)}» degan bo‘lim yo‘q.`,
+      mavjud_bolimlar: bor.map((x) => x.nom) };
+  }
+
+  const manbalar = Array.isArray(a.manba) ? a.manba : [a.manba].filter(Boolean);
+  if (!manbalar.length) return { ozgardi: 0, xabar: 'Qaysi bo‘limlar jamlanishi berilmadi.' };
+
+  let kochdi = 0;
+  const kochirilgan = [];
+  const topilmadi = [];
+  const ochirilgan = [];
+
+  for (const nom of manbalar.slice(0, 30)) {
+    const m = await bolimniTop(nom);
+    if (!m) { topilmadi.push(String(nom)); continue; }
+    if (m.id === maqsad.id) continue;             // o'zini o'ziga ko'chirmaymiz
+
+    const r = await qatorlar(
+      `update products set category_id = $2, updated_at = now()
+        where category_id = $1 returning id`, [m.id, maqsad.id]);
+    kochdi += r.length;
+    kochirilgan.push({ bolim: m.nom, mahsulot: r.length });
+
+    // Bo'sh qolgan bo'limni o'chiramiz — «keraksiz bo'limlarni
+    // o'chirib yubor» degan ishning ikkinchi yarmi
+    if (a.boshlarni_ochir !== false) {
+      await sorov('delete from categories where id = $1', [m.id]);
+      ochirilgan.push(m.nom);
+    }
+  }
+
+  return {
+    ozgardi: kochdi,
+    maqsad: maqsad.nom,
+    kochirilgan,
+    ochirilgan_bolimlar: ochirilgan,
+    topilmadi,
+    xabar: kochdi ? '' : 'Hech qanday mahsulot ko‘chmadi — bo‘limlar bo‘sh bo‘lgan bo‘lishi mumkin.',
+  };
+}
+
+/** Bo'limni o'chiradi. Ichida mahsulot bo'lsa RAD ETADI. */
+async function bolimOchir(a) {
+  const royxat = Array.isArray(a.bolimlar) ? a.bolimlar : [a.bolimlar ?? a.bolim].filter(Boolean);
+  if (!royxat.length) return { ozgardi: 0, xabar: 'Qaysi bo‘lim o‘chirilishi berilmadi.' };
+
+  const ochirildi = [];
+  const tegilmadi = [];
+  for (const nom of royxat.slice(0, 30)) {
+    const b = await bolimniTop(nom);
+    if (!b) { tegilmadi.push({ nom: String(nom), sabab: 'topilmadi' }); continue; }
+    const soni = await qiymat('select count(*)::int from products where category_id = $1', [b.id]);
+    if (soni > 0) {
+      // Mahsulotni bo'limsiz qoldirish — do'konni buzish demak.
+      // Avval ko'chirilsin, keyin o'chirilsin.
+      tegilmadi.push({ nom: b.nom, sabab: `ichida ${soni} ta mahsulot bor — avval ko‘chiring` });
+      continue;
+    }
+    await sorov('delete from categories where id = $1', [b.id]);
+    ochirildi.push(b.nom);
+  }
+  return { ozgardi: ochirildi.length, ochirildi, tegilmadi,
+    xabar: ochirildi.length ? '' : 'Hech qanday bo‘lim o‘chirilmadi.' };
 }
 
 // ─────────────────────────── RO'YXAT ───────────────────────────
@@ -534,9 +630,23 @@ export const VOSITALAR = {
   },
   toifa_ozgartir: {
     oqish: false, ishla: toifaOzgartir,
-    tavsif: 'Mahsulot(lar)ning BO‘LIMINI (toifasini) o‘zgartiradi. '
-          + 'Bo‘lim nomini yoki slug ini berasan.',
-    parametrlar: 'idlar (ro‘yxat), bolim (nomi yoki slug)',
+    tavsif: 'Mahsulot(lar)ning BO‘LIMINI o‘zgartiradi. Aniq mahsulotlar uchun '
+          + '`idlar`, BUTUN bo‘limni ko‘chirish uchun `manba_bolim`.',
+    parametrlar: 'bolim (qayerga), + idlar (ro‘yxat) YOKI manba_bolim (qayerdan)',
+  },
+  bolim_birlashtir: {
+    oqish: false, ishla: bolimBirlashtir,
+    tavsif: 'Bir nechta bo‘limni BITTASIGA jamlaydi: mahsulotlar ko‘chadi va '
+          + 'bo‘shab qolgan bo‘limlar o‘chiriladi. «Bir xil turdagi tovarlarni '
+          + 'bitta bo‘limga jamla» degan ish uchun AYNAN shu vosita.',
+    parametrlar: 'maqsad (qaysi bo‘limga), manba (ro‘yxat — qaysi bo‘limlardan), '
+               + 'boshlarni_ochir (standart: ha)',
+  },
+  bolim_ochir: {
+    oqish: false, ishla: bolimOchir,
+    tavsif: 'Bo‘limni o‘chiradi. Ichida mahsulot bo‘lsa O‘CHIRMAYDI — avval '
+          + '«bolim_birlashtir» bilan ko‘chiring.',
+    parametrlar: 'bolimlar (ro‘yxat)',
   },
   mahsulot_tahrir: {
     oqish: false, ishla: mahsulotTahrir,

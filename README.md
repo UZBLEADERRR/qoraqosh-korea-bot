@@ -781,7 +781,21 @@ bo'lmaydi. Buning o'rniga qat'iy vosita ro'yxati:
 | Vosita | Turi |
 |---|---|
 | mahsulotlar, takrorlar, buyurtmalar, buyurtma, statistika, mijozlar, **bolimlar**, **muammo_statistikasi**, **sozlamalar**, **mavzu**, **eksport** | o'qish — erkin |
-| mahsulot_yop, mahsulot_ochir, narx_ozgartir, ombor_ozgartir, **mahsulot_tahrir**, **toifa_ozgartir**, **sozlama_ozgartir**, **mavzu_ozgartir** | **YOZISH — tasdiq bilan** |
+| mahsulot_yop, mahsulot_ochir, narx_ozgartir, ombor_ozgartir, mahsulot_tahrir, toifa_ozgartir, **bolim_birlashtir**, **bolim_ochir**, sozlama_ozgartir, mavzu_ozgartir | **YOZISH — tasdiq bilan** |
+
+**Bo'limlarni jamlash.** «Bir xil turdagi tovarlarni bitta bo'limga
+jamla, keraksizlarini o'chir» — `bolim_birlashtir` shu ish uchun:
+unga bo'lim NOMLARI beriladi, mahsulot id lari kerak emas.
+Mahsulotlar ko'chadi, bo'shab qolgan bo'limlar o'chadi. `bolim_ochir`
+esa ichida mahsulot bor bo'limni **o'chirmaydi** — mahsulotni
+bo'limsiz qoldirish do'konni buzadi.
+
+> Ilgari bu ish bajarilmasdi va sababi ko'rinmasdi: agent bo'lim
+> nomlarini bilardi, lekin `toifa_ozgartir` mahsulot id larini talab
+> qilardi. Vosita xato tashlamay `{ozgardi: 0}` qaytarardi, bu esa
+> «bajarildi» deb hisoblanardi — admin faqat «0 ta yozuv o'zgardi»
+> degan raqamni ko'rardi. Endi bunday qadam **yiqilgan** deb
+> belgilanadi va sababi javobda yoziladi.
 
 `muammo_statistikasi` — mijozlarda qaysi teri muammosi ko'p uchraydi,
 teri turlari, jins taqsimoti. «Nimani ko'proq olib kelaylik» degan

@@ -2089,6 +2089,70 @@ console.log('\n── ADMIN YORDAMCHISI ──');
   test('yo‘q bo‘lim aniq aytiladi', yoqBolim.ozgardi === 0
     && Array.isArray(yoqBolim.mavjud_bolimlar), yoqBolim.xabar);
 
+  // ── BO'LIMLARNI JAMLASH ──
+  // Aynan shu ish bajarilmasdi: agent bo'lim NOMLARINI bilardi,
+  // lekin ichidagi mahsulotlarning id sini bilmasdi, toifa_ozgartir
+  // esa id talab qilardi. Natijada «0 ta yozuv o'zgardi» chiqardi.
+  await sorov(`insert into categories (slug, name, sort) values
+      ('pardoz-t','Pardoz T',90),('praymer-t','Praymer T',91),('makiyaj-t','Makiyaj T',92)
+    on conflict (slug) do nothing`);
+  const bId = async (slug) => qiymat(`select id from categories where slug=$1`, [slug]);
+  const p1 = await qiymat(`select id from products order by id limit 1`);
+  const p2 = await qiymat(`select id from products order by id offset 1 limit 1`);
+  await sorov(`update products set category_id=$1 where id=$2`, [await bId('pardoz-t'), p1]);
+  await sorov(`update products set category_id=$1 where id=$2`, [await bId('praymer-t'), p2]);
+
+  const jam = await V.vositaniBajar('bolim_birlashtir',
+    { maqsad: 'Makiyaj T', manba: ['Pardoz T', 'Praymer T'] });
+  test('BO‘LIMLAR JAMLANDI', jam.ozgardi === 2, JSON.stringify(jam).slice(0, 110));
+  test('bo‘sh bo‘limlar o‘chdi', jam.ochirilgan_bolimlar.length === 2,
+    jam.ochirilgan_bolimlar.join(', '));
+  test('mahsulotlar maqsad bo‘limda',
+    (await qiymat(`select count(*)::int from products where category_id=$1`,
+      [await bId('makiyaj-t')])) === 2);
+  test('manba bo‘limlar bazadan ketdi',
+    (await qiymat(`select count(*)::int from categories where slug in ('pardoz-t','praymer-t')`)) === 0);
+
+  // Butun bo'limni id larsiz ko'chirish
+  const kochir = await V.vositaniBajar('toifa_ozgartir',
+    { manba_bolim: 'Makiyaj T', bolim: (await qator(
+      `select name from categories where slug not in ('makiyaj-t') order by sort limit 1`)).name });
+  test('manba_bolim bilan ID siz ko‘chadi', kochir.ozgardi === 2, JSON.stringify(kochir));
+
+  // ID ham, manba ham berilmasa — SABABI aytiladi
+  const idsiz = await V.vositaniBajar('toifa_ozgartir', { bolim: 'Makiyaj T' });
+  test('ID siz chaqiruvda sabab aytiladi', idsiz.ozgardi === 0 && /manba_bolim/.test(idsiz.xabar),
+    idsiz.xabar);
+
+  // Ichida mahsulot bor bo'limni o'chirib bo'lmaydi
+  await sorov(`update products set category_id=$1 where id=$2`, [await bId('makiyaj-t'), p1]);
+  const ochOch = await V.vositaniBajar('bolim_ochir', { bolimlar: ['Makiyaj T'] });
+  test('to‘la bo‘lim O‘CHMAYDI', ochOch.ozgardi === 0
+    && /mahsulot bor/.test(ochOch.tegilmadi?.[0]?.sabab || ''), JSON.stringify(ochOch.tegilmadi));
+  await sorov(`update products set category_id=null where id=$1`, [p1]);
+  const ochOch2 = await V.vositaniBajar('bolim_ochir', { bolimlar: ['Makiyaj T'] });
+  test('bo‘sh bo‘lim o‘chadi', ochOch2.ozgardi === 1, JSON.stringify(ochOch2));
+
+  // ── JIMGINA YIQILISH KO'RINADI ──
+  // Vosita xato tashlamay ham ishni bajarmagan bo'lishi mumkin.
+  // Ilgari bunday qadam «ok» hisoblanib, admin faqat «0 ta yozuv»
+  // degan raqamni ko'rardi, sababini esa ko'rmasdi.
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'x', amal: 'vosita', vosita: 'toifa_ozgartir',
+      argumentlar_json: JSON.stringify({ bolim: 'Toner' }),
+      javob: '', reja_izoh: 'Toifa o‘zgaradi', takliflar: [] },
+    { fikr: 'x', amal: 'javob', vosita: '', argumentlar_json: '{}',
+      javob: 'Taklif tayyor.', reja_izoh: '', takliflar: [] },
+  ];
+  const jim = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'Toifani o‘zgartir' });
+  const jimT = await chaqirAdmin('/api/admin/agent-tasdiq', 'POST',
+    { token: jim.tana.reja.token });
+  test('bajarilmagan qadam YIQILGAN deb belgilanadi',
+    jimT.tana.qadamlar?.[0]?.ok === false, JSON.stringify(jimT.tana.qadamlar));
+  test('SABABI ham qaytadi', /ID lari/.test(jimT.tana.qadamlar?.[0]?.xato || ''),
+    jimT.tana.qadamlar?.[0]?.xato);
+  test('hech nima o‘zgarmagani ko‘rinadi', jimT.tana.ozgardi === 0);
+
   // ── YOLG'ON DA'VO ──
   // Model hech narsa qilmasdan «o'chirdim» deb yozsa — bu admin
   // uchun eng yomon holat: u ishonadi, mahsulot esa joyida turadi.

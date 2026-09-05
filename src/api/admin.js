@@ -173,7 +173,11 @@ export async function adminRoutes(req, res, yol) {
   if (yol === '/api/admin/agent-tasdiq' && req.method === 'POST') {
     const b = await tana(req);
     const r = await rejaniBajar(b.token);
-    if (!r.ok) return xato(res, 400, r.xabar);
+    // Token yaroqsiz bo'lsagina 400. Amal bajarilib, hech nima
+    // o'zgarmagan bo'lsa ham javob 200 bo'ladi va SABABLARI
+    // qadamlar ichida qaytadi — aks holda admin «0 ta yozuv»
+    // degan raqamni ko'radi-yu, nega ekanini bilmaydi.
+    if (r.topilmadi) return xato(res, 400, r.xabar);
     katalogYangilandi();
     return ok(res, r);
   }
