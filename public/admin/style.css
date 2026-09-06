@@ -434,14 +434,22 @@ body.y-ochiq{overflow:hidden}
 .y-band.y-raqam{padding-left:0}
 .y-band.y-raqam::before{content:none}
 
-/* «O'ylayapti» — uchta nuqta */
-.y-kutish{display:flex;gap:5px;align-items:center;padding:15px 16px}
+/* «O'ylayapti» — uchta nuqta va jonli jarayon */
+.y-kutish{display:inline-flex;gap:5px;align-items:center;flex:0 0 auto}
 .y-kutish span{width:7px;height:7px;border-radius:50%;background:var(--och);
   animation:y-nuqta 1.2s infinite ease-in-out}
 .y-kutish span:nth-child(2){animation-delay:.15s}
 .y-kutish span:nth-child(3){animation-delay:.3s}
 @keyframes y-nuqta{0%,60%,100%{opacity:.28;transform:translateY(0)}
   30%{opacity:1;transform:translateY(-3px)}}
+
+.y-jarayon{max-width:88%}
+.y-jarayon-bosh{display:flex;gap:9px;align-items:center;font-size:13.5px}
+.y-jarayon-bosh b{font-weight:600;overflow-wrap:anywhere}
+.y-jarayon-oqim{margin-top:9px;padding-top:8px;border-top:1px dashed var(--chiziq);
+  font-size:12.5px;color:var(--kul);display:flex;flex-direction:column;gap:5px}
+.y-jarayon-oqim div{overflow-wrap:anywhere}
+.y-jarayon-oqim code{background:var(--fon);padding:1px 5px;border-radius:5px}
 
 .y-qadamlar{margin-top:10px;font-size:12.5px;color:var(--kul)}
 .y-qadamlar summary{cursor:pointer;color:var(--och);list-style:none}
@@ -450,6 +458,75 @@ body.y-ochiq{overflow:hidden}
 .y-qadamlar[open] summary::before{content:'▾ '}
 .y-qadamlar div{margin-top:5px;overflow-wrap:anywhere}
 .y-qadamlar code{background:var(--fon);padding:1px 5px;border-radius:5px}
+
+/* ── AGENT GRAFIKLARI ──
+   Ranglar sinalgan to'plamdan: qo'shni bo'laklar rang ko'rmaslikda
+   ham ajraladi. Kunduzgi va tungi qadamlar ALOHIDA tanlangan —
+   avtomatik aylantirish emas. */
+.y-grafik{margin:12px 0 0;padding:0;min-width:min(258px,100%);
+  --g-1:#2a78d6; --g-2:#eb6834; --g-3:#1baf7a;
+  --g-4:#eda100; --g-5:#e87ba4; --g-6:#008300}
+@media (prefers-color-scheme:dark){.y-grafik{
+  --g-1:#3987e5; --g-2:#d95926; --g-3:#199e70;
+  --g-4:#c98500; --g-5:#d55181; --g-6:#008300}}
+.y-grafik figcaption{font-size:13px;font-weight:700;margin:0 0 9px}
+
+/* Yotiq ustunlar. Nom USTIDA turadi — o'zbekcha bo'lim nomlari
+   uzun bo'ladi va yon ustunga sig'masdi («Quyos…» bo'lib qirqilardi). */
+.g-ustun{display:flex;flex-direction:column;gap:9px}
+.g-qator{display:grid;grid-template-columns:1fr auto;
+  gap:3px 8px;align-items:center;font-size:12.5px}
+.g-nom{grid-column:1/-1;color:var(--kul);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g-yol{position:relative;height:14px;border-radius:4px;background:var(--fon)}
+.g-yol i{position:absolute;top:0;bottom:0;background:var(--g-1);
+  border-radius:0 4px 4px 0;min-width:2px}
+.g-yol i.manfiy{background:var(--g-2);border-radius:4px 0 0 4px}
+.g-son{font-variant-numeric:tabular-nums;font-size:12.5px;white-space:nowrap}
+
+/* Chiziq */
+.g-chiziq{width:100%;height:auto;display:block;overflow:visible}
+.g-yoy{fill:none;stroke:var(--g-1);stroke-width:2;
+  stroke-linejoin:round;stroke-linecap:round}
+.g-nuqta{fill:var(--g-1);stroke:var(--panel);stroke-width:2}
+.g-oq{stroke:var(--chiziq);stroke-width:1}
+.g-yorliq{fill:var(--matn);font-size:11px;font-weight:700;
+  font-family:inherit;font-variant-numeric:tabular-nums}
+.g-oralik{display:flex;justify-content:space-between;
+  font-size:11.5px;color:var(--och);margin-top:2px}
+
+/* Halqa */
+.g-halqa{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.g-halqa svg{width:104px;height:104px;flex:0 0 auto}
+.g-bolak{fill:none;stroke-width:15}
+.g-bolak.r0,.g-izoh i.r0{stroke:var(--g-1);background:var(--g-1)}
+.g-bolak.r1,.g-izoh i.r1{stroke:var(--g-2);background:var(--g-2)}
+.g-bolak.r2,.g-izoh i.r2{stroke:var(--g-3);background:var(--g-3)}
+.g-bolak.r3,.g-izoh i.r3{stroke:var(--g-4);background:var(--g-4)}
+.g-bolak.r4,.g-izoh i.r4{stroke:var(--g-5);background:var(--g-5)}
+.g-bolak.r5,.g-izoh i.r5{stroke:var(--g-6);background:var(--g-6)}
+.g-bolak.r6,.g-izoh i.r6{stroke:var(--och);background:var(--och)}
+.g-izoh{list-style:none;margin:0;padding:0;flex:1 1 150px;
+  display:flex;flex-direction:column;gap:5px;font-size:12.5px}
+.g-izoh li{display:flex;gap:7px;align-items:center}
+.g-izoh i{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+.g-izoh span{color:var(--kul);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.g-izoh b{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* Jadval ko'rinishi — rangga tayanmaydigan ikkinchi yo'l */
+.g-jadval{margin-top:9px;font-size:12.5px;color:var(--kul)}
+.g-jadval summary{cursor:pointer;color:var(--och);list-style:none}
+.g-jadval summary::-webkit-details-marker{display:none}
+.g-jadval summary::before{content:'▸ '}
+.g-jadval[open] summary::before{content:'▾ '}
+.g-jadval table{width:100%;border-collapse:collapse;margin-top:6px;
+  background:none;box-shadow:none}
+/* Panelning umumiy jadval uslubi (KATTA HARF, ajratgich) bu yerga
+   tushmasin — bu jadval o'qish uchun, boshqaruv uchun emas */
+.g-jadval th{text-align:left;font-weight:500;padding:3px 0;font-size:12.5px;
+  text-transform:none;letter-spacing:0;color:var(--kul);border:0;background:none}
+.g-jadval td{text-align:right;font-variant-numeric:tabular-nums;
+  color:var(--matn);padding:3px 0;border:0;background:none}
 
 .y-takliflar{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 14px}
 .y-takliflar button{border:1px solid var(--chiziq);background:var(--panel);

@@ -27,7 +27,8 @@ import { rasmChizaOlamizmi, svgdanPng } from '../rasm/chiz.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
 import { brendNomi } from '../lib/brend.js';
 import { navbatHolati } from '../ai/navbat.js';
-import { agentJavobi, rejaniBajar } from '../services/admin-agent.js';
+import { agentJavobi, rejaniBajar, ishBoshla, ishYangila, ishTugat, ishHolati }
+  from '../services/admin-agent.js';
 import { eksportYig, eksportHajmi, csvQil, BOLIMLAR as EKSPORT_BOLIMLAR }
   from '../services/eksport.js';
 import { modelHolatlari, royxat as modelRoyxati, rasmModeli, standartmi,
@@ -160,13 +161,27 @@ export async function adminRoutes(req, res, yol) {
         return xom.length > 100 ? { mime: 'image/jpeg', base64: xom.replace(/\s/g, '') } : null;
       }).filter(Boolean);
 
-    try {
-      return ok(res, await agentJavobi(savol, tarix, rasmlar));
-    } catch (e) {
-      const x = xatoniTushuntir(e);
-      console.error('ADMIN AGENT:', x.log);
-      return xato(res, 502, x.matn);
-    }
+    // Ish FONDA boshlanadi va darrov `ish` raqami qaytadi. Panel
+    // shu raqam bo'yicha holatni so'rab turadi va agent nima ustida
+    // ishlayotganini ko'rsatadi. Ilgari so'rov javob kelguncha
+    // osilib turar, admin esa faqat aylanayotgan nuqtalarni ko'rardi.
+    const ish = ishBoshla();
+    agentJavobi(savol, tarix, rasmlar, (h) => ishYangila(ish, h))
+      .then((j) => ishTugat(ish, { natija: j }))
+      .catch((e) => {
+        const x = xatoniTushuntir(e);
+        console.error('ADMIN AGENT:', x.log);
+        ishTugat(ish, { xato: x.matn });
+      });
+    return ok(res, { ish });
+  }
+
+  // Fondagi ishning holati. Panel har yarim soniyada so'raydi.
+  if (yol === '/api/admin/agent-holat' && req.method === 'GET') {
+    const url = new URL(req.url, 'http://x');
+    const h = ishHolati(url.searchParams.get('ish'));
+    if (!h) return xato(res, 404, 'Ish topilmadi — sahifani yangilang.');
+    return ok(res, h);
   }
 
   // Taklif qilingan o'zgarishni bajarish. Token bir martalik.

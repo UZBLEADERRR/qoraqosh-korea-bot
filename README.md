@@ -773,15 +773,67 @@ Admin panel → **Yordamchi**. Savol yozasiz, u bazadan o'qib javob
 beradi. Topshiriqni bir necha qadamda bajaradi: avval qidiradi,
 natijani ko'radi, keyin keyingi qadamni tanlaydi.
 
-Agent bazaga **SQL yozmaydi**. Ikki sabab: model o'ylab topgan SQL
-jonli do'konni buzishi mumkin, va erkin SQL ni oldindan tekshirib
-bo'lmaydi — ya'ni sizga «shuni qilaman» deb aniq ko'rsatib ham
-bo'lmaydi. Buning o'rniga qat'iy vosita ro'yxati:
-
 | Vosita | Turi |
 |---|---|
-| mahsulotlar, takrorlar, buyurtmalar, buyurtma, statistika, mijozlar, **bolimlar**, **muammo_statistikasi**, **sozlamalar**, **mavzu**, **eksport** | o'qish — erkin |
-| mahsulot_yop, mahsulot_ochir, narx_ozgartir, ombor_ozgartir, mahsulot_tahrir, toifa_ozgartir, **bolim_birlashtir**, **bolim_ochir**, sozlama_ozgartir, mavzu_ozgartir | **YOZISH — tasdiq bilan** |
+| mahsulotlar, takrorlar, buyurtmalar, buyurtma, statistika, mijozlar, bolimlar, muammo_statistikasi, sozlamalar, mavzu, eksport, **sql**, **sxema**, **grafik** | o'qish — erkin |
+| mahsulot_yop, mahsulot_ochir, narx_ozgartir, **narxlarni_ozgartir**, ombor_ozgartir, mahsulot_tahrir, toifa_ozgartir, bolim_birlashtir, bolim_ochir, sozlama_ozgartir, mavzu_ozgartir, **sql_yoz** | **YOZISH — tasdiq bilan** |
+
+#### Bazaga to'liq kirish
+
+Tayyor vositalar ro'yxati qanchalik uzun bo'lmasin, har safar
+ro'yxatda yo'q narsa so'raladi: «shu oyda qaysi viloyatdan ko'p
+buyurtma tushdi», «narxi tannarxidan past mahsulotlar bormi».
+Shuning uchun agent **SQL yoza oladi** — `sxema` bilan qanday
+jadval va ustunlar borligini ko'radi, keyin `sql` bilan so'rov
+yozadi.
+
+Xavfsizlik ikki qatlam:
+
+1. **O'qish so'rovi haqiqiy `read only` tranzaksiyada bajariladi.**
+   Bu satr tekshiruvi emas, **bazaning o'z kafolati**: `with x as
+   (update … returning …) select * from x` kabi yashirin yozish
+   SELECT bo'lib boshlanadi va matn tekshiruvidan o'tadi — lekin
+   Postgres uni rad etadi. Ustiga `statement_timeout` qo'yiladi:
+   og'ir so'rov butun ilovani sekinlashtirmaydi.
+2. **Yozish so'rovi admin tasdiqlamaguncha bajarilmaydi**, va
+   sxemani buzadigan buyruqlar (`drop`, `truncate`, `alter`,
+   `grant`) **butunlay taqiqlangan** — ularni qaytarib bo'lmaydi va
+   do'kon boshqaruvi uchun hech qachon kerak emas. Bir so'rovga
+   bir buyruq: `;` bilan ikkinchisini tiqib bo'lmaydi.
+
+#### Narxni ommaviy o'zgartirish
+
+`narx_ozgartir` bitta mahsulot uchun (id kerak). Bir nechtasi uchun
+`narxlarni_ozgartir`: brend, bo'lim yoki nom bo'yicha filtrlaydi va
+aniq narx qo'yadi, foizga ko'taradi yoki summa qo'shadi.
+
+> «Narxni o'zgartir» degan topshiriq ilgari jimgina bajarilmasdi:
+> yagona narx vositasi ID talab qilardi, agent esa nom bilan
+> chaqirardi. Filtrsiz chaqiruv ham bajarilmaydi — butun katalog
+> tasodifan o'zgarib ketmasin (`hammasi=true` ataylab so'raladi).
+
+Tasdiq kartasidagi **son taxmin emas** — amal bajarilishidan oldin
+bazadan sanaladi. Ilgari har qanday ommaviy amal «1 ta yozuv» bo'lib
+ko'rinardi.
+
+#### Grafik va diagramma
+
+`grafik` vositasi javobga chizma qo'shadi: **ustun** (taqqoslash),
+**chiziq** (vaqt bo'yicha o'zgarish), **halqa** (ulush). Qiymatlar
+o'ylab topilmaydi — avval o'qish vositasi yoki `sql` bilan olinadi.
+Har chizma ostida **jadval ko'rinishi** ham bor: rangni ko'rmaydigan
+yoki aniq raqam kerak bo'lgan odam uni ochib o'qiydi. Ranglar
+kunduzgi va tungi rejim uchun alohida tanlangan va qo'shni bo'laklar
+rang ko'rmaslikda ham ajralib turadi.
+
+#### Nima qilayotgani ko'rinib turadi
+
+Agent 10–30 soniya ishlashi mumkin. Ilgari HTTP so'rovi shuncha vaqt
+osilib turardi va admin faqat aylanayotgan nuqtalarni ko'rardi. Endi
+ish **fonda** ketadi: so'rov darrov ish raqamini qaytaradi, panel esa
+holatini so'rab turadi va **hozir qaysi ish ustida** ekanini
+ko'rsatadi — «Katalogni o'qiyapman», «COSRX mahsulotlarini
+sanayapman» — bajarilgan qadamlar ro'yxati bilan birga.
 
 **Bo'limlarni jamlash.** «Bir xil turdagi tovarlarni bitta bo'limga
 jamla, keraksizlarini o'chir» — `bolim_birlashtir` shu ish uchun:
@@ -805,10 +857,12 @@ savolga javob shu yerda.
 (WCAG nisbiy yorqinligi). Shuning uchun agent «chiroyli ko'rinadi» deb
 taxmin qilmaydi — o'qib bo'lmaydigan rangni raqam bilan rad etadi.
 
-`sozlama_ozgartir` faqat **ro'yxatdagi** kalitlarga yozadi: limitlar,
-chegirmalar, menejer telefoni, karta raqami. Narx qoidasi kabi
-nozik sozlamalar bu yerdan o'zgarmaydi — noto'g'ri kalitga yozish
-ilovani jimgina buzadi.
+`sozlama_ozgartir` **istalgan** sozlamani o'zgartiradi, lekin uch
+shart bilan: kalit bazada **bor** bo'lishi kerak (yangi kalit
+yaratib bo'lmaydi — bitta xato harf jimgina o'lik sozlama
+qoldiradi), yangi qiymat **turi** eskisiga mos bo'lishi kerak
+(raqam raqam, matn matn bo'lib qoladi), va tuzilmali sozlama
+(mavzu ranglari, narx qoidasi) o'z vositasi orqali o'zgaradi.
 
 **Agent «qildim» deb yolg'on aytolmaydi.** Model matn yozadi, amalni
 esa biz bajaramiz — ikkalasi bir narsa emas. Model «takrorlarni
@@ -1101,6 +1155,10 @@ src/
     dokon-api.js       do'kon JSON API si: qoidalar, id, rasm, ro'yxat
     agent.js           kanal rejasi va post yozish
     agent-jadval.js    kunlik jadval (advisory lock bilan)
+    admin-agent.js     admin yordamchisi: qadamlar, reja, fondagi ish
+    admin-vositalar.js yordamchining vositalari (o'qish va yozish)
+    admin-sql.js       bazaga to'g'ridan-to'g'ri kirish (read-only tranzaksiya)
+    eksport.js         ma'lumotni JSON yoki CSV qilib yuklash
 public/
   index.html           qo'nish sahifasi
   app/                 Mini App

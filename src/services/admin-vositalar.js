@@ -18,6 +18,7 @@ import { HOLATLAR } from '../lib/bosqichlar.js';
 import { palitra, rangTozala, kontrast, MAVZU_STANDART } from '../lib/mavzu.js';
 import { TAVSIF as SHABLON_TAVSIF } from '../bot/shablonlar-standart.js';
 import { eksportHajmi, BOLIMLAR as EKSPORT_BOLIMLAR } from './eksport.js';
+import { sqlOqi, sqlYoz, sxema } from './admin-sql.js';
 
 const son = (v, zaxira = 0) => (Number.isFinite(Number(v)) ? Number(v) : zaxira);
 const matn = (v, n = 200) => String(v ?? '').trim().slice(0, n);
@@ -245,17 +246,22 @@ async function omborOzgartir(a) {
 
 // ── Sozlamalar ──
 // Agent sozlamalarni O'QIY oladi va o'zgartirishni TAKLIF qila oladi.
-// Hamma kalit emas: ro'yxat qat'iy, chunki noto'g'ri kalitga yozish
-// ilovani jimgina buzadi (masalan narx qoidasi yoki mavzu).
-const OZGARTIRSA_BOLADI = new Set([
-  'limit_bepul', 'limit_mijoz', 'limit_yoqilgan', 'limit_maslahat_rasm',
-  'minimal_buyurtma', 'mahsulot_chegirma', 'free_delivery_from',
-  'dona_chegirma', 'dona_chegirma_dan',
-  'menejer_telefon', 'menejer_ish_vaqti',
-  'karta_raqam', 'karta_egasi',
-  'skrinshot_poster', 'brend_nomi',
-  'kanal_post_soati', 'kanal_kunlik_post',
-]);
+//
+// Ilgari o'zgartirsa bo'ladigan kalitlar ro'yxati QAT'IY edi va
+// do'kon egasi ro'yxatda yo'q narsani so'raganda «bu yerdan
+// o'zgartirib bo'lmaydi» degan javob olardi. Endi qoida boshqacha:
+//
+//   • kalit BAZADA BOR bo'lishi kerak — yangi kalit yaratib
+//     bo'lmaydi (bitta xato harf jimgina o'lik sozlama qoldiradi);
+//   • yangi qiymat TURI eskisiga mos bo'lishi kerak — raqam raqam,
+//     matn matn bo'lib qoladi;
+//   • tuzilmali qiymat (mavzu ranglari, narx qoidasi) bu vosita
+//     orqali emas, o'z vositasi orqali o'zgaradi.
+//
+// Va har qanday holatda admin TASDIQLAYDI.
+
+// Qiymati tuzilma bo'lgan sozlamalar — o'z vositasi bor
+const OZ_VOSITASI_BOR = { mavzu: 'mavzu_ozgartir', mavzu_erkak: 'mavzu_ozgartir' };
 
 async function sozlamalar(a) {
   const q = matn(a.qidiruv, 60).toLowerCase();
@@ -265,7 +271,8 @@ async function sozlamalar(a) {
     .map((x) => ({
       kalit: x.key,
       qiymat: typeof x.value === 'string' ? x.value.slice(0, 300) : x.value,
-      ozgartirsa_boladi: OZGARTIRSA_BOLADI.has(x.key),
+      ozgartirsa_boladi: !OZ_VOSITASI_BOR[x.key]
+                      && (x.value === null || typeof x.value !== 'object'),
       // Xabar shablonlari uchun tushuntirish bor — agent nimaligini bilsin
       izoh: SHABLON_TAVSIF[x.key]?.nom || '',
     }));
@@ -274,19 +281,40 @@ async function sozlamalar(a) {
 
 async function sozlamaOzgartir(a) {
   const kalit = matn(a.kalit, 60);
-  if (!OZGARTIRSA_BOLADI.has(kalit)) {
-    return { ozgardi: 0, xabar: `«${kalit}» ni bu yerdan o‘zgartirib bo‘lmaydi.` };
+  if (OZ_VOSITASI_BOR[kalit]) {
+    return { ozgardi: 0,
+      xabar: `«${kalit}» tuzilmali sozlama — uni «${OZ_VOSITASI_BOR[kalit]}» bilan o‘zgartir.` };
   }
+  const bor = await qator(`select value from settings where key = $1`, [kalit]);
+  if (!bor) {
+    return { ozgardi: 0,
+      xabar: `«${kalit}» degan sozlama yo‘q. «sozlamalar» vositasi bilan `
+           + 'aniq nomini toping — yangi sozlama yaratib bo‘lmaydi.' };
+  }
+  const eskiQiymat = bor.value;
+
   // Qiymat turini saqlaymiz: raqam raqam bo'lib, matn matn bo'lib qolsin
   let q = a.qiymat;
-  if (typeof q === 'string' && /^-?\d+$/.test(q.trim())) q = Number(q.trim());
+  if (typeof q === 'string' && /^-?\d+(\.\d+)?$/.test(q.trim())) q = Number(q.trim());
   if (q === 'true') q = true;
   if (q === 'false') q = false;
+
+  if (eskiQiymat !== null && typeof eskiQiymat === 'object') {
+    return { ozgardi: 0,
+      xabar: `«${kalit}» tuzilmali (obyekt) sozlama — uni bu vosita orqali `
+           + 'o‘zgartirib bo‘lmaydi.' };
+  }
+  if (eskiQiymat !== null && typeof q !== typeof eskiQiymat) {
+    return { ozgardi: 0,
+      xabar: `«${kalit}» ${typeof eskiQiymat === 'number' ? 'raqam' : 'matn'} bo‘lishi kerak, `
+           + `berilgani: ${typeof q === 'number' ? 'raqam' : typeof q}.` };
+  }
+
   await sorov(
     `insert into settings (key, value, updated_at) values ($1, $2::jsonb, now())
      on conflict (key) do update set value = excluded.value, updated_at = now()`,
     [kalit, JSON.stringify(q)]);
-  return { ozgardi: 1, kalit, qiymat: q };
+  return { ozgardi: 1, kalit, qiymat: q, oldingi: eskiQiymat };
 }
 
 // ── Mavzu: hozirgi ranglar va ULARNING O'QILISHI ──
@@ -533,6 +561,112 @@ async function bolimOchir(a) {
     xabar: ochirildi.length ? '' : 'Hech qanday bo‘lim o‘chirilmadi.' };
 }
 
+// ── Narxni OMMAVIY o'zgartirish ──
+// `narx_ozgartir` faqat bitta id qabul qilardi. Admin esa odatda
+// «Anua narxlarini 10% ko'tar» yoki «tonerlarni 45 000 qil» deydi —
+// unda id yo'q. Agent id siz chaqirar va hech nima o'zgarmasdi:
+// aynan shu «narxlar o'sha-o'sha turaveryapti» degan holat.
+/**
+ * Narx o'zgartirish filtri — QAYSI mahsulotlar degan savolga javob.
+ * Alohida turadi, chunki bir joyda o'zgartirish uchun, ikkinchi
+ * joyda «nechta mahsulotga tegadi» deb OLDINDAN sanash uchun kerak.
+ */
+async function narxFiltri(a) {
+  const shart = ['1=1'];
+  const p = [];
+  if (Array.isArray(a.idlar) && a.idlar.length) {
+    p.push(a.idlar.map((x) => son(x, 0)).filter((x) => x > 0));
+    shart.push(`id = any($${p.length})`);
+  }
+  if (a.brend) { p.push(matn(a.brend, 60)); shart.push(`brand ilike $${p.length}`); }
+  if (a.qidiruv) {
+    p.push(`%${matn(a.qidiruv, 60)}%`);
+    shart.push(`(name ilike $${p.length} or nom_uz ilike $${p.length})`);
+  }
+  if (a.bolim) {
+    const b = await bolimniTop(a.bolim);
+    if (!b) return { xato: `«${matn(a.bolim, 40)}» degan bo‘lim yo‘q.` };
+    p.push(b.id); shart.push(`category_id = $${p.length}`);
+  }
+  // Hech qanday filtr berilmasa BUTUN katalog o'zgaradi — bu juda
+  // xavfli, shuning uchun ataylab so'raladi
+  if (shart.length === 1 && a.hammasi !== true) {
+    return { xato: 'Filtr berilmadi. Butun katalogni o‘zgartirmoqchi bo‘lsangiz '
+                 + 'hammasi=true qo‘ying.' };
+  }
+  return { shart, p };
+}
+
+async function narxlarniOzgartir(a) {
+  const f = await narxFiltri(a);
+  if (f.xato) return { ozgardi: 0, xabar: f.xato };
+  const { shart, p } = f;
+
+  // Uch xil o'zgartirish: aniq narx, foiz, summa qo'shish
+  let ifoda;
+  if (a.foiz !== undefined && a.foiz !== null && a.foiz !== '') {
+    const foiz = son(a.foiz, 0);
+    if (!foiz) return { ozgardi: 0, xabar: 'Foiz noto‘g‘ri.' };
+    // 1000 so'mgacha yaxlitlanadi — narxlar chiroyli ko'rinsin
+    ifoda = `greatest(0, round(price * ${1 + foiz / 100} / 1000) * 1000)::int`;
+  } else if (a.qoshish !== undefined && a.qoshish !== null && a.qoshish !== '') {
+    ifoda = `greatest(0, price + ${Math.round(son(a.qoshish, 0))})::int`;
+  } else if (a.narx !== undefined && a.narx !== null && a.narx !== '') {
+    const n = Math.round(son(a.narx, -1));
+    if (n < 0) return { ozgardi: 0, xabar: 'Narx noto‘g‘ri.' };
+    ifoda = `${n}::int`;
+  } else {
+    return { ozgardi: 0, xabar: 'Nima qilish kerakligi berilmadi: narx, foiz yoki qoshish.' };
+  }
+
+  const r = await qatorlar(
+    `update products set price = ${ifoda}, updated_at = now()
+      where ${shart.join(' and ')}
+      returning id, name, price`, p);
+  return { ozgardi: r.length, mahsulotlar: r.slice(0, 30) };
+}
+
+// ─────────────────────────── GRAFIK ───────────────────────────
+
+// Nega grafik kerak. «Qaysi bo'lim ko'p sotilyapti» degan savolga
+// o'n qatorli ro'yxat bilan javob berish mumkin, lekin do'kon egasi
+// nisbatni bir qarashda ko'rsa tezroq qaror qiladi. Model raqamni
+// O'ZI o'ylab topa olmasligi uchun grafik faqat vosita qaytargan
+// ma'lumotdan quriladi — chizish alohida qadam.
+const GRAFIK_TURLARI = new Set(['ustun', 'chiziq', 'halqa']);
+
+function grafik(a) {
+  const tur = GRAFIK_TURLARI.has(a.tur) ? a.tur : 'ustun';
+  const xom = Array.isArray(a.qatorlar) ? a.qatorlar : [];
+  const qatorlar = xom
+    .map((x) => ({
+      nom: matn(x?.nom ?? x?.label ?? '', 40),
+      qiymat: Number(x?.qiymat ?? x?.value),
+    }))
+    .filter((x) => x.nom && Number.isFinite(x.qiymat))
+    .slice(0, 30);
+
+  if (qatorlar.length < 2) {
+    return { xato: 'Grafik uchun kamida 2 ta qator kerak: '
+                 + '[{"nom":"Yanvar","qiymat":12}, …]' };
+  }
+  // Halqa — ulush grafigi. Manfiy ulush degani yo'q.
+  if (tur === 'halqa' && qatorlar.some((x) => x.qiymat < 0)) {
+    return { xato: 'Halqa grafikda manfiy qiymat bo‘lmaydi — «ustun» ni tanla.' };
+  }
+
+  return {
+    grafik: {
+      tur,
+      sarlavha: matn(a.sarlavha, 70),
+      birlik: matn(a.birlik, 16),
+      qatorlar,
+    },
+    izoh: 'Grafik adminga ko‘rsatiladi. Javobda barcha raqamni qayta '
+        + 'sanab o‘tirma — xulosani yoz.',
+  };
+}
+
 // ─────────────────────────── RO'YXAT ───────────────────────────
 
 export const VOSITALAR = {
@@ -585,6 +719,30 @@ export const VOSITALAR = {
     tavsif: 'Ilova sozlamalari va ularning hozirgi qiymati.',
     parametrlar: 'qidiruv, chegara',
   },
+  sql: {
+    oqish: true,
+    ishla: (a) => sqlOqi(a.sql ?? a.sorov, { chegara: a.chegara }),
+    tavsif: 'Bazaga to‘g‘ridan-to‘g‘ri SELECT so‘rovi. Tayyor vositalar '
+          + 'yetmasa shuni ishlat — istalgan jadval, birlashma, hisob. '
+          + 'Faqat o‘qish: baza «read only» rejimda ochiladi.',
+    parametrlar: 'sql (SELECT yoki WITH), chegara',
+  },
+  sxema: {
+    oqish: true,
+    ishla: async () => ({ jadvallar: await sxema() }),
+    tavsif: 'Bazadagi barcha jadvallar va ustunlar. SQL yozishdan OLDIN '
+          + 'shuni ko‘r — ustun nomini taxmin qilma.',
+    parametrlar: 'yo‘q',
+  },
+  grafik: {
+    oqish: true, ishla: grafik,
+    tavsif: 'Javobga GRAFIK qo‘shadi — admin raqamlarni ko‘rib turadi. '
+          + 'Turlari: «ustun» (taqqoslash), «chiziq» (vaqt bo‘yicha o‘zgarish), '
+          + '«halqa» (ulush). Qiymatlarni O‘YLAB TOPMA — avval o‘qish '
+          + 'vositasi yoki «sql» bilan ol, keyin shu yerga ber.',
+    parametrlar: 'tur (ustun|chiziq|halqa), sarlavha, birlik, '
+               + 'qatorlar ([{nom, qiymat}])',
+  },
   eksport: {
     oqish: true,
     ishla: async () => ({
@@ -620,8 +778,24 @@ export const VOSITALAR = {
   },
   narx_ozgartir: {
     oqish: false, ishla: narxOzgartir,
-    tavsif: 'Bitta mahsulot narxini o‘zgartiradi.',
+    tavsif: 'BITTA mahsulot narxini o‘zgartiradi (id kerak). Bir nechtasi '
+          + 'uchun «narxlarni_ozgartir» ni ishlat.',
     parametrlar: 'id, narx',
+  },
+  narxlarni_ozgartir: {
+    oqish: false, ishla: narxlarniOzgartir,
+    tavsif: 'KO‘P mahsulot narxini birdan o‘zgartiradi: aniq narx qo‘yish, '
+          + 'foizga ko‘tarish/tushirish yoki summa qo‘shish. Filtr: id lar, '
+          + 'brend, bo‘lim yoki nom bo‘yicha qidiruv.',
+    parametrlar: 'narx | foiz | qoshish, + idlar / brend / bolim / qidiruv / hammasi',
+  },
+  sql_yoz: {
+    oqish: false,
+    ishla: (a) => sqlYoz(a.sql ?? a.sorov),
+    tavsif: 'Bazaga yozadigan SQL: INSERT, UPDATE, DELETE. Tayyor vosita '
+          + 'yetmagan holatlar uchun. Sxemani buzadigan buyruqlar '
+          + 'taqiqlangan. Admin tasdiqlaydi.',
+    parametrlar: 'sql',
   },
   ombor_ozgartir: {
     oqish: false, ishla: omborOzgartir,
@@ -657,8 +831,10 @@ export const VOSITALAR = {
   },
   sozlama_ozgartir: {
     oqish: false, ishla: sozlamaOzgartir,
-    tavsif: 'Sozlamani o‘zgartiradi (limitlar, chegirmalar, menejer telefoni, '
-          + 'karta raqami kabi). Avval «sozlamalar» bilan hozirgisini ko‘r.',
+    tavsif: 'ISTALGAN sozlamani o‘zgartiradi — limitlar, chegirmalar, menejer '
+          + 'telefoni, karta raqami, xabar shablonlari va boshqalar. Kalit '
+          + 'bazada bor bo‘lishi va qiymat turi mos kelishi kerak, shuning '
+          + 'uchun AVVAL «sozlamalar» bilan aniq nomi va hozirgi qiymatini ko‘r.',
     parametrlar: 'kalit, qiymat',
   },
   mavzu_ozgartir: {
@@ -682,3 +858,47 @@ export async function vositaniBajar(nom, argumentlar = {}) {
 }
 
 export const yozishmi = (nom) => Boolean(VOSITALAR[nom]) && !VOSITALAR[nom].oqish;
+
+/**
+ * Amal bajarilishidan OLDIN nechta yozuvga tegishini sanaydi.
+ *
+ * Tasdiq kartasida «1 ta yozuv» deb turishi va bosgandan keyin 40 ta
+ * mahsulot narxi o'zgarib ketishi — adminni aldash. Shuning uchun son
+ * TAXMIN qilinmaydi, bazadan sanab olinadi.
+ *
+ * @returns {Promise<number|null>} null — oldindan bilib bo'lmaydi (xom SQL)
+ */
+export async function oldindanSoni(nom, a = {}) {
+  try {
+    if (nom === 'narxlarni_ozgartir') {
+      const f = await narxFiltri(a);
+      if (f.xato) return 0;
+      return son(await qiymat(
+        `select count(*) from products where ${f.shart.join(' and ')}`, f.p), 0);
+    }
+    if (nom === 'toifa_ozgartir' && a.manba_bolim && !(a.idlar || []).length) {
+      const b = await bolimniTop(a.manba_bolim);
+      if (!b) return 0;
+      return son(await qiymat(
+        `select count(*) from products where category_id = $1`, [b.id]), 0);
+    }
+    if (nom === 'bolim_birlashtir') {
+      const manba = (Array.isArray(a.manba) ? a.manba : [a.manba]).filter(Boolean);
+      let jami = 0;
+      for (const m of manba) {
+        const b = await bolimniTop(m);
+        if (b) jami += son(await qiymat(
+          `select count(*) from products where category_id = $1`, [b.id]), 0);
+      }
+      return jami;
+    }
+    if (nom === 'bolim_ochir') return (a.bolimlar || []).length || 1;
+    // Xom SQL: `update ... where` ni sanab bo'lmaydi — ochiq aytamiz
+    if (nom === 'sql_yoz') return null;
+    if (Array.isArray(a.idlar)) return a.idlar.length;
+    return 1;
+  } catch {
+    // Sanash yiqilsa amalning o'zi to'xtamasin — noma'lum deb ko'rsatamiz
+    return null;
+  }
+}

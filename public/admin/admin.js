@@ -3917,12 +3917,23 @@ function yordamchiChiz() {
         ${esc(x.matn)}</div>`;
     }
     if (x.kim === 'kutish') {
-      return `<div class="y-xabar y-ai y-kutish">
-        <span></span><span></span><span></span></div>`;
+      // Jonli jarayon: agent AYNAN qaysi ish ustida ekani ko'rinadi
+      const bajarilgan = x.qadamlar || [];
+      return `<div class="y-xabar y-ai y-jarayon">
+        <div class="y-jarayon-bosh">
+          <i class="y-kutish"><span></span><span></span><span></span></i>
+          <b>${esc(x.joriy || 'O‘ylayapti…')}</b>
+        </div>
+        ${bajarilgan.length ? `<div class="y-jarayon-oqim">
+          ${bajarilgan.map((k) => `<div><code>${esc(k.vosita || '')}</code>
+            ${esc(k.matn || '')}</div>`).join('')}
+        </div>` : ''}
+      </div>`;
     }
     return `
       <div class="y-xabar y-ai">
         ${matnHtml(x.matn)}
+        ${(x.grafiklar || []).map(grafikHtml).join('')}
         ${(x.qadamlar || []).length ? `
           <details class="y-qadamlar">
             <summary>${x.qadamlar.length} ta qadam bajarildi</summary>
@@ -3968,7 +3979,8 @@ function rejaHtml(r) {
         <div class="y-reja-qadam">
           ${qadamlar.length > 1 ? `<b>${i + 1}.</b> ` : ''}${esc(q.izoh || q.vosita)}
           <div class="y-reja-tafsil">
-            <code>${esc(q.vosita)}</code><span>${q.soni} ta yozuv</span>
+            <code>${esc(q.vosita)}</code>
+            <span>${q.soni == null ? 'nechta ekani noma’lum' : `${q.soni} ta yozuv`}</span>
             ${q.qaytarib_bolmaydi ? '<span class="yor qizil">qaytmas</span>' : ''}
           </div>
         </div>`).join('')}
@@ -3998,6 +4010,127 @@ function matnHtml(matn) {
   }).join('');
 }
 
+// ═══════════ AGENT GRAFIKLARI ═══════════
+// Yordamchi raqamlarni chizib ham ko'rsatadi. Uch shakl yetarli:
+//   ustun  — taqqoslash (qaysi bo'lim ko'p sotildi)
+//   chiziq — vaqt bo'yicha o'zgarish (oylik savdo)
+//   halqa  — ulush (buyurtmalar holati bo'yicha)
+// Har grafik ostida JADVAL ham bor: rang ko'rmaydigan yoki
+// aniq raqam kerak bo'lgan odam uni ochib o'qiydi.
+
+// Ranglar SINALGAN to'plamdan: qo'shni bo'laklar rang ko'rmaslikda
+// ham ajralib turadi. Ketma-ketlik O'ZGARMAYDI — 3-bo'lak har doim
+// uchinchi rangda.
+const G_RANG = 6;                       // undan ortig'i «Boshqa» ga yig'iladi
+
+const gRaqam = (n) => {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return '0';
+  return Math.abs(x) >= 1000 ? Math.round(x).toLocaleString('ru-RU') : String(x);
+};
+
+function grafikHtml(g) {
+  if (!g || !Array.isArray(g.qatorlar) || g.qatorlar.length < 2) return '';
+  const q = g.qatorlar.map((x) => ({ nom: String(x.nom || ''), qiymat: Number(x.qiymat) || 0 }));
+  const birlik = g.birlik ? ` ${esc(g.birlik)}` : '';
+  const ichi = g.tur === 'halqa' ? gHalqa(q, birlik)
+             : g.tur === 'chiziq' ? gChiziq(q, birlik)
+             : gUstun(q, birlik);
+  return `<figure class="y-grafik">
+    ${g.sarlavha ? `<figcaption>${esc(g.sarlavha)}</figcaption>` : ''}
+    ${ichi}
+    <details class="g-jadval"><summary>Jadval ko‘rinishi</summary>
+      <table>${q.map((x) => `<tr><th>${esc(x.nom)}</th>
+        <td>${gRaqam(x.qiymat)}${birlik}</td></tr>`).join('')}</table>
+    </details>
+  </figure>`;
+}
+
+/** Yotiq ustunlar. Nom uzun bo'lsa ham to'qnashmaydi. */
+function gUstun(q, birlik) {
+  const maks = Math.max(0, ...q.map((x) => x.qiymat));
+  const min  = Math.min(0, ...q.map((x) => x.qiymat));
+  const en   = (maks - min) || 1;
+  const nol  = ((0 - min) / en) * 100;
+  return `<div class="g-ustun">
+    ${q.map((x) => {
+      const p = ((x.qiymat - min) / en) * 100;
+      const chap = Math.min(nol, p);
+      const kn = Math.max(Math.abs(p - nol), 0.6);   // 0 ham ko'rinsin
+      return `<div class="g-qator">
+        <span class="g-nom">${esc(x.nom)}</span>
+        <span class="g-yol"><i class="${x.qiymat < 0 ? 'manfiy' : ''}"
+          style="left:${chap.toFixed(2)}%;width:${kn.toFixed(2)}%"></i></span>
+        <b class="g-son">${gRaqam(x.qiymat)}${birlik}</b>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/** Vaqt bo'yicha chiziq. Faqat birinchi va oxirgi nuqta belgilanadi. */
+function gChiziq(q, birlik) {
+  const V = q.map((x) => x.qiymat);
+  const maks = Math.max(...V);
+  const min  = Math.min(...V);
+  const farq = (maks - min) || 1;
+  const W = 320, H = 120, P = 14, PAST = 8;      // PAST — o'q chizig'iga bo'sh joy
+  const x = (i) => P + (i * (W - P * 2)) / (q.length - 1);
+  const y = (v) => H - P - PAST - ((v - min) / farq) * (H - P * 2 - PAST);
+  const nuqtalar = q.map((s, i) => `${x(i).toFixed(1)},${y(s.qiymat).toFixed(1)}`).join(' ');
+  const oxir = q.length - 1;
+  const belgi = q.length <= 12
+    ? q.map((s, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(s.qiymat).toFixed(1)}"
+        r="4" class="g-nuqta"/>`).join('')
+    : '';
+  // Yorliq chiziqning USTIGA tushib qolmasin: nuqta qo'shnisidan
+  // pastda bo'lsa yorliq ham pastga yoziladi
+  const yorliqY = (i, qoshni) => (V[i] >= V[qoshni] ? y(V[i]) - 9 : y(V[i]) + 15).toFixed(1);
+  return `<svg class="g-chiziq" viewBox="0 0 ${W} ${H}" role="img"
+      aria-label="${esc(q[0].nom)} dan ${esc(q[oxir].nom)} gacha">
+    <line x1="${P}" y1="${H - P}" x2="${W - P}" y2="${H - P}" class="g-oq"/>
+    <polyline points="${nuqtalar}" class="g-yoy"/>
+    ${belgi}
+    <text x="${P}" y="${yorliqY(0, 1)}" class="g-yorliq">${gRaqam(V[0])}</text>
+    <text x="${W - P}" y="${yorliqY(oxir, oxir - 1)}" text-anchor="end"
+      class="g-yorliq">${gRaqam(V[oxir])}${birlik}</text>
+  </svg>
+  <div class="g-oralik"><span>${esc(q[0].nom)}</span><span>${esc(q[oxir].nom)}</span></div>`;
+}
+
+/** Ulush halqasi. Nomi va foizi YOZILADI — faqat rangga tayanmaydi. */
+function gHalqa(qatorlar, birlik) {
+  const tartib = [...qatorlar].sort((a, b) => b.qiymat - a.qiymat);
+  const q = tartib.slice(0, G_RANG);
+  const qolgan = tartib.slice(G_RANG);
+  if (qolgan.length) {
+    q.push({ nom: 'Boshqa', qiymat: qolgan.reduce((s, x) => s + x.qiymat, 0) });
+  }
+  const jami = q.reduce((s, x) => s + x.qiymat, 0) || 1;
+
+  const R = 54, C = 2 * Math.PI * R;
+  let siljish = 0;
+  const bolaklar = q.map((x, i) => {
+    const uzunlik = Math.max((x.qiymat / jami) * C - 2, 0);   // 2px oraliq
+    const s = `<circle cx="70" cy="70" r="${R}" class="g-bolak r${i}"
+      stroke-dasharray="${uzunlik.toFixed(2)} ${(C - uzunlik).toFixed(2)}"
+      stroke-dashoffset="${(-siljish).toFixed(2)}"/>`;
+    siljish += (x.qiymat / jami) * C;
+    return s;
+  }).join('');
+
+  return `<div class="g-halqa">
+    <svg viewBox="0 0 140 140" role="img" aria-label="Ulushlar">
+      <g transform="rotate(-90 70 70)">${bolaklar}</g>
+    </svg>
+    <ul class="g-izoh">
+      ${q.map((x, i) => `<li><i class="r${i}"></i>
+        <span>${esc(x.nom)}</span>
+        <b>${gRaqam(x.qiymat)}${birlik} · ${Math.round((x.qiymat / jami) * 100)}%</b>
+      </li>`).join('')}
+    </ul>
+  </div>`;
+}
+
 async function yordamchiYubor() {
   if (yordamchiBand) return;
   const m = $('#y-matn');
@@ -4019,10 +4152,14 @@ async function yordamchiYubor() {
   pastga(true);            // o'z savolini albatta ko'rsin
 
   try {
-    const j = await api('/api/admin/agent', { method: 'POST',
+    // Agent orqada ishlaydi: so'rov darrov ish raqamini qaytaradi,
+    // biz esa holatini so'rab turib jarayonni jonli ko'rsatamiz.
+    const { ish } = await api('/api/admin/agent', { method: 'POST',
       body: JSON.stringify({ savol, tarix, rasmlar }) });
+    const j = await agentniKuzat(ish);
     yordamchiSuhbat.pop();
     yordamchiSuhbat.push({ kim: 'ai', matn: j.javob, qadamlar: j.qadamlar,
+      grafiklar: j.grafiklar || [],
       reja: j.reja || null, takliflar: j.takliflar || [] });
   } catch (e) {
     yordamchiSuhbat.pop();
@@ -4033,6 +4170,41 @@ async function yordamchiYubor() {
     yordamchiChiz();
   }
 }
+
+/**
+ * Fon ishini kuzatadi: har yarim soniyada holatini so'raydi va
+ * kutish pufagini yangilaydi. Natija tayyor bo'lganda qaytaradi.
+ */
+async function agentniKuzat(ish) {
+  const boshlandi = Date.now();
+  const kutish = yordamchiSuhbat[yordamchiSuhbat.length - 1];
+  for (;;) {
+    await uxla(600);
+    if (Date.now() - boshlandi > 6 * 60_000) {
+      throw new Error('Juda uzoq davom etdi — qaytadan urinib ko‘ring.');
+    }
+    let h;
+    try {
+      h = await api(`/api/admin/agent-holat?ish=${encodeURIComponent(ish)}`);
+    } catch (e) {
+      // Tarmoq uzilishi — qayta so'raymiz; ish yo'qolgan bo'lsagina to'xtaymiz
+      if (/topilmadi/i.test(e.message)) throw e;
+      continue;
+    }
+    if (h.holat === 'ishlamoqda') {
+      if (kutish && kutish.kim === 'kutish') {
+        kutish.joriy = h.joriy?.matn || 'O‘ylayapti…';
+        kutish.qadamlar = h.qadamlar || [];
+        yordamchiChiz();
+      }
+      continue;
+    }
+    if (h.holat === 'xato') throw new Error(h.xato || 'Xatolik yuz berdi.');
+    return h.natija || { javob: 'Javob bo‘sh qaytdi.' };
+  }
+}
+
+const uxla = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function rejaniTasdiqla(token, tugma) {
   tugma.disabled = true; tugma.textContent = 'Bajarilmoqda…';

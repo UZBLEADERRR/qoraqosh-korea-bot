@@ -372,6 +372,12 @@ export function soxtaServer(port = 4444) {
         // AI_429_MODELLAR — qaysi MODELLAR kvotasi tugagani. Google'da
         // har modelning o'z kvotasi bor, shuning uchun server keyingi
         // modelga o'tib ishlashda davom etishi kerak.
+        // AI_KECHIKISH — javobni ataylab sekinlashtiradi. Fondagi
+        // ish va jonli jarayonni sinash uchun kerak: darrov qaytadigan
+        // javobda «ishlamoqda» holatini umuman ushlab bo'lmaydi.
+        if (globalThis.AI_KECHIKISH > 0) {
+          await new Promise((r) => setTimeout(r, globalThis.AI_KECHIKISH));
+        }
         const model = (yol.match(/models\/([^:]+):/) || [])[1] || '';
         const kvotasiz = globalThis.AI_429_MODELLAR || [];
         if (globalThis.AI_429 > 0 || kvotasiz.includes(model)) {

@@ -12,7 +12,7 @@
 // oddiy ehtiyot. O'qish esa erkin: undan zarar yo'q.
 import crypto from 'node:crypto';
 import { keyingiQadam } from '../ai/admin-agent.js';
-import { vositaniBajar, yozishmi, VOSITALAR } from './admin-vositalar.js';
+import { vositaniBajar, yozishmi, oldindanSoni, VOSITALAR } from './admin-vositalar.js';
 
 // Bitta savolga nechta qadam. Cheksiz aylana model chalkashsa
 // kvotani yeb qo'yadi va admin javobni kutib qoladi. Lekin chegara
@@ -52,19 +52,32 @@ const DAVO = /(o[‘'`ʻ]?chir|yop|o[‘'`ʻ]?zgartir|bajar|qo[‘'`ʻ]?sh|saqla
  * @param {Array}  tarix  [{kim:'admin'|'ai', matn}]
  * @param {Array}  [rasmlar] [{base64, mime}] — admin biriktirgan suratlar
  */
-export async function agentJavobi(savol, tarix = [], rasmlar = []) {
+export async function agentJavobi(savol, tarix = [], rasmlar = [], kuzat = null) {
+  // `kuzat` — har qadamda chaqiriladi. Admin agent NIMA ustida
+  // ishlayotganini jonli ko'rsin: ilgari u faqat aylanayotgan
+  // nuqtalarni ko'rar va necha soniya kutishini bilmasdi.
+  const xabarBer = (holat) => { try { kuzat?.(holat); } catch { /* jim */ } };
   const qadamlar = [];
   // Yozish vositalari DARROV bajarilmaydi — shu yerga yig'iladi va
   // oxirida BITTA taklif bo'lib ko'rsatiladi. Shunda admin bir
   // xabarda bir necha ish so'rasa ham hammasi bajariladi.
   const yoziladigan = [];
+  // Grafiklar — model chizishni so'ragan, biz esa javob bilan birga
+  // adminga uzatamiz
+  const grafiklar = [];
   let javob = null;
   let takliflar = [];
 
   for (let i = 0; i < MAKS_QADAM; i++) {
+    xabarBer({ qadam: i + 1, holat: 'oylayapti', matn: 'O‘ylayapti…' });
     const q = await keyingiQadam(savol, qadamlar, tarix, rasmlar);
 
     if (q.amal === 'javob') { javob = q.javob; takliflar = q.takliflar; break; }
+
+    // Model o'z fikrini yozadi — admin uni ko'rsa nima bo'layotgani
+    // tushunarli bo'ladi
+    xabarBer({ qadam: i + 1, holat: 'ishlayapti', vosita: q.vosita,
+      matn: q.fikr || `${q.vosita} bajarilmoqda…` });
 
     if (!VOSITALAR[q.vosita]) {
       qadamlar.push({ vosita: q.vosita, argumentlar: q.argumentlar,
@@ -78,7 +91,9 @@ export async function agentJavobi(savol, tarix = [], rasmlar = []) {
         vosita: q.vosita,
         argumentlar: q.argumentlar,
         izoh: q.reja_izoh || VOSITALAR[q.vosita].tavsif,
-        soni: Array.isArray(q.argumentlar?.idlar) ? q.argumentlar.idlar.length : 1,
+        // Son TAXMIN qilinmaydi — bazadan sanaladi. Ilgari har qanday
+        // ommaviy amal «1 ta yozuv» bo'lib ko'rinardi.
+        soni: await oldindanSoni(q.vosita, q.argumentlar),
         qaytarib_bolmaydi: q.vosita === 'mahsulot_ochir',
       });
       // Modelga aytamiz: bu HALI bajarilmadi, davom et
@@ -98,6 +113,7 @@ export async function agentJavobi(savol, tarix = [], rasmlar = []) {
     } catch (e) {
       natija = { xato: String(e.message).slice(0, 200) };
     }
+    if (q.vosita === 'grafik' && natija?.grafik) grafiklar.push(natija.grafik);
     qadamlar.push({ vosita: q.vosita, argumentlar: q.argumentlar, natija });
   }
 
@@ -122,7 +138,8 @@ export async function agentJavobi(savol, tarix = [], rasmlar = []) {
     javob = 'Quyidagi o‘zgarishlarni taklif qilaman — tasdiqlashingizni kutaman.';
   }
 
-  const natija = { javob, qadamlar: xulosa(qadamlar), takliflar };
+  const natija = { javob, qadamlar: xulosa(qadamlar), takliflar,
+                   grafiklar: grafiklar.slice(0, 4) };
 
   if (yoziladigan.length) {
     natija.reja = {
@@ -131,7 +148,7 @@ export async function agentJavobi(savol, tarix = [], rasmlar = []) {
         vosita: x.vosita, izoh: x.izoh, soni: x.soni,
         qaytarib_bolmaydi: x.qaytarib_bolmaydi,
       })),
-      soni: yoziladigan.reduce((s, x) => s + x.soni, 0),
+      soni: yoziladigan.reduce((s, x) => s + (Number(x.soni) || 0), 0),
       qaytarib_bolmaydi: yoziladigan.some((x) => x.qaytarib_bolmaydi),
     };
   }
@@ -215,3 +232,53 @@ export async function rejaniBajar(token) {
 /** Sinov uchun. */
 export const rejalarniTozala = () => rejalar.clear();
 export const rejaSoni = () => rejalar.size;
+
+// ═══════════ FONDAGI ISHLAR ═══════════
+// Agent bir necha qadam bajaradi va bu 10–30 soniya olishi mumkin.
+// Ilgari HTTP so'rovi shuncha vaqt osilib turardi: admin faqat
+// aylanayotgan nuqtalarni ko'rar, nima bo'layotganini bilmasdi va
+// so'rov uzilib ketishi ham mumkin edi.
+//
+// Endi ish fonda ketadi, panel esa holatni so'rab turadi va agent
+// AYNAN NIMA qilayotganini ko'rsatadi.
+const ishlar = new Map();
+const ISH_MS = 10 * 60_000;
+
+export function ishBoshla() {
+  const id = crypto.randomBytes(9).toString('base64url');
+  ishlar.set(id, { holat: 'ishlamoqda', qadamlar: [], vaqt: Date.now() });
+  for (const [k, v] of ishlar) if (Date.now() - v.vaqt > ISH_MS) ishlar.delete(k);
+  return id;
+}
+
+export function ishYangila(id, xabar) {
+  const i = ishlar.get(id);
+  if (!i) return;
+  i.joriy = xabar;
+  // Bajarilgan qadamlar tarixi — admin nima qilinganini ko'radi
+  if (xabar?.holat === 'ishlayapti') {
+    i.qadamlar.push({ vosita: xabar.vosita, matn: xabar.matn });
+  }
+}
+
+export function ishTugat(id, { natija, xato } = {}) {
+  const i = ishlar.get(id);
+  if (!i) return;
+  i.holat = xato ? 'xato' : 'tayyor';
+  i.natija = natija;
+  i.xato = xato;
+  i.joriy = null;
+  i.vaqt = Date.now();
+}
+
+export function ishHolati(id) {
+  const i = ishlar.get(String(id || ''));
+  if (!i) return null;
+  // Tugagan ish bir marta olinadi va tozalanadi — xotira to'lmasin
+  if (i.holat !== 'ishlamoqda') ishlar.delete(String(id));
+  return { holat: i.holat, joriy: i.joriy, qadamlar: i.qadamlar,
+           natija: i.natija, xato: i.xato };
+}
+
+/** Sinov uchun. */
+export const ishlarniTozala = () => ishlar.clear();

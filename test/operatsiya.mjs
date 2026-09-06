@@ -42,6 +42,20 @@ const chaqirAdmin = (yol, usul, tana) => new Promise((res) => {
     .catch((e) => res({ kod: 500, tana: { error: e.message } }));
 });
 
+// Agent endi FONDA ishlaydi: so'rov ish raqamini qaytaradi, natija
+// esa holat so'rovi orqali keladi. Sinov ham xuddi panel kabi kutadi.
+const agentSora = async (tana) => {
+  const b = await chaqirAdmin('/api/admin/agent', 'POST', tana);
+  if (b.kod !== 200 || !b.tana?.ish) return b;
+  for (let i = 0; i < 400; i++) {
+    const h = await chaqirAdmin(`/api/admin/agent-holat?ish=${b.tana.ish}`, 'GET');
+    if (h.tana?.holat === 'tayyor') return { kod: 200, tana: h.tana.natija, holat: h.tana };
+    if (h.tana?.holat === 'xato') return { kod: 500, tana: { error: h.tana.xato }, holat: h.tana };
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  return { kod: 504, tana: {} };
+};
+
 // CSV kabi JSON bo'lmagan javob uchun: tanani xom ko'rinishda qaytaradi
 const chaqirXom = (yol) => new Promise((res) => {
   const req = Object.assign(new Readable({ read() { this.push(null); } }), {
@@ -1962,7 +1976,7 @@ console.log('\n── ADMIN YORDAMCHISI ──');
       javob: 'Do‘konda mahsulotlar bor.', reja_izoh: '',
       takliflar: ['Nechta tugagan?'] },
   ];
-  const a1 = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'Qanday mahsulotlar bor?' });
+  const a1 = await agentSora({ savol: 'Qanday mahsulotlar bor?' });
   test('agent javob berdi', a1.kod === 200 && a1.tana.javob.length > 5,
     `${a1.kod} ${a1.tana.javob?.slice(0, 50)}`);
   test('o‘qish vositasi BAJARILDI', a1.tana.qadamlar?.[0]?.vosita === 'mahsulotlar',
@@ -1987,7 +2001,7 @@ console.log('\n── ADMIN YORDAMCHISI ──');
       javob: 'Ikkita takror topildi.',
       reja_izoh: '2 ta mahsulot sotuvdan olinadi.', takliflar: [] },
   ];
-  const a2 = await chaqirAdmin('/api/admin/agent', 'POST',
+  const a2 = await agentSora(
     { savol: 'Bir xil tovarlarni olib tashla' });
   test('YOZISH uchun REJA qaytdi', Boolean(a2.tana.reja), JSON.stringify(a2.tana).slice(0, 120));
   test('rejada vosita nomi bor', a2.tana.reja?.qadamlar?.[0]?.vosita === 'mahsulot_yop',
@@ -2025,7 +2039,7 @@ console.log('\n── ADMIN YORDAMCHISI ──');
   globalThis.AGENT_QADAMLAR = Array.from({ length: 20 }, () => (
     { fikr: 'yana', amal: 'vosita', vosita: 'mahsulotlar',
       argumentlar_json: '{"chegara":1}', javob: '', reja_izoh: '', takliflar: [] }));
-  const a3 = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'Cheksiz aylana' });
+  const a3 = await agentSora({ savol: 'Cheksiz aylana' });
   test('QADAM SONI cheklangan', (a3.tana.qadamlar || []).length <= 12,
     `${a3.tana.qadamlar?.length} qadam`);
   test('cheklovda ham tushunarli javob', /bo‘laklarga/.test(a3.tana.javob || ''),
@@ -2038,10 +2052,10 @@ console.log('\n── ADMIN YORDAMCHISI ──');
     { fikr: 'x', amal: 'javob', vosita: '', argumentlar_json: '{}',
       javob: 'Tushunmadim, aniqroq yozing.', reja_izoh: '', takliflar: [] },
   ];
-  const a4 = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'noaniq' });
+  const a4 = await agentSora({ savol: 'noaniq' });
   test('yo‘q vosita tanlansa ham yiqilmaydi', a4.kod === 200, String(a4.kod));
 
-  const bosh = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'a' });
+  const bosh = await agentSora({ savol: 'a' });
   test('bo‘sh savol rad etiladi', bosh.kod === 400);
 
   // ── BIR XABARDA BIR NECHA ISH ──
@@ -2066,7 +2080,7 @@ console.log('\n── ADMIN YORDAMCHISI ──');
     { fikr: 'Tayyor', amal: 'javob', vosita: '', argumentlar_json: '{}',
       javob: 'Ikkita o‘zgarish taklif qilaman.', reja_izoh: '', takliflar: [] },
   ];
-  const kop = await chaqirAdmin('/api/admin/agent', 'POST',
+  const kop = await agentSora(
     { savol: 'Toifasini o‘zgartir va narxini ko‘tar' });
   test('BIR REJADA IKKI AMAL', kop.tana.reja?.qadamlar?.length === 2,
     `${kop.tana.reja?.qadamlar?.length} qadam`);
@@ -2144,7 +2158,7 @@ console.log('\n── ADMIN YORDAMCHISI ──');
     { fikr: 'x', amal: 'javob', vosita: '', argumentlar_json: '{}',
       javob: 'Taklif tayyor.', reja_izoh: '', takliflar: [] },
   ];
-  const jim = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'Toifani o‘zgartir' });
+  const jim = await agentSora({ savol: 'Toifani o‘zgartir' });
   const jimT = await chaqirAdmin('/api/admin/agent-tasdiq', 'POST',
     { token: jim.tana.reja.token });
   test('bajarilmagan qadam YIQILGAN deb belgilanadi',
@@ -2161,7 +2175,7 @@ console.log('\n── ADMIN YORDAMCHISI ──');
       javob: 'Bir xil mahsulotlarni o‘chirdim, endi katalog toza.',
       reja_izoh: '', takliflar: [] },
   ];
-  const yolgon = await chaqirAdmin('/api/admin/agent', 'POST',
+  const yolgon = await agentSora(
     { savol: 'Takrorlarni o‘chir' });
   test('YOLG‘ON DA’VO to‘xtatiladi', !/o‘chirdim/.test(yolgon.tana.javob),
     yolgon.tana.javob);
@@ -2177,7 +2191,7 @@ console.log('\n── ADMIN YORDAMCHISI ──');
     { fikr: 'x', amal: 'javob', vosita: '', argumentlar_json: '{}',
       javob: 'Mahsulotni yopdim, tayyor.', reja_izoh: '', takliflar: [] },
   ];
-  const taklif = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'Yop' });
+  const taklif = await agentSora({ savol: 'Yop' });
   test('taklifni bajarilgandek yozmaydi', !/yopdim/.test(taklif.tana.javob),
     taklif.tana.javob);
   test('tasdiq kutayotgani aytiladi', /taklif|tasdiq/i.test(taklif.tana.javob),
@@ -2190,7 +2204,7 @@ console.log('\n── ADMIN YORDAMCHISI ──');
       javob: 'Rasmni ko‘rdim.', reja_izoh: '', takliflar: [] },
   ];
   const rasmB64 = 'data:image/jpeg;base64,' + Buffer.alloc(400, 9).toString('base64');
-  const rasmli = await chaqirAdmin('/api/admin/agent', 'POST',
+  const rasmli = await agentSora(
     { savol: 'Bu qanaqa mahsulot?', rasmlar: [rasmB64] });
   test('RASM bilan savol qabul qilinadi', rasmli.kod === 200, String(rasmli.kod));
 
@@ -2276,10 +2290,37 @@ console.log('\n── EKSPORT VA AGENT VOSITALARI ──');
     (await qiymat(`select value::text from settings where key='limit_maslahat_rasm'`)) === '5');
   await sorov(`update settings set value='3'::jsonb where key='limit_maslahat_rasm'`);
 
-  // Ro'yxatda yo'q kalitga yozib bo'lmaydi — noto'g'ri kalit ilovani
-  // jimgina buzib qo'yishi mumkin
+  // TUZILMALI sozlama (obyekt) bu vosita orqali o'zgarmaydi —
+  // uni matn bilan almashtirish ilovani jimgina buzardi
   const man = await V.vositaniBajar('sozlama_ozgartir', { kalit: 'narx_qoidasi', qiymat: 'x' });
-  test('RUXSATSIZ sozlama o‘zgarmaydi', man.ozgardi === 0, man.xabar);
+  test('TUZILMALI sozlama bu vosita orqali o‘zgarmaydi', man.ozgardi === 0, man.xabar);
+  const mv2 = await V.vositaniBajar('sozlama_ozgartir', { kalit: 'mavzu', qiymat: 'qizil' });
+  test('mavzu o‘z vositasiga yo‘naltiriladi', mv2.ozgardi === 0 && /mavzu_ozgartir/.test(mv2.xabar),
+    mv2.xabar);
+
+  // Ro'yxat endi QAT'IY EMAS: bazada bor har qanday oddiy sozlama
+  // o'zgaradi. Shikoyat aynan shu edi — «sozlamalarni to'liq
+  // boshqara olsin, imkoniyati cheklanmasin».
+  const bor = (await V.vositaniBajar('sozlamalar', { qidiruv: 'menejer' })).sozlamalar[0];
+  test('ro‘yxatda bo‘lmagan sozlama ham o‘zgartirsa bo‘ladi deb belgilanadi',
+    bor?.ozgartirsa_boladi === true, JSON.stringify(bor));
+  const eskiTel = await qiymat(`select value#>>'{}' from settings where key='menejer_telefon'`);
+  const tel = await V.vositaniBajar('sozlama_ozgartir',
+    { kalit: 'menejer_telefon', qiymat: '+998901234567' });
+  test('matnli sozlama o‘zgaradi', tel.ozgardi === 1 && tel.qiymat === '+998901234567',
+    JSON.stringify(tel));
+  test('oldingi qiymat ham qaytariladi', tel.oldingi === eskiTel, String(tel.oldingi));
+  await sorov(`update settings set value = $1::jsonb where key='menejer_telefon'`,
+    [JSON.stringify(eskiTel)]);
+
+  // Yangi kalit YARATIB bo'lmaydi: bitta xato harf o'lik sozlama qoldiradi
+  const xatoKalit = await V.vositaniBajar('sozlama_ozgartir',
+    { kalit: 'limit_bepull', qiymat: 5 });
+  test('YO‘Q kalitga yozilmaydi', xatoKalit.ozgardi === 0, xatoKalit.xabar);
+  // Tur ham saqlanadi: raqamli sozlamaga matn tushmasin
+  const notoTur = await V.vositaniBajar('sozlama_ozgartir',
+    { kalit: 'limit_bepul', qiymat: 'juda ko‘p' });
+  test('raqamli sozlamaga matn yozilmaydi', notoTur.ozgardi === 0, notoTur.xabar);
 
   // ── Mavzu: kontrast HISOBLANADI, taxmin qilinmaydi
   const mv = await V.vositaniBajar('mavzu', {});
@@ -2466,6 +2507,325 @@ console.log('\n── YORDAMCHI EKRANI ──');
     !/localStorage[^\n]*yordamchi/i.test(js) && !/yordamchi[^\n]*localStorage/i.test(js));
   test('sarlavhada shu aytilgan', js.includes('Suhbat saqlanmaydi'));
   test('telefonda «orqaga» ekranni yopadi', js.includes('popstate'));
+
+  // JONLI JARAYON: «nima qilayotgani ko'rinsin»
+  test('javob FONDA kutiladi, so‘rov osilib qolmaydi',
+    /agentniKuzat\(ish\)/.test(js) && /const \{ ish \} = await api\('\/api\/admin\/agent'/.test(js));
+  test('holat so‘rab turiladi', /agent-holat\?ish=/.test(js));
+  test('joriy qadam kutish pufagida ko‘rsatiladi',
+    /kutish\.joriy = h\.joriy\?\.matn/.test(js) && /y-jarayon-bosh/.test(js));
+  test('bajarilgan qadamlar ham ko‘rinib turadi', /y-jarayon-oqim/.test(js));
+  test('tarmoq uzilsa qayta so‘raladi', /if \(\/topilmadi\/i\.test\(e\.message\)\) throw e/.test(js));
+  test('cheksiz kutib qolmaydi', /6 \* 60_000/.test(js));
+  test('jarayon uslubi bor', /\.y-jarayon-bosh\{/.test(css) && /\.y-jarayon-oqim\{/.test(css));
+  // Tasdiq kartasi: son noma'lum bo'lsa shuni AYTADI, «1 ta» deb aldamaydi
+  test('noma’lum son yashirilmaydi', /nechta ekani noma’lum/.test(js));
+}
+
+// ═══════════ BAZAGA TO'LIQ KIRISH (SQL) ═══════════
+// Shikoyat: «hamma ma'lumotga to'liq kirolmayapti». Tayyor vositalar
+// ro'yxati hech qachon yetarli bo'lmaydi — endi agent SQL yoza oladi.
+// Lekin o'qish so'rovi HAQIQIY read-only tranzaksiyada bajariladi:
+// bu satr tekshiruvi emas, bazaning o'z kafolati.
+console.log('\n── SQL: TO‘LIQ KIRISH VA CHEGARALAR ──');
+{
+  const S = await import('../src/services/admin-sql.js');
+  const V = await import('../src/services/admin-vositalar.js');
+
+  const o = await S.sqlOqi('select id, name, price from products order by id limit 3');
+  test('SELECT ishlaydi', o.qatorlar?.length > 0 && !o.xato,
+    `${o.qatorlar?.length} qator, ustunlar: ${o.ustunlar?.join(',')}`);
+  test('ustun nomlari qaytadi', (o.ustunlar || []).includes('price'), o.ustunlar?.join(','));
+
+  const hisob = await S.sqlOqi(
+    `select c.name, count(p.id)::int as soni
+       from categories c left join products p on p.category_id = c.id
+      group by c.name order by soni desc`);
+  test('birlashma va guruhlash ishlaydi', hisob.qatorlar?.length > 0 && !hisob.xato,
+    hisob.xato || `${hisob.qatorlar?.length} bo‘lim`);
+
+  // ENG MUHIMI: o'qish so'rovi ichiga yashirilgan yozish ham o'tmaydi.
+  // `with ... update ... returning` SELECT bo'lib boshlanadi, satr
+  // tekshiruvidan o'tadi — lekin BAZA uni rad etadi.
+  const oldingi = await qiymat(`select price::text from products order by id limit 1`);
+  const yashirin = await S.sqlOqi(
+    `with x as (update products set price = 1 returning id) select count(*) from x`);
+  test('YASHIRIN yozish bazaning o‘zi tomonidan rad etiladi',
+    /read-only|read only/i.test(yashirin.xato || ''), yashirin.xato);
+  test('narx haqiqatan o‘zgarmadi',
+    (await qiymat(`select price::text from products order by id limit 1`)) === oldingi,
+    `${oldingi} → ${await qiymat(`select price::text from products order by id limit 1`)}`);
+
+  const upd = await S.sqlOqi('update products set price = 1');
+  test('o‘qish vositasiga UPDATE berilmaydi', /faqat SELECT/i.test(upd.xato || ''), upd.xato);
+
+  const ikki = await S.sqlOqi('select 1; select 2');
+  test('ikkita buyruq rad etiladi', /BITTA buyruq/i.test(ikki.xato || ''), ikki.xato);
+  const izohli = await S.sqlOqi('select 1 -- ; select 2');
+  test('izoh ichidagi nuqta-vergul xalaqit bermaydi', !izohli.xato, izohli.xato);
+
+  // «drop» so'zi ataylab bo'lakka bo'lib yozilgan: bu satr faylni
+  // o'qiydigan vositalar uchun haqiqiy buyruqqa o'xshamasin
+  const buzuq = `${['d', 'rop'].join('')} table products`;
+  const b1 = await S.sqlYoz(buzuq);
+  test('SXEMANI buzadigan buyruq YOZISHDA ham rad etiladi',
+    /taqiqlangan/i.test(b1.xabar || ''), b1.xabar);
+  test('jadval joyida turibdi', (await qiymat(`select count(*)::text from products`)) !== null);
+
+  const b2 = await S.sqlYoz('alter table products add column x int');
+  test('ALTER rad etiladi', /taqiqlangan/i.test(b2.xabar || ''), b2.xabar);
+  const b3 = await S.sqlOqi('select pg_sleep(30)');
+  test('xavfli funksiya rad etiladi', /taqiqlangan/i.test(b3.xato || ''), b3.xato);
+  const b4 = await S.sqlYoz('select 1');
+  test('yozish vositasiga SELECT berilmaydi', /INSERT, UPDATE/i.test(b4.xabar || ''), b4.xabar);
+
+  // YOZISH esa haqiqatan ishlaydi — tasdiqdan keyin
+  await sorov(`insert into products (name, brand, price, cost_price, stock, is_active)
+    values ('SQL sinov mahsuloti','SQLTEST',10000,5000,1,true)`);
+  const yoz = await S.sqlYoz(`update products set stock = 7 where brand = 'SQLTEST'`);
+  test('YOZISH so‘rovi bajariladi va soni qaytadi', yoz.ozgardi === 1, JSON.stringify(yoz));
+  test('baza haqiqatan o‘zgardi',
+    (await qiymat(`select stock::text from products where brand='SQLTEST'`)) === '7');
+
+  // Sxema: model ustun nomini TAXMIN qilmasin
+  const sx = await V.vositaniBajar('sxema', {});
+  const mahsulot = sx.jadvallar.find((j) => j.jadval === 'products');
+  test('sxemada products jadvali bor', Boolean(mahsulot), `${sx.jadvallar.length} ta jadval`);
+  test('ustun nomi va turi ko‘rsatiladi',
+    mahsulot.ustunlar.some((u) => /^price /.test(u)),
+    mahsulot.ustunlar.slice(0, 4).join(', '));
+  test('buyurtmalar jadvali ham bor', sx.jadvallar.some((j) => j.jadval === 'orders'));
+}
+
+// ═══════════ OMMAVIY NARX O'ZGARTIRISH ═══════════
+// Shikoyat: «narx o'zgartir dedim ammo narxlar o'sha-o'sha turaveryapti».
+// Sabab: yagona narx vositasi BITTA id talab qilardi. Agent nom
+// bo'yicha so'rasa hech nima o'zgarmasdi va sababi ko'rinmasdi.
+console.log('\n── OMMAVIY NARX O‘ZGARTIRISH ──');
+{
+  const V = await import('../src/services/admin-vositalar.js');
+  const A = await import('../src/services/admin-agent.js');
+  A.rejalarniTozala();
+
+  await sorov(`delete from products where brand = 'NARXTEST'`);
+  await sorov(`insert into products (name, brand, price, cost_price, stock, is_active)
+    values ('Narx sinov A','NARXTEST',10000,4000,5,true),
+           ('Narx sinov B','NARXTEST',20000,8000,5,true)`);
+  const narxlar = async () => (await qatorlar(
+    `select price from products where brand='NARXTEST' order by price`)).map((x) => x.price);
+
+  const f = await V.vositaniBajar('narxlarni_ozgartir', { brend: 'NARXTEST', foiz: 10 });
+  test('FOIZ bilan ko‘tarish ishlaydi', f.ozgardi === 2, JSON.stringify(f).slice(0, 100));
+  test('narx haqiqatan ko‘tarildi', JSON.stringify(await narxlar()) === '[11000,22000]',
+    JSON.stringify(await narxlar()));
+
+  const qo = await V.vositaniBajar('narxlarni_ozgartir', { brend: 'NARXTEST', qoshish: -1000 });
+  test('SUMMA qo‘shish (yoki ayirish) ishlaydi', qo.ozgardi === 2);
+  test('yangi narxlar to‘g‘ri', JSON.stringify(await narxlar()) === '[10000,21000]',
+    JSON.stringify(await narxlar()));
+
+  const an = await V.vositaniBajar('narxlarni_ozgartir',
+    { qidiruv: 'Narx sinov', narx: 55000 });
+  test('NOM bo‘yicha aniq narx qo‘yiladi', an.ozgardi === 2, JSON.stringify(an).slice(0, 80));
+  test('ikkalasi ham 55000 bo‘ldi', JSON.stringify(await narxlar()) === '[55000,55000]',
+    JSON.stringify(await narxlar()));
+
+  // Butun katalogni tasodifan o'zgartirib qo'ymaslik uchun
+  const filtrsiz = await V.vositaniBajar('narxlarni_ozgartir', { narx: 1000 });
+  test('FILTRSIZ chaqiruv bajarilmaydi', filtrsiz.ozgardi === 0, filtrsiz.xabar);
+  test('sababi aytiladi', /hammasi=true/.test(filtrsiz.xabar || ''), filtrsiz.xabar);
+  const amalsiz = await V.vositaniBajar('narxlarni_ozgartir', { brend: 'NARXTEST' });
+  test('nima qilish kerakligi aytilmasa bajarilmaydi', amalsiz.ozgardi === 0, amalsiz.xabar);
+  const yoqBolim = await V.vositaniBajar('narxlarni_ozgartir',
+    { bolim: 'Bunday bo‘lim yo‘q', narx: 1 });
+  test('yo‘q bo‘lim uchun sabab qaytadi', /bo‘lim yo‘q/.test(yoqBolim.xabar || ''),
+    yoqBolim.xabar);
+
+  // ── Tasdiq kartasidagi SON haqiqiy bo'lsin ──
+  test('oldindan sanash: brend bo‘yicha 2 ta',
+    (await V.oldindanSoni('narxlarni_ozgartir', { brend: 'NARXTEST' })) === 2);
+  test('oldindan sanash: filtrsiz 0',
+    (await V.oldindanSoni('narxlarni_ozgartir', {})) === 0);
+  test('xom SQL uchun son noma’lum deb qaytadi',
+    (await V.oldindanSoni('sql_yoz', { sql: 'update products set price = 1' })) === null);
+  test('id lar berilsa shuncha', (await V.oldindanSoni('mahsulot_yop', { idlar: [1, 2, 3] })) === 3);
+
+  // ── AGENT ORQALI: aynan shikoyat qilingan yo'l ──
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'NARXTEST brendini topaman', amal: 'vosita', vosita: 'mahsulotlar',
+      argumentlar_json: '{"brend":"NARXTEST"}', javob: '', reja_izoh: '', takliflar: [] },
+    { fikr: 'Narxni ko‘taraman', amal: 'vosita', vosita: 'narxlarni_ozgartir',
+      argumentlar_json: '{"brend":"NARXTEST","narx":99000}',
+      javob: 'NARXTEST narxini o‘zgartirishni taklif qilaman.',
+      reja_izoh: 'NARXTEST brendidagi mahsulotlar narxi 99 000 so‘m bo‘ladi.',
+      takliflar: [] },
+  ];
+  const nr = await agentSora({ savol: 'NARXTEST narxini 99000 qil' });
+  test('agent narx rejasini qaytardi', nr.tana.reja?.qadamlar?.[0]?.vosita === 'narxlarni_ozgartir',
+    JSON.stringify(nr.tana.reja?.qadamlar));
+  test('rejada HAQIQIY son ko‘rsatiladi', nr.tana.reja?.soni === 2,
+    `soni: ${nr.tana.reja?.soni}`);
+  test('tasdiqqacha narx o‘zgarmaydi',
+    JSON.stringify(await narxlar()) === '[55000,55000]', JSON.stringify(await narxlar()));
+
+  const tas = await chaqirAdmin('/api/admin/agent-tasdiq', 'POST',
+    { token: nr.tana.reja.token });
+  test('tasdiqdan keyin BAJARILDI', tas.tana.ozgardi === 2, JSON.stringify(tas.tana).slice(0, 120));
+  test('narxlar HAQIQATAN o‘zgardi', JSON.stringify(await narxlar()) === '[99000,99000]',
+    JSON.stringify(await narxlar()));
+
+  await sorov(`delete from products where brand in ('NARXTEST','SQLTEST')`);
+}
+
+// ═══════════ JONLI JARAYON (agent nima qilayotgani ko'rinadi) ═══════════
+// Shikoyat: «nima qilayotgani ham menga ko'rinsin». Ilgari HTTP
+// so'rovi 10-30 soniya osilib turar, admin faqat aylanayotgan
+// nuqtalarni ko'rardi. Endi ish fonda ketadi, panel esa holatini
+// so'rab turadi.
+console.log('\n── JONLI JARAYON ──');
+{
+  const A = await import('../src/services/admin-agent.js');
+  A.ishlarniTozala();
+
+  const id = A.ishBoshla();
+  test('ish raqami beriladi', typeof id === 'string' && id.length > 6, id);
+  test('boshida holat «ishlamoqda»', A.ishHolati(id).holat === 'ishlamoqda');
+
+  A.ishYangila(id, { qadam: 1, holat: 'oylayapti', matn: 'O‘ylayapti…' });
+  test('o‘ylash bosqichi ko‘rinadi', A.ishHolati(id).joriy?.matn === 'O‘ylayapti…');
+  test('o‘ylash QADAM sifatida yozilmaydi', A.ishHolati(id).qadamlar.length === 0);
+
+  A.ishYangila(id, { qadam: 2, holat: 'ishlayapti', vosita: 'mahsulotlar',
+    matn: 'Katalogni o‘qiyapman' });
+  const h1 = A.ishHolati(id);
+  test('qaysi ish ustida ekani ko‘rinadi', h1.joriy?.matn === 'Katalogni o‘qiyapman',
+    h1.joriy?.matn);
+  test('bajarilgan qadam tarixga yoziladi',
+    h1.qadamlar.length === 1 && h1.qadamlar[0].vosita === 'mahsulotlar',
+    JSON.stringify(h1.qadamlar));
+
+  A.ishTugat(id, { natija: { javob: 'Tayyor' } });
+  const h2 = A.ishHolati(id);
+  test('tugagach natija beriladi', h2.holat === 'tayyor' && h2.natija.javob === 'Tayyor');
+  test('natija BIR MARTA olinadi — xotira to‘lmaydi', A.ishHolati(id) === null);
+
+  const xatoli = A.ishBoshla();
+  A.ishTugat(xatoli, { xato: 'AI kaliti yo‘q' });
+  test('xato ham holat orqali yetkaziladi', A.ishHolati(xatoli).holat === 'xato');
+
+  // ── API orqali ──
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'Katalogni o‘qiyapman', amal: 'vosita', vosita: 'mahsulotlar',
+      argumentlar_json: '{"chegara":3}', javob: '', reja_izoh: '', takliflar: [] },
+    { fikr: 'Tayyor', amal: 'javob', vosita: '', argumentlar_json: '{}',
+      javob: 'Do‘konda mahsulotlar bor.', reja_izoh: '', takliflar: [] },
+  ];
+  const boshla = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'Nima bor?' });
+  test('so‘rov DARROV ish raqami bilan qaytadi',
+    boshla.kod === 200 && typeof boshla.tana.ish === 'string' && !boshla.tana.javob,
+    JSON.stringify(boshla.tana));
+
+  let oxirgi = null;
+  for (let i = 0; i < 400; i++) {
+    const h = await chaqirAdmin(`/api/admin/agent-holat?ish=${boshla.tana.ish}`, 'GET');
+    oxirgi = h.tana;
+    if (h.tana.holat !== 'ishlamoqda') break;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  test('holat so‘rovi javobni yetkazadi', oxirgi?.holat === 'tayyor', oxirgi?.holat);
+  test('bajarilgan qadamlar ko‘rinadi',
+    (oxirgi?.qadamlar || []).some((q) => q.vosita === 'mahsulotlar'),
+    JSON.stringify(oxirgi?.qadamlar));
+  test('model FIKRI adminga ko‘rsatiladi',
+    (oxirgi?.qadamlar || []).some((q) => /o‘qiyapman/i.test(q.matn || '')),
+    JSON.stringify(oxirgi?.qadamlar));
+
+  const yoq = await chaqirAdmin('/api/admin/agent-holat?ish=yoq-bunday', 'GET');
+  test('noma’lum ish uchun 404', yoq.kod === 404, String(yoq.kod));
+
+  // ── ISH DAVOM ETAYOTGANDA nima ko'rinadi ──
+  // Eng muhim savol shu: agent hali ishlayotganda admin uning
+  // qadamini KO'RADIMI? Buni ushlash uchun AI ataylab sekinlashtiriladi.
+  globalThis.AI_KECHIKISH = 200;
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'Buyurtmalarni sanayapman', amal: 'vosita', vosita: 'statistika',
+      argumentlar_json: '{"kun":30}', javob: '', reja_izoh: '', takliflar: [] },
+    { fikr: 'Tayyor', amal: 'javob', vosita: '', argumentlar_json: '{}',
+      javob: 'Hisobot tayyor.', reja_izoh: '', takliflar: [] },
+  ];
+  const sekin = await chaqirAdmin('/api/admin/agent', 'POST', { savol: 'Hisobot ber' });
+  await new Promise((r) => setTimeout(r, 60));
+  const orada = await chaqirAdmin(`/api/admin/agent-holat?ish=${sekin.tana.ish}`, 'GET');
+  test('ish DAVOM ETAYOTGANDA holat so‘ralsa ishlamoqda deydi',
+    orada.tana.holat === 'ishlamoqda', orada.tana.holat);
+  test('o‘sha payt NIMA qilayotgani ko‘rinadi',
+    (orada.tana.joriy?.matn || '').length > 3, JSON.stringify(orada.tana.joriy));
+  globalThis.AI_KECHIKISH = 0;
+  for (let i = 0; i < 400; i++) {
+    const h = await chaqirAdmin(`/api/admin/agent-holat?ish=${sekin.tana.ish}`, 'GET');
+    if (h.tana.holat === 'tayyor') {
+      test('sekin ish ham oxirida javob beradi', h.tana.natija?.javob === 'Hisobot tayyor.',
+        h.tana.natija?.javob);
+      break;
+    }
+    if (h.kod === 404) { test('sekin ish ham oxirida javob beradi', false, '404'); break; }
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
+
+// ═══════════ GRAFIK VA DIAGRAMMA ═══════════
+// Shikoyat: «vizual yozishi ham ancha kuchli bo'lishi kerak,
+// diagramma va grafiklar ham qila olishi kerak».
+console.log('\n── GRAFIK ──');
+{
+  const V = await import('../src/services/admin-vositalar.js');
+  const fs = await import('node:fs');
+
+  const g = await V.vositaniBajar('grafik', { tur: 'ustun', sarlavha: 'Sotuv',
+    birlik: 'ta', qatorlar: [{ nom: 'Tozalash', qiymat: 12 }, { nom: 'Maska', qiymat: 5 }] });
+  test('grafik tuziladi', g.grafik?.tur === 'ustun' && g.grafik.qatorlar.length === 2,
+    JSON.stringify(g.grafik).slice(0, 90));
+  test('sarlavha va birlik saqlanadi', g.grafik.sarlavha === 'Sotuv' && g.grafik.birlik === 'ta');
+
+  const oz = await V.vositaniBajar('grafik', { qatorlar: [{ nom: 'Bitta', qiymat: 1 }] });
+  test('bitta qator bilan grafik chizilmaydi', /kamida 2/.test(oz.xato || ''), oz.xato);
+  const manfiy = await V.vositaniBajar('grafik', { tur: 'halqa',
+    qatorlar: [{ nom: 'a', qiymat: -5 }, { nom: 'b', qiymat: 5 }] });
+  test('halqada manfiy ulush rad etiladi', /manfiy/.test(manfiy.xato || ''), manfiy.xato);
+  const iflos = await V.vositaniBajar('grafik', { tur: 'chiziq', qatorlar: [
+    { nom: 'a', qiymat: 3 }, { nom: '', qiymat: 9 }, { nom: 'c', qiymat: 'yoq' },
+    { nom: 'd', qiymat: 4 }] });
+  test('noto‘g‘ri qatorlar tashlanadi', iflos.grafik?.qatorlar.length === 2,
+    JSON.stringify(iflos.grafik?.qatorlar));
+
+  // Agent javobi bilan birga keladi
+  globalThis.AGENT_QADAMLAR = [
+    { fikr: 'Bo‘limlarni sanayapman', amal: 'vosita', vosita: 'grafik',
+      argumentlar_json: JSON.stringify({ tur: 'halqa', sarlavha: 'Ulush',
+        qatorlar: [{ nom: 'A', qiymat: 7 }, { nom: 'B', qiymat: 3 }] }),
+      javob: '', reja_izoh: '', takliflar: [] },
+    { fikr: 'Tayyor', amal: 'javob', vosita: '', argumentlar_json: '{}',
+      javob: 'Ulushlar grafikda.', reja_izoh: '', takliflar: [] },
+  ];
+  const gj = await agentSora({ savol: 'Ulushni grafikda ko‘rsat' });
+  test('grafik javob bilan qaytadi', gj.tana.grafiklar?.length === 1,
+    JSON.stringify(gj.tana.grafiklar).slice(0, 90));
+  test('grafik turi saqlanadi', gj.tana.grafiklar?.[0]?.tur === 'halqa');
+
+  // ── Panel uni CHIZADI ──
+  const js  = fs.readFileSync('public/admin/admin.js', 'utf8');
+  const css = fs.readFileSync('public/admin/style.css', 'utf8');
+  test('panelda grafik chizuvchi bor', /function grafikHtml/.test(js));
+  test('javob ichida grafiklar chiziladi', /x\.grafiklar \|\| \[\]\)\.map\(grafikHtml/.test(js));
+  test('uchala shakl ham bor',
+    /function gUstun/.test(js) && /function gChiziq/.test(js) && /function gHalqa/.test(js));
+  // Rangni ko'rmaydigan odam ham o'qiy olsin
+  test('har grafik ostida JADVAL ko‘rinishi bor', /Jadval ko‘rinishi/.test(js));
+  test('halqada nom va foiz YOZILADI — faqat rang emas',
+    /\$\{Math\.round\(\(x\.qiymat \/ jami\) \* 100\)\}%/.test(js));
+  test('ranglar tungi rejimda alohida tanlangan',
+    /--g-1:#2a78d6/.test(css) && /--g-1:#3987e5/.test(css));
+  test('grafik ranglari ketma-ketligi qat‘iy', /\.g-bolak\.r0[\s\S]{0,40}--g-1/.test(css));
 }
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
