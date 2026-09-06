@@ -492,11 +492,42 @@ oq yoki qora qilib olinadi.
 
 Bir xil palitra **uch joyda** ishlatiladi: Mini App (CSS o'zgaruvchilari),
 tahlil rasmi (SVG) va admin paneldagi ko'rinish — shuning uchun tanlagan
-narsangiz aynan shunday chiqadi. Qorong'i rejimda faqat urg'u rangi
-o'zgaradi: och fon u yerda ko'zni qamashtiradi.
+narsangiz aynan shunday chiqadi.
+
+#### Kunduzgi va tungi ko'rinish
+
+Mijoz ilova sozlamalarida uchta holatdan birini tanlaydi: **Tizim**
+(telefon sozlamasiga ergashadi), **Kunduzgi**, **Tungi**.
+
+Qorong'ida do'kon **foni ishlatilmaydi** — och yashil yoki krem fon u
+yerda ko'zni qamashtiradi va matn o'qilmay qoladi. Urg'u rangi esa
+qoladi, lekin **yoritilgan** variantda: to'q qizil (#c0392b) qora fonda
+3.5:1 beradi, ya'ni yozuv deyarli ko'rinmaydi. `tungiUrgu()` rangni
+kontrast **4.5 ga yetguncha** yoritadi (#c0392b → #cd6358, 5.0:1). Bu
+taxmin emas, WCAG formulasi bilan hisob.
+
+> Ilgari «Tungi» ni tanlaganda ekran deyarli o'zgarmasdi. Sababi:
+> do'kon ranglari `<html>` ga **inline** qo'yilardi, inline uslub esa
+> har qanday CSS qoidasidan kuchli — `[data-mavzu="tungi"]` ularni
+> bosa olmasdi. Ustiga «hozir qorong'imi?» degan savolga faqat
+> `prefers-color-scheme` javob berardi, ya'ni odamning tanlovi
+> hisobga olinmasdi. Endi tanlov birinchi, telefon sozlamasi esa
+> faqat «Tizim» da; tungiga o'tilganda kunduzgi inline ranglar
+> butunlay olib tashlanadi.
 
 Muammo darajasining ranglari (qizil / sariq / yashil) mavzuga **bog'liq
 emas** — «qizil = yomon» degani hamma joyda bir xil qolishi kerak.
+
+#### Bo'limdan bo'limga o'tish
+
+Har bo'limning **o'z surilish joyi** eslab qolinadi: uzun natijani yoki
+chatni o'qib turib savatga kirib qaytgan odam o'sha joyidan davom etadi.
+Yangi tahlil kelganda esa natija ataylab boshidan ko'rsatiladi.
+
+AI chat **qayta chizilmaydi**: suhbat o'zgarmagan bo'lsa DOM ga umuman
+tegilmaydi. `innerHTML` ni qayta yozish rasmlarni qaytadan yuklaydi,
+animatsiyani noldan boshlaydi va o'qib turgan joyni yo'qotadi —
+«yangilanib ketdi» degani aynan shu edi.
 
 ### 🛒 Marketplace — Daiso va Coupang'dan mahsulot olish
 

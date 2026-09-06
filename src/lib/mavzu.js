@@ -104,6 +104,27 @@ export function kontrastMatn(hex) {
 /** Fon och (yorug‘) rangmi — ilova qaysi tusda ishlashini bilish uchun. */
 export const ochmi = (hex) => kontrastMatn(hex) === '#141414';
 
+// Tungi ko'rinishning foni — ilova CSS sidagi `--fon` bilan bir xil
+export const TUNGI_FON = '#0f0f11';
+
+/**
+ * Do'kon urg'u rangining TUNGI ko'rinish uchun varianti.
+ *
+ * Kunduzgi rangni qorong'i fonga qo'yib bo'lmaydi: to'q qizil
+ * (#c0392b) qora fonda 3:1 ga ham yetmaydi va yozuv ko'rinmay
+ * qoladi. Shuning uchun rang KONTRAST yetguncha yoritiladi —
+ * «chiroyli ko'rinadi» degan taxmin bilan emas, hisob bilan.
+ */
+export function tungiUrgu(hex, maqsad = 4.5) {
+  const asl = rangTozala(hex, MAVZU_STANDART.asosiy);
+  if (kontrast(asl, TUNGI_FON) >= maqsad) return asl;
+  for (let i = 1; i <= 12; i++) {
+    const r = yoritish(asl, i * 0.07);
+    if (kontrast(r, TUNGI_FON) >= maqsad) return r;
+  }
+  return yoritish(asl, 0.84);
+}
+
 /**
  * Ikki asosiy rangdan to'liq palitra yig'adi.
  *
@@ -126,6 +147,10 @@ export function palitra(xom = {}) {
     asosiyMatn: kontrastMatn(asosiy),
     urguOch:    yoritish(urgu, 0.86),
     urguTim:    qoraytirish(urgu, 0.2),
+    // Tungi ko'rinish uchun: yorug'roq urg'u va uning to'q tusi
+    urguTungi:    tungiUrgu(urgu),
+    urguTungiTim: yoritish(tungiUrgu(urgu), 0.25),
+    urguTungiOch: qoraytirish(tungiUrgu(urgu), 0.82),
     // Fon ustidagi matn va kartochka
     matn:   fonOch ? '#1F1D1B' : '#F2F0EE',
     kul:    fonOch ? '#5F5A55' : '#B3ADA8',

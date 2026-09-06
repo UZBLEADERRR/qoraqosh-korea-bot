@@ -1922,6 +1922,74 @@ console.log('\n── KO‘RINISH (KUNDUZGI/TUNGI) ──');
   for (const nom of ['quyosh', 'oy', 'ekran']) {
     test(`«${nom}» ikoni bor`, new RegExp(`\\n\\s*${nom}:`).test(ikon));
   }
+
+  // ── ENG MUHIMI: tanlov HAQIQATAN ishlashi ──
+  // Shikoyat: «kunduzgi mavzuda turib tungini yoqsam unchalik
+  // o'zgarmayapti». Sabab: do'kon ranglari `<html>` ga INLINE
+  // qo'yilardi va inline uslub har qanday CSS qoidasidan kuchli —
+  // `[data-mavzu="tungi"]` ularni bosa olmasdi. Ustiga «qorong'imi»
+  // degan savolga faqat `prefers-color-scheme` javob berardi, ya'ni
+  // odamning tanlovi umuman hisobga olinmasdi.
+  test('«qorong‘imi» savoli TANLOVdan boshlanadi',
+    /const qorongimi = \(\) => \{[\s\S]{0,200}mavzuOqi\(\)[\s\S]{0,200}'tungi'/.test(js));
+  test('tungida kunduzgi inline ranglar OLIB TASHLANADI',
+    /MAVZU_TOKEN\.forEach\(\(t\) => r\.removeProperty\(t\)\)/.test(js));
+  test('olib tashlanadigan tokenlar ro‘yxati to‘liq',
+    /MAVZU_TOKEN = \['--fon', '--panel', '--chiziq', '--matn', '--kul', '--och', '--urgu-och'\]/
+      .test(js));
+  test('tanlov o‘zgarganda ranglar QAYTA qo‘llanadi',
+    /function mavzuniQoy[\s\S]{0,700}mavzuniQoll\(oxirgiMavzu\)/.test(js));
+  test('«tizim» da telefon rejimi o‘zgarsa ham moslashadi',
+    /addEventListener\?\.\('change'[\s\S]{0,120}mavzuniQoy\('tizim'\)/.test(js));
+
+  // Urg'u rangi qorong'i fonda O'QILADIGAN bo'lishi kerak
+  const { palitra, tungiUrgu, kontrast, TOPLAMLAR } =
+    await import('../src/lib/mavzu.js');
+  const past = TOPLAMLAR
+    .map((m) => ({ nom: m.nom, k: kontrast(tungiUrgu(m.urgu), '#0f0f11') }))
+    .filter((x) => x.k < 4.5);
+  test('HAR BIR tayyor mavzuning urg‘usi tungida o‘qiladi', past.length === 0,
+    past.map((x) => `${x.nom} ${x.k.toFixed(2)}`).join(', '));
+  test('to‘q qizil tungi uchun yoritiladi',
+    kontrast('#c0392b', '#0f0f11') < 4.5 && kontrast(tungiUrgu('#c0392b'), '#0f0f11') >= 4.5,
+    `${kontrast('#c0392b', '#0f0f11').toFixed(2)} → ${kontrast(tungiUrgu('#c0392b'), '#0f0f11').toFixed(2)}`);
+  const pal = palitra({ urgu: '#c0392b' });
+  test('palitrada tungi urg‘u ham bor',
+    Boolean(pal.urguTungi && pal.urguTungiTim && pal.urguTungiOch),
+    JSON.stringify({ u: pal.urguTungi, t: pal.urguTungiTim, o: pal.urguTungiOch }));
+  test('tungi tusi FONga yaqin (yorug‘ dog‘ bo‘lmaydi)',
+    kontrast(pal.urguTungiOch, '#0f0f11') < 2, kontrast(pal.urguTungiOch, '#0f0f11').toFixed(2));
+  test('ilova tungi variantni ishlatadi', /r\.setProperty\('--urgu', m\.urguTungi\)/.test(js));
+}
+
+// ═══════════ BO'LIMDAN BO'LIMGA O'TISH ═══════════
+// Shikoyat: «bir pagedan boshqasiga o'tganda natijalar va ai chat
+// qismi yangilanib ketyapti». Ikki sabab bor edi: har o'tishda sahifa
+// tepaga otilardi va chat butunlay qayta chizilardi.
+console.log('\n── BO‘LIM ALMASHUVI ──');
+{
+  const fs = await import('node:fs');
+  const js = fs.readFileSync('public/app/app.js', 'utf8');
+
+  test('har bo‘limning surilish joyi eslab qolinadi',
+    /tabSurish\[holat\.tab\] = window\.scrollY/.test(js));
+  test('qaytib kelganda o‘sha joyidan davom etadi',
+    /tabSurish\[nom\] \|\| 0/.test(js) && /scrollTo\(\{ top: joy \}\)/.test(js));
+  test('sahifa endi har o‘tishda tepaga otilmaydi',
+    !/if \(nom === 'natija'[\s\S]{0,80}scrollTo\(\{ top: 0 \}\);/.test(js));
+  test('YANGI natija esa boshidan ko‘rinadi', /tabSurish\.natija = 0/.test(js));
+
+  // Chat DOM i qayta yozilmaydi — rasm qaytadan yuklanmasin,
+  // animatsiya noldan boshlanmasin
+  test('chat o‘zgarmagan bo‘lsa QAYTA chizilmaydi',
+    /if \(suhbatChizilgan === suhbatV && oqim\.childElementCount\) return;/.test(js));
+  test('o‘zgarish sanog‘i bor', /const suhbatOzgardi = \(\) => \{ suhbatV \+= 1; \};/.test(js));
+  const sanoq = (js.match(/suhbatOzgardi\(\)/g) || []).length;
+  // To'rtta joyda suhbat o'zgaradi: yuklash, savol yuborish,
+  // javob kelishi, tozalash — har birida sanoq oshishi shart
+  test('har bir o‘zgarishda sanoq oshadi', sanoq >= 4, `${sanoq} ta chaqiruv`);
+  test('suhbat tozalansa ham qayta chiziladi',
+    /suhbat = \[\][\s\S]{0,140}suhbatOzgardi\(\)/.test(js));
 }
 
 // ═══════════ ADMIN YORDAMCHISI (AGENT) ═══════════

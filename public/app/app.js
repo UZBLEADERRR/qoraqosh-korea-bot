@@ -171,6 +171,11 @@ const SARALASH = {
 // `:not([data-mavzu="kunduzgi"])` bilan himoyalangan, tungi tokenlar
 // esa `[data-mavzu="tungi"]` uchun takrorlangan. Shunda tanlov
 // telefon sozlamasidan ustun turadi.
+// Admin bergan do'kon ranglari. Yuqorida e'lon qilinadi, chunki
+// `mavzuniQoy` sahifa chizilishidan OLDIN chaqiriladi va u shu
+// qiymatga murojaat qiladi.
+let oxirgiMavzu = null;
+
 const MAVZU_KALIT = 'kiovo_korinish';
 const MAVZULAR = [
   { kalit: 'tizim',    nom: 'Tizim',    ik: 'ekran' },
@@ -182,18 +187,48 @@ const mavzuOqi = () => {
   try { return localStorage.getItem(MAVZU_KALIT) || 'tizim'; } catch { return 'tizim'; }
 };
 
+/**
+ * Hozir qorong'i ko'rinishdami?
+ *
+ * MUHIM: bu savolga `prefers-color-scheme` bilan javob berib
+ * bo'lmaydi. Odam telefonini kunduzgi rejimda ushlab, ilovada
+ * «Tungi» ni tanlashi mumkin — o'shanda media so'rov «yorug'»
+ * deydi, ilova esa qorong'i bo'lishi kerak. Tanlov birinchi,
+ * telefon sozlamasi esa faqat «Tizim» da.
+ */
+const qorongimi = () => {
+  const k = mavzuOqi();
+  if (k === 'tungi') return true;
+  if (k === 'kunduzgi') return false;
+  return Boolean(window.matchMedia?.('(prefers-color-scheme: dark)')?.matches);
+};
+
 function mavzuniQoy(kalit) {
   const k = MAVZULAR.some((x) => x.kalit === kalit) ? kalit : 'tizim';
   try { localStorage.setItem(MAVZU_KALIT, k); } catch {}
   // «tizim» da atribut umuman qo'yilmaydi — shunda media so'rov ishlaydi
   if (k === 'tizim') document.documentElement.removeAttribute('data-mavzu');
   else document.documentElement.setAttribute('data-mavzu', k);
+  // Do'kon ranglari QAYTA qo'llanadi. Busiz kunduzgi rejimda qo'yilgan
+  // inline ranglar (`--fon`, `--matn`…) joyida qolar va tungiga
+  // o'tganda ekran deyarli o'zgarmasdi — inline uslub har qanday CSS
+  // qoidasidan kuchli.
+  mavzuniQoll(oxirgiMavzu);
   // Telegram va brauzer yuqori panelini ham moslashtiramiz
   const fon = getComputedStyle(document.documentElement)
     .getPropertyValue('--fon').trim();
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta && fon) meta.setAttribute('content', fon);
 }
+
+// «Tizim» tanlangan bo'lsa telefon kunduzgidan tungiga o'tganda ham
+// ranglar darrov moslashsin
+try {
+  window.matchMedia?.('(prefers-color-scheme: dark)')
+    ?.addEventListener?.('change', () => {
+      if (mavzuOqi() === 'tizim') mavzuniQoy('tizim');
+    });
+} catch { /* eski brauzer — muhim emas */ }
 
 // Sahifa chizilishidan OLDIN qo'llanadi, aks holda oq ekran bir
 // lahzaga ko'rinib «miltillash» bo'ladi
@@ -402,17 +437,39 @@ function royxatEkrani() {
  * o'zgaradi. Ranglar serverda hisoblanadi (src/lib/mavzu.js), shu sababli
  * ilova, natija rasmi va admin ko'rinishi bir xil chiqadi.
  */
+// Kunduzgi rejimda inline qo'yiladigan tokenlar. Tungiga o'tilganda
+// ular BUTUNLAY olib tashlanadi, aks holda qorong'i palitrani bosib
+// turaveradi.
+const MAVZU_TOKEN = ['--fon', '--panel', '--chiziq', '--matn', '--kul', '--och', '--urgu-och'];
+
 function mavzuniQoll(m) {
+  if (m && typeof m === 'object') oxirgiMavzu = m;
+  else m = oxirgiMavzu;
   if (!m || typeof m !== 'object') return;
   const r = document.documentElement.style;
-  const qorongi = window.matchMedia?.('(prefers-color-scheme: dark)')?.matches;
+  const qorongi = qorongimi();
 
-  if (m.urgu) {
-    r.setProperty('--urgu', m.urgu);
-    if (m.urguTim) r.setProperty('--urgu-tim', m.urguTim);
-    if (m.urguOch && !qorongi) r.setProperty('--urgu-och', m.urguOch);
-  }
-  if (!qorongi) {
+  if (qorongi) {
+    // Qorong'ida do'kon foni ISHLATILMAYDI: och yashil yoki krem fon
+    // ko'zni qamashtiradi va matn o'qilmay qoladi. Faqat urg'u rangi
+    // qoladi — u ham qorong'i fon uchun YORITILGAN variantda
+    // (serverda kontrast hisoblab tanlanadi), aks holda to'q qizil
+    // qora fonda ko'rinmaydi.
+    MAVZU_TOKEN.forEach((t) => r.removeProperty(t));
+    if (m.urguTungi) {
+      r.setProperty('--urgu', m.urguTungi);
+      r.setProperty('--urgu-tim', m.urguTungiTim || m.urguTungi);
+      if (m.urguTungiOch) r.setProperty('--urgu-och', m.urguTungiOch);
+    } else if (m.urgu) {
+      // Eski konfig — tungi variant yo'q, standart CSS rangi qolsin
+      r.removeProperty('--urgu'); r.removeProperty('--urgu-tim');
+    }
+  } else {
+    if (m.urgu) {
+      r.setProperty('--urgu', m.urgu);
+      if (m.urguTim) r.setProperty('--urgu-tim', m.urguTim);
+    }
+    if (m.urguOch) r.setProperty('--urgu-och', m.urguOch);
     if (m.fon)    r.setProperty('--fon', m.fon);
     if (m.karta)  r.setProperty('--panel', m.karta);
     if (m.chiziq) r.setProperty('--chiziq', m.chiziq);
@@ -1285,6 +1342,7 @@ async function tahlilQil() {
     kor($('#skaner-boshlash'), true);
     tanlanganRasm = null; $('#fayl').value = '';
     holat.natijaKesh = null;
+    tabSurish.natija = 0;          // yangi natija BOSHIDAN ko'rinsin
     natijaniChiz(); tabOch('natija'); titra('medium');
     limitniChiz();
   } catch (e) {
@@ -2600,10 +2658,19 @@ const BOSQICH_NOM = {
   namlash:'Namlash', himoya:'Himoya', qoshimcha:'Qo‘shimcha', ichki:'Ichki qabul',
 };
 
+// Suhbat o'zgargan sanog'i. Tabdan tabga o'tganda chat QAYTA
+// chizilmasligi kerak: `innerHTML` ni qayta yozish rasmlarni qaytadan
+// yuklaydi, animatsiyani noldan boshlaydi va odam o'qib turgan joyini
+// yo'qotadi — «yangilanib ketdi» degani shu.
+let suhbatV = 0;
+let suhbatChizilgan = -1;
+const suhbatOzgardi = () => { suhbatV += 1; };
+
 function suhbatniYukla() {
   try { holat.suhbat = JSON.parse(sessionStorage.getItem('qq_suhbat') || '[]'); }
   catch { holat.suhbat = []; }
   if (!Array.isArray(holat.suhbat)) holat.suhbat = [];
+  suhbatOzgardi();
 }
 const suhbatniSaqla = () => {
   // Rasmlarni saqlamaymiz — sessionStorage 5 MB, bitta surat shuncha
@@ -2771,6 +2838,9 @@ function aiXabarHtml(j) {
 
 function maslahatniChiz() {
   const oqim = $('#maslahat-oqim');
+  // Hech nima o'zgarmagan bo'lsa DOM ga umuman tegmaymiz
+  if (suhbatChizilgan === suhbatV && oqim.childElementCount) return;
+  suhbatChizilgan = suhbatV;
   kor($('#maslahat-tozala'), holat.suhbat.length > 0);
 
   if (!holat.suhbat.length) {
@@ -2828,7 +2898,7 @@ async function maslahatYubor(savol) {
   const rasm = chatRasm; chatRasm = null; rasmOldindaniChiz();
   holat.suhbat.push({ kim: 'odam', matn: savol, rasm: rasm?.data, mime: rasm?.mime });
   holat.suhbat.push({ kim: 'kutish' });
-  maslahatniChiz(); suhbatniSaqla(); pastgaTush(); titra();
+  suhbatOzgardi(); maslahatniChiz(); suhbatniSaqla(); pastgaTush(); titra();
 
   const matn = $('#maslahat-matn');
   matn.value = ''; matn.style.height = '40px';
@@ -2862,7 +2932,7 @@ async function maslahatYubor(savol) {
     maslahatBand = false;
     $('#maslahat-holat').textContent = 'Har doim shu yerda';
     $('#maslahat-holat').classList.remove('oylanmoqda');
-    maslahatniChiz(); suhbatniSaqla(); pastgaTush();
+    suhbatOzgardi(); maslahatniChiz(); suhbatniSaqla(); pastgaTush();
   }
 }
 
@@ -2967,7 +3037,8 @@ function maslahatniUla() {
 
   $('#maslahat-tozala').onclick = () => {
     holat.suhbat = []; chatRasm = null; rasmOldindaniChiz();
-    suhbatniSaqla(); maslahatniChiz(); titra();
+    tabSurish.maslahat = 0;
+    suhbatOzgardi(); suhbatniSaqla(); maslahatniChiz(); titra();
   };
 }
 
@@ -3169,8 +3240,16 @@ function animatsiyasiz(ozgartir) {
     () => document.body.classList.remove('tez')));
 }
 
+// Har bo'limning o'z surilish joyi. Ilgari tab almashganda sahifa
+// har safar tepaga otilardi: uzun natijani yoki chatni o'qib turib
+// savatga kirib qaytgan odam yana boshidan qidirishga majbur edi.
+const tabSurish = {};
+
 function tabOch(nom) {
   nom = TAB_TAQMOQ[nom] || nom;
+  // Ketayotgan bo'limning joyini eslab qolamiz
+  if (holat.tab && holat.tab !== nom) tabSurish[holat.tab] = window.scrollY || 0;
+  const oldingi = holat.tab;
   holat.tab = nom;
   sessionStorage.setItem('qq_tab', nom);
   // Butun almashuv ANIMATSIYASIZ: yozish paneli `position:fixed` va
@@ -3187,7 +3266,10 @@ function tabOch(nom) {
   if (nom === 'profil') profilniChiz();   // buyurtmalar bo'lim ochilganda yuklanadi
   if (nom === 'maslahat') maslahatniChiz();
   if (nom === 'natija' && !holat.natijaKesh) natijaniChiz();
-  scrollTo({ top: 0 });
+  // Qaytib kelganda o'sha joyidan davom etadi; birinchi marta
+  // ochilayotgan bo'lim esa tepadan boshlanadi
+  const joy = oldingi === nom ? window.scrollY : (tabSurish[nom] || 0);
+  requestAnimationFrame(() => scrollTo({ top: joy }));
 }
 $$('.menyu button').forEach((b) => b.onclick = () => { tabOch(b.dataset.tab); titra(); });
 maslahatniUla();
