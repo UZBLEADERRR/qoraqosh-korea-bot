@@ -19,6 +19,8 @@ import { palitra, rangTozala, kontrast, MAVZU_STANDART } from '../lib/mavzu.js';
 import { TAVSIF as SHABLON_TAVSIF } from '../bot/shablonlar-standart.js';
 import { eksportHajmi, BOLIMLAR as EKSPORT_BOLIMLAR } from './eksport.js';
 import { sqlOqi, sqlYoz, sxema } from './admin-sql.js';
+import { kartochkaSozlamasi, kartochkaniQosh, BLOKLAR, BLOK_NOMI,
+         KARTOCHKA_STANDART } from '../lib/kartochka.js';
 
 const son = (v, zaxira = 0) => (Number.isFinite(Number(v)) ? Number(v) : zaxira);
 const matn = (v, n = 200) => String(v ?? '').trim().slice(0, n);
@@ -626,6 +628,59 @@ async function narxlarniOzgartir(a) {
   return { ozgardi: r.length, mahsulotlar: r.slice(0, 30) };
 }
 
+// ─────────────────── NATIJA KARTOCHKASI ───────────────────
+// Mijoz qo'liga boradigan yagona hujjat — uni do'kon egasi oddiy so'z
+// bilan o'zgartira olishi kerak: «erkaklar kartochkasida parhezni
+// olib tashla», «mahsulotni 6 ta qil», «sarlavhani o'zgartir».
+
+async function kartochka() {
+  const xom = await sozlama('natija_kartochka', {});
+  return {
+    hozirgi: {
+      umumiy: kartochkaSozlamasi(xom, ''),
+      erkak:  kartochkaSozlamasi(xom, 'erkak'),
+      ayol:   kartochkaSozlamasi(xom, 'ayol'),
+    },
+    bloklar: BLOK_NOMI,
+    izoh: 'Bloklarni yoqish/o‘chirish, belgi va mahsulot sonini (0-8), '
+        + 'sarlavhalarni va pastdagi ogohlantirishni o‘zgartirish mumkin. '
+        + '«erkak» yoki «ayol» tanlansa faqat o‘sha jins uchun o‘zgaradi. '
+        + 'ai_qoshimcha — tahlil AI siga beriladigan qo‘shimcha ko‘rsatma, '
+        + 'u jinsga bo‘linmaydi (jins tahlildan KEYIN ma’lum bo‘ladi).',
+  };
+}
+
+async function kartochkaOzgartir(a) {
+  const kim = ['erkak', 'ayol'].includes(a.kim) ? a.kim : 'umumiy';
+  const eski = await sozlama('natija_kartochka', {});
+
+  // Model bloklarni ro'yxat ko'rinishida ham berishi mumkin:
+  // {"korsatilsin":["parhez"],"yashirilsin":["xulosa"]}
+  const bloklar = { ...(a.bloklar && typeof a.bloklar === 'object' ? a.bloklar : {}) };
+  for (const b of (Array.isArray(a.korsatilsin) ? a.korsatilsin : [])) bloklar[b] = true;
+  for (const b of (Array.isArray(a.yashirilsin) ? a.yashirilsin : [])) bloklar[b] = false;
+
+  const notogri = Object.keys(bloklar).filter((k) => !BLOKLAR.includes(k));
+  if (notogri.length) {
+    return { ozgardi: 0,
+      xabar: `Bunday blok yo‘q: ${notogri.join(', ')}. Mavjudlari: ${BLOKLAR.join(', ')}.` };
+  }
+
+  const { sozlama: yangi, ozgargan } = kartochkaniQosh(eski, { ...a, bloklar }, kim);
+  if (!ozgargan.length) {
+    return { ozgardi: 0,
+      xabar: 'O‘zgartiriladigan narsa berilmadi. Mumkin: bloklar, belgi_soni, '
+           + 'mahsulot_soni, sarlavha, izoh, teg, ai_qoshimcha.' };
+  }
+
+  await sorov(
+    `insert into settings (key, value, updated_at) values ('natija_kartochka', $1::jsonb, now())
+     on conflict (key) do update set value = excluded.value, updated_at = now()`,
+    [JSON.stringify(yangi)]);
+  return { ozgardi: ozgargan.length, kim, ozgargan,
+           natija: kartochkaSozlamasi(yangi, kim === 'umumiy' ? '' : kim) };
+}
+
 // ─────────────────────────── GRAFIK ───────────────────────────
 
 // Nega grafik kerak. «Qaysi bo'lim ko'p sotilyapti» degan savolga
@@ -757,6 +812,14 @@ export const VOSITALAR = {
           + 'yuklab olish. JSON — hammasi, CSV — bitta bo‘lim (Excel uchun).',
     parametrlar: 'yo‘q',
   },
+  kartochka: {
+    oqish: true, ishla: kartochka,
+    tavsif: 'Tahlil NATIJA KARTOCHKASI (mijozga boradigan rasm) sozlamasi: '
+          + 'qaysi bo‘lim ko‘rinadi, nechta belgi va mahsulot chiqadi, '
+          + 'sarlavhalar. Erkak va ayol uchun alohida. O‘zgartirishdan '
+          + 'OLDIN shuni ko‘r.',
+    parametrlar: 'yo‘q',
+  },
   mavzu: {
     oqish: true, ishla: mavzuHolati,
     tavsif: 'Ilova ranglari va ularning KONTRASTI (o‘qiladimi). '
@@ -788,6 +851,18 @@ export const VOSITALAR = {
           + 'foizga ko‘tarish/tushirish yoki summa qo‘shish. Filtr: id lar, '
           + 'brend, bo‘lim yoki nom bo‘yicha qidiruv.',
     parametrlar: 'narx | foiz | qoshish, + idlar / brend / bolim / qidiruv / hammasi',
+  },
+  kartochka_ozgartir: {
+    oqish: false, ishla: kartochkaOzgartir,
+    tavsif: 'Natija kartochkasi ko‘rinishini o‘zgartiradi. Bloklarni '
+          + 'yoqadi/o‘chiradi (korsatkichlar, xulosa, belgilar, parhez, '
+          + 'mahsulotlar), belgi va mahsulot sonini (0-8), sarlavhalarni, '
+          + 'pastdagi ogohlantirishni. «kim» ERKAK yoki AYOL bo‘lsa faqat '
+          + 'o‘sha jins uchun. ai_qoshimcha — tahlil AI siga qo‘shimcha '
+          + 'ko‘rsatma (jinsga bo‘linmaydi).',
+    parametrlar: 'kim (umumiy|erkak|ayol), bloklar {nom: true/false} yoki '
+               + 'korsatilsin/yashirilsin (ro‘yxat), belgi_soni, mahsulot_soni, '
+               + 'sarlavha {belgilar, parhez, mahsulotlar}, izoh, teg, ai_qoshimcha',
   },
   sql_yoz: {
     oqish: false,

@@ -93,9 +93,22 @@ const SXEMA = {
         propertyOrdering: ['bosqich', 'product_id', 'sabab'],
       },
     },
+    // Ovqatlanish — teri holatiga tashqi parvarishdan kam ta'sir
+    // qilmaydi, lekin mijoz buni hech qayerda o'qimaydi. Kartochkada
+    // ikki ustun bo'lib chiqadi: nima foydali, nimani cheklash kerak.
+    parhez: {
+      type: 'object',
+      properties: {
+        foydali:  { type: 'array', items: { type: 'string' } },
+        cheklang: { type: 'array', items: { type: 'string' } },
+        izoh:     { type: 'string' },
+      },
+      required: ['foydali', 'cheklang', 'izoh'],
+      propertyOrdering: ['foydali', 'cheklang', 'izoh'],
+    },
   },
-  required: ['sifat', 'umumiy', 'muammolar', 'prognoz', 'tavsiya'],
-  propertyOrdering: ['sifat', 'umumiy', 'muammolar', 'prognoz', 'tavsiya'],
+  required: ['sifat', 'umumiy', 'muammolar', 'prognoz', 'tavsiya', 'parhez'],
+  propertyOrdering: ['sifat', 'umumiy', 'muammolar', 'prognoz', 'tavsiya', 'parhez'],
 };
 
 function katalogMatni(products) {
@@ -246,15 +259,37 @@ QADAM 5 — tavsiya: quyidagi katalogdan mahsulot tanla.
   sabab — nima uchun aynan shu mahsulot aynan SHU odamga kerakligini
   1-2 jumlada tushuntir: qaysi muammosiga, tarkibidagi qaysi modda yordam beradi.
 
-Butun javob o'zbek tilida (lotin alifbosida). Faqat JSON qaytar.
+QADAM 6 — parhez: OVQATLANISH tavsiyasi.
+  Teri holatiga ovqat ham ta'sir qiladi, lekin mijoz buni hech qayerda
+  o'qimaydi. Aynan SHU odamning topilgan muammolariga bog'lab yoz.
+  Muammo topilmagan bo'lsa ham terini shu holatda saqlaydigan
+  ovqatlanishni yoz.
 
-KATALOG (id|nom|bosqich|muammolar|teri turlari|faol moddalar):
+  parhez.foydali  — 3-5 ta band. Har biri QISQA: 3-6 so'z, mahsulot
+                    yoki odat + qavs ichida nima berishi. Masalan
+                    "Yog'li baliq (omega-3, yallig'lanishni kamaytiradi)".
+  parhez.cheklang — 3-5 ta band, xuddi shu ko'rinishda. Masalan
+                    "Shirin ichimlik (yog' bezlarini kuchaytiradi)".
+  parhez.izoh     — 1 jumla umumiy maslahat (masalan suv rejimi).
+
+  QAT'IY MAN: parhez emas, DAVO buyurma. Dori, vitamin dozasi,
+  "shuni ichsangiz tuzaladi" degan gap yozma. Ochlik yoki qattiq
+  cheklov (kaloriya, ochlik kunlari) tavsiya qilma — biz shifokor
+  emasmiz. Faqat oddiy, xavfsiz, kundalik ovqatlanish maslahati.
+
+Butun javob o'zbek tilida (lotin alifbosida). Faqat JSON qaytar.
 `;
+
+// Katalog sarlavhasi ALOHIDA: do'kon egasining qo'shimcha ko'rsatmasi
+// undan OLDIN qo'yiladi. Uzun mahsulot ro'yxatidan keyin yozilgan gap
+// modelning ko'zidan qochadi.
+const KATALOG_SARLAVHA = '\nKATALOG (id|nom|bosqich|muammolar|teri turlari|faol moddalar):\n';
 
 /**
  * @returns {{yaroqli:boolean, sabab?:string, izoh?:string, natija?:object}}
  */
-export async function yuzniTahlilQil(base64, mime, products, eskiTavsiyalar = []) {
+export async function yuzniTahlilQil(base64, mime, products, eskiTavsiyalar = [],
+                                    qoshimcha = '') {
   if (!aiBormi()) return { yaroqli: true, natija: oflaynTahlil(products), oflayn: true };
 
   const eski = eskiTavsiyalar.length
@@ -263,8 +298,16 @@ Iloji bo'lsa BOSHQA mahsulotni tanla — bir xil narsani qayta-qayta tavsiya qil
 Faqat boshqa mos variant umuman bo'lmasa, eskisini qoldirishing mumkin.`
     : '';
 
+  // Do'kon egasi admin paneldan qo'shimcha ko'rsatma bergan bo'lsa u
+  // katalogdan OLDIN qo'yiladi: uzun katalog ro'yxatidan keyin
+  // yozilgan gap modelning ko'zidan qochadi.
+  const qosh = String(qoshimcha || '').trim()
+    ? `\nDO'KON EGASINING QO'SHIMCHA KO'RSATMASI (yuqoridagi qoidalarni
+BUZMAYDI — ular kuchda qoladi):\n${String(qoshimcha).trim().slice(0, 1200)}\n`
+    : '';
+
   const parts = [
-    { text: KORSATMA + katalogMatni(aralashtir(products)) + eski },
+    { text: KORSATMA + qosh + KATALOG_SARLAVHA + katalogMatni(aralashtir(products)) + eski },
     rasmPart(base64, mime),
   ];
 
@@ -376,6 +419,18 @@ function tozala(javob, products) {
 
   tavsiya.sort((a, b) => BOSQICH_TARTIB.indexOf(a.bosqich) - BOSQICH_TARTIB.indexOf(b.bosqich));
 
+  // Parhez: qisqa bandlar, dori-darmon va ochlik maslahatisiz
+  const parhezBand = (r) => (Array.isArray(r) ? r : [])
+    .map((x) => String(x || '').replace(/\s+/g, ' ').trim().slice(0, 60))
+    .filter(Boolean)
+    .filter((x) => !PARHEZ_TAQIQ.test(x))
+    .slice(0, 5);
+  const parhez = {
+    foydali:  parhezBand(javob.parhez?.foydali),
+    cheklang: parhezBand(javob.parhez?.cheklang),
+    izoh:     String(javob.parhez?.izoh || '').slice(0, 160),
+  };
+
   const u = javob.umumiy || {};
   return {
     taxminiy_yosh: String(u.taxminiy_yosh || "noma'lum").slice(0, 20),
@@ -385,9 +440,13 @@ function tozala(javob, products) {
     ball:          Math.min(100, Math.max(0, Number(u.ball) || 60)),
     xulosa:        String(u.xulosa || '').slice(0, 400),
     // Tavsiya soni TERI HOLATIGA qarab: 10 tagacha to'liq to'plam
-    muammolar, prognoz, tavsiya: tavsiya.slice(0, 10),
+    muammolar, prognoz, tavsiya: tavsiya.slice(0, 10), parhez,
   };
 }
+
+// Parhez bandida bo'lmasligi kerak bo'lgan gaplar: biz shifokor
+// emasmiz va dori yoki ochlik buyurmaymiz.
+const PARHEZ_TAQIQ = /\b(dori|tabletka|antibiotik|retinoid|izotretinoin|dozas|mg\b|ochlik|och qol|kaloriyani keskin|davolay|shifobaxsh dori)/i;
 
 // ---------- AI kalitsiz zaxira ----------
 // Bot AI ishlamay qolganda ham "buzilmasin" degan tamoyil bilan ishlaydi,
@@ -407,5 +466,6 @@ function oflaynTahlil(products) {
     taxminiy_yosh: '—', jins: 'nomalum', teri_rangi: '—', teri_turi: 'normal', ball: 0,
     xulosa: "AI tahlili hozir mavjud emas. Quyida barcha teri turlariga mos bazaviy parvarish ko'rsatilgan.",
     muammolar: [], prognoz: [], tavsiya,
+    parhez: { foydali: [], cheklang: [], izoh: '' },
   };
 }

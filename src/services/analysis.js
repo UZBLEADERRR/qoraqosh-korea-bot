@@ -1,7 +1,8 @@
 // Tahlil xizmati — bot ham, Mini App ham SHU funksiyani chaqiradi,
 // shuning uchun ikkala kanalda natija bir xil bo'ladi.
-import { qatorlar, qator, hodisa } from '../db.js';
+import { qatorlar, qator, hodisa, sozlama } from '../db.js';
 import { yuzniTahlilQil } from '../ai/faceAnalysis.js';
+import { kartochkaSozlamasi } from '../lib/kartochka.js';
 
 /** Foydalanuvchining bugungi skaner limiti. */
 export async function limitHolati(userId) {
@@ -71,14 +72,18 @@ export async function tahlilQil(user, base64, mime) {
     throw e;
   }
 
-  const [mahsulotlar, eskiTavsiyalar] = await Promise.all([
+  const [mahsulotlar, eskiTavsiyalar, kartochka] = await Promise.all([
     faolMahsulotlar(),
     avvalTavsiyaQilingan(user.id),
+    // Do'kon egasi tahlil AI siga qo'shimcha ko'rsatma bergan bo'lishi
+    // mumkin («soqol olishdan keyingi qirilishga e'tibor ber» kabi)
+    sozlama('natija_kartochka', {}),
   ]);
   const omborda = mahsulotlar.filter((p) => p.stock > 0);
 
   const natija = await yuzniTahlilQil(
-    base64, mime, omborda.length ? omborda : mahsulotlar, eskiTavsiyalar);
+    base64, mime, omborda.length ? omborda : mahsulotlar, eskiTavsiyalar,
+    kartochkaSozlamasi(kartochka).ai_qoshimcha);
 
   if (!natija.yaroqli) {
     await hodisa(user.id, 'scan_rejected', { sabab: natija.sabab });

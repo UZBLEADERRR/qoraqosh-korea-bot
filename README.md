@@ -233,8 +233,14 @@ Google Gemini · Railway.
   etilgan mahsulotlar **rasmi bilan kichik kartochkalarda**, har birida nima
   uchun kerakligi bir-ikki so'zda (Tozalash, Quyoshdan himoya…).
   Tavsiya soni TERI HOLATIGA qarab: yengil holatda 3-4 ta, ko'p muammo
-  topilsa 6-8, og'ir holatda 10 tagacha. Rasmda 6 tasi ikki qatorda
-  ko'rinadi, qolgani «va yana N ta — ilovada» deb yoziladi.
+  topilsa 6-8, og'ir holatda 10 tagacha. Mahsulot ko'p bo'lsa kartalar
+  KICHRAYADI va hammasi **bitta qatorga** sig'adi (6 tagacha); 7-8 ta
+  bo'lsa teng ikki qatorga bo'linadi, ya'ni yolg'iz karta qolmaydi.
+- **Ovqatlanish tavsiyasi** ham rasmda: ikki ustun — nima *foydali*,
+  nimani *cheklash* kerak, har biri qavs ichida sababi bilan. AI uni
+  aynan shu odamning topilgan muammolariga bog'lab yozadi. Dori,
+  vitamin dozasi va ochlik tavsiyasi filtrda tashlanadi — biz
+  shifokor emasmiz.
   **Ism yozilmaydi:** bitta telefondan bir necha odam surat yuklashi mumkin.
   **Suratga doira chizilmaydi:** belgi qayerdaligi ro'yxatdagi «📍 zona»
   matnida turadi, doira esa suratni bulg'ab, raqamlarni ko'zdan qochirardi.
@@ -1159,6 +1165,7 @@ src/
     bosqichlar.js      buyurtma bosqichlari — bot va panel uchun bitta ro'yxat
     emu-tarif.js       EMU rasmiy tarif kartasi: zonalar va narxlar
     mavzu.js           ilova ranglari: ikki rangdan to‘liq palitra
+    kartochka.js       natija kartochkasining sozlamasi (erkak/ayol)
     narx.js            sotuv narxi: tannarx + yetkazish + sof foyda
     post-korinish.js   agent posti kanalda qanday chiqishini ko‘rsatuvchi sahifa
     docx.js            .docx yozuvchi (ZIP + WordprocessingML), kutubxonasiz
@@ -1288,9 +1295,52 @@ emoji shriftini chizmaydi, o'rnida bo'sh kvadrat qoladi.
 
 Rasmning ustki qismida har bir belgi uchun `Sababi:` va `Yechimi:`
 satrlari chiqadi — foiz o'zi hech narsa tushuntirmaydi. Pastdagi
-mahsulot kartalari esa songa qarab kichrayadi (4 tagacha bitta
-qatorga sig'adi, 8 tasi ko'rsatiladi): ikkita katta karta o'rniga
-to'liq tavsiya ko'ringani yaxshiroq.
+mahsulot kartalari esa songa qarab kichrayadi: ustunlar soni
+mahsulot soniga TENG, ya'ni oltitagacha hammasi bitta qatorda
+turadi. Ilgari ustun soni to'rtta bilan cheklangan edi va beshinchi
+mahsulot pastga tushib, yolg'iz qolardi.
+
+#### Kartochkani admin sozlaydi
+
+Kartochka — mijoz qo'liga boradigan yagona hujjat: uni skrinshot
+qiladi, do'stiga yuboradi, saqlab qo'yadi. Ilgari uning ko'rinishi
+faqat koddan o'zgarardi. Endi do'kon egasi **admin yordamchisiga
+oddiy so'z bilan aytadi**:
+
+> «Erkaklar kartochkasida ovqatlanish bo'limini olib tashla»
+> «Mahsulotni oltita qil»
+> «Sarlavhani "Nimalar topildi" deb o'zgartir»
+
+Sozlama `settings.natija_kartochka` da turadi (`src/lib/kartochka.js`),
+agent uni `kartochka` bilan o'qiydi va `kartochka_ozgartir` bilan
+o'zgartiradi — har qanday o'zgarish kabi **tasdiqdan keyin**.
+O'zgartirsa bo'ladigan narsalar:
+
+| Nima | Qiymat |
+|---|---|
+| `bloklar` | korsatkichlar, xulosa, belgilar, parhez, mahsulotlar — har biri yoq/bor |
+| `belgi_soni`, `mahsulot_soni` | 0-8 |
+| `sarlavha` | bo'lim sarlavhalari |
+| `izoh`, `teg` | pastdagi ogohlantirish va o'ng yuqoridagi yozuv |
+| `ai_qoshimcha` | tahlil AI siga qo'shimcha ko'rsatma |
+
+**Erkak va ayol uchun alohida.** Jins bo'limida faqat FARQ yoziladi,
+qolgani umumiydan olinadi — ya'ni «erkaklarda parhez ko'rinmasin»
+degani boshqa hamma narsani qayta yozishni talab qilmaydi. Ranglar
+ham allaqachon jinsga qarab o'zgarardi (`mavzu_erkak`), endi
+TARKIB ham shunday.
+
+Model o'ylab topgan qiymat kartochkani buza olmaydi: begona kalit
+tashlanadi, sonlar 0-8 ga qisiladi, noto'g'ri turdagi qiymat
+standartga qaytadi.
+
+`ai_qoshimcha` — tahlil promptiga qo'shiladigan matn («soqol
+olishdan keyingi qirilishga alohida e'tibor ber»). U KATALOGDAN
+OLDIN qo'yiladi: uzun mahsulot ro'yxatidan keyin yozilgan gap
+modelning ko'zidan qochadi. Asosiy qoidalar (rad etish shartlari,
+tashxis qo'ymaslik) kuchda qoladi — qo'shimcha ko'rsatma ularni
+bekor qila olmaydi. Jinsga bo'linmaydi, chunki jins tahlildan
+KEYIN ma'lum bo'ladi.
 
 **Bitta AI chaqiruvi.** Modelga katalogning ixcham ro'yxati beriladi, shuning
 uchun u mavjud bo'lmagan mahsulotni o'ylab topa olmaydi. Qaytgan `product_id`

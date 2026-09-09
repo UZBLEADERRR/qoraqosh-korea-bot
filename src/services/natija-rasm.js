@@ -5,6 +5,7 @@ import { natijaSvg } from '../rasm/natija-kartochka.js';
 import { svgdanPng } from '../rasm/chiz.js';
 import { rasmYubor } from '../bot/tg.js';
 import { brendNomi, brendLogosi } from '../lib/brend.js';
+import { kartochkaSozlamasi } from '../lib/kartochka.js';
 
 const BOSQICH_NOMI = {
   tozalash: 'Tozalash', toner: 'Toner', davolash: 'Davolash',
@@ -58,11 +59,12 @@ const OCHILADI = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/gif']);
  */
 export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime, tahlil, mahsulotlar }) {
   const mos = OCHILADI.has(String(mime || '').toLowerCase());
-  const [brend, logo, tavsiyalar, mavzu, mavzuErkak] = await Promise.all([
+  const [brend, logo, tavsiyalar, mavzu, mavzuErkak, kartochka] = await Promise.all([
     brendNomi(), brendLogosi(),
     tavsiyaRasmlari(tavsiyaRoyxati(tahlil, mahsulotlar)),
     sozlama('mavzu', {}),
     sozlama('mavzu_erkak', {}),
+    sozlama('natija_kartochka', {}),
   ]);
 
   // Erkaklar uchun alohida rang — kartochka pushti-qizil bo'lsa
@@ -81,6 +83,9 @@ export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime,
     logoBase64: logo && OCHILADI.has(logo.mime) ? logo.base64 : null,
     logoMime: logo?.mime || 'image/png',
     mavzu: tanlanganMavzu,
+    // Kartochka ko'rinishi ham jinsga qarab: erkak uchun boshqa
+    // sarlavha yoki kamroq bo'lim bo'lishi mumkin
+    sozlama: kartochkaSozlamasi(kartochka, tahlil?.jins || ''),
   });
 
   let bayt;

@@ -17,6 +17,7 @@
 // kvadrat qoladi. Barcha belgilar vektor shakl bilan chiziladi.
 import { x, qatorlarga, kes, SHRIFT } from './chiz.js';
 import { palitra, darajaRangi, yoritish, TARTIB_RANG } from '../lib/mavzu.js';
+import { kartochkaSozlamasi } from '../lib/kartochka.js';
 
 const ENI = 1080;
 const CHET = 40;
@@ -63,6 +64,13 @@ const BELGILAR = {
   axborot: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18z M12 10v7 M12 7.2v.1',
   // Yulduzcha — sarlavha va halqa ichida
   yulduz: 'M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z',
+  // Belgi (tasdiq) — «foydali» ro'yxati oldida
+  tasdiq: 'M5 12.5l4.5 4.5L19 7.5',
+  // Chiziq — «cheklang» ro'yxati oldida
+  chiziqcha: 'M6.5 12h11',
+  // Kosa — ovqatlanish bo'limi sarlavhasi
+  kosa: 'M4 11h16a8 8 0 0 1-8 8 8 8 0 0 1-8-8z M8.5 7.5c0-1.2 1-1.6 1-2.6'
+      + 'M12 7.5c0-1.4 1-1.8 1-3 M15.5 7.5c0-1.2 1-1.6 1-2.6',
 };
 
 /** @param {string} kalit  BELGILAR dan */
@@ -97,14 +105,25 @@ const raqamNishoni = (cx, cy, r, raqam, tus) => `
  * @returns {string} SVG
  */
 export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar = [],
-                            brend, logoBase64 = null, logoMime = 'image/png', mavzu = {} }) {
+                            brend, logoBase64 = null, logoMime = 'image/png', mavzu = {},
+                            sozlama = null }) {
+  // Kartochka ko'rinishi admin paneldan (yordamchi orqali) sozlanadi:
+  // qaysi bo'lim ko'rinsin, nechta belgi va mahsulot chiqsin,
+  // sarlavhalar qanday yozilsin — erkak va ayol uchun alohida.
+  const S = sozlama && typeof sozlama === 'object'
+    ? sozlama : kartochkaSozlamasi({}, tahlil?.jins || '');
   const R = palitra(mavzu);
   const oq = R.asosiyMatn;                       // sarlavha ustidagi matn
   const shaffofFon = oq === '#FFFFFF' ? 'rgba(255,255,255,' : 'rgba(0,0,0,';
   const tus = (a) => `${shaffofFon}${a})`;
 
   const t = tahlil || {};
-  const muammolar = (t.muammolar || t.problems || []).slice(0, 5);
+  // Ko'rsatkichlar TOPILGANiga qarab hisoblanadi, ro'yxat esa
+  // sozlamadagi songa qarab qisqartiriladi: «2 ta belgi topildi» deb
+  // yozib, ostida bittasini ko'rsatish adminni ham, mijozni ham
+  // chalg'itadi — shuning uchun ikkalasi alohida.
+  const hammaMuammo = t.muammolar || t.problems || [];
+  const muammolar = S.bloklar.belgilar ? hammaMuammo.slice(0, S.belgi_soni) : [];
   const ball = Math.round(Number(t.ball ?? t.score ?? 0));
   const yosh = t.taxminiy_yosh || t.age_estimate || '';
   const jins = t.jins || '';
@@ -129,7 +148,7 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     q.push(belgiChiz('barg', P + NISHON / 2, 34 + NISHON / 2, 32, oq, { qalin: 2 }));
   }
   q.push(matn(brend, 78, { x: P + NISHON + 18, olcham: 38, ogirlik: 700, rang: oq }));
-  q.push(matn('Teri tahlili', 72, { x: ENI - P - 34, oxiri: true, olcham: 25, rang: oq, shaffof: 0.85 }));
+  q.push(matn(S.teg, 72, { x: ENI - P - 34, oxiri: true, olcham: 25, rang: oq, shaffof: 0.85 }));
   q.push(belgiChiz('yulduz', ENI - P - 12, 62, 26, oq, { qalin: 1.6 }));
 
   // ── Ichki kartochka ──
@@ -226,7 +245,7 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     fill="${tus(0.1)}" stroke="${tus(0.16)}" stroke-width="1.5"/>`);
 
   // ── Ko'rsatkichlar ──
-  const eng = muammolar.slice().sort((a, b) => (b.foiz ?? 0) - (a.foiz ?? 0))[0];
+  const eng = hammaMuammo.slice().sort((a, b) => (b.foiz ?? 0) - (a.foiz ?? 0))[0];
   const prognoz = (t.prognoz || t.forecast || [])
     .slice().sort((a, b) => (b.ehtimol ?? 0) - (a.ehtimol ?? 0))[0];
 
@@ -234,14 +253,14 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   const KO_BOYI = 92;
   const ustunEni = IK_ENI / 3;
   const korsatkichlar = [
-    { belgi: 'hujjat', qiymat: String(muammolar.length), izoh: 'topilgan belgi' },
+    { belgi: 'hujjat', qiymat: String(hammaMuammo.length), izoh: 'topilgan belgi' },
     // Izoh kichik harf bilan boshlanadi — ko'rsatkich sarlavha emas, tavsif
     { belgi: 'tomchi', qiymat: eng ? `${Math.round(eng.foiz ?? 0)}%` : '—',
       izoh: eng?.nom ? eng.nom[0].toLowerCase() + eng.nom.slice(1) : 'belgi yo‘q' },
     { belgi: 'qalqon', qiymat: prognoz ? `${Math.round(prognoz.ehtimol ?? 0)}%` : '—',
       izoh: prognoz ? `${prognoz.muddat || 'yaqin oyda'} xavf` : 'xavf yo‘q' },
   ];
-  korsatkichlar.forEach((k, i) => {
+  if (S.bloklar.korsatkichlar) korsatkichlar.forEach((k, i) => {
     const kx = IK_X + i * ustunEni + 22;
     const plitkaY = KO_Y + (KO_BOYI - 62) / 2;
     q.push(belgiPlitka(kx, plitkaY, 62, k.belgi, oq, tus(0.16), { qalin: 1.9 }));
@@ -255,7 +274,7 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     }
   });
 
-  const SARLAVHA_H = KO_Y + KO_BOYI + 28;
+  const SARLAVHA_H = S.bloklar.korsatkichlar ? KO_Y + KO_BOYI + 28 : KO_Y + 6;
 
   // ══════════════════════════════════════════════
   // 2. OCH FON
@@ -263,7 +282,7 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   let y = SARLAVHA_H + 34;
 
   // Xulosa
-  const xulosa = t.xulosa || t.summary || '';
+  const xulosa = S.bloklar.xulosa ? (t.xulosa || t.summary || '') : '';
   if (xulosa) {
     const qat = qatorlarga(xulosa, ENI - CHET * 2 - 128, 25).slice(0, 3);
     const h = Math.max(76, 32 + qat.length * 34);
@@ -278,7 +297,7 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
 
   // ── Topilgan belgilar ──
   if (muammolar.length) {
-    q.push(matn('Suratda topilgan belgilar', y + 30, { olcham: 32, ogirlik: 700, rang: R.matn }));
+    q.push(matn(S.sarlavha.belgilar, y + 30, { olcham: 32, ogirlik: 700, rang: R.matn }));
     y += 54;
 
     // Har belgi uchun SABABI ham yoziladi: "54% qizarish" degan raqamdan
@@ -338,28 +357,100 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     y += 22;
   }
 
-  // ── Tavsiya etilgan mahsulotlar ──
-  if (tavsiyalar.length) {
-    q.push(matn('Sizga mos parvarish', y + 30, { olcham: 32, ogirlik: 700, rang: R.matn }));
+  // ── Ovqatlanish tavsiyasi ──
+  // Teri holatiga ovqat ham ta'sir qiladi, lekin mijoz buni hech
+  // qayerda o'qimaydi. Ikki ustun: nima foydali, nimani cheklash.
+  const parhez = t.parhez || {};
+  const foydali  = (parhez.foydali  || []).slice(0, 5);
+  const cheklang = (parhez.cheklang || []).slice(0, 5);
+  if (S.bloklar.parhez && (foydali.length || cheklang.length)) {
+    q.push(belgiChiz('kosa', CHET + 15, y + 20, 30, R.matn, { qalin: 1.9 }));
+    q.push(matn(S.sarlavha.parhez, y + 30, { x: CHET + 40, olcham: 32, ogirlik: 700, rang: R.matn }));
     y += 52;
 
-    // Mahsulot ko'p bo'lsa kartalar KICHRAYADI va bitta qatorga sig'adi:
-    // to'rtta mahsulot uchta ustunda "3 + 1" bo'lib chiqsa, oxirgisi
-    // yolg'iz qolib, rasm ham bejiz uzayadi.
-    const royxat = tavsiyalar.slice(0, 8);
-    const oraliq = 14;
-    const ustun = Math.min(royxat.length <= 3 ? 3 : 4, royxat.length);
-    const kartaEni = Math.floor((ENI - CHET * 2 - oraliq * (ustun - 1)) / ustun);
+    const ustunEni2 = Math.floor((ENI - CHET * 2 - 14) / 2);
+    const bandEni = ustunEni2 - 74;
+    // Ikki ustun bir xil balandlikda bo'lsin — bandlar soni har xil
+    // bo'lsa ham kartalar teng ko'rinadi
+    const qatorlarni = (royxat) => royxat.map((b) => qatorlarga(b, bandEni, 21).slice(0, 2));
+    const chapQ = qatorlarni(foydali);
+    const ongQ  = qatorlarni(cheklang);
+    const balandlik = (qq) => qq.reduce((sum, x) => sum + x.length * 26 + 8, 0);
+    const H_PARHEZ = Math.max(balandlik(chapQ), balandlik(ongQ), 60) + 78;
+
+    const ustunlar = [
+      { x: CHET, nom: 'Foydali', rang: R.yashil || '#2e7d55', belgi: 'tasdiq', qat: chapQ },
+      { x: CHET + ustunEni2 + 14, nom: 'Cheklang', rang: R.qizil || '#b0423a',
+        belgi: 'chiziqcha', qat: ongQ },
+    ];
+    for (const u of ustunlar) {
+      q.push(`<rect x="${u.x}" y="${y}" width="${ustunEni2}" height="${H_PARHEZ}" rx="18"
+        fill="${R.karta}" stroke="${R.chiziq}"/>`);
+      q.push(`<rect x="${u.x}" y="${y}" width="${ustunEni2}" height="6" rx="3" fill="${u.rang}"/>`);
+      q.push(matn(u.nom, y + 46, { x: u.x + 24, olcham: 26, ogirlik: 700, rang: u.rang }));
+      let py = y + 84;
+      u.qat.forEach((satrlar) => {
+        q.push(`<circle cx="${u.x + 36}" cy="${py - 8}" r="14" fill="${yoritish(u.rang, 0.86)}"/>`);
+        q.push(belgiChiz(u.belgi, u.x + 36, py - 8, 16, u.rang, { qalin: 2.4 }));
+        satrlar.forEach((str, i) => {
+          q.push(matn(str, py + i * 26, { x: u.x + 60, olcham: 21, rang: R.matn }));
+        });
+        py += satrlar.length * 26 + 8;
+      });
+      if (!u.qat.length) {
+        q.push(matn('—', y + 92, { x: u.x + 24, olcham: 21, rang: R.och }));
+      }
+    }
+    y += H_PARHEZ + 12;
+
+    if (parhez.izoh) {
+      const qat = qatorlarga(parhez.izoh, ENI - CHET * 2 - 48, 21).slice(0, 2);
+      qat.forEach((str, i) => q.push(matn(str, y + 18 + i * 26,
+        { x: CHET + 24, olcham: 21, rang: R.kul })));
+      y += qat.length * 26 + 12;
+    }
+    y += 22;
+  }
+
+  // ── Tavsiya etilgan mahsulotlar ──
+  if (S.bloklar.mahsulotlar && tavsiyalar.length) {
+    q.push(matn(S.sarlavha.mahsulotlar, y + 30, { olcham: 32, ogirlik: 700, rang: R.matn }));
+    y += 52;
+
+    // Mahsulot ko'p bo'lsa kartalar KICHRAYADI va HAMMASI bitta
+    // qatorga sig'adi. Ilgari ustunlar soni 4 ta bilan cheklangan edi:
+    // beshinchi mahsulot pastga tushib, yolg'iz qolar va rasm bejiz
+    // uzayardi. Endi ustunlar soni mahsulot soniga teng; 6 tadan
+    // ortiq bo'lsagina ikkiga bo'linadi, lekin TENG bo'linadi
+    // (7 -> 4+3), ya'ni yolg'iz karta hech qachon qolmaydi.
+    const royxat = tavsiyalar.slice(0, S.mahsulot_soni);
+    const oraliq = royxat.length >= 5 ? 10 : 14;
+    const ustun = royxat.length <= 6 ? royxat.length : Math.ceil(royxat.length / 2);
+    const tolaEni = ENI - CHET * 2;
+    // Kartaning eng katta o'lchami: bitta-ikkita mahsulot butun
+    // qatorni egallab, bemaza katta ko'rinmasin
+    const kartaEni = Math.min(300,
+      Math.floor((tolaEni - oraliq * (ustun - 1)) / ustun));
+    const qatorEni = ustun * kartaEni + oraliq * (ustun - 1);
+    const chapX = CHET + Math.round((tolaEni - qatorEni) / 2);   // markazlash
     const rasmH = Math.round(kartaEni * 0.86);
-    // Kichik kartada shrift ham kichrayadi
-    const kichik = ustun >= 4;
-    const shr = kichik ? 19 : 22;
-    const kartaH = rasmH + (kichik ? 88 : 104);
+    // Karta torayganda shrift ham kichrayadi — matn chetdan chiqmasin
+    const juda = kartaEni < 185;
+    const kichik = kartaEni < 235;
+    const shr = juda ? 17 : kichik ? 19 : 22;
+    const ich = juda ? 9 : kichik ? 12 : 16;
+    const bosqichY = rasmH + (juda ? 25 : kichik ? 28 : 34);
+    const nomY = rasmH + (juda ? 48 : kichik ? 54 : 64);
+    // Karta balandligi eng UZUN nomga qarab: hammasi bir xil bo'lsin,
+    // lekin uch qatorli nom kesilib qolmasin ham
+    const nomlar = royxat.map((r) => qatorlarga(r.nom, kartaEni - ich * 2, shr, 600).slice(0, 3));
+    const maksQator = Math.max(1, ...nomlar.map((a) => a.length));
+    const kartaH = nomY + (maksQator - 1) * (shr + 5) + (juda ? 16 : 20);
 
     royxat.forEach((r, i) => {
       const qator = Math.floor(i / ustun);
       const ustunda = i % ustun;
-      const kx = CHET + ustunda * (kartaEni + oraliq);
+      const kx = chapX + ustunda * (kartaEni + oraliq);
       const ky = y + qator * (kartaH + oraliq);
       const rang = TARTIB_RANG[i % TARTIB_RANG.length] || R.urgu;
       q.push(`<rect x="${kx}" y="${ky}" width="${kartaEni}" height="${kartaH}" rx="18"
@@ -373,19 +464,16 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
             clip-path="url(#m${i})" preserveAspectRatio="xMidYMid slice"/>`);
       } else {
         q.push(belgiChiz('tomchi', kx + kartaEni / 2, ky + rasmH / 2,
-          kichik ? 56 : 74, R.och, { qalin: 1.5 }));
+          juda ? 44 : kichik ? 56 : 74, R.och, { qalin: 1.5 }));
       }
 
-      q.push(raqamNishoni(kx + (kichik ? 26 : 32), ky + (kichik ? 26 : 32),
-        kichik ? 16 : 19, i + 1, rang));
+      const nishonR = juda ? 14 : kichik ? 16 : 19;
+      q.push(raqamNishoni(kx + nishonR + 8, ky + nishonR + 8, nishonR, i + 1, rang));
 
-      const ich = kichik ? 12 : 16;
       q.push(matn(kes(r.bosqich || 'Parvarish', kartaEni - ich * 2, shr, 700),
-        ky + rasmH + (kichik ? 28 : 34),
-        { x: kx + ich, olcham: shr - 2, ogirlik: 700, rang }));
+        ky + bosqichY, { x: kx + ich, olcham: shr - 2, ogirlik: 700, rang }));
 
-      const nomQat = qatorlarga(r.nom, kartaEni - ich * 2, shr, 600).slice(0, 2);
-      nomQat.forEach((s, k) => q.push(matn(s, ky + rasmH + (kichik ? 54 : 64) + k * (shr + 5),
+      nomlar[i].forEach((s, k) => q.push(matn(s, ky + nomY + k * (shr + 5),
         { x: kx + ich, olcham: shr, ogirlik: 600, rang: R.matn })));
     });
 
@@ -394,9 +482,9 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
 
     const qolgan = tavsiyalar.length - royxat.length;
     if (qolgan > 0) {
-      q.push(matn(`va yana ${qolgan} ta mahsulot — ilovada`, y - 6,
+      q.push(matn(`va yana ${qolgan} ta mahsulot — ilovada`, y + 4,
         { olcham: 22, rang: R.kul }));
-      y += 26;
+      y += 30;
     }
   }
 
@@ -407,8 +495,12 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   q.push(matn(brend, y, { olcham: 25, ogirlik: 700, rang: R.urgu }));
   q.push(matn(sana(), y, { x: ENI - CHET, oxiri: true, olcham: 21, rang: R.kul }));
   y += 30;
-  q.push(matn('Bu tibbiy tashxis emas — kosmetologik tavsiya.', y, { olcham: 21, rang: R.kul }));
-  y += 40;
+  if (S.izoh) {
+    q.push(matn(S.izoh, y, { olcham: 21, rang: R.kul }));
+    y += 40;
+  } else {
+    y += 10;
+  }
 
   const H = Math.round(y);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${ENI}" height="${H}" viewBox="0 0 ${ENI} ${H}">

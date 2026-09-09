@@ -2896,5 +2896,193 @@ console.log('\n── GRAFIK ──');
   test('grafik ranglari ketma-ketligi qat‘iy', /\.g-bolak\.r0[\s\S]{0,40}--g-1/.test(css));
 }
 
+// ═══════════ NATIJA KARTOCHKASI: JOYLASHUV, PARHEZ, SOZLAMA ═══════════
+// Uch shikoyat: beshinchi mahsulot pastga tushib qolardi; rasmda
+// ovqatlanish tavsiyasi yo'q edi; kartochkani admin o'zi sozlay
+// olmasdi.
+console.log('\n── NATIJA KARTOCHKASI ──');
+{
+  const { natijaSvg } = await import('../src/rasm/natija-kartochka.js');
+  const { kartochkaSozlamasi, kartochkaniQosh, KARTOCHKA_STANDART } =
+    await import('../src/lib/kartochka.js');
+  const V = await import('../src/services/admin-vositalar.js');
+
+  const namunaTahlil = (qosh = {}) => ({
+    taxminiy_yosh: '22-26', jins: 'erkak', teri_rangi: 'och bug‘doyrang',
+    teri_turi: 'aralash', ball: 68, xulosa: 'Teri holati yaxshi, biroq akne izlari bor.',
+    muammolar: [
+      { nom: 'Akne izlari', foiz: 65, zona: 'yonoq', sabab: 'Yog‘ bezlari faol.', yechim: 'Salitsil kislotasi.' },
+      { nom: 'Qizarish', foiz: 55, zona: 'iyak', sabab: 'O‘tgan akne.', yechim: 'Niatsinamid.' },
+    ],
+    prognoz: [{ muammo: 'Akne izlari', ehtimol: 70, muddat: '3-6 oy' }],
+    parhez: {
+      foydali: ['Yog‘li baliq (omega-3)', 'Yashil barglilar', 'Yong‘oq va urug‘lar'],
+      cheklang: ['Shirin ichimlik', 'Oq non', 'Qovurilgan taom'],
+      izoh: 'Miqdorini kamaytirish kifoya.',
+    },
+    ...qosh,
+  });
+  const tav = (n) => Array.from({ length: n }, (_, i) =>
+    ({ bosqich: `Bosqich ${i + 1}`, nom: `Mahsulot nomi ${i + 1}` }));
+  const chiz = (n, sozlama) => natijaSvg({ rasmBase64: null, tahlil: namunaTahlil(),
+    tavsiyalar: tav(n), brend: 'KiOVO', sozlama });
+
+  // ── Mahsulotlar BITTA qatorga sig'adi ──
+  // Kartochka <rect> lari x koordinatalari bo'yicha guruhlanadi:
+  // bitta qatorda bo'lsa y lari bir xil bo'ladi.
+  const kartaY = (svg) => [...svg.matchAll(
+    /<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)" rx="18"\s*\n\s*fill="[^"]*" stroke="[^"]*"\/>/g)]
+    .map((m) => ({ x: +m[1], y: +m[2], en: +m[3] }));
+
+  for (const n of [3, 4, 5, 6]) {
+    const kartalar = kartaY(chiz(n));
+    // Oxirgi n ta — mahsulot kartalari (undan oldingilari belgi kartalari,
+    // ular butun kenglikni egallaydi)
+    const mahsulot = kartalar.filter((k) => k.en < 900).slice(-n);
+    const qatorlar = new Set(mahsulot.map((k) => k.y));
+    test(`${n} ta mahsulot BITTA qatorda`, qatorlar.size === 1 && mahsulot.length === n,
+      `${mahsulot.length} ta karta, ${qatorlar.size} qator`);
+  }
+  // 7 ta bo'lsa TENG bo'linadi: 4+3, yolg'iz karta qolmaydi
+  {
+    const mahsulot = kartaY(chiz(7)).filter((k) => k.en < 900).slice(-7);
+    const qator = new Map();
+    mahsulot.forEach((k) => qator.set(k.y, (qator.get(k.y) || 0) + 1));
+    const sonlar = [...qator.values()].sort((a, b) => b - a);
+    test('7 ta mahsulot teng bo‘linadi (4+3)', sonlar.join('+') === '4+3', sonlar.join('+'));
+    test('yolg‘iz karta qolmaydi', sonlar.every((x) => x >= 2), sonlar.join('+'));
+  }
+  // Ko'p mahsulotda karta KICHRAYADI
+  {
+    const en = (n) => kartaY(chiz(n)).filter((k) => k.en < 900).slice(-n)[0].en;
+    test('mahsulot ko‘paysa karta kichrayadi', en(6) < en(4) && en(4) < en(3),
+      `3 ta: ${en(3)}px, 4 ta: ${en(4)}px, 6 ta: ${en(6)}px`);
+    test('hammasi rasm kengligiga sig‘adi', en(6) * 6 + 10 * 5 <= 1000, String(en(6)));
+  }
+
+  // ── PARHEZ bo'limi ──
+  const svg = chiz(5);
+  test('ovqatlanish bo‘limi chiziladi', svg.includes('Ovqatlanish tavsiyasi'));
+  test('foydali va cheklang ustunlari bor',
+    svg.includes('Foydali') && svg.includes('Cheklang'));
+  test('bandlar rasmga tushadi', svg.includes('Yog‘li baliq') && svg.includes('Shirin ichimlik'));
+  test('umumiy izoh ham bor', svg.includes('Miqdorini kamaytirish'));
+  const parhezsiz = natijaSvg({ rasmBase64: null, tahlil: namunaTahlil({ parhez: null }),
+    tavsiyalar: tav(3), brend: 'KiOVO' });
+  test('parhez yo‘q bo‘lsa bo‘lim ham yo‘q', !parhezsiz.includes('Ovqatlanish tavsiyasi'));
+
+  // ── SOZLAMA: bloklar, sonlar, jins ──
+  const st = kartochkaSozlamasi({});
+  test('standart sozlamada hamma blok yoqilgan',
+    Object.values(st.bloklar).every(Boolean), JSON.stringify(st.bloklar));
+  test('standart sonlar', st.belgi_soni === 5 && st.mahsulot_soni === 8);
+
+  const erkak = kartochkaSozlamasi(
+    { bloklar: { parhez: true }, mahsulot_soni: 8, erkak: { bloklar: { parhez: false }, mahsulot_soni: 4 } },
+    'erkak');
+  const ayol = kartochkaSozlamasi(
+    { bloklar: { parhez: true }, mahsulot_soni: 8, erkak: { bloklar: { parhez: false }, mahsulot_soni: 4 } },
+    'ayol');
+  test('ERKAK uchun alohida sozlama ishlaydi',
+    erkak.bloklar.parhez === false && erkak.mahsulot_soni === 4, JSON.stringify(erkak.bloklar));
+  test('AYOLga tegmaydi', ayol.bloklar.parhez === true && ayol.mahsulot_soni === 8);
+  test('jins bo‘limida faqat FARQ yoziladi',
+    erkak.bloklar.belgilar === true && erkak.sarlavha.parhez === KARTOCHKA_STANDART.sarlavha.parhez);
+
+  const erkakSvg = natijaSvg({ rasmBase64: null, tahlil: namunaTahlil(), tavsiyalar: tav(5),
+    brend: 'KiOVO', sozlama: erkak });
+  test('erkak kartochkasida parhez CHIZILMAYDI', !erkakSvg.includes('Ovqatlanish tavsiyasi'));
+  test('mahsulot soni cheklandi va qolgani aytiladi',
+    erkakSvg.includes('va yana 1 ta mahsulot'), 'chegara 4');
+
+  // Bloklarni o'chirish
+  const yalang = kartochkaSozlamasi({ bloklar: {
+    korsatkichlar: false, xulosa: false, belgilar: false, parhez: false } });
+  const yalangSvg = natijaSvg({ rasmBase64: null, tahlil: namunaTahlil(), tavsiyalar: tav(3),
+    brend: 'KiOVO', sozlama: yalang });
+  test('xulosa o‘chirilsa chizilmaydi', !yalangSvg.includes('Teri holati yaxshi'));
+  test('belgilar o‘chirilsa ro‘yxat yo‘q', !yalangSvg.includes('Akne izlari'));
+  test('ko‘rsatkichlar o‘chirilsa «topilgan belgi» yo‘q', !yalangSvg.includes('topilgan belgi'));
+  test('mahsulotlar baribir qoladi', yalangSvg.includes('Mahsulot nomi 1'));
+
+  // Sarlavha va izohni almashtirish
+  const boshqa = kartochkaSozlamasi({
+    sarlavha: { belgilar: 'Nimalar topildi', parhez: 'Ovqat' }, izoh: '', teg: 'KiOVO skaner' });
+  const boshqaSvg = natijaSvg({ rasmBase64: null, tahlil: namunaTahlil(), tavsiyalar: tav(3),
+    brend: 'KiOVO', sozlama: boshqa });
+  test('sarlavha almashadi', boshqaSvg.includes('Nimalar topildi')
+    && !boshqaSvg.includes('Suratda topilgan belgilar'));
+  test('o‘ng yuqoridagi yozuv ham', boshqaSvg.includes('KiOVO skaner'));
+  test('izoh bo‘sh bo‘lsa chizilmaydi', !boshqaSvg.includes('Bu tibbiy tashxis emas'));
+
+  // Chegaralar: model o'ylab topgan qiymat kartochkani buzmasin
+  const yomon = kartochkaSozlamasi({ belgi_soni: 999, mahsulot_soni: -4, izoh: 5, teg: null });
+  test('haddan tashqari son cheklanadi', yomon.belgi_soni === 8 && yomon.mahsulot_soni === 0,
+    `${yomon.belgi_soni} / ${yomon.mahsulot_soni}`);
+  test('noto‘g‘ri turdagi qiymat standartga qaytadi',
+    yomon.izoh === KARTOCHKA_STANDART.izoh && yomon.teg === KARTOCHKA_STANDART.teg);
+
+  // ── Agent vositasi ──
+  const kor = await V.vositaniBajar('kartochka', {});
+  test('agent kartochkani O‘QIY oladi',
+    Boolean(kor.hozirgi?.umumiy && kor.hozirgi.erkak && kor.hozirgi.ayol),
+    Object.keys(kor.hozirgi || {}).join(', '));
+  test('qanday bloklar borligi ham aytiladi', Boolean(kor.bloklar?.parhez));
+
+  const oz = await V.vositaniBajar('kartochka_ozgartir',
+    { kim: 'erkak', yashirilsin: ['parhez'], mahsulot_soni: 6 });
+  test('agent ERKAK uchun o‘zgartira oladi', oz.ozgardi >= 2 && oz.kim === 'erkak',
+    JSON.stringify(oz.ozgargan));
+  test('o‘zgarish bazaga yozildi',
+    (await V.vositaniBajar('kartochka', {})).hozirgi.erkak.bloklar.parhez === false);
+  test('AYOL sozlamasiga tegmadi',
+    (await V.vositaniBajar('kartochka', {})).hozirgi.ayol.bloklar.parhez === true);
+
+  const yoq = await V.vositaniBajar('kartochka_ozgartir', { yashirilsin: ['bunday_blok_yoq'] });
+  test('yo‘q blok rad etiladi', yoq.ozgardi === 0 && /Bunday blok yo‘q/.test(yoq.xabar || ''),
+    yoq.xabar);
+  const bosh = await V.vositaniBajar('kartochka_ozgartir', {});
+  test('bo‘sh o‘zgartirish rad etiladi', bosh.ozgardi === 0, bosh.xabar);
+
+  const ai = await V.vositaniBajar('kartochka_ozgartir',
+    { ai_qoshimcha: 'Erkaklarda soqol olishdan keyingi qirilishga alohida e’tibor ber.' });
+  test('tahlil AI siga ko‘rsatma qo‘shiladi', ai.ozgardi === 1, JSON.stringify(ai.ozgargan));
+  test('ko‘rsatma jinsdan qat’i nazar bitta',
+    (await V.vositaniBajar('kartochka', {})).hozirgi.erkak.ai_qoshimcha
+      === (await V.vositaniBajar('kartochka', {})).hozirgi.ayol.ai_qoshimcha);
+
+  // ── Qo'shimcha ko'rsatma HAQIQATAN modelga yetib boradimi ──
+  const { yuzniTahlilQil } = await import('../src/ai/faceAnalysis.js');
+  const mahsulotlarRoyxati = await qatorlar(
+    `select id, name, nom_uz, brand, step, concerns, skin_types, actives, stock
+       from products where is_active limit 20`);
+  globalThis.OXIRGI_TAHLIL_PROMPT = '';
+  await yuzniTahlilQil('c29tZQ==', 'image/jpeg', mahsulotlarRoyxati, [],
+    'Soqol olishdan keyingi qirilishga alohida e’tibor ber.');
+  test('do‘kon egasining ko‘rsatmasi promptga tushadi',
+    /Soqol olishdan keyingi qirilishga/.test(globalThis.OXIRGI_TAHLIL_PROMPT || ''),
+    `${(globalThis.OXIRGI_TAHLIL_PROMPT || '').length} belgi`);
+  test('u KATALOGDAN OLDIN qo‘yiladi',
+    globalThis.OXIRGI_TAHLIL_PROMPT.indexOf('Soqol olishdan')
+      < globalThis.OXIRGI_TAHLIL_PROMPT.indexOf('KATALOG ('),
+    'katalogdan keyin yozilgan gap modelning ko‘zidan qochadi');
+  test('asosiy qoidalar joyida qoladi',
+    /IKKILANSANG — RAD ET/.test(globalThis.OXIRGI_TAHLIL_PROMPT));
+
+  // ── Parhez javobi tozalanadi ──
+  const n = await yuzniTahlilQil('c29tZQ==', 'image/jpeg', mahsulotlarRoyxati, []);
+  test('parhez tahlil natijasiga tushadi',
+    n.natija?.parhez?.foydali?.length === 3, JSON.stringify(n.natija?.parhez?.foydali));
+  test('DORI haqidagi band tashlanadi',
+    n.natija.parhez.cheklang.length === 2
+      && !n.natija.parhez.cheklang.some((x) => /dori/i.test(x)),
+    JSON.stringify(n.natija.parhez.cheklang));
+
+  // kartochkaniQosh: faqat TANISH kalitlar o'tadi
+  const { sozlama: yangi } = kartochkaniQosh({}, { belgi_soni: 3, axlat: 'kerakmas' }, 'umumiy');
+  test('begona kalit sozlamaga tushmaydi', yangi.axlat === undefined && yangi.belgi_soni === 3,
+    JSON.stringify(yangi));
+}
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

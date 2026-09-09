@@ -45,6 +45,12 @@ const TAHLIL = {
       izoh:'Yengil qipiqlanish', sabab:'To‘siq zaif', yechim:'Gialuron serum', ogohlantirish:'' },
   ],
   prognoz: [{ muammo:'Kengaygan teshiklar', natija:'Kengayadi', ehtimol:66, muddat:'6–12 oy' }],
+  parhez: {
+    foydali: ['Yog‘li baliq (omega-3)', 'Yashil barglilar (A vitamini)', 'Kuniga 2 litr suv'],
+    // Ikkinchisi ataylab TAQIQLI: «dori» so'zi bo'lgan band tashlanishi kerak
+    cheklang: ['Shirin ichimlik (yog‘ni oshiradi)', 'Kuchli dori ichish', 'Qovurilgan taom'],
+    izoh: 'Miqdorini kamaytirish kifoya.',
+  },
   tavsiya: [
     { bosqich:'tozalash', product_id:1, sabab:'T-zona uchun mos' },
     { bosqich:'namlash',  product_id:21, sabab:'Yonoqlarni yopadi' },
@@ -56,7 +62,12 @@ const TAHLIL = {
 function javobMatni(sxemaMatni, prompt = '') {
   aiHisobi.jami += 1;
   if (sxemaMatni.includes('kosmetikami')) aiHisobi.marketplace += 1;
-  if (sxemaMatni.includes('muammolar')) return JSON.stringify(TAHLIL);
+  // Tahlil promptini eslab qolamiz — do'kon egasining qo'shimcha
+  // ko'rsatmasi modelga haqiqatan yetib bordimi, sinov shuni tekshiradi
+  if (sxemaMatni.includes('muammolar')) {
+    globalThis.OXIRGI_TAHLIL_PROMPT = prompt;
+    return JSON.stringify(TAHLIL);
+  }
   // Admin botga tashlagan skrinshot: narx va og'irlik rasmdan o'qiladi
   if (sxemaMatni.includes('narx_valyuta') && sxemaMatni.includes('yangi_toifa')) {
     const i = ++skrinshotHisobi;
