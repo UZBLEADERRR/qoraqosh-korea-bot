@@ -1324,6 +1324,7 @@ async function kameraniYoq() {
   kor($('#skaner-kamera'), true);
   $('#kam-maslahat').textContent = 'Kamera yoqilmoqda…';
   kaskadniYukla();
+  halqaChiroq(true);
   yuzOxirgi = null; yuzNuqta = null; yuzSanoq = 0; yuzYoq = 0;
 
   try {
@@ -1384,7 +1385,47 @@ async function kameraniYoq() {
   kamHalqa = setInterval(kamOlch, 125);
 }
 
+/* Ekranni CHIROQQA aylantirish.
+ *
+ * Telefonda old kamera yonida chiroq yo'q va brauzerdan yorqinlikni
+ * ko'tarib bo'lmaydi. Lekin ekranning o'zi — katta oq yuza: sahifani
+ * oqartirsak, yuzga haqiqiy nur tushadi. Telegram sarlavhasi ham
+ * oqaradi, aks holda tepada qora yo'l qolib, nur «yarim» bo'lardi.
+ *
+ * `wakeLock` — ekran so'nib qolmasin: so'nsa chiroq ham o'chadi.
+ */
+let ekranQulfi = null;
+
+function halqaChiroq(yoq) {
+  document.body.classList.toggle('kam-yorug', yoq);
+  if (!yoq) document.body.classList.remove('kam-nur-kuchli');
+  try {
+    if (yoq) {
+      tg?.setHeaderColor?.('#ffffff');
+      tg?.setBackgroundColor?.('#ffffff');
+    } else {
+      mavzuniQoll(oxirgiMavzu);
+      // Mavzu hali yuklanmagan bo'lsa `mavzuniQoll` hech nima
+      // qilmaydi — sarlavha oq bo'lib qolmasin uchun o'zimiz
+      // hozirgi fon rangini qaytaramiz
+      if (!oxirgiMavzu) {
+        const fon = getComputedStyle(document.body).backgroundColor;
+        tg?.setHeaderColor?.(fon); tg?.setBackgroundColor?.(fon);
+      }
+    }
+  } catch {}
+  if (yoq) {
+    navigator.wakeLock?.request?.('screen')
+      .then((q) => { ekranQulfi = q; }).catch(() => {});
+  } else {
+    try { ekranQulfi?.release?.(); } catch {}
+    ekranQulfi = null;
+  }
+}
+
 function kameraniYop() {
+  avtoSanoqBekor();
+  halqaChiroq(false);
   clearInterval(kamHalqa); kamHalqa = 0;
   try { kamOqim?.getTracks().forEach((t) => t.stop()); } catch {}
   kamOqim = null; kamOldingi = null; kamOxirgi = null;
@@ -1540,6 +1581,17 @@ function kamOlch() {
   // ikki kadr kerak: bitta tasodifiy yaxshi kadr aldab qo'ymasin
   kamYaxshiKetma = n.tayyor ? kamYaxshiKetma + 1 : 0;
   $('#t-kam-ol').disabled = kamYaxshiKetma < 2;
+
+  // Yuz uzoq yoki qorong'i bo'lsa nur kuchayadi: kadr kichrayadi,
+  // oq maydon kengayadi va halqa nafas oladi — odam beixtiyor
+  // yaqinroq keladi
+  document.body.classList.toggle('kam-nur-kuchli',
+    n.masofa === 'uzoq' || n.masofa === 'yoq'
+      || n.yoruglik.ora < Sifat.CHEGARA.yoruglik_past);
+
+  // Kadr ketma-ket yaxshi chiqsa — o'zi oladi
+  if (kamYaxshiKetma >= KAM_AVTO_KETMA) avtoSanoqBoshla();
+  else if (!n.tayyor) avtoSanoqBekor();
 }
 
 function chiziq(tanlov, qiymat, chegara) {
@@ -1551,20 +1603,19 @@ function chiziq(tanlov, qiymat, chegara) {
 
 /* ── SKANER KO'RINISHI ────────────────────────────────────────
  *
- * Uchinchi urinish. Birinchisi — anatomik simtor: chiroyli, lekin
- * yuzga o'tirmasa g'alati ko'rinardi. Ikkinchisi — sepilgan
- * nuqtalar: «haqiqiy animatsiya emas, o'yinchoq bo'lib qolgan».
- *
- * Endi ekranda FAQAT o'lchangan narsa ko'rsatiladi va har biri
- * o'z joyida turadi, chunki joylar endi taxmin emas — yuz
- * aniqlagichdan keladi:
+ * Ekranda FAQAT o'lchangan narsa ko'rsatiladi va har biri o'z
+ * joyida turadi, chunki joylar taxmin emas — yuz aniqlagichdan
+ * keladi:
  *
  *   kontur    — topilgan yuzning ovali, rangi umumiy sifatdan
+ *   to'lqin   — oval bo'ylab yurgan nuqtalar: yuzga moslashadi
+ *   skaner    — pastga tushadigan yo'g'on chiziq va uning izi
+ *   ko'z      — bodom shaklida, qorachig'i bilan
+ *   belgilar  — burun, lab, iyak, yonoq: yumshoq halqalar
  *   qavslar   — «nishonga olindi»: yuz topilganda yopiladi
- *   skaner    — pastga tushadigan yupqa chiziq va uning izi
- *   belgilar  — ko'z, burun, lab, iyak: mayda nishon xochlari
  *
- * Bezak yo'q: chiziq qizil bo'lsa — rasm haqiqatan yaroqsiz.
+ * Chiziqlar ATAYLAB yo'g'on: telefonni cho'zilgan qo'lda tutgan
+ * odam ingichka chiziqni umuman ko'rmaydi.
  */
 
 /** Yuzning ovali: markaz va yarim o'qlar. */
@@ -1573,6 +1624,52 @@ function yuzOvali(q) {
   // va torroq — oval shunga moslanadi
   return { mx: q.x + q.en / 2, my: q.y + q.boy * 0.52,
            rx: q.en * 0.44, ry: q.boy * 0.58 };
+}
+
+/* To'lqin nuqtalari — birlik doirada, uch halqa bo'lib.
+ * Bir marta hisoblanadi: har kadrda qayta yaratish telefonni
+ * bejizga qizdiradi. Ular yuz ovaliga cho'ziladi, ya'ni yuz
+ * qayerga qimirlasa — nuqtalar ham o'sha yerda. */
+const TOLQIN_NUQTA = (() => {
+  const n = [];
+  for (let halqa = 1; halqa <= 3; halqa++) {
+    const r = 0.34 + halqa * 0.22;
+    const soni = 12 + halqa * 5;
+    for (let i = 0; i < soni; i++) {
+      const a = (i / soni) * Math.PI * 2 + halqa * 0.7;
+      n.push({ u: Math.cos(a) * r, v: Math.sin(a) * r });
+    }
+  }
+  return n;
+})();
+
+/** Bodom shaklidagi ko'z — «+» dan ancha chiroyliroq. */
+function kozBelgisi(x, cx, cy, r, burchak, rang, alfa, qalin) {
+  x.save();
+  x.translate(cx, cy); x.rotate(burchak);
+  x.strokeStyle = `rgba(${rang},${alfa.toFixed(3)})`;
+  x.lineWidth = qalin;
+  x.lineJoin = 'round';
+  x.beginPath();
+  x.moveTo(-r, 0);
+  x.quadraticCurveTo(0, -r * 0.66, r, 0);
+  x.quadraticCurveTo(0, r * 0.66, -r, 0);
+  x.closePath();
+  x.stroke();
+  // Qorachiq
+  x.beginPath();
+  x.arc(0, 0, r * 0.3, 0, Math.PI * 2);
+  x.stroke();
+  x.restore();
+}
+
+/** Yumshoq halqa — burun, lab, iyak va yonoq uchun. */
+function halqaBelgisi(x, cx, cy, r, rang, alfa, qalin) {
+  x.strokeStyle = `rgba(${rang},${alfa.toFixed(3)})`;
+  x.lineWidth = qalin;
+  x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.stroke();
+  x.fillStyle = `rgba(${rang},${(alfa * 0.9).toFixed(3)})`;
+  x.beginPath(); x.arc(cx, cy, Math.max(1, r * 0.22), 0, Math.PI * 2); x.fill();
 }
 
 function kamChiz(n, olchovEni, olchovBoyi) {
@@ -1594,10 +1691,10 @@ function kamChiz(n, olchovEni, olchovBoyi) {
 
   if (!n.quti) {
     // Yuz topilmadi — faqat ko'rsatma ovali, sokin puls bilan
-    const p = 0.35 + 0.15 * Math.sin(Date.now() / 520);
+    const p = 0.45 + 0.2 * Math.sin(Date.now() / 520);
     x.strokeStyle = `rgba(255,255,255,${p.toFixed(3)})`;
-    x.lineWidth = 1.6;
-    x.setLineDash([9, 13]);
+    x.lineWidth = 3;
+    x.setLineDash([12, 14]);
     x.beginPath();
     x.ellipse(en / 2, boy * 0.46, en * 0.29, boy * 0.33, 0, 0, Math.PI * 2);
     x.stroke(); x.setLineDash([]);
@@ -1610,76 +1707,87 @@ function kamChiz(n, olchovEni, olchovBoyi) {
   // bilan bir xil narsani aytadi
   const rang = n.tayyor ? '86,230,170' : n.ball >= 55 ? '250,205,110' : '250,120,120';
 
-  // ── 1. Kontur
   const ox = K(o.mx), oy = Y(o.my), orx = o.rx * k, ory = o.ry * k;
+  const vaqt = Date.now() / 1000;
+  const sweep = (Date.now() % 2400) / 2400;
+  const sy = oy - ory + 2 * ory * sweep;
+
+  // ── 1. Kontur (yo'g'on — quyoshda ham ko'rinsin)
   x.save();
   x.beginPath();
   x.ellipse(ox, oy, orx, ory, 0, 0, Math.PI * 2);
-  x.strokeStyle = `rgba(${rang},.5)`;
-  x.lineWidth = 1.4;
-  x.shadowColor = `rgba(${rang},.55)`;
-  x.shadowBlur = 12;
+  x.strokeStyle = `rgba(${rang},.6)`;
+  x.lineWidth = 3;
+  x.shadowColor = `rgba(${rang},.7)`;
+  x.shadowBlur = 16;
   x.stroke();
   x.restore();
 
-  // ── 2. Skaner chizig'i: konturning ichida yuradi
-  const sweep = (Date.now() % 2400) / 2400;
-  const sy = oy - ory + 2 * ory * sweep;
-  // Shu balandlikdagi oval kengligi — chiziq konturdan chiqmasin
+  // ── 2. To'lqin nuqtalari: oval bo'ylab yuqoridan pastga yuguradi
+  for (const p of TOLQIN_NUQTA) {
+    const px = ox + p.u * orx, py = oy + p.v * ory;
+    // To'lqin — nuqtaning BALANDLIGIGA bog'liq, shuning uchun u
+    // yuz bo'ylab pastga oqayotgandek ko'rinadi
+    const t = Math.sin(p.v * 3.4 - vaqt * 2.3);
+    const kuch = 0.5 + 0.5 * t;
+    const r = 1.4 + kuch * 1.9;
+    x.beginPath();
+    x.arc(px, py, r, 0, Math.PI * 2);
+    x.fillStyle = `rgba(${rang},${(0.22 + 0.45 * kuch).toFixed(3)})`;
+    x.fill();
+  }
+
+  // ── 3. Skaner chizig'i: konturning ichida yuradi
   const t = (sy - oy) / ory;
   const yarimEn = orx * Math.sqrt(Math.max(0, 1 - t * t));
   if (yarimEn > 2) {
-    const iz = x.createLinearGradient(0, sy - ory * 0.32, 0, sy);
+    const iz = x.createLinearGradient(0, sy - ory * 0.34, 0, sy);
     iz.addColorStop(0, `rgba(${rang},0)`);
-    iz.addColorStop(1, `rgba(${rang},.16)`);
+    iz.addColorStop(1, `rgba(${rang},.22)`);
     x.fillStyle = iz;
     x.save();
     x.beginPath(); x.ellipse(ox, oy, orx, ory, 0, 0, Math.PI * 2); x.clip();
-    x.fillRect(ox - orx, sy - ory * 0.32, orx * 2, ory * 0.32);
+    x.fillRect(ox - orx, sy - ory * 0.34, orx * 2, ory * 0.34);
     x.restore();
 
+    x.save();
     x.beginPath();
     x.moveTo(ox - yarimEn, sy); x.lineTo(ox + yarimEn, sy);
-    x.strokeStyle = `rgba(${rang},.85)`;
-    x.lineWidth = 1.2;
+    x.strokeStyle = `rgba(${rang},.95)`;
+    x.lineWidth = 3.5;
+    x.lineCap = 'round';
+    x.shadowColor = `rgba(${rang},.9)`;
+    x.shadowBlur = 12;
     x.stroke();
+    x.restore();
   }
 
-  // ── 3. Anatomik belgilar — mayda nishon xochlari
+  // ── 4. Anatomik belgilar
   const nq = yuzNuqta;
   if (nq) {
-    const belgilar = [nq.koz_chap, nq.koz_ong, nq.burun, nq.lab, nq.iyak,
-                      nq.yonoq_chap, nq.yonoq_ong];
-    x.strokeStyle = `rgba(${rang},.9)`;
-    x.lineWidth = 1.1;
-    for (let i = 0; i < belgilar.length; i++) {
-      const p = belgilar[i];
+    const yaqinlik = (py) => Math.max(0, 1 - Math.abs(py - sy) / (ory * 0.3));
+    // Ko'zgu tufayli ekrandagi burchak teskari bo'ladi
+    const burchak = -(nq.burchak || 0);
+    const kozR = Math.max(7, nq.oraliq * k * 0.30);
+    for (const koz of [nq.koz_chap, nq.koz_ong]) {
+      if (!koz) continue;
+      const px = K(koz.x), py = Y(koz.y);
+      kozBelgisi(x, px, py, kozR * (1 + yaqinlik(py) * 0.16), burchak,
+        rang, 0.75 + yaqinlik(py) * 0.25, 2.4);
+    }
+    for (const p of [nq.burun, nq.lab, nq.iyak, nq.yonoq_chap, nq.yonoq_ong]) {
       if (!p) continue;
       const px = K(p.x), py = Y(p.y);
-      // Skaner chizig'i yonidan o'tganda belgi kattalashadi
-      const yaqin = Math.max(0, 1 - Math.abs(py - sy) / (ory * 0.28));
-      const r = 3 + yaqin * 3.5;
-      x.beginPath();
-      x.moveTo(px - r, py); x.lineTo(px - r * 0.35, py);
-      x.moveTo(px + r * 0.35, py); x.lineTo(px + r, py);
-      x.moveTo(px, py - r); x.lineTo(px, py - r * 0.35);
-      x.moveTo(px, py + r * 0.35); x.lineTo(px, py + r);
-      x.stroke();
-      if (yaqin > 0.05) {
-        x.beginPath();
-        x.arc(px, py, r + 2, 0, Math.PI * 2);
-        x.strokeStyle = `rgba(${rang},${(0.45 * yaqin).toFixed(3)})`;
-        x.stroke();
-        x.strokeStyle = `rgba(${rang},.9)`;
-      }
+      const ya = yaqinlik(py);
+      halqaBelgisi(x, px, py, 4.5 + ya * 3.5, rang, 0.55 + ya * 0.4, 2.2);
     }
   }
 
-  // ── 4. Burchak qavslari: yuz topilganda ichkariga «yopiladi»
+  // ── 5. Burchak qavslari: yuz topilganda ichkariga «yopiladi»
   const bx = K(q.x + q.en), by = Y(q.y), bEn = q.en * k, bBoy = q.boy * k;
   const uz = Math.min(bEn, bBoy) * 0.17;
-  x.strokeStyle = `rgba(255,255,255,${n.tayyor ? '.92' : '.6'})`;
-  x.lineWidth = 2.2; x.lineCap = 'round';
+  x.strokeStyle = `rgba(255,255,255,${n.tayyor ? '.95' : '.66'})`;
+  x.lineWidth = 3.5; x.lineCap = 'round';
   for (const [sx2, sy2, dx, dy] of [
     [bx, by, 1, 1], [bx + bEn, by, -1, 1],
     [bx, by + bBoy, 1, -1], [bx + bEn, by + bBoy, -1, -1]]) {
@@ -1687,6 +1795,43 @@ function kamChiz(n, olchovEni, olchovBoyi) {
     x.moveTo(sx2 + dx * uz, sy2); x.lineTo(sx2, sy2); x.lineTo(sx2, sy2 + dy * uz);
     x.stroke();
   }
+}
+
+/* ── AVTOMATIK SURAT ──────────────────────────────────────────
+ *
+ * Kadr ketma-ket yaxshi chiqsa ilova o'zi oladi. Sabab oddiy:
+ * tugmani qidirib barmoq ekranga borganda telefon qimirlaydi va
+ * aynan o'sha kadr xira chiqadi. Sanoq ko'rinadi, ya'ni odam
+ * nima bo'layotganini biladi va xohlasa qimirlab to'xtatadi.
+ */
+let kamSanoq = 0;               // qolgan sekundlar (0 — sanoq yo'q)
+let kamSanoqTaymer = 0;
+const KAM_AVTO_KETMA = 4;       // shuncha ketma-ket yaxshi kadrdan keyin
+
+function avtoSanoqBoshla() {
+  if (kamSanoq || !kamOqim) return;
+  kamSanoq = 3;
+  kor($('#kam-sanoq'), true);
+  sanoqniChiz();
+  kamSanoqTaymer = setInterval(() => {
+    kamSanoq--;
+    if (kamSanoq <= 0) { avtoSanoqBekor(); kamSuratOl(); return; }
+    sanoqniChiz();
+  }, 700);
+}
+
+function sanoqniChiz() {
+  const el = $('#kam-sanoq-son');
+  if (!el) return;
+  el.textContent = String(kamSanoq);
+  // Animatsiya qayta ishga tushsin
+  el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
+  titra();
+}
+
+function avtoSanoqBekor() {
+  clearInterval(kamSanoqTaymer); kamSanoqTaymer = 0; kamSanoq = 0;
+  kor($('#kam-sanoq'), false);
 }
 
 /**
@@ -1700,6 +1845,11 @@ function kamChiz(n, olchovEni, olchovBoyi) {
 async function kamSuratOl() {
   const video = $('#kam-video');
   if (!video?.videoWidth) return;
+  avtoSanoqBekor();
+  // O'lchov halqasini ham to'xtatamiz: surat olinayotgan 350 ms
+  // ichida u yana «yaxshi kadr» deb sanoqni qaytadan boshlab
+  // yuborardi va ekranda «3» bir lahza chaqnab ketardi
+  clearInterval(kamHalqa); kamHalqa = 0;
   $('#t-kam-ol').disabled = true;
   $('#kam-maslahat').textContent = 'Olinmoqda — qimirlamang…';
   titra('medium');
@@ -1734,9 +1884,16 @@ function kadrniOl(video) {
   c.width = Math.round(video.videoWidth * n);
   c.height = Math.round(video.videoHeight * n);
   const x = c.getContext('2d');
-  // Selfi ko'zguga o'girilgan holda ko'rinadi; SAQLANADIGAN rasm esa
-  // to'g'ri bo'lishi kerak — aks holda chap yonoq o'ngda ko'rinadi
+  // KO'ZGU. Odam ekranda o'zini ko'zguda ko'radi va aynan o'sha
+  // ko'rinishga qarab turadi. Kadrni ko'zgusiz saqlasak, tushirilgan
+  // surat «teskari» chiqadi — sochning oldi, kiyimning yoqasi,
+  // yuzdagi xol boshqa tomonda bo'lib qoladi va odam «bu men
+  // emasman» deydi. Shuning uchun SAQLANADIGAN rasm ham ko'zguda.
+  x.save();
+  x.translate(c.width, 0);
+  x.scale(-1, 1);
   x.drawImage(video, 0, 0, c.width, c.height);
+  x.restore();
   return c;
 }
 
@@ -1947,8 +2104,6 @@ function radOyna(j) {
 // ---------------- Tahlil natijasi ----------------
 // Daraja rangi CSS dan keladi — emoji har telefonda boshqacha chiziladi
 const NUQTA = ['', '<span class="daraja d1"></span>', '<span class="daraja d2"></span>', '<span class="daraja d3"></span>'];
-const DARAJA = ['', 'yengil', 'o‘rtacha', 'kuchli'];
-const DSINF  = ['', 'yengil', 'ortacha', 'kuchli'];
 const BOSQICH = { tozalash:'Tozalash', toner:'Toner', davolash:'Davolash',
                   namlash:'Namlash', himoya:'Quyoshdan himoya', qoshimcha:'Qo‘shimcha',
                   ichki:'Ichki qabul' };
@@ -1962,20 +2117,29 @@ const JINS = { erkak: 'Erkak', ayol: 'Ayol' };
 //
 // Natija — ilovaning eng muhim ekrani: odam shu yerda o'zi haqida
 // birinchi marta narsa biladi va shu yerda sotib olishga qaror
-// qiladi. Shuning uchun u DIAGNOSTIKA hujjatiga o'xshashi kerak,
-// uzun matn ro'yxatiga emas.
+// qiladi.
 //
-// Tuzilishi:
-//   1. Surat + belgilangan zonalar — «bu MENING rasmim» degan ishonch
-//   2. Umumiy ball (halqa) va «men rasmda nima ko'rdim» tavsifi
-//   3. Ko'rsatkichlar — har biri bitta chiziq, rang MA'NO anglatadi
-//   4. To'rt bo'lim: Tavsiyalar / Teri holati / Dieta / Parvarish
+// O'lchov oddiy: BUNI 7 YOSHLI BOLA HAM TUSHUNISHI KERAK. Shuning
+// uchun har bo'lim bitta savolga javob beradi va javob RAQAM yoki
+// RANG bilan aytiladi, uzun matn bilan emas:
+//
+//   1. Suratda muammolar RAQAMLANGAN nishon bilan belgilanadi
+//      (①②③) — pastdagi ro'yxatdagi raqam bilan bir xil. Odam
+//      nishonga qaraydi, ro'yxatdan o'sha raqamni topadi.
+//   2. Umumiy ball — bitta katta son va bitta so'z.
+//   3. Ko'rsatkichlar — bir qatorda, har biri son va rangli chiziq.
+//   4. Muammolar ro'yxati — raqam, nom, foiz, chiziq.
+//   5. Ovqat — ikki qarama-qarshi panel: yashil «mumkin», qizil «yo'q».
+//   6. Mahsulotlar — tartib raqami bilan, yon tomonga siriladi.
 //
 // RANG QOIDASI butun ekranda bitta: yashil — yaxshi, sariq —
-// e'tibor bering, qizil — muammo. Boshqa hech qayerda bu ranglar
-// bezak uchun ishlatilmaydi.
+// e'tibor bering, qizil — muammo. Fon ranglari esa bo'limni
+// AJRATADI: ovqat yashil/qizil, parvarish ko'k, prognoz sariq.
+//
+// MATN QOIDASI: asosiy matn oq (--matn), ikkinchi darajali kulrang
+// (--kul). Uchinchi darajali matn umuman yozilmaydi — ilgari ekran
+// shunday mayda izohlarga to'lib ketgan va hech kim o'qimagan edi.
 
-/** Muammo kalitining odamga tushunarli nomi. */
 const KALIT_NOM = {
   akne: 'Toshmalar', teshik: 'Poralar', yoglilik: 'Yog‘lilik',
   quruqlik: 'Namlik', qizarish: 'Qizarish', dog: 'Pigmentatsiya',
@@ -2061,6 +2225,9 @@ function ballHalqa(ball, olcham = 132) {
   </svg>`;
 }
 
+const OYLAR_UZ = ['yanvar','fevral','mart','aprel','may','iyun',
+                  'iyul','avgust','sentabr','oktabr','noyabr','dekabr'];
+
 /** Ko'rsatkich nishoni — har ko'rsatkichning o'z belgisi. */
 const KALIT_IKON = {
   akne: 'tomchi', teshik: 'tozalik', yoglilik: 'tomchi', quruqlik: 'tomchi',
@@ -2068,41 +2235,22 @@ const KALIT_IKON = {
   sezgirlik: 'yurak', qora_doira: 'oy', shishish: 'tomchi',
 };
 
-/** Ovqat bandining nishoni — matndan topiladi (rasm API si kerak emas). */
-const OVQAT_IKON = [
-  [/baliq|omega|losos/i,                'qalqon'],
-  [/suv|ichimlik rejimi|litr/i,         'tomchi'],
-  [/sabzavot|barg|ko[‘'`ʻ]?kat|salat|yong[‘'`ʻ]?oq|urug/i, 'barg'],
-  [/meva|rezavor|vitamin|sitrus/i,      'quyosh'],
-  [/yogurt|sut|probiotik/i,             'shisha'],
-  [/shirin|qand|shakar|gazlangan|ichimlik/i, 'shisha'],
-  [/qovurilgan|fastfud|yog[‘'`ʻ]?li taom/i, 'ogoh'],
-  [/qahva|kofein|energetik/i,           'soat'],
-  [/un|non|xamir|shirinlik/i,           'quti'],
-  [/go[‘'`ʻ]?sht|kolbasa|sosiska/i,     'quti'],
-];
-/** @param {'yaxshi'|'yomon'} tur  mos ikon topilmasa shunga qarab tanlanadi */
-const ovqatIkoni = (matn, tur) => {
-  for (const [re, nom] of OVQAT_IKON) if (re.test(String(matn))) return nom;
-  return tur === 'yomon' ? 'ogoh' : 'barg';
-};
-
-/** Ovqat bandini ikkiga bo'ladi: nomi va qavs ichidagi sababi. */
+/** Ovqat bandini ikkiga bo'ladi: nomi va qavs ichidagi sababi.
+ *  Ro'yxatda faqat NOMI qoladi — qavs ichidagi izoh mayda matn
+ *  bo'lib ekranni to'ldirar va hech kim o'qimasdi. */
 function ovqatBandi(matn) {
   const s = String(matn || '').trim();
   const m = s.match(/^(.+?)\s*[（(]\s*(.+?)\s*[)）]\s*$/);
   return m ? { nom: m[1], sabab: m[2] } : { nom: s, sabab: '' };
 }
 
-const NATIJA_BOLIM = [
-  ['tavsiya',  'Tavsiyalar'],
-  ['holat',    'Teri holati'],
-  ['dieta',    'Dieta'],
-  ['parvarish','Kundalik parvarish'],
-];
-
-const OYLAR_UZ = ['yanvar','fevral','mart','aprel','may','iyun',
-                  'iyul','avgust','sentabr','oktabr','noyabr','dekabr'];
+/** Katakka sig'adigan qisqa nom (to'liq nomi ro'yxatda qoladi). */
+const KALIT_QISQA = {
+  qora_doira: 'Ko‘z soyasi', dog: 'Pigment', xiralik: 'Yorqinlik',
+  sezgirlik: 'Sezgirlik', shishish: 'Shishish', quruqlik: 'Namlik',
+};
+const kalitQisqa = (m) =>
+  KALIT_QISQA[m.kalit] || KALIT_NOM[m.kalit] || m.nom;
 
 function natijaniChiz() {
   const t = holat.tahlil;
@@ -2111,11 +2259,11 @@ function natijaniChiz() {
   if (!t) {
     el.innerHTML = `<div class="bosh-holat"><div class="belgi">${ik('skaner',46)}</div>
       <p>Hali tahlil qilinmagan</p>
-      <button class="asosiy" style="max-width:260px;margin:16px auto 0" onclick="document.querySelector('[data-tab=skaner]').click()">
+      <button class="asosiy" style="max-width:260px;margin:16px auto 0" id="t-skanerga">
         Yuz skanerini ochish</button></div>`;
+    const b0 = $('#t-skanerga'); if (b0) b0.onclick = () => tabOch('skaner');
     return;
   }
-  const bolim = holat.natijaBolim || 'tavsiya';
   const karta = new Map(holat.mahsulotlar.map((p) => [p.id, p]));
   const ball = t.score ?? 0;
   const holatSoz = ball >= 80 ? 'A’lo' : ball >= 65 ? 'Yaxshi'
@@ -2127,28 +2275,31 @@ function natijaniChiz() {
   const arzonBor = asl.some((r) => arzonAlmashtir(r).almashdi);
   const tejash = Math.max(0, aslJami - jami);
 
-  const muammolar = (t.problems || []).map((m, i) => {
-    const foiz = m.foiz ?? (m.daraja === 3 ? 80 : m.daraja === 2 ? 55 : 25);
-    return { ...m, foiz, ballHolat: 100 - foiz, joy: zonaJoyi(m.zona || m.nom, i) };
-  });
-  const belgili = muammolar.slice(0, 4);
+  // Muammolar — ENG OG'IRI birinchi. Raqamlar shu tartibda beriladi
+  // va suratdagi nishon bilan ro'yxatdagi qator bir xil raqamni
+  // oladi: bola ham «① yerda nima bor?» deb topa oladi.
+  const muammolar = (t.problems || [])
+    .map((m) => ({ ...m, foiz: m.foiz ?? (m.daraja === 3 ? 80 : m.daraja === 2 ? 55 : 25) }))
+    .sort((x, y) => y.foiz - x.foiz)
+    .map((m, i) => ({ ...m, tartib: i + 1, ballHolat: 100 - m.foiz,
+                      joy: zonaJoyi(m.zona || m.nom, i) }));
+  // Suratda HAMMASI belgilanadi (ilgari faqat 4 tasi edi — odam
+  // «nega yonog'im belgilanmagan?» deb so'rardi)
+  const belgili = muammolar.slice(0, 8);
+  const olchovlar = muammolar.slice(0, 4);
   const parhez = t.raw?.parhez || {};
-  const d = new Date();
+  const d = t.created_at ? new Date(t.created_at) : new Date();
   const sana = `${d.getDate()}-${OYLAR_UZ[d.getMonth()]}`;
   const ism = (holat.user?.full_name || '').trim().split(/\s+/)[0];
 
   el.innerHTML = `
-  ${ism ? `<div class="n-salom">
-    <div><b>Salom, ${esc(ism)}!</b><span>Bugun ham teringizga g‘amxo‘rlik qilaylik</span></div>
-  </div>` : ''}
-
-  <div class="n-bosh">
+  <header class="n-shapka">
     <div>
-      <h1>Tahlil natijasi</h1>
-      <p>Teringiz holati AI tomonidan tahlil qilindi</p>
+      <b>${ism ? `Salom, ${esc(ism)}!` : 'Teri tahlili'}</b>
+      <span>Yuzingiz tekshirildi</span>
     </div>
     <span class="n-sana">${sana}</span>
-  </div>
+  </header>
 
   ${t.is_offline ? `<div class="n-karta"><div class="ogoh">AI hozir mavjud emas — bazaviy tavsiya ko‘rsatilmoqda.</div></div>` : ''}
 
@@ -2156,23 +2307,11 @@ function natijaniChiz() {
     ${t.yuz_rasm_id ? `
     <figure class="n-surat">
       <img src="/media/${esc(t.yuz_rasm_id)}" alt="Tahlil qilingan surat">
-      ${belgili.length ? `
-      <svg class="n-chiziqlar" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        ${belgili.map((m, i) => {
-          const chap = m.joy.x < 50;
-          return `<line x1="${m.joy.x}" y1="${m.joy.y}" x2="${chap ? 13 : 87}"
-            y2="${11 + i * 20}" vector-effect="non-scaling-stroke"/>`;
-        }).join('')}
-      </svg>
       ${belgili.map((m) => `
-        <span class="n-nuqta d${Math.min(3, m.daraja || 1)}"
-          style="left:${m.joy.x}%;top:${m.joy.y}%"></span>`).join('')}
-      ${belgili.map((m, i) => `
-        <span class="n-yorliq ${m.joy.x < 50 ? 'chap' : 'ong'}" style="top:${11 + i * 20}%">
-          ${esc(KALIT_NOM[m.kalit] || m.nom)}</span>`).join('')}` : ''}
-      <!-- Ball SURATNING O'ZIDA. Ilgari u pastdagi alohida kartada
-           edi va ekranda ikkita bosh narsa bo'lib qolardi: rasm ham,
-           halqa ham. Endi bitta — «mening suratim, mening ballim». -->
+        <span class="n-nishon d${Math.min(3, m.daraja || 1)}"
+          style="left:${m.joy.x}%;top:${m.joy.y}%"
+          title="${esc(KALIT_NOM[m.kalit] || m.nom)}">
+          <i></i><b>${m.tartib}</b></span>`).join('')}
       <figcaption class="n-surat-baho">
         ${ballHalqa(ball, 66)}
         <div>
@@ -2182,76 +2321,74 @@ function natijaniChiz() {
       </figcaption>
     </figure>` : ''}
 
-    <div class="n-ong">
-      <div class="n-karta n-ball">
-        ${t.yuz_rasm_id ? `
-        <p class="n-xulosa">${esc(t.raw?.xulosa || 'Teri holati baholandi.')}</p>` : `
-        <div class="n-ball-ich">
-          ${ballHalqa(ball)}
-          <div>
-            <span class="n-ball-yor">Umumiy holat</span>
-            <b class="${ballRang(ball)}">${holatSoz}</b>
-            <p>${esc(t.raw?.xulosa || 'Teri holati baholandi.')}</p>
-          </div>
+    <div class="n-karta n-ball">
+      ${t.yuz_rasm_id ? '' : `
+        <div class="n-ball-ich">${ballHalqa(ball)}
+          <div><span class="n-ball-yor">Umumiy holat</span>
+            <b class="${ballRang(ball)}">${holatSoz}</b></div>
         </div>`}
-        <div class="n-teglar">
-          ${t.age_estimate ? `<span>${esc(t.age_estimate)} yosh</span>` : ''}
-          ${JINS[t.jins] ? `<span>${JINS[t.jins]}</span>` : ''}
-          ${t.skin_type ? `<span>${esc(t.skin_type)} teri</span>` : ''}
-          ${t.skin_tone ? `<span>${esc(t.skin_tone)}</span>` : ''}
-        </div>
-        ${t.raw?.tavsif ? `
-          <div class="n-tavsif">
-            <i>${ik('koz', 16)}</i>
-            <span><b>Rasmda nimani ko‘rdim:</b> ${esc(t.raw.tavsif)}</span>
-          </div>` : ''}
+      <p class="n-xulosa">${esc(t.raw?.xulosa || 'Teri holati baholandi.')}</p>
+      <div class="n-teglar">
+        ${t.age_estimate ? `<span>${esc(t.age_estimate)} yosh</span>` : ''}
+        ${JINS[t.jins] ? `<span>${JINS[t.jins]}</span>` : ''}
+        ${t.skin_type ? `<span>${esc(t.skin_type)} teri</span>` : ''}
       </div>
-
-      ${muammolar.length ? `
-      <div class="n-karta">
-        <div class="n-karta-bosh">Asosiy ko‘rsatkichlar
-          <span class="n-izoh">100 — eng yaxshi</span></div>
-        <!-- Katak ko'rinishi: ilgari bu yerda ingichka satrlar
-             bor edi, telefonda ular bir-biriga qo'shilib ketardi va
-             pastga sirg'alganda esda qolmasdi. Katakda har
-             ko'rsatkich o'z joyida turadi va rangi darrov ko'rinadi. -->
-        <div class="n-kalitlar">
-          ${muammolar.map((m) => `
-            <div class="n-kalit ${ballRang(m.ballHolat)}">
-              <i>${ik(KALIT_IKON[m.kalit] || 'tomchi', 16)}</i>
-              <span class="n-kalit-nom">${esc(KALIT_NOM[m.kalit] || m.nom)}</span>
-              <b>${m.ballHolat}</b>
-              <span class="n-chiziq"><i class="${ballRang(m.ballHolat)}"
-                style="width:${Math.max(4, m.ballHolat)}%"></i></span>
-            </div>`).join('')}
-        </div>
-      </div>` : `
-      <div class="n-karta n-toza">
-        ${ik('tasdiq', 22)} <b>Sezilarli muammo topilmadi</b>
-        <span>Terini shu holatda saqlash uchun quyidagi parvarish yetarli.</span>
-      </div>`}
+      ${t.raw?.tavsif ? `
+        <div class="n-tavsif"><i>${ik('koz', 16)}</i>
+          <span>${esc(t.raw.tavsif)}</span></div>` : ''}
     </div>
   </div>
 
-  <div class="n-tablar" role="tablist">
-    ${NATIJA_BOLIM.map(([k, nom]) => `
-      <button role="tab" data-nbolim="${k}"
-        class="${k === bolim ? 'tanlangan' : ''}">${nom}</button>`).join('')}
-  </div>
+  ${olchovlar.length ? `
+  <div class="n-olchamlar">
+    ${olchovlar.map((m) => `
+      <div class="n-olch ${ballRang(m.ballHolat)}">
+        <i>${ik(KALIT_IKON[m.kalit] || 'tomchi', 15)}</i>
+        <b>${m.ballHolat}<small>/100</small></b>
+        <span>${esc(kalitQisqa(m))}</span>
+        <em><u style="width:${Math.max(5, m.ballHolat)}%"></u></em>
+      </div>`).join('')}
+  </div>` : ''}
 
-  <div class="n-ichi">${
-    bolim === 'tavsiya'   ? natijaTavsiya(tavsiyalar, jami, tejash, arzonBor)
-  : bolim === 'holat'     ? natijaHolat(muammolar, t)
-  : bolim === 'dieta'     ? natijaDieta(parhez)
-  :                         natijaParvarish(tavsiyalar)
-  }</div>
+  ${muammolar.length ? `
+  <section class="n-karta">
+    <h3 class="n-karta-bosh">Nima topildi</h3>
+    ${muammolar.map((m) => `
+      <button class="n-muammo" data-muammo="${m.tartib}">
+        <span class="n-raqam d${Math.min(3, m.daraja || 1)}">${m.tartib}</span>
+        ${t.yuz_rasm_id ? `
+        <!-- Yuzning O'SHA joyi kattalashtirib ko'rsatiladi. Bu
+             odamga «qayerini aytyapti?» degan savolni butunlay
+             yopadi: u o'z terisining o'sha bo'lagini ko'radi. -->
+        <span class="n-kesim" data-kesim="${m.tartib}"
+          style="background-image:url(/media/${esc(t.yuz_rasm_id)});
+                 background-position:${m.joy.x}% ${m.joy.y}%"></span>` : ''}
+        <span class="n-muammo-nom">${esc(KALIT_NOM[m.kalit] || m.nom)}
+          ${m.zona ? `<em>${esc(m.zona)}</em>` : ''}</span>
+        <span class="n-muammo-foiz ${ballRang(m.ballHolat)}">${m.foiz}%</span>
+        <span class="n-chiziq"><i class="${ballRang(m.ballHolat)}"
+          style="width:${Math.max(5, m.foiz)}%"></i></span>
+      </button>
+      <div class="n-muammo-ich yashirin" id="muammo-${m.tartib}">
+        ${m.sabab ? `<p><b>Nega paydo bo‘ldi</b>${esc(m.sabab)}</p>` : ''}
+        ${m.yechim ? `<p><b>Nima qilish kerak</b>${esc(m.yechim)}</p>` : ''}
+        ${m.ogohlantirish ? `<p class="diqqat">${ik('ogoh', 14)}${esc(m.ogohlantirish)}</p>` : ''}
+      </div>`).join('')}
+  </section>` : `
+  <section class="n-karta n-toza">${ik('tasdiq', 22)}
+    <b>Sezilarli muammo topilmadi</b>
+    <span>Terini shu holatda saqlash uchun quyidagi parvarish yetarli.</span>
+  </section>`}
+
+  ${natijaOvqat(parhez)}
+  ${natijaTavsiya(tavsiyalar, jami, tejash, arzonBor)}
+  ${natijaParvarish(tavsiyalar)}
+  ${natijaPrognoz(t)}
 
   <div class="n-chaqiriq">
-    <div>
-      <b>Sog‘lom teri — sog‘lom hayot tarzidan boshlanadi</b>
-      <span>Kichik o‘zgarishlar, katta natijalar</span>
-    </div>
-    <button id="t-ulash2">${ik('yuklab',17)}Natijani saqlash</button>
+    <div><b>Natijani saqlab qo‘ying</b>
+      <span>Bir oydan keyin solishtirasiz</span></div>
+    <button id="t-ulash2">${ik('yuklab',17)}Saqlash</button>
   </div>
 
   <div class="n-karta n-oxir">
@@ -2259,8 +2396,13 @@ function natijaniChiz() {
   </div>`;
 
   // ── Ulanishlar ──
-  $$('[data-nbolim]', el).forEach((b) => b.onclick = () => {
-    holat.natijaBolim = b.dataset.nbolim; titra(); natijaniChiz();
+  $$('[data-muammo]', el).forEach((b) => b.onclick = () => {
+    const ich = $(`#muammo-${b.dataset.muammo}`, el);
+    if (!ich) return;
+    const ochiq = !ich.classList.contains('yashirin');
+    kor(ich, ochiq ? false : true);
+    b.classList.toggle('ochiq', !ochiq);
+    titra();
   });
   $$('[data-tavsiya]', el).forEach((b) => b.onclick = (ev) => {
     ev.stopPropagation(); mahsulotOyna(Number(b.dataset.tavsiya));
@@ -2318,15 +2460,20 @@ function belgilarniYuzgaQoy(el, belgilar) {
     } catch { return; }                  // boshqa domendagi rasm — o'qib bo'lmaydi
     if (!q) return;
 
-    const nuqtalar = el.querySelectorAll('.n-nuqta');
-    const chiziqlar = el.querySelectorAll('.n-chiziqlar line');
+    const nishonlar = el.querySelectorAll('.n-nishon');
+    const olingan = [];
     belgilar.forEach((m, i) => {
-      const joy = zonaJoyi(m.zona || m.nom, i, q);
+      let joy = zonaJoyi(m.zona || m.nom, i, q);
+      // Ikki belgi bir joyga tushsa biri ko'rinmay qoladi — ularni
+      // ajratamiz, aks holda odam bittasini butunlay ko'rmaydi
+      joy = joyniAjrat(joy, olingan);
+      olingan.push(joy);
       m.joy = joy;
-      const nq = nuqtalar[i];
+      const nq = nishonlar[i];
       if (nq) { nq.style.left = `${joy.x}%`; nq.style.top = `${joy.y}%`; }
-      const ch = chiziqlar[i];
-      if (ch) { ch.setAttribute('x1', joy.x); ch.setAttribute('y1', joy.y); }
+      // Ro'yxatdagi kattalashtirilgan bo'lak ham o'sha joyga qarasin
+      const kes = el.querySelector(`[data-kesim="${m.tartib}"]`);
+      if (kes) kes.style.backgroundPosition = `${joy.x}% ${joy.y}%`;
     });
   };
 
@@ -2334,144 +2481,122 @@ function belgilarniYuzgaQoy(el, belgilar) {
   else im.addEventListener('load', ishla, { once: true });
 }
 
-/** 1-bo'lim: mos mahsulotlar. */
+/**
+ * Ustma-ust tushgan belgilarni ajratadi.
+ *
+ * AI ba'zan ikki muammoni bir zonaga bog'laydi («yonoq» va «yonoq
+ * yuqorisi»). Belgilar bir nuqtaga tushsa, ikkinchisi birinchisining
+ * tagida qolib ketadi va odam uni umuman ko'rmaydi. Shuning uchun
+ * band joyga tushgan belgi kichik doira bo'ylab siljitiladi.
+ */
+function joyniAjrat(joy, olingan, eng_kam = 9) {
+  const uzoqmi = (p) => olingan.every((o) =>
+    Math.hypot(o.x - p.x, o.y - p.y) >= eng_kam);
+  if (uzoqmi(joy)) return joy;
+  for (let halqa = 1; halqa <= 3; halqa++) {
+    const r = eng_kam * halqa;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + halqa;
+      const p = {
+        x: Math.max(6, Math.min(94, Math.round(joy.x + Math.cos(a) * r))),
+        y: Math.max(6, Math.min(94, Math.round(joy.y + Math.sin(a) * r * 0.8))),
+      };
+      if (uzoqmi(p)) return p;
+    }
+  }
+  return joy;
+}
+
+/** Ovqat: ikki qarama-qarshi panel — yashil «mumkin», qizil «yo'q». */
+function natijaOvqat(parhez) {
+  const foydali = (parhez.foydali || []).slice(0, 5);
+  const cheklang = (parhez.cheklang || []).slice(0, 5);
+  if (!foydali.length && !cheklang.length) return '';
+  const panel = (band, tur, sarlavha, belgi) => band.length ? `
+    <div class="n-panel ${tur}">
+      <h3>${belgi}${sarlavha}</h3>
+      <ul>
+        ${band.map((b) => `<li><i>${ik(tur === 'yaxshi' ? 'tasdiq' : 'yopish', 13)}</i>
+          <span>${esc(ovqatBandi(b).nom)}</span></li>`).join('')}
+      </ul>
+    </div>` : '';
+  return `<div class="n-panellar">
+    ${panel(foydali, 'yaxshi', 'Yeng', ik('barg', 17))}
+    ${panel(cheklang, 'yomon', 'Kamaytiring', ik('ogoh', 17))}
+  </div>`;
+}
+
+/** Mahsulotlar: tartib raqami bilan, yon tomonga siriladi. */
 function natijaTavsiya(tavsiyalar, jami, tejash, arzonBor) {
-  if (!tavsiyalar.length) return `<div class="n-karta n-bosh-holat">Mahsulot tavsiyasi yo‘q.</div>`;
+  if (!tavsiyalar.length) return '';
   return `
-  <div class="n-karta">
-    <div class="n-karta-bosh">Siz uchun tanlangan mahsulotlar
-      <span class="n-izoh">${tavsiyalar.length} ta</span></div>
+  <section class="n-karta">
+    <h3 class="n-karta-bosh">Sizga mos mahsulotlar
+      <span class="n-izoh">${tavsiyalar.length} ta</span></h3>
     <div class="n-mahsulotlar">
-      ${tavsiyalar.map((r) => `
+      ${tavsiyalar.map((r, i) => `
         <button class="n-mahsulot" data-tavsiya="${r.p.id}">
-          <span class="nm-teg">${esc(BOSQICH[r.bosqich] || r.bosqich)}</span>
+          <span class="n-raqam bosqich">${i + 1}</span>
           <span class="nm-rasm">
             ${r.p.poster_id ? `<img src="/media/${esc(r.p.poster_id)}?w=240" alt="" loading="lazy">`
                             : ik('shisha', 30)}
           </span>
+          <span class="nm-bosqich">${esc(BOSQICH[r.bosqich] || r.bosqich)}</span>
           <span class="nm-nom">${esc(nomi(r.p))}</span>
-          <span class="nm-brend">${esc(r.p.brand || '')}</span>
-          <span class="nm-past"><b>${narx(r.p.price)}</b><i>Ko‘rish</i></span>
+          <span class="nm-narx">${narx(r.p.price)}</span>
         </button>`).join('')}
     </div>
     <div class="n-jami"><span>To‘liq to‘plam</span><b>${narx(jami)}</b></div>
     ${holat.arzon && tejash ? `<div class="n-tejash">${ik('tasdiq',15)}
-      Arzonroq variantda <b>${narx(tejash)}</b> tejaysiz</div>` : ''}
+      <b>${narx(tejash)}</b> tejaysiz</div>` : ''}
     <button class="asosiy" id="t-hammasi" style="margin-top:12px">
       ${ik('savat',18)}Hammasini savatga solish</button>
     ${arzonBor || holat.arzon ? `
       <button class="ikkilamchi" id="t-arzon" style="margin-top:9px">
         ${ik('almash',18)}${holat.arzon ? 'Asl tavsiyani ko‘rsatish' : 'Arzonroq variant'}</button>` : ''}
-    <p class="n-izoh" style="margin:10px 0 0">Hammasini birdan olish shart emas —
-      tozalash, namlash va SPF dan boshlang.</p>
-  </div>`;
+  </section>`;
 }
 
-/** 2-bo'lim: nima topildi. Har belgi — alohida karta, matn O'QILADIGAN. */
-function natijaHolat(muammolar, t) {
-  const prognoz = [...(t.forecast || [])].sort((a, b) => b.ehtimol - a.ehtimol);
-  if (!muammolar.length && !prognoz.length) {
-    return `<div class="n-karta n-bosh-holat">Sezilarli belgi topilmadi.</div>`;
-  }
-  return `
-  ${muammolar.map((m) => `
-    <div class="n-belgi-karta">
-      <div class="nb-bosh">
-        <i class="nb-ikon d${Math.min(3, m.daraja || 1)}">${ik(KALIT_IKON[m.kalit] || 'tomchi', 18)}</i>
-        <div>
-          <b>${esc(m.nom)}</b>
-          ${m.zona ? `<span class="nb-zona">${esc(m.zona)}</span>` : ''}
-        </div>
-        <span class="n-daraja d${Math.min(3, m.daraja || 1)}">${DARAJA[Math.min(3, m.daraja || 1)]}</span>
-      </div>
-      <div class="nb-shkala">
-        <span class="n-chiziq"><i class="${ballRang(m.ballHolat)}"
-          style="width:${Math.max(4, m.ballHolat)}%"></i></span>
-        <b class="${ballRang(m.ballHolat)}">${m.ballHolat}<small>/100</small></b>
-      </div>
-      ${m.sabab ? `<p class="nb-satr"><span class="nb-yorliq">Sababi</span>${esc(m.sabab)}</p>` : ''}
-      ${m.yechim ? `<p class="nb-satr yechim"><span class="nb-yorliq">Yechimi</span>${esc(m.yechim)}</p>` : ''}
-      ${m.ogohlantirish ? `<p class="nb-diqqat">${ik('ogoh', 15)} ${esc(m.ogohlantirish)}</p>` : ''}
-    </div>`).join('')}
-
-  ${prognoz.length ? `<div class="n-karta">
-    <div class="n-karta-bosh">E’tibor bermasangiz</div>
-    ${prognoz.map((p) => `
-      <div class="n-prognoz">
-        <div class="n-satr" style="margin:0">
-          <span class="n-satr-nom" style="grid-column:1/3">${esc(p.muammo)}</span>
-          <span class="n-chiziq"><i class="yomon" style="width:${p.ehtimol}%"></i></span>
-          <b class="yomon">${p.ehtimol}%</b>
-        </div>
-        <p>${esc(p.muddat || '')} — ${esc(p.natija)}</p>
-      </div>`).join('')}
-    <div class="ogoh">${ik('tibbiy',15)} Bu ehtimollik bahosi, tibbiy tashxis emas.
-      Jiddiy belgilarda dermatologga murojaat qiling.</div>
-  </div>` : ''}`;
-}
-
-/** 3-bo'lim: ovqatlanish — ikki karta, plitkali ko'rinish. */
-function natijaDieta(parhez) {
-  const foydali = parhez.foydali || [], cheklang = parhez.cheklang || [];
-  if (!foydali.length && !cheklang.length) {
-    return `<div class="n-karta n-bosh-holat">
-      Bu tahlilda ovqatlanish tavsiyasi berilmagan.<br>
-      Yangi skaner qilsangiz u ham qo‘shiladi.</div>`;
-  }
-  const plitkalar = (band, tur) => `
-    <div class="n-ovqat">
-      ${band.map((x) => {
-        const b = ovqatBandi(x);
-        return `<div class="no-plitka ${tur}">
-          <i>${ik(ovqatIkoni(x, tur), 22)}</i>
-          <b>${esc(b.nom)}</b>
-          ${b.sabab ? `<span>${esc(b.sabab)}</span>` : ''}
-        </div>`;
-      }).join('')}
-    </div>`;
-  return `
-  ${foydali.length ? `<div class="n-karta">
-    <div class="n-karta-bosh">${ik('barg', 17)} Siz uchun foydali</div>
-    ${plitkalar(foydali, 'yaxshi')}
-  </div>` : ''}
-  ${cheklang.length ? `<div class="n-karta">
-    <div class="n-karta-bosh qizil">${ik('ogoh', 17)} Cheklash tavsiya etiladi</div>
-    ${plitkalar(cheklang, 'yomon')}
-  </div>` : ''}
-  ${parhez.izoh ? `<div class="n-karta n-eslatma">${ik('tomchi', 17)}
-    <span>${esc(parhez.izoh)}</span></div>` : ''}`;
-}
-
-/** 4-bo'lim: ertalab va kechqurun tartibi. */
+/** Kundalik tartib — ertalab va kechqurun, ko'k panelda. */
 const ERTALAB  = new Set(['tozalash', 'toner', 'namlash', 'himoya']);
 const KECHASI  = new Set(['tozalash', 'toner', 'davolash', 'namlash', 'qoshimcha']);
 
 function natijaParvarish(tavsiyalar) {
-  if (!tavsiyalar.length) return `<div class="n-karta n-bosh-holat">Parvarish tartibi yo‘q.</div>`;
-  const vaqt = (kimlar, nom, belgi) => {
+  if (!tavsiyalar.length) return '';
+  const ustun = (kimlar, nom, belgi) => {
     const royxat = tavsiyalar.filter((r) => kimlar.has(r.bosqich));
     if (!royxat.length) return '';
-    return `
-    <div class="n-karta">
-      <div class="n-karta-bosh">${belgi} ${nom}</div>
-      <ol class="n-tartib">
-        ${royxat.map((r) => `<li>
-          <b>${esc(BOSQICH[r.bosqich] || r.bosqich)}</b>
-          <span>${esc(nomi(r.p))}</span></li>`).join('')}
-      </ol>
+    return `<div class="n-vaqt">
+      <h4>${belgi}${nom}</h4>
+      <ol>${royxat.map((r) => `<li><b>${esc(BOSQICH[r.bosqich] || r.bosqich)}</b>
+        <span>${esc(nomi(r.p))}</span></li>`).join('')}</ol>
     </div>`;
   };
-  const ichki = tavsiyalar.filter((r) => r.bosqich === 'ichki');
-  return `
-    ${vaqt(ERTALAB, 'Ertalab', ik('quyosh', 17))}
-    ${vaqt(KECHASI, 'Kechqurun', ik('oy', 17))}
-    ${ichki.length ? `<div class="n-karta">
-      <div class="n-karta-bosh">${ik('ichki', 17)} Ichki qabul</div>
-      <ol class="n-tartib">${ichki.map((r) => `<li><b>Qo‘shimcha</b>
-        <span>${esc(nomi(r.p))}</span></li>`).join('')}</ol>
-    </div>` : ''}
-    <div class="n-karta n-eslatma">${ik('soat', 17)}
-      <span>Natija 4-8 haftada ko‘rinadi — tartibni uzmasdan davom eting.</span></div>`;
+  return `<section class="n-karta n-kok">
+    <h3 class="n-karta-bosh">Har kuni shunday qiling</h3>
+    <div class="n-vaqtlar">
+      ${ustun(ERTALAB, 'Ertalab', ik('quyosh', 16))}
+      ${ustun(KECHASI, 'Kechqurun', ik('oy', 16))}
+    </div>
+    <p class="n-oyoq">Natija 4-8 haftada ko‘rinadi.</p>
+  </section>`;
+}
+
+/** E'tibor bermasangiz nima bo'ladi — sariq panel. */
+function natijaPrognoz(t) {
+  const prognoz = [...(t.forecast || [])].sort((a, b) => b.ehtimol - a.ehtimol).slice(0, 3);
+  if (!prognoz.length) return '';
+  return `<section class="n-karta n-sariq">
+    <h3 class="n-karta-bosh">${ik('ogoh', 17)}E’tibor bermasangiz</h3>
+    ${prognoz.map((p) => `
+      <div class="n-prognoz">
+        <span class="n-prognoz-nom">${esc(p.muammo)}</span>
+        <b>${p.ehtimol}%</b>
+        <span class="n-chiziq"><i class="yomon" style="width:${p.ehtimol}%"></i></span>
+        <em>${esc(p.muddat || '')}${p.muddat ? ' — ' : ''}${esc(p.natija)}</em>
+      </div>`).join('')}
+    <p class="n-oyoq">Bu ehtimollik bahosi, tibbiy tashxis emas.</p>
+  </section>`;
 }
 
 /**

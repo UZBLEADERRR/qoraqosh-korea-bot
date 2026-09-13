@@ -2,6 +2,7 @@
 // Bot ham, Mini App ham shu yerdan foydalanadi — natija ikkalasida bir xil.
 import { qator, qatorlar, sorov, sozlama } from '../db.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
+import { joylarniHisobla } from '../lib/zona.js';
 import { svgdanPng } from '../rasm/chiz.js';
 import { rasmYubor } from '../bot/tg.js';
 import { brendNomi, brendLogosi } from '../lib/brend.js';
@@ -74,10 +75,18 @@ export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime,
   const erkak = (mavzuErkak && typeof mavzuErkak === 'object') ? mavzuErkak : {};
   const tanlanganMavzu = (tahlil?.jins === 'erkak' && erkak.asosiy) ? erkak : asos;
 
+  // Muammolarga yuzdagi JOY qo'shiladi — kartochkada raqamli nishon
+  // aynan o'sha joyga tushadi va yonida yuzning o'sha bo'lagi
+  // kattalashtirib ko'rsatiladi
+  const bilanJoy = {
+    ...tahlil,
+    muammolar: joylarniHisobla(tahlil?.muammolar || tahlil?.problems || []),
+  };
+
   const svg = natijaSvg({
     rasmBase64: mos ? rasmBase64 : null,
     mime: mos ? mime : 'image/jpeg',
-    tahlil,
+    tahlil: bilanJoy,
     tavsiyalar,
     brend,
     logoBase64: logo && OCHILADI.has(logo.mime) ? logo.base64 : null,

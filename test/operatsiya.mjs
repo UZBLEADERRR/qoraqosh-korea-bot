@@ -553,7 +553,7 @@ console.log('\n── MAHSULOT REKLAMASI ──');
 // ═══════════ ILOVA MAVZUSI ═══════════
 console.log('\n── MAVZU ──');
 {
-  const { palitra, kontrastMatn, rangTozala, MAVZU_STANDART } = await import('../src/lib/mavzu.js');
+  const { palitra, kontrastMatn, rangTozala, tungiUrgu, MAVZU_STANDART } = await import('../src/lib/mavzu.js');
   const { natijaSvg } = await import('../src/rasm/natija-kartochka.js');
 
   const qizil = palitra({ asosiy: '#B3161C', fon: '#EAF3D9' });
@@ -571,21 +571,26 @@ console.log('\n── MAVZU ──');
     palitra({ asosiy: 'yashil', fon: '###' }).asosiy === MAVZU_STANDART.asosiy.toLowerCase(),
     palitra({ asosiy: 'yashil', fon: '###' }).asosiy);
 
-  // Rasm mavzu rangi bilan chiziladi
+  // Natija kartochkasi endi DOIM qora: ilova ekranidagi natija bilan
+  // bir xil ko'rinadi va suratdagi rangli ko'rsatkichlar qora fonda
+  // «yorib» chiqadi. Mavzudan faqat URG'U rangi olinadi.
   const svgQizil = natijaSvg({ rasmBase64: null, brend: 'KiOVO',
     tahlil: { ball: 65, muammolar: [{ nom: 'Sinov', foiz: 70, zona: 'T-zona' }] },
-    tavsiyalar: [], mavzu: { asosiy: '#B3161C', fon: '#EAF3D9' } });
-  test('rasmda mavzu foni ishlatilgan', svgQizil.includes('#eaf3d9'));
+    tavsiyalar: [], mavzu: { asosiy: '#B3161C', fon: '#EAF3D9', urgu: '#E0242B' } });
+  test('kartochka foni QORA', svgQizil.includes('#08080A'));
+  test('och mavzu foni kartochkaga o‘tmaydi', !svgQizil.includes('#eaf3d9'));
 
   const svgKok = natijaSvg({ rasmBase64: null, brend: 'KiOVO',
     tahlil: { ball: 65, muammolar: [{ nom: 'Sinov', foiz: 70, zona: 'T-zona' }] },
-    tavsiyalar: [], mavzu: { asosiy: '#123A63', fon: '#E7F0F7' } });
-  test('mavzu o‘zgarsa rasm ham o‘zgaradi',
-    svgKok.includes('#e7f0f7') && !svgKok.includes('#eaf3d9'));
+    tavsiyalar: [], mavzu: { asosiy: '#123A63', fon: '#E7F0F7', urgu: '#1D6FA5' } });
+  const urguChiq = (svg) => (svg.match(/fill="(#[0-9a-f]{6})"/gi) || []).join(' ');
+  test('urg‘u rangi mavzudan keladi', urguChiq(svgQizil) !== urguChiq(svgKok));
+  test('urg‘u qora fon uchun YORITILADI',
+    svgKok.includes(tungiUrgu('#1D6FA5')), tungiUrgu('#1D6FA5'));
 
   // Muammo ranglari MAVZUGA BOG'LIQ EMAS — qizil «yomon» degani hamma joyda bir xil
   test('muammo rangi mavzudan qat’i nazar bir xil',
-    svgQizil.includes('#D92B2B') && svgKok.includes('#D92B2B'));
+    svgQizil.includes('#FF6B5A') && svgKok.includes('#FF6B5A'));
 
   // Admin yo'li orqali saqlash
   const { MAVZU_STANDART: MS } = await import('../src/lib/mavzu.js');
@@ -2931,7 +2936,7 @@ console.log('\n── NATIJA KARTOCHKASI ──');
   // Kartochka <rect> lari x koordinatalari bo'yicha guruhlanadi:
   // bitta qatorda bo'lsa y lari bir xil bo'ladi.
   const kartaY = (svg) => [...svg.matchAll(
-    /<rect x="(\d+)" y="(\d+)" width="(\d+)" height="(\d+)" rx="18"\s*\n\s*fill="[^"]*" stroke="[^"]*"\/>/g)]
+    /<rect x="(\d+(?:\.\d+)?)" y="(\d+(?:\.\d+)?)" width="(\d+(?:\.\d+)?)" height="(\d+(?:\.\d+)?)" rx="18"/g)]
     .map((m) => ({ x: +m[1], y: +m[2], en: +m[3] }));
 
   for (const n of [3, 4, 5, 6]) {
@@ -2943,14 +2948,15 @@ console.log('\n── NATIJA KARTOCHKASI ──');
     test(`${n} ta mahsulot BITTA qatorda`, qatorlar.size === 1 && mahsulot.length === n,
       `${mahsulot.length} ta karta, ${qatorlar.size} qator`);
   }
-  // 7 ta bo'lsa TENG bo'linadi: 4+3, yolg'iz karta qolmaydi
+  // 7 ta berilsa 6 tasi ko'rsatiladi va BITTA qatorda qoladi:
+  // ikkinchi qator kartochkani bejiz uzaytirardi
   {
-    const mahsulot = kartaY(chiz(7)).filter((k) => k.en < 900).slice(-7);
-    const qator = new Map();
-    mahsulot.forEach((k) => qator.set(k.y, (qator.get(k.y) || 0) + 1));
-    const sonlar = [...qator.values()].sort((a, b) => b - a);
-    test('7 ta mahsulot teng bo‘linadi (4+3)', sonlar.join('+') === '4+3', sonlar.join('+'));
-    test('yolg‘iz karta qolmaydi', sonlar.every((x) => x >= 2), sonlar.join('+'));
+    const mahsulot = kartaY(chiz(7)).filter((k) => k.en < 900);
+    const oxirgi = mahsulot.slice(-6);
+    test('7 ta berilsa ham bitta qator', new Set(oxirgi.map((k) => k.y)).size === 1,
+      `${new Set(oxirgi.map((k) => k.y)).size} qator`);
+    test('ortiqchasi tushirib qoldiriladi', oxirgi.every((k) => k.en < 200),
+      String(oxirgi[0]?.en));
   }
   // Ko'p mahsulotda karta KICHRAYADI
   {
@@ -2963,10 +2969,13 @@ console.log('\n── NATIJA KARTOCHKASI ──');
   // ── PARHEZ bo'limi ──
   const svg = chiz(5);
   test('ovqatlanish bo‘limi chiziladi', svg.includes('Ovqatlanish tavsiyasi'));
-  test('foydali va cheklang ustunlari bor',
-    svg.includes('Foydali') && svg.includes('Cheklang'));
+  test('foydali va cheklang panellari bor',
+    svg.includes('Yeng') && svg.includes('Kamaytiring'));
   test('bandlar rasmga tushadi', svg.includes('Yog‘li baliq') && svg.includes('Shirin ichimlik'));
-  test('umumiy izoh ham bor', svg.includes('Miqdorini kamaytirish'));
+  // Qavs ichidagi izoh kartochkada YOZILMAYDI — u mayda matn bo'lib
+  // ekranni to'ldirar va hech kim o'qimasdi
+  test('bandning qavs ichidagi izohi tushirib qoldiriladi',
+    !svg.includes('omega-3, yallig'), 'faqat nomi qoladi');
   const parhezsiz = natijaSvg({ rasmBase64: null, tahlil: namunaTahlil({ parhez: null }),
     tavsiyalar: tav(3), brend: 'KiOVO' });
   test('parhez yo‘q bo‘lsa bo‘lim ham yo‘q', !parhezsiz.includes('Ovqatlanish tavsiyasi'));
@@ -3002,7 +3011,7 @@ console.log('\n── NATIJA KARTOCHKASI ──');
     brend: 'KiOVO', sozlama: yalang });
   test('xulosa o‘chirilsa chizilmaydi', !yalangSvg.includes('Teri holati yaxshi'));
   test('belgilar o‘chirilsa ro‘yxat yo‘q', !yalangSvg.includes('Akne izlari'));
-  test('ko‘rsatkichlar o‘chirilsa «topilgan belgi» yo‘q', !yalangSvg.includes('topilgan belgi'));
+  test('ko‘rsatkichlar o‘chirilsa katak qatori ham yo‘q', !yalangSvg.includes('/100'));
   test('mahsulotlar baribir qoladi', yalangSvg.includes('Mahsulot nomi 1'));
 
   // Sarlavha va izohni almashtirish
@@ -3518,10 +3527,16 @@ console.log('\n── SKANER KO‘RINISHI ──');
     /n\.tayyor \? '86,230,170' : n\.ball >= 55/.test(js));
   test('skaner chizig‘i konturdan chiqmaydi',
     /const yarimEn = orx \* Math\.sqrt\(Math\.max\(0, 1 - t \* t\)\)/.test(js));
-  test('anatomik belgilar qo‘yiladi',
-    /nq\.koz_chap, nq\.koz_ong, nq\.burun, nq\.lab, nq\.iyak/.test(js));
+  test('ko‘z BODOM shaklida — «+» emas', /function kozBelgisi/.test(js)
+    && /x\.quadraticCurveTo\(0, -r \* 0\.66, r, 0\)/.test(js));
+  test('burun, lab, iyak, yonoq — yumshoq halqa', /function halqaBelgisi/.test(js)
+    && /nq\.burun, nq\.lab, nq\.iyak, nq\.yonoq_chap, nq\.yonoq_ong/.test(js));
   test('belgilar skaner chizig‘i yonida kattalashadi',
-    /const yaqin = Math\.max\(0, 1 - Math\.abs\(py - sy\)/.test(js));
+    /const yaqinlik = \(py\) => Math\.max\(0, 1 - Math\.abs\(py - sy\)/.test(js));
+  test('yuz bo‘ylab TO‘LQIN nuqtalari yuradi', /const TOLQIN_NUQTA/.test(js)
+    && /Math\.sin\(p\.v \* 3\.4 - vaqt \* 2\.3\)/.test(js));
+  test('chiziqlar YO‘G‘ON — cho‘zilgan qo‘lda ham ko‘rinadi',
+    /x\.lineWidth = 3;/.test(js) && /x\.lineWidth = 3\.5;/.test(js));
   test('burchak qavslari qoldi', /Burchak qavslari/.test(js));
   test('eski simtor olib tashlandi',
     !/MERIDIANLAR/.test(js) && !/function yuzKengligi/.test(js));
@@ -3532,9 +3547,10 @@ console.log('\n── SKANER KO‘RINISHI ──');
 }
 
 // ═══════════ NATIJA EKRANI ═══════════
-// Shikoyat: «natijalar juda xunuk shaklda yozilyapti, bu haqiqiy
-// diagnostikaga o'xshamaydi», «pastdagi telegram tugmalari ko'plik
-// qilyapti», «odam bu MENING rasmim ekaniga ishonsin».
+// Shikoyat: «ranglar yetarli emas, ko'p qismi zerikarli va
+// o'qigisi kelmaydi», «keraksiz mayda tekstlar juda ko'p»,
+// «muammolarni to'g'ri bir qatorga sig'dirolsang yaxshi bo'lardi»,
+// «buni 7 yoshli bola ham ko'rib tushuna olishi kerak».
 console.log('\n── NATIJA EKRANI ──');
 {
   const fs = await import('node:fs');
@@ -3558,78 +3574,154 @@ console.log('\n── NATIJA EKRANI ──');
   test('aniqlanmagan zona ham joy oladi',
     nomalum.x === 50 && nomalum.y > 0, JSON.stringify(nomalum));
 
-  // «Bu mening rasmim» — ishonch
-  test('rasm ustida belgilar qo‘yiladi',
-    /n-nuqta/.test(js) && /n-yorliq/.test(js) && /n-chiziqlar/.test(js));
-  test('«Rasmda nimani ko‘rdim» ko‘rsatiladi', /Rasmda nimani ko‘rdim/.test(js));
-  test('tavsif AI dan keladi', /t\.raw\?\.tavsif/.test(js));
+  // ── Belgilar YUZGA nisbatan qo'yiladi ──
+  const yuzQuti = { x: 30, y: 25, en: 40, boy: 45 };   // rasm foizida
+  const peshona = zonaJoyi('peshona', 0, yuzQuti);
+  test('peshona YUZ qutisining ichida', peshona.y > yuzQuti.y
+    && peshona.y < yuzQuti.y + yuzQuti.boy * 0.35, JSON.stringify(peshona));
+  test('peshona quti tepasidan PASTDA — soch emas',
+    peshona.y > yuzQuti.y + 2, `${peshona.y} > ${yuzQuti.y}`);
+  const iyak = zonaJoyi('iyak', 0, yuzQuti);
+  test('iyak qutining pastida', iyak.y > yuzQuti.y + yuzQuti.boy * 0.8,
+    JSON.stringify(iyak));
+  test('yuz chetda bo‘lsa belgilar ham chetga ko‘chadi',
+    zonaJoyi('peshona', 0, { x: 5, y: 5, en: 30, boy: 30 }).x
+      !== zonaJoyi('peshona', 0, { x: 60, y: 5, en: 30, boy: 30 }).x);
+  test('belgi rasmdan chiqib ketmaydi',
+    [[0, 0, 100, 100], [70, 70, 60, 60]].every(([x, y, en, boy]) => {
+      const j = zonaJoyi('bo‘yin', 0, { x, y, en, boy });
+      return j.x >= 3 && j.x <= 97 && j.y >= 3 && j.y <= 97;
+    }));
 
-  // Diagnostika ko'rinishi
+  // ── Ustma-ust tushgan belgilar ajratiladi ──
+  const kodA = js.slice(js.indexOf('function joyniAjrat'), js.indexOf('/** Ovqat: ikki'));
+  const joyniAjrat = new Function(`${kodA}; return joyniAjrat;`)();
+  {
+    const olingan = [{ x: 50, y: 50 }];
+    const yangi = joyniAjrat({ x: 50, y: 50 }, olingan);
+    test('bir joyga tushgan ikkinchi belgi SURILADI',
+      Math.hypot(yangi.x - 50, yangi.y - 50) >= 7, JSON.stringify(yangi));
+    test('bo‘sh joydagi belgi qimirlamaydi',
+      JSON.stringify(joyniAjrat({ x: 20, y: 20 }, olingan)) === '{"x":20,"y":20}');
+    // Sakkizta belgi ham bir-birining ustiga tushmaydi
+    const hammasi = [];
+    for (let i = 0; i < 8; i++) hammasi.push(joyniAjrat({ x: 50, y: 50 }, hammasi));
+    const engYaqin = Math.min(...hammasi.flatMap((a, i) =>
+      hammasi.slice(i + 1).map((b) => Math.hypot(a.x - b.x, a.y - b.y))));
+    test('sakkizta belgi ham ajralib turadi', engYaqin >= 7, engYaqin.toFixed(1));
+  }
+
+  test('rasmdagi yuz ilovada QAYTA topiladi',
+    /function belgilarniYuzgaQoy/.test(js) && /Yuz\.yuzniTop/.test(js));
+  test('eski tahlil ham to‘g‘rilanadi — rasm serverdan o‘qiladi',
+    /el\.querySelector\('\.n-surat img'\)/.test(js));
+
+  // ── «Bu mening rasmim» — ishonch ──
+  test('muammolar suratda RAQAM bilan belgilanadi',
+    /n-nishon/.test(js) && /\.n-nishon b\{/.test(css));
+  test('nishon raqami ro‘yxatdagi raqam bilan bir xil',
+    /class="n-nishon d\$\{Math\.min\(3, m\.daraja \|\| 1\)\}"/.test(js)
+      && /<b>\$\{m\.tartib\}<\/b>/.test(js));
+  test('sakkiztagacha muammo belgilanadi — ilgari faqat to‘rttasi edi',
+    /const belgili = muammolar\.slice\(0, 8\)/.test(js));
+  test('eng og‘iri BIRINCHI raqamni oladi',
+    /\.sort\(\(x, y\) => y\.foiz - x\.foiz\)/.test(js));
+  test('ro‘yxatda yuzning O‘SHA bo‘lagi kattalashtiriladi',
+    /n-kesim/.test(js) && /\.n-kesim\{[^}]*background-size:420%/.test(css.replace(/\n\s*/g, ' ')));
+  test('«Rasmda nimani ko‘rdim» ko‘rsatiladi', /t\.raw\?\.tavsif/.test(js));
+
+  // ── Diagnostika ko'rinishi ──
   test('ball HALQA bilan ko‘rsatiladi', /function ballHalqa/.test(js)
     && /n-halqa-yoy/.test(css));
-  test('ko‘rsatkichlar chiziq bilan', /n-satr-nom/.test(js) && /\.n-chiziq i\{/.test(css));
-  test('rang MA’NO anglatadi — bitta shkala',
-    /const ballRang = \(b\) => \(b >= 70 \? 'yaxshi' : b >= 45 \? 'orta' : 'yomon'\)/.test(js));
-  test('100 eng yaxshi ekani aytiladi', /100 — eng yaxshi/.test(js));
-  test('to‘rt bo‘lim bor',
-    /\['tavsiya',/.test(js) && /\['holat',/.test(js)
-      && /\['dieta',/.test(js) && /\['parvarish',/.test(js));
-  test('kundalik tartib ertalab/kechqurunga bo‘linadi',
-    /const ERTALAB/.test(js) && /const KECHASI/.test(js));
-  test('dieta bo‘limi parhezdan chiziladi', /function natijaDieta/.test(js));
-
-  // Ortiqcha tugmalar OLIB TASHLANDI
-  const natija = js.slice(js.indexOf('function natijaniChiz'), js.indexOf('function arzonAlmashtir'));
-  test('natijada «Telegramda yozish» tugmasi yo‘q', !/Telegramda yozish/.test(natija));
-  test('natijada telefon raqami tugmasi ham yo‘q',
-    !/href="tel:/.test(natija) && !/menejer\?\.telefon/.test(natija));
-  test('faqat ikkita oxirgi tugma qoldi',
-    /t-ulash2/.test(natija) && /t-qayta/.test(natija));
-
-  // Har qanday ekranga moslashish
-  // ── Dizayn: «scroll qilib pastga tushguncha esdan chiqyapti» ──
   test('ball SURATNING o‘zida ko‘rsatiladi',
     /n-surat-baho/.test(js) && /\.n-surat-baho\{/.test(css));
-  test('ko‘rsatkichlar KATAK ko‘rinishida',
-    /n-kalitlar/.test(js) && /\.n-kalit\{/.test(css));
-  test('katakda son KATTA — ko‘z birinchi shunga tushadi',
-    /\.n-kalit>b\{grid-row:1;grid-column:2;font-size:20px/.test(css));
-  test('nom butun kenglikni oladi — so‘z bo‘linib ketmaydi',
-    /\.n-kalit-nom\{grid-row:2;grid-column:1\/-1/.test(css));
+  test('rang MA’NO anglatadi — bitta shkala',
+    /const ballRang = \(b\) => \(b >= 70 \? 'yaxshi' : b >= 45 \? 'orta' : 'yomon'\)/.test(js));
+
+  // ── Ko'rsatkichlar BIR QATORDA (namunadagidek) ──
+  test('ko‘rsatkichlar bitta qatorda',
+    /\.n-olchamlar\{display:grid;grid-template-columns:repeat\(4,1fr\)/.test(css));
+  test('katakda faqat to‘rttasi — sig‘adigani',
+    /const olchovlar = muammolar\.slice\(0, 4\)/.test(js));
+  test('uzun nom katak uchun QISQARTIRILADI',
+    /const KALIT_QISQA/.test(js) && /function kalitQisqa|const kalitQisqa/.test(js));
+
+  // ── Bo'limlar: rang bilan ajratilgan ──
+  test('ovqat ikki qarama-qarshi panel',
+    /function natijaOvqat/.test(js) && /\.n-panel\.yaxshi\{background:var\(--yashil-och\)/.test(css)
+      && /\.n-panel\.yomon\{background:var\(--qizil-och\)/.test(css));
+  test('kundalik tartib KO‘K panelda',
+    /function natijaParvarish/.test(js) && /\.n-kok\{background:var\(--kok-och\)/.test(css));
+  test('prognoz SARIQ panelda',
+    /function natijaPrognoz/.test(js) && /\.n-sariq\{background:var\(--sariq-och\)/.test(css));
   test('mahsulotlar YON TARAFGA siriladi',
     /\.n-mahsulotlar\{display:flex;gap:10px;overflow-x:auto/.test(css)
       && /scroll-snap-type:x mandatory/.test(css));
+  test('mahsulot kartasi ekranga qarab kengayadi',
+    /\.n-mahsulotlar>\*\{flex:0 0 clamp\(144px,44vw,172px\)/.test(css));
+
+  // ── Bitta uzun sahifa: tab YO'Q ──
+  test('bo‘lim tablari olib tashlandi',
+    !/n-tablar/.test(js) && !/natijaBolim/.test(js));
+  test('hamma bo‘lim bitta oqimda',
+    /\$\{natijaOvqat\(parhez\)\}/.test(js) && /\$\{natijaTavsiya\(/.test(js)
+      && /\$\{natijaParvarish\(/.test(js) && /\$\{natijaPrognoz\(/.test(js));
+  test('muammo tafsiloti BOSILGANDA ochiladi',
+    /data-muammo/.test(js) && /n-muammo-ich/.test(js));
+
+  // ── Matn ikki darajali: oq va kulrang ──
+  test('asosiy matn OQ (--matn)', /\.n-muammo-nom\{[^}]*font-weight:700/.test(css));
+  test('ikkinchi darajali matn KULRANG',
+    /\.n-muammo-nom em\{[^}]*color:var\(--kul\)/.test(css.replace(/\n\s*/g, ' ')));
+  test('mayda uchinchi daraja matn yo‘q — 10px dan kichigi ishlatilmagan',
+    !/font-size:[0-9](\.\d+)?px/.test(css.slice(css.indexOf('TAHLIL NATIJASI'),
+      css.indexOf('JONLI KAMERA'))));
+
+  // ── Har qanday ekranga moslashish ──
+  test('sarlavha ekranga qarab kichrayadi', /clamp\(22px,6\.4vw,28px\)/.test(css));
+  test('keng ekranda ikki ustun', /@media \(min-width:720px\)\{\.n-tepa/.test(css));
   test('holat ranglari MAVZUdan olinadi — uyg‘un bo‘ladi',
     !/#2ebe78|#e05252|#e0a33c/.test(css));
-  test('pastki chaqiriq ham brend rangida',
-    /\.n-chaqiriq\{[^}]*background:var\(--urgu\)/.test(css.replace(/\n\s*/g, ' ')));
 
-  test('sarlavha ekranga qarab kichrayadi', /clamp\(21px,5\.8vw,27px\)/.test(css));
-  test('mahsulot kartasi ekranga qarab kengayadi',
-    /\.n-mahsulotlar>\*\{flex:0 0 clamp\(142px,42vw,168px\)/.test(css));
-  test('keng ekranda ikki ustun', /@media \(min-width:720px\)\{\.n-tepa/.test(css));
+  // ── Ortiqcha tugmalar YO'Q ──
+  const natija = js.slice(js.indexOf('function natijaniChiz'), js.indexOf('function belgilarniYuzgaQoy'));
+  test('natijada «Telegramda yozish» tugmasi yo‘q', !/Telegramda yozish/.test(natija));
+  test('natijada telefon raqami tugmasi ham yo‘q',
+    !/href="tel:/.test(natija) && !/menejer\?\.telefon/.test(natija));
 
-  // Kartochka RASMIDA ham tavsif bor
-  const kart = fs.readFileSync('src/rasm/natija-kartochka.js', 'utf8');
-  test('yuklab olinadigan rasmda ham tavsif bor', /Rasmda nimani ko‘rdim|t\.tavsif/.test(kart));
+  // ── SERVER VA ILOVA bir xil joyni hisoblasin ──
+  {
+    const zona = await import('../src/lib/zona.js');
+    const ilovaJadval = js.slice(js.indexOf('const ZONA_JOY = ['), js.indexOf('const YUZ_TAXMIN'));
+    const serverJadval = fs.readFileSync('src/lib/zona.js', 'utf8');
+    const sonlar = (t) => (t.match(/,\s+(-?\d+),\s+(-?\d+)\],/g) || [])
+      .map((x) => x.replace(/\s+/g, '')).join('|');
+    test('server va ilova jadvali BIR XIL',
+      sonlar(ilovaJadval) === sonlar(serverJadval.slice(
+        serverJadval.indexOf('export const ZONA_JOY'), serverJadval.indexOf('YUZ_TAXMIN'))),
+      'ikkalasi ham peshona 15, iyak 91');
+    const r = zona.joylarniHisobla([
+      { nom: 'A', zona: 'peshona', foiz: 30 },
+      { nom: 'B', zona: 'iyak', foiz: 80 },
+    ]);
+    test('serverda ham eng og‘iri birinchi', r[0].nom === 'B', r.map((m) => m.nom).join(''));
+    test('serverda ham joy hisoblanadi', r[0].joy && r[0].joy.y > 70, JSON.stringify(r[0].joy));
 
-  // ── DIETA BO'SH CHIQQAN EDI ──
-  // Skanerdan keyin `raw` ga faqat xulosa ko'chirilardi; parhez va
-  // tavsif yo'lda tashlab ketilardi va «Dieta» bo'limi bo'sh chiqardi.
-  test('skaner javobidan PARHEZ ham ko‘chiriladi',
-    /raw: \{ xulosa: j\.tahlil\.xulosa, parhez: j\.tahlil\.parhez, tavsif: j\.tahlil\.tavsif \}/
-      .test(js));
-  test('parhez bo‘lmasa sababi tushuntiriladi',
-    /ovqatlanish tavsiyasi berilmagan/.test(js));
-  test('ovqat bandi nom va sababga bo‘linadi', /function ovqatBandi/.test(js));
-  test('plitkalar rangi ma’noli', /\.no-plitka\.yaxshi\{background:var\(--yashil-och\)\}/.test(css)
-    && /\.no-plitka\.yomon\{background:var\(--qizil-och\)\}/.test(css));
+    const kart = fs.readFileSync('src/services/natija-rasm.js', 'utf8');
+    test('kartochkaga joy bilan uzatiladi', /joylarniHisobla/.test(kart));
+  }
 
-  // ── «Teri holati» matni O'QILADIGAN bo'lsin ──
-  test('har belgi alohida KARTA', /class="n-belgi-karta"/.test(js));
-  test('matn 13px dan kichik emas', /\.nb-satr\{margin:12px 0 0;font-size:13\.5px/.test(css));
-  test('yechim ajratib ko‘rsatiladi', /\.nb-satr\.yechim\{/.test(css));
-  test('eski mayda «details» ro‘yxati olib tashlandi', !/class="n-belgi"/.test(js));
+  // ── Kartochka RASMI ham shu ko'rinishda ──
+  {
+    const kart = fs.readFileSync('src/rasm/natija-kartochka.js', 'utf8');
+    test('kartochka ham QORA', /fon:\s*'#08080A'/.test(kart));
+    test('kartochkada ham raqamli nishon', /raqamNishoni\(p\.x, p\.y, 18, m\.tartib, rang\)/.test(kart));
+    test('nishon rasmning haqiqiy nisbatidan joylashadi',
+      /function qoplash/.test(kart) && /rasmOlchami/.test(kart));
+    test('kartochkada ham yuzning bo‘lagi kattalashtiriladi', /zoom = 4\.2/.test(kart));
+    test('kartochkada ham ko‘rsatkichlar bitta qatorda',
+      /BITTA QATOR/.test(kart) && /const en = Math\.floor\(\(TOLA - oraliq/.test(kart));
+  }
 
   // AI tomoni
   const ai = fs.readFileSync('src/ai/faceAnalysis.js', 'utf8');

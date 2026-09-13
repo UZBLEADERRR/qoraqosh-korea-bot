@@ -166,9 +166,19 @@
          ko'rsatadi, tugunlar esa yorug'lik chuqurligiga qarab
          siljiydi. Bezak emas: qizil katak — o'sha joy xira. -->
     <div id="skaner-kamera" class="yashirin">
+      <!-- HALQA CHIROQ. Telefonda old kamera yonida chiroq yo'q, lekin
+           EKRANNING o'zi chiroq: skaner ochilganda butun sahifa oqaradi
+           va kadr atrofida keng oq halqa paydo bo'ladi. Yuzga tushgan
+           nur shundan keladi — qorong'i xonada ham teri ko'rinadi. -->
+      <div class="kam-nur" id="kam-nur" aria-hidden="true"></div>
       <div class="kam-quti">
         <video id="kam-video" playsinline muted autoplay></video>
         <canvas id="kam-tor"></canvas>
+        <!-- Avtomatik surat: kadr ketma-ket yaxshi chiqsa ilova o'zi
+             oladi. Odam tugmani qidirib, telefonni qimirlatib
+             yubormaydi. -->
+        <div class="kam-sanoq yashirin" id="kam-sanoq">
+          <b id="kam-sanoq-son">3</b><span>Qimirlamang</span></div>
         <div class="kam-holat" id="kam-holat">
           <span class="kam-nuqta"></span><span id="kam-maslahat">Kamera yoqilmoqda…</span>
         </div>
