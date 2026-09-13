@@ -3261,9 +3261,10 @@ console.log('\n── JONLI KAMERA ──');
   test('o‘lchov taymeri ham to‘xtaydi', /clearInterval\(kamHalqa\)/.test(js));
 
   // To'r — o'lchov ko'rinishi
-  test('to‘r chiziqlari TINIQLIK bo‘yicha bo‘yaladi',
-    /\(\(a\.t \+ b\.t\) \/ 2\) \/ chegara/.test(js));
-  test('tugunlar yorug‘lik bo‘yicha siljiydi', /yorqin \* chuqurlik/.test(js));
+  test('nuqtalar TINIQLIK bo‘yicha bo‘yaladi',
+    /ball\[rr \* ustun \+ cc\] \/ chegara/.test(js));
+  test('nuqtalar to‘lqin bo‘lib yonadi va skanerda yorishadi',
+    /const tolqin =/.test(js) && /const yorish =/.test(js));
   test('kamera uslublari bor', /\.kam-quti\{/.test(css) && /\.kam-olchov\{/.test(css));
   test('selfi ko‘zguda ko‘rinadi', /transform:scaleX\(-1\)/.test(css));
   test('SAQLANADIGAN rasm esa ko‘zgusiz',
@@ -3315,32 +3316,35 @@ console.log('\n── KADR: MASOFA VA MARKAZ ──');
     !/markazga/i.test(normal.maslahat), normal.maslahat);
 }
 
-// ═══════════ YUZ TO'RI (ANATOMIK SIMTOR) ═══════════
-console.log('\n── YUZ TO‘RI ──');
+// ═══════════ YUZ NUQTALARI (SKANER KO'RINISHI) ═══════════
+// Anatomik simtor chiroyli edi, lekin kadrni to'sib qo'yardi va
+// yuzga aniq o'tirmasa g'alati ko'rinardi. Endi soddaroq: nuqtalar
+// to'lqin bo'lib yonadi, skaner chizig'i o'tganda yorishadi.
+console.log('\n── YUZ NUQTALARI ──');
 {
   const fs = await import('node:fs');
   const js = fs.readFileSync('public/app/app.js', 'utf8');
 
-  // yuzKengligi — yuz kesimining eni. Iyakka borib TORAYADI.
-  const kod = js.slice(js.indexOf('function yuzKengligi'), js.indexOf('function kamChiz'));
-  const yuzKengligi = new Function(`${kod}; return yuzKengligi;`)();
-  test('peshona kengligi o‘rtachadan tor', yuzKengligi(-1) < yuzKengligi(-0.2),
-    `${yuzKengligi(-1).toFixed(2)} ↔ ${yuzKengligi(-0.2).toFixed(2)}`);
-  test('yonoq eng keng joy', yuzKengligi(-0.1) > 0.9, yuzKengligi(-0.1).toFixed(2));
-  test('iyakka borib torayadi', yuzKengligi(1) < 0.3, yuzKengligi(1).toFixed(2));
-  test('eni hech qachon manfiy emas',
-    [-1, -0.5, 0, 0.5, 1].every((v) => yuzKengligi(v) > 0));
+  const kod = js.slice(js.indexOf('const YUZ_NUQTALARI'), js.indexOf('function kamChiz'));
+  const nuqtalar = new Function(`${kod}; return YUZ_NUQTALARI;`)();
+  test('nuqtalar oldindan hisoblanadi', nuqtalar.length > 40 && nuqtalar.length < 140,
+    `${nuqtalar.length} ta nuqta`);
+  test('hammasi yuz ovali ICHIDA', nuqtalar.every((p) => p.u * p.u + p.v * p.v <= 2.05),
+    'u,v ∈ [-1,1]');
+  test('iyak tomonida nuqta kamayadi',
+    nuqtalar.filter((p) => p.v > 0.7).length < nuqtalar.filter((p) => Math.abs(p.v) < 0.2).length,
+    'yuz pastga qarab torayadi');
+  test('har nuqtaning o‘z fazasi bor — to‘lqin bo‘lib yonadi',
+    new Set(nuqtalar.map((p) => p.faza)).size > nuqtalar.length * 0.8);
 
-  // To'rtburchak katak emas, YUZ shakli chiziladi
-  test('meridian va parallellar bor',
-    /PARALLELLAR/.test(js) && /MERIDIANLAR/.test(js));
-  test('ko‘z, lab va burun konturlari chiziladi',
-    /chap ko'z/.test(js) && /\/\/ lab/.test(js) && /Burun: ikki yon/.test(js));
-  test('qosh chiziqlari ham', /Qosh chiziqlari/.test(js));
-  test('chiziq rangi TINIQLIKdan olinadi',
-    /const yaxshi = Math\.min\(1, \(\(a\.t \+ b\.t\) \/ 2\) \/ chegara\)/.test(js));
-  test('tugun yorug‘lik bo‘yicha siljiydi', /yorqin \* chuqurlik/.test(js));
-  test('eski to‘rtburchak to‘r olib tashlandi', !/x\.strokeRect\(K\(x0/.test(js));
+  test('nuqta rangi TINIQLIKdan olinadi',
+    /const yaxshi = Math\.min\(1, ball\[rr \* ustun \+ cc\] \/ chegara\)/.test(js));
+  test('skaner chizig‘i nuqtalarni yoritadi', /const yorish = Math\.max\(0, 1 - masofa \* 7\)/.test(js));
+  test('to‘lqin animatsiyasi bor', /Math\.sin\(vaqt \* 2\.2 \+ p\.faza\)/.test(js));
+  test('burchak qavslari qoldi', /Burchak qavslari/.test(js));
+  test('eski simtor olib tashlandi',
+    !/MERIDIANLAR/.test(js) && !/function yuzKengligi/.test(js));
+  test('yuz topilmasa ko‘rsatma ovali chiziladi', /ko'rsatma ovali/.test(js));
 }
 
 // ═══════════ NATIJA EKRANI ═══════════
@@ -3399,14 +3403,32 @@ console.log('\n── NATIJA EKRANI ──');
     /t-ulash2/.test(natija) && /t-qayta/.test(natija));
 
   // Har qanday ekranga moslashish
-  test('sarlavha ekranga qarab kichrayadi', /clamp\(21px,6vw,26px\)/.test(css));
+  test('sarlavha ekranga qarab kichrayadi', /clamp\(21px,5\.8vw,27px\)/.test(css));
   test('mahsulotlar to‘ri o‘zi joylashadi',
-    /repeat\(auto-fill,minmax\(132px,1fr\)\)/.test(css));
-  test('keng ekranda ikki ustun', /@media \(min-width:680px\)\{\.n-tepa/.test(css));
+    /\.n-mahsulotlar\{[^}]*repeat\(auto-fill,minmax\(146px,1fr\)\)/.test(css));
+  test('keng ekranda ikki ustun', /@media \(min-width:720px\)\{\.n-tepa/.test(css));
 
   // Kartochka RASMIDA ham tavsif bor
   const kart = fs.readFileSync('src/rasm/natija-kartochka.js', 'utf8');
   test('yuklab olinadigan rasmda ham tavsif bor', /Rasmda nimani ko‘rdim|t\.tavsif/.test(kart));
+
+  // ── DIETA BO'SH CHIQQAN EDI ──
+  // Skanerdan keyin `raw` ga faqat xulosa ko'chirilardi; parhez va
+  // tavsif yo'lda tashlab ketilardi va «Dieta» bo'limi bo'sh chiqardi.
+  test('skaner javobidan PARHEZ ham ko‘chiriladi',
+    /raw: \{ xulosa: j\.tahlil\.xulosa, parhez: j\.tahlil\.parhez, tavsif: j\.tahlil\.tavsif \}/
+      .test(js));
+  test('parhez bo‘lmasa sababi tushuntiriladi',
+    /ovqatlanish tavsiyasi berilmagan/.test(js));
+  test('ovqat bandi nom va sababga bo‘linadi', /function ovqatBandi/.test(js));
+  test('plitkalar rangi ma’noli', /\.no-plitka\.yaxshi\{background:var\(--yashil-och\)\}/.test(css)
+    && /\.no-plitka\.yomon\{background:var\(--qizil-och\)\}/.test(css));
+
+  // ── «Teri holati» matni O'QILADIGAN bo'lsin ──
+  test('har belgi alohida KARTA', /class="n-belgi-karta"/.test(js));
+  test('matn 13px dan kichik emas', /\.nb-satr\{margin:12px 0 0;font-size:13\.5px/.test(css));
+  test('yechim ajratib ko‘rsatiladi', /\.nb-satr\.yechim\{/.test(css));
+  test('eski mayda «details» ro‘yxati olib tashlandi', !/class="n-belgi"/.test(js));
 
   // AI tomoni
   const ai = fs.readFileSync('src/ai/faceAnalysis.js', 'utf8');

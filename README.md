@@ -245,6 +245,12 @@ Google Gemini · Railway.
   ular Profil bo'limida. Skanerdan chiqqan odamga birdan beshta
   tugma ko'rsatish qarorni qiyinlashtiradi.
 
+  > **Dieta bo'limi bo'sh chiqardi.** Server parhezni qaytarardi,
+  > lekin ilova skaner javobidan `raw` ga faqat xulosani
+  > ko'chirardi — parhez va tavsif yo'lda tashlab ketilardi.
+  > Sahifa yangilangandan keyin (`/api/me`) paydo bo'lardi, ya'ni
+  > xato faqat birinchi ko'rishda bilinardi.
+
 - **Yuz skaneri — jonli kamera va sifat nazorati.** «Kamerani yoqish»
   bosilganda kadr EKRANDA o'lchanadi: yuz ustida to'r chiqadi va har
   katak o'sha joydagi **tiniqlikni** ko'rsatadi (yashil — tiniq,
@@ -254,9 +260,12 @@ Google Gemini · Railway.
   «Yaqinroq keling», «Biroz uzoqlashing», «Yuzingizni markazga
   oling». Tugma faqat kadr yaxshi bo'lganda ochiladi.
 
-  To'r **yuz shakliga o'tiradi**: meridian va parallellar, ko'z,
-  burun, lab va qosh konturlari — peshona kengroq, iyak torroq.
-  Aynan shu narsa yuz skanerining tanish ko'rinishini beradi.
+  Yuz sohasiga **nuqtalar** sepiladi: ular to'lqin bo'lib yonib-
+  o'chadi va skaner chizig'i o'tganda yorishadi — «yuz aniqlandi»
+  degan tanish ko'rinish. Nuqta rangi o'sha joydagi tiniqlikni
+  bildiradi. (Avval anatomik simtor chizilgan edi: chiroyli, lekin
+  kadrni to'sib qo'yardi va yuzga aniq o'tirmasa g'alati
+  ko'rinardi.)
 
   > Bu **lidar emas** — brauzerda chuqurlik sensori yo'q. To'r
   > haqiqiy o'lchov ko'rinishi: Laplas operatori (tiniqlik), yuz

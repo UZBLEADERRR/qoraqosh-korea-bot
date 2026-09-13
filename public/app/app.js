@@ -1435,28 +1435,36 @@ function chiziq(tanlov, qiymat, chegara) {
 }
 
 /**
- * YUZ TO'RI — anatomik simtor.
+ * YUZ NUQTALARI — «yuz aniqlandi» ko'rinishi.
  *
- * To'rtburchak katakchalar o'rniga yuz shakliga o'tirgan «meridian»
- * va «parallel» chiziqlar chiziladi: peshona kengroq, iyak torroq,
- * ko'z, burun va lab konturlari alohida. Aynan shu narsa yuz
- * skanerining tanish ko'rinishini beradi.
+ * Ilgari bu yerda anatomik simtor chizilardi: chiroyli, lekin
+ * kadrni to'sib qo'yardi va yuzga aniq o'tirmasa g'alati ko'rinardi.
+ * Endi soddaroq va tinchroq: yuz sohasiga nuqtalar sepiladi, ular
+ * to'lqin bo'lib yonib-o'chadi va skaner chizig'i o'tganda
+ * yorishadi — yuz aniqlanayotgani shundan bilinadi.
  *
- * Har chiziq bo'lagi o'sha joydagi TINIQLIK bo'yicha rangga kiradi,
- * tugunlar esa yorug'lik bo'yicha siljiydi — ya'ni to'r haqiqiy
- * o'lchovni ko'rsatadi, chizilgan rasm emas. Lekin bu chuqurlik
- * SENSORI emas: brauzerda lidar yo'q.
+ * Nuqta RANGI — o'sha joydagi TINIQLIK: yashil tiniq, sariq
+ * chegarada, qizil xira. Ya'ni bezak emas, o'lchov ko'rinishi.
+ * Chuqurlik sensori yo'q — bu lidar emas.
  */
 
-// Yuz kesimining kengligi: v = -1 (peshona ustki chekkasi) dan
-// v = +1 (iyak) gacha. Raqamlar odam yuzining nisbatlaridan olingan.
-function yuzKengligi(v) {
-  // Peshona biroz tor, chakka keng, yonoqdan pastda torayadi
-  const t = (v + 1) / 2;                       // 0..1
-  if (t < 0.12) return 0.72 + (t / 0.12) * 0.2;        // peshona ustki chekkasi
-  if (t < 0.45) return 0.92 + Math.sin((t - 0.12) / 0.33 * Math.PI) * 0.08;
-  return Math.max(0.16, 1 - ((t - 0.45) / 0.55) ** 1.7 * 0.95);
-}
+// Nuqtalar yuz fazosida bir marta hisoblanadi: har kadrda qayta
+// yaratish telefonni bejizga qizdiradi.
+const YUZ_NUQTALARI = (() => {
+  const n = [];
+  const QATOR = 11;
+  for (let r = 0; r < QATOR; r++) {
+    const v = -1 + (2 * r) / (QATOR - 1);
+    // Yuz kesimining eni: peshona tor, yonoq keng, iyak torroq
+    const en = Math.sqrt(Math.max(0, 1 - v * v * 0.92)) * (v > 0.45 ? 1 - (v - 0.45) * 0.9 : 1);
+    const soni = Math.max(3, Math.round(en * 9));
+    for (let i = 0; i < soni; i++) {
+      const u = soni === 1 ? 0 : (-1 + (2 * i) / (soni - 1)) * en;
+      n.push({ u, v, faza: (r * 0.7 + i * 0.9) });
+    }
+  }
+  return n;
+})();
 
 function kamChiz(n, olchovEni, olchovBoyi) {
   const c = $('#kam-tor');
@@ -1468,7 +1476,7 @@ function kamChiz(n, olchovEni, olchovBoyi) {
   x.clearRect(0, 0, en, boy);
 
   // O'lchov kanvasi «object-fit: cover» bilan ko'rsatiladi; video esa
-  // ko'zguga o'girilgan — to'r ham shunday bo'lishi kerak
+  // ko'zguga o'girilgan — nuqtalar ham shunday bo'lishi kerak
   const k = Math.max(en / olchovEni, boy / olchovBoyi);
   const siljishX = (en - olchovEni * k) / 2;
   const siljishY = (boy - olchovBoyi * k) / 2;
@@ -1488,89 +1496,53 @@ function kamChiz(n, olchovEni, olchovBoyi) {
   const q = n.quti;
   const { ustun, qator, ball } = n.tor;
   const chegara = Sifat.CHEGARA.tiniqlik;
-  const g = n.kulrang;
-
-  // Yuz markazi va radiuslari — o'lchov kanvasi koordinatalarida
   const mx = q.x + q.en / 2, my = q.y + q.boy / 2;
   const rx = q.en / 2, ry = q.boy / 2;
 
-  // Tugun: (u, v) yuz fazosida -> ekran nuqtasi + tiniqlik
-  const chuqurlik = Math.min(16, boy * 0.022);
-  const nuqta = (u, v) => {
-    const px = mx + u * yuzKengligi(v) * rx;
-    const py = my + v * ry;
-    const ix = Math.max(0, Math.min(olchovEni - 1, Math.round(px)));
-    const iy = Math.max(0, Math.min(olchovBoyi - 1, Math.round(py)));
-    const yorqin = (g[iy * olchovEni + ix] - 128) / 255;
-    // Tiniqlikni katak to'ridan olamiz
+  const vaqt = Date.now() / 1000;
+  // Skaner chizig'i: 0 (tepa) dan 1 (past) gacha
+  const sweep = (Date.now() % 2600) / 2600;
+
+  for (const p of YUZ_NUQTALARI) {
+    const px = mx + p.u * rx, py = my + p.v * ry;
+    // Shu joydagi tiniqlik
     const cc = Math.max(0, Math.min(ustun - 1, Math.floor((px - q.x) / (q.en / ustun))));
     const rr = Math.max(0, Math.min(qator - 1, Math.floor((py - q.y) / (q.boy / qator))));
-    return { x: K(px), y: Y(py) + yorqin * chuqurlik, t: ball[rr * ustun + cc] };
-  };
+    const yaxshi = Math.min(1, ball[rr * ustun + cc] / chegara);
+    const rang = yaxshi >= 1 ? '110,240,190' : yaxshi >= 0.6 ? '250,205,110' : '250,120,120';
 
-  /** Nuqtalar ketma-ketligini TINIQLIK rangi bilan chizadi. */
-  const chiziq = (nuqtalar, qalin, shaffof) => {
-    for (let i = 1; i < nuqtalar.length; i++) {
-      const a = nuqtalar[i - 1], b = nuqtalar[i];
-      const yaxshi = Math.min(1, ((a.t + b.t) / 2) / chegara);
-      const rang = yaxshi >= 1 ? '120,235,190' : yaxshi >= 0.6 ? '245,200,110' : '245,120,120';
-      x.strokeStyle = `rgba(${rang},${(shaffof * (0.45 + 0.55 * yaxshi)).toFixed(3)})`;
-      x.lineWidth = qalin;
-      x.beginPath(); x.moveTo(a.x, a.y); x.lineTo(b.x, b.y); x.stroke();
+    // To'lqin: nuqtalar navbat bilan yonadi
+    const tolqin = 0.55 + 0.45 * Math.sin(vaqt * 2.2 + p.faza);
+    // Skaner chizig'i yonidan o'tganda yorishadi
+    const masofa = Math.abs((p.v + 1) / 2 - sweep);
+    const yorish = Math.max(0, 1 - masofa * 7);
+
+    const ex = K(px), ey = Y(py);
+    const r = (2.1 + yorish * 2.2) * Math.min(2, k);
+    x.beginPath();
+    x.arc(ex, ey, r, 0, Math.PI * 2);
+    x.fillStyle = `rgba(${rang},${(0.46 * tolqin + 0.5 * yorish).toFixed(3)})`;
+    x.fill();
+    if (yorish > 0.35) {
+      x.beginPath();
+      x.arc(ex, ey, r + 3.5, 0, Math.PI * 2);
+      x.strokeStyle = `rgba(${rang},${(0.35 * yorish).toFixed(3)})`;
+      x.lineWidth = 1;
+      x.stroke();
     }
-  };
-
-  const QADAM = 0.05;
-  // 1. PARALLELLAR — yuzni ko'ndalang kesib o'tuvchi chiziqlar
-  for (let v = -1; v <= 1.0001; v += 0.125) {
-    const p = [];
-    for (let u = -1; u <= 1.0001; u += QADAM) p.push(nuqta(u, Math.min(1, v)));
-    chiziq(p, 1, 0.55);
-  }
-  // 2. MERIDIANLAR — peshonadan iyakka
-  for (let u = -1; u <= 1.0001; u += 0.1667) {
-    const p = [];
-    for (let v = -1; v <= 1.0001; v += QADAM) p.push(nuqta(Math.min(1, u), v));
-    chiziq(p, 1, 0.55);
   }
 
-  // 3. Yuz konturi — qalinroq
-  {
-    const p = [];
-    for (let v = -1; v <= 1.0001; v += 0.03) p.push(nuqta(1, v));
-    for (let v = 1; v >= -1.0001; v -= 0.03) p.push(nuqta(-1, v));
-    p.push(p[0]);
-    chiziq(p, 2, 1);
+  // Burchak qavslari — kadr «nishonga olingani» sezilsin
+  const bx = K(q.x + q.en), by = Y(q.y), bEn = q.en * k, bBoy = q.boy * k;
+  const uz = Math.min(bEn, bBoy) * 0.15;
+  x.strokeStyle = 'rgba(255,255,255,.85)'; x.lineWidth = 2.5; x.lineCap = 'round';
+  for (const [sx, sy, dx, dy] of [
+    [bx, by, 1, 1], [bx + bEn, by, -1, 1],
+    [bx, by + bBoy, 1, -1], [bx + bEn, by + bBoy, -1, -1]]) {
+    x.beginPath();
+    x.moveTo(sx + dx * uz, sy); x.lineTo(sx, sy); x.lineTo(sx, sy + dy * uz);
+    x.stroke();
   }
-
-  // 4. Ko'z, burun va lab konturlari — to'r «yuz» ekani shundan bilinadi
-  const oval = (cu, cv, ru, rv, qadam = 0.35) => {
-    const p = [];
-    for (let a = 0; a <= Math.PI * 2 + 0.001; a += qadam) {
-      p.push(nuqta(cu + Math.cos(a) * ru, cv + Math.sin(a) * rv));
-    }
-    return p;
-  };
-  chiziq(oval(-0.42, -0.16, 0.20, 0.055), 1.6, 1);     // chap ko'z
-  chiziq(oval(0.42, -0.16, 0.20, 0.055), 1.6, 1);      // o'ng ko'z
-  chiziq(oval(0, 0.46, 0.26, 0.075), 1.6, 1);          // lab
-  // Burun: ikki yon chizig'i va uchi
-  chiziq([nuqta(-0.10, -0.10), nuqta(-0.13, 0.16), nuqta(-0.17, 0.24),
-          nuqta(0, 0.28), nuqta(0.17, 0.24), nuqta(0.13, 0.16),
-          nuqta(0.10, -0.10)], 1.6, 1);
-  // Qosh chiziqlari
-  chiziq([nuqta(-0.62, -0.33), nuqta(-0.42, -0.38), nuqta(-0.22, -0.33)], 1.4, 0.9);
-  chiziq([nuqta(0.62, -0.33), nuqta(0.42, -0.38), nuqta(0.22, -0.33)], 1.4, 0.9);
-
-  // 5. Skaner chizig'i — pastdan yuqoriga
-  const vaqt = (Date.now() % 2400) / 2400;
-  const sy = Y(q.y) + q.boy * k * vaqt;
-  const grad = x.createLinearGradient(0, sy - 20, 0, sy + 20);
-  grad.addColorStop(0, 'rgba(120,235,255,0)');
-  grad.addColorStop(0.5, 'rgba(120,235,255,.5)');
-  grad.addColorStop(1, 'rgba(120,235,255,0)');
-  x.fillStyle = grad;
-  x.fillRect(K(q.x + q.en), sy - 20, q.en * k, 40);
 }
 
 /**
@@ -1753,7 +1725,13 @@ async function tahlilQil() {
       skin_tone: j.tahlil.teri_rangi,
       skin_type: j.tahlil.teri_turi, score: j.tahlil.ball,
       problems: j.tahlil.muammolar, forecast: j.tahlil.prognoz,
-      routine: j.tahlil.tavsiya, raw: { xulosa: j.tahlil.xulosa }, is_offline: j.tahlil.oflayn,
+      routine: j.tahlil.tavsiya, is_offline: j.tahlil.oflayn,
+      // MUHIM: parhez va tavsif ham ko'chiriladi. Ilgari faqat xulosa
+      // olinardi va shu sababli skanerdan keyin «Dieta» bo'limi
+      // BO'SH chiqardi — ma'lumot serverdan kelgan, lekin yo'lda
+      // tashlab ketilgan edi. Sahifa yangilangach (/api/me) paydo
+      // bo'lardi, ya'ni xato faqat birinchi ko'rishda bilinardi.
+      raw: { xulosa: j.tahlil.xulosa, parhez: j.tahlil.parhez, tavsif: j.tahlil.tavsif },
       yuz_rasm_id: j.yuz_rasm_id || null,
     };
     holat.limit = j.limit || holat.limit;
@@ -1907,12 +1885,48 @@ function ballHalqa(ball, olcham = 132) {
   </svg>`;
 }
 
+/** Ko'rsatkich nishoni — har ko'rsatkichning o'z belgisi. */
+const KALIT_IKON = {
+  akne: 'tomchi', teshik: 'tozalik', yoglilik: 'tomchi', quruqlik: 'tomchi',
+  qizarish: 'yurak', dog: 'quyosh', ajin: 'soat', xiralik: 'quyosh',
+  sezgirlik: 'yurak', qora_doira: 'oy', shishish: 'tomchi',
+};
+
+/** Ovqat bandining nishoni — matndan topiladi (rasm API si kerak emas). */
+const OVQAT_IKON = [
+  [/baliq|omega|losos/i,                'qalqon'],
+  [/suv|ichimlik rejimi|litr/i,         'tomchi'],
+  [/sabzavot|barg|ko[‘'`ʻ]?kat|salat|yong[‘'`ʻ]?oq|urug/i, 'barg'],
+  [/meva|rezavor|vitamin|sitrus/i,      'quyosh'],
+  [/yogurt|sut|probiotik/i,             'shisha'],
+  [/shirin|qand|shakar|gazlangan|ichimlik/i, 'shisha'],
+  [/qovurilgan|fastfud|yog[‘'`ʻ]?li taom/i, 'ogoh'],
+  [/qahva|kofein|energetik/i,           'soat'],
+  [/un|non|xamir|shirinlik/i,           'quti'],
+  [/go[‘'`ʻ]?sht|kolbasa|sosiska/i,     'quti'],
+];
+/** @param {'yaxshi'|'yomon'} tur  mos ikon topilmasa shunga qarab tanlanadi */
+const ovqatIkoni = (matn, tur) => {
+  for (const [re, nom] of OVQAT_IKON) if (re.test(String(matn))) return nom;
+  return tur === 'yomon' ? 'ogoh' : 'barg';
+};
+
+/** Ovqat bandini ikkiga bo'ladi: nomi va qavs ichidagi sababi. */
+function ovqatBandi(matn) {
+  const s = String(matn || '').trim();
+  const m = s.match(/^(.+?)\s*[（(]\s*(.+?)\s*[)）]\s*$/);
+  return m ? { nom: m[1], sabab: m[2] } : { nom: s, sabab: '' };
+}
+
 const NATIJA_BOLIM = [
   ['tavsiya',  'Tavsiyalar'],
   ['holat',    'Teri holati'],
   ['dieta',    'Dieta'],
   ['parvarish','Kundalik parvarish'],
 ];
+
+const OYLAR_UZ = ['yanvar','fevral','mart','aprel','may','iyun',
+                  'iyul','avgust','sentabr','oktabr','noyabr','dekabr'];
 
 function natijaniChiz() {
   const t = holat.tahlil;
@@ -1928,8 +1942,8 @@ function natijaniChiz() {
   const bolim = holat.natijaBolim || 'tavsiya';
   const karta = new Map(holat.mahsulotlar.map((p) => [p.id, p]));
   const ball = t.score ?? 0;
-  const holatSoz = ball >= 80 ? 'A’lo holat' : ball >= 65 ? 'Yaxshi holat'
-                 : ball >= 50 ? 'O‘rtacha holat' : ball >= 35 ? 'E’tibor kerak' : 'Zaif holat';
+  const holatSoz = ball >= 80 ? 'A’lo' : ball >= 65 ? 'Yaxshi'
+                 : ball >= 50 ? 'O‘rtacha' : ball >= 35 ? 'E’tibor kerak' : 'Zaif';
   const asl = (t.routine || []).map((r) => ({ ...r, p: karta.get(r.product_id) })).filter((r) => r.p);
   const tavsiyalar = holat.arzon ? asl.map(arzonAlmashtir) : asl;
   const jami    = tavsiyalar.reduce((s, r) => s + r.p.price, 0);
@@ -1943,14 +1957,21 @@ function natijaniChiz() {
   });
   const belgili = muammolar.slice(0, 4);
   const parhez = t.raw?.parhez || {};
+  const d = new Date();
+  const sana = `${d.getDate()}-${OYLAR_UZ[d.getMonth()]}`;
+  const ism = (holat.user?.full_name || '').trim().split(/\s+/)[0];
 
   el.innerHTML = `
+  ${ism ? `<div class="n-salom">
+    <div><b>Salom, ${esc(ism)}!</b><span>Bugun ham teringizga g‘amxo‘rlik qilaylik</span></div>
+  </div>` : ''}
+
   <div class="n-bosh">
     <div>
       <h1>Tahlil natijasi</h1>
-      <p>Sizning sog‘lom teri sari shaxsiy yo‘lingiz</p>
+      <p>Teringiz holati AI tomonidan tahlil qilindi</p>
     </div>
-    <button class="n-ulash" id="t-ulash">${ik('yuklab', 17)}<span>Rasm</span></button>
+    <span class="n-sana">${sana}</span>
   </div>
 
   ${t.is_offline ? `<div class="n-karta"><div class="ogoh">AI hozir mavjud emas — bazaviy tavsiya ko‘rsatilmoqda.</div></div>` : ''}
@@ -1963,60 +1984,60 @@ function natijaniChiz() {
       <svg class="n-chiziqlar" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         ${belgili.map((m, i) => {
           const chap = m.joy.x < 50;
-          const yy = 16 + i * 21;
-          return `<line x1="${m.joy.x}" y1="${m.joy.y}" x2="${chap ? 12 : 88}" y2="${yy}"
-            vector-effect="non-scaling-stroke"/>`;
+          return `<line x1="${m.joy.x}" y1="${m.joy.y}" x2="${chap ? 13 : 87}"
+            y2="${14 + i * 22}" vector-effect="non-scaling-stroke"/>`;
         }).join('')}
       </svg>
-      ${belgili.map((m, i) => `
+      ${belgili.map((m) => `
         <span class="n-nuqta d${Math.min(3, m.daraja || 1)}"
           style="left:${m.joy.x}%;top:${m.joy.y}%"></span>`).join('')}
-      ${belgili.map((m, i) => {
-        const chap = m.joy.x < 50;
-        return `<span class="n-yorliq ${chap ? 'chap' : 'ong'}" style="top:${16 + i * 21}%">
-          ${esc(m.nom)}</span>`;
-      }).join('')}` : ''}
+      ${belgili.map((m, i) => `
+        <span class="n-yorliq ${m.joy.x < 50 ? 'chap' : 'ong'}" style="top:${14 + i * 22}%">
+          ${esc(KALIT_NOM[m.kalit] || m.nom)}</span>`).join('')}` : ''}
     </figure>` : ''}
 
-    <div class="n-karta n-ball">
-      <div class="n-karta-bosh">Umumiy teri balli</div>
-      <div class="n-ball-ich">
-        ${ballHalqa(ball)}
-        <div>
-          <b class="${ballRang(ball)}">${holatSoz}</b>
-          <p>${esc(t.raw?.xulosa || 'Teri holati baholandi.')}</p>
+    <div class="n-ong">
+      <div class="n-karta n-ball">
+        <div class="n-ball-ich">
+          ${ballHalqa(ball)}
+          <div>
+            <span class="n-ball-yor">Umumiy holat</span>
+            <b class="${ballRang(ball)}">${holatSoz}</b>
+            <p>${esc(t.raw?.xulosa || 'Teri holati baholandi.')}</p>
+          </div>
         </div>
+        <div class="n-teglar">
+          ${t.age_estimate ? `<span>${esc(t.age_estimate)} yosh</span>` : ''}
+          ${JINS[t.jins] ? `<span>${JINS[t.jins]}</span>` : ''}
+          ${t.skin_type ? `<span>${esc(t.skin_type)} teri</span>` : ''}
+          ${t.skin_tone ? `<span>${esc(t.skin_tone)}</span>` : ''}
+        </div>
+        ${t.raw?.tavsif ? `
+          <div class="n-tavsif">
+            <i>${ik('koz', 16)}</i>
+            <span><b>Rasmda nimani ko‘rdim:</b> ${esc(t.raw.tavsif)}</span>
+          </div>` : ''}
       </div>
-      <div class="n-teglar">
-        ${t.age_estimate ? `<span>${esc(t.age_estimate)} yosh</span>` : ''}
-        ${JINS[t.jins] ? `<span>${JINS[t.jins]}</span>` : ''}
-        ${t.skin_type ? `<span>${esc(t.skin_type)} teri</span>` : ''}
-        ${t.skin_tone ? `<span>${esc(t.skin_tone)}</span>` : ''}
-      </div>
-      ${t.raw?.tavsif ? `
-        <div class="n-tavsif">
-          <i>${ik('koz', 16)}</i>
-          <span><b>Rasmda nimani ko‘rdim:</b> ${esc(t.raw.tavsif)}</span>
-        </div>` : ''}
+
+      ${muammolar.length ? `
+      <div class="n-karta">
+        <div class="n-karta-bosh">Asosiy ko‘rsatkichlar
+          <span class="n-izoh">100 — eng yaxshi</span></div>
+        ${muammolar.map((m) => `
+          <div class="n-satr">
+            <i class="n-satr-ikon ${ballRang(m.ballHolat)}">${ik(KALIT_IKON[m.kalit] || 'tomchi', 15)}</i>
+            <span class="n-satr-nom">${esc(KALIT_NOM[m.kalit] || m.nom)}</span>
+            <span class="n-chiziq"><i class="${ballRang(m.ballHolat)}"
+              style="width:${Math.max(4, m.ballHolat)}%"></i></span>
+            <b class="${ballRang(m.ballHolat)}">${m.ballHolat}</b>
+          </div>`).join('')}
+      </div>` : `
+      <div class="n-karta n-toza">
+        ${ik('tasdiq', 22)} <b>Sezilarli muammo topilmadi</b>
+        <span>Terini shu holatda saqlash uchun quyidagi parvarish yetarli.</span>
+      </div>`}
     </div>
   </div>
-
-  ${muammolar.length ? `
-  <div class="n-karta">
-    <div class="n-karta-bosh">Asosiy ko‘rsatkichlar
-      <span class="n-izoh">100 — eng yaxshi</span></div>
-    ${muammolar.map((m) => `
-      <div class="n-satr">
-        <span class="n-satr-nom">${esc(KALIT_NOM[m.kalit] || m.nom)}</span>
-        <span class="n-chiziq"><i class="${ballRang(m.ballHolat)}"
-          style="width:${Math.max(4, m.ballHolat)}%"></i></span>
-        <b class="${ballRang(m.ballHolat)}">${m.ballHolat}</b>
-      </div>`).join('')}
-  </div>` : `
-  <div class="n-karta n-toza">
-    ${ik('tasdiq', 22)} <b>Sezilarli muammo topilmadi</b>
-    <span>Terini shu holatda saqlash uchun quyidagi parvarish yetarli.</span>
-  </div>`}
 
   <div class="n-tablar" role="tablist">
     ${NATIJA_BOLIM.map(([k, nom]) => `
@@ -2031,9 +2052,16 @@ function natijaniChiz() {
   :                         natijaParvarish(tavsiyalar)
   }</div>
 
+  <div class="n-chaqiriq">
+    <div>
+      <b>Sog‘lom teri — sog‘lom hayot tarzidan boshlanadi</b>
+      <span>Kichik o‘zgarishlar, katta natijalar</span>
+    </div>
+    <button id="t-ulash2">${ik('yuklab',17)}Natijani saqlash</button>
+  </div>
+
   <div class="n-karta n-oxir">
-    <button class="asosiy" id="t-ulash2">${ik('yuklab',18)}Natijani rasm qilib olish</button>
-    <button class="ikkilamchi" id="t-qayta" style="margin-top:9px">${ik('kamera',18)}Qayta tahlil</button>
+    <button class="ikkilamchi" id="t-qayta">${ik('kamera',18)}Qayta tahlil qilish</button>
   </div>`;
 
   // ── Ulanishlar ──
@@ -2062,19 +2090,19 @@ function natijaTavsiya(tavsiyalar, jami, tejash, arzonBor) {
   if (!tavsiyalar.length) return `<div class="n-karta n-bosh-holat">Mahsulot tavsiyasi yo‘q.</div>`;
   return `
   <div class="n-karta">
-    <div class="n-karta-bosh">Siz uchun tanlangan
+    <div class="n-karta-bosh">Siz uchun tanlangan mahsulotlar
       <span class="n-izoh">${tavsiyalar.length} ta</span></div>
     <div class="n-mahsulotlar">
-      ${tavsiyalar.map((r, i) => `
+      ${tavsiyalar.map((r) => `
         <button class="n-mahsulot" data-tavsiya="${r.p.id}">
+          <span class="nm-teg">${esc(BOSQICH[r.bosqich] || r.bosqich)}</span>
           <span class="nm-rasm">
             ${r.p.poster_id ? `<img src="/media/${esc(r.p.poster_id)}?w=240" alt="" loading="lazy">`
-                            : ik('shisha', 26)}
+                            : ik('shisha', 30)}
           </span>
-          <span class="nm-bosqich">${esc(BOSQICH[r.bosqich] || r.bosqich)}</span>
           <span class="nm-nom">${esc(nomi(r.p))}</span>
           <span class="nm-brend">${esc(r.p.brand || '')}</span>
-          <span class="nm-narx">${narx(r.p.price)}</span>
+          <span class="nm-past"><b>${narx(r.p.price)}</b><i>Ko‘rish</i></span>
         </button>`).join('')}
     </div>
     <div class="n-jami"><span>To‘liq to‘plam</span><b>${narx(jami)}</b></div>
@@ -2090,61 +2118,77 @@ function natijaTavsiya(tavsiyalar, jami, tejash, arzonBor) {
   </div>`;
 }
 
-/** 2-bo'lim: nima topildi va e'tibor bermasa nima bo'ladi. */
+/** 2-bo'lim: nima topildi. Har belgi — alohida karta, matn O'QILADIGAN. */
 function natijaHolat(muammolar, t) {
   const prognoz = [...(t.forecast || [])].sort((a, b) => b.ehtimol - a.ehtimol);
   if (!muammolar.length && !prognoz.length) {
     return `<div class="n-karta n-bosh-holat">Sezilarli belgi topilmadi.</div>`;
   }
   return `
-  ${muammolar.length ? `<div class="n-karta">
-    <div class="n-karta-bosh">Suratda topilgan belgilar</div>
-    ${muammolar.map((m, i) => `
-      <details class="n-belgi" ${i === 0 ? 'open' : ''}>
-        <summary>
-          <span class="n-nuqta d${Math.min(3, m.daraja || 1)}"></span>
+  ${muammolar.map((m) => `
+    <div class="n-belgi-karta">
+      <div class="nb-bosh">
+        <i class="nb-ikon d${Math.min(3, m.daraja || 1)}">${ik(KALIT_IKON[m.kalit] || 'tomchi', 18)}</i>
+        <div>
           <b>${esc(m.nom)}</b>
-          <span class="n-daraja d${Math.min(3, m.daraja || 1)}">${DARAJA[Math.min(3, m.daraja || 1)]}</span>
-        </summary>
-        ${m.zona ? `<p class="n-zona">${ik('joy', 14)} ${esc(m.zona)}</p>` : ''}
-        ${m.izoh ? `<p>${esc(m.izoh)}</p>` : ''}
-        ${m.sabab ? `<p><b>Sababi.</b> ${esc(m.sabab)}</p>` : ''}
-        ${m.yechim ? `<p class="n-yechim"><b>Yechimi.</b> ${esc(m.yechim)}</p>` : ''}
-        ${m.ogohlantirish ? `<p class="n-diqqat">${esc(m.ogohlantirish)}</p>` : ''}
-      </details>`).join('')}
-  </div>` : ''}
+          ${m.zona ? `<span class="nb-zona">${esc(m.zona)}</span>` : ''}
+        </div>
+        <span class="n-daraja d${Math.min(3, m.daraja || 1)}">${DARAJA[Math.min(3, m.daraja || 1)]}</span>
+      </div>
+      <div class="nb-shkala">
+        <span class="n-chiziq"><i class="${ballRang(m.ballHolat)}"
+          style="width:${Math.max(4, m.ballHolat)}%"></i></span>
+        <b class="${ballRang(m.ballHolat)}">${m.ballHolat}<small>/100</small></b>
+      </div>
+      ${m.sabab ? `<p class="nb-satr"><span class="nb-yorliq">Sababi</span>${esc(m.sabab)}</p>` : ''}
+      ${m.yechim ? `<p class="nb-satr yechim"><span class="nb-yorliq">Yechimi</span>${esc(m.yechim)}</p>` : ''}
+      ${m.ogohlantirish ? `<p class="nb-diqqat">${ik('ogoh', 15)} ${esc(m.ogohlantirish)}</p>` : ''}
+    </div>`).join('')}
+
   ${prognoz.length ? `<div class="n-karta">
     <div class="n-karta-bosh">E’tibor bermasangiz</div>
     ${prognoz.map((p) => `
-      <div class="n-satr">
-        <span class="n-satr-nom">${esc(p.muammo)}</span>
-        <span class="n-chiziq"><i class="yomon" style="width:${p.ehtimol}%"></i></span>
-        <b class="yomon">${p.ehtimol}%</b>
-      </div>
-      <p class="n-izoh" style="margin:-2px 0 10px">${esc(p.muddat || '')} — ${esc(p.natija)}</p>`).join('')}
+      <div class="n-prognoz">
+        <div class="n-satr" style="margin:0">
+          <span class="n-satr-nom" style="grid-column:1/3">${esc(p.muammo)}</span>
+          <span class="n-chiziq"><i class="yomon" style="width:${p.ehtimol}%"></i></span>
+          <b class="yomon">${p.ehtimol}%</b>
+        </div>
+        <p>${esc(p.muddat || '')} — ${esc(p.natija)}</p>
+      </div>`).join('')}
     <div class="ogoh">${ik('tibbiy',15)} Bu ehtimollik bahosi, tibbiy tashxis emas.
       Jiddiy belgilarda dermatologga murojaat qiling.</div>
   </div>` : ''}`;
 }
 
-/** 3-bo'lim: ovqatlanish. */
+/** 3-bo'lim: ovqatlanish — ikki karta, plitkali ko'rinish. */
 function natijaDieta(parhez) {
   const foydali = parhez.foydali || [], cheklang = parhez.cheklang || [];
   if (!foydali.length && !cheklang.length) {
-    return `<div class="n-karta n-bosh-holat">Ovqatlanish tavsiyasi yo‘q.</div>`;
+    return `<div class="n-karta n-bosh-holat">
+      Bu tahlilda ovqatlanish tavsiyasi berilmagan.<br>
+      Yangi skaner qilsangiz u ham qo‘shiladi.</div>`;
   }
-  const royxat = (band, tur) => band.map((x) => `
-    <li class="${tur}"><i>${tur === 'yaxshi' ? ik('tasdiq', 14) : ik('yopish', 14)}</i>
-      <span>${esc(x)}</span></li>`).join('');
+  const plitkalar = (band, tur) => `
+    <div class="n-ovqat">
+      ${band.map((x) => {
+        const b = ovqatBandi(x);
+        return `<div class="no-plitka ${tur}">
+          <i>${ik(ovqatIkoni(x, tur), 22)}</i>
+          <b>${esc(b.nom)}</b>
+          ${b.sabab ? `<span>${esc(b.sabab)}</span>` : ''}
+        </div>`;
+      }).join('')}
+    </div>`;
   return `
-  <div class="n-karta">
-    <div class="n-karta-bosh">Siz uchun foydali</div>
-    <ul class="n-parhez">${royxat(foydali, 'yaxshi')}</ul>
-  </div>
-  <div class="n-karta">
-    <div class="n-karta-bosh">Cheklash tavsiya etiladi</div>
-    <ul class="n-parhez">${royxat(cheklang, 'yomon')}</ul>
-  </div>
+  ${foydali.length ? `<div class="n-karta">
+    <div class="n-karta-bosh">${ik('barg', 17)} Siz uchun foydali</div>
+    ${plitkalar(foydali, 'yaxshi')}
+  </div>` : ''}
+  ${cheklang.length ? `<div class="n-karta">
+    <div class="n-karta-bosh qizil">${ik('ogoh', 17)} Cheklash tavsiya etiladi</div>
+    ${plitkalar(cheklang, 'yomon')}
+  </div>` : ''}
   ${parhez.izoh ? `<div class="n-karta n-eslatma">${ik('tomchi', 17)}
     <span>${esc(parhez.izoh)}</span></div>` : ''}`;
 }
