@@ -226,13 +226,37 @@ Google Gemini · Railway.
 - **Minimal buyurtma** — admin sozlaydigan eng kam summa. Kam bo'lsa
   rasmiylashtirish tugmasi ochilmaydi va nechchi so'm yetmayotgani aytiladi.
   Tekshiruv `place_order()` ichida ham bor — klientga ishonilmaydi.
+- **Natija — diagnostika hujjati ko'rinishida.** Suratingiz ustida
+  topilgan belgilar nuqta va yorliq bilan belgilanadi (zona matnidan
+  joyi chamalanadi), yonida umumiy ball halqasi, ostida ko'rsatkich
+  chiziqlari. **Rang butun ekranda bitta ma'noda:** yashil — yaxshi,
+  sariq — e'tibor bering, qizil — muammo. Tafsilotlar to'rt bo'limga
+  ajratilgan: *Tavsiyalar*, *Teri holati*, *Dieta*, *Kundalik
+  parvarish* — birdan hammasi ko'rinib odamni bosib ketmaydi.
+
+  **«Rasmda nimani ko'rdim»** — AI suratdagi ko'zga tashlanadigan
+  neytral tafsilotni yozadi (ko'zoynak, zirak, quloqchin, soch
+  turmagi, yorug'lik). Shundan odam tahlil AYNAN o'z suratidan
+  chiqqaniga ishonch hosil qiladi. Modelga qat'iy taqiq: odamni
+  tanimaydi, ism aytmaydi, millat/irq/din haqida gapirmaydi va
+  tashqi ko'rinishga baho bermaydi.
+
+  Natija ekranida endi konsultatsiya va telefon tugmalari yo'q —
+  ular Profil bo'limida. Skanerdan chiqqan odamga birdan beshta
+  tugma ko'rsatish qarorni qiyinlashtiradi.
+
 - **Yuz skaneri — jonli kamera va sifat nazorati.** «Kamerani yoqish»
   bosilganda kadr EKRANDA o'lchanadi: yuz ustida to'r chiqadi va har
   katak o'sha joydagi **tiniqlikni** ko'rsatadi (yashil — tiniq,
   qizil — xira), to'r tugunlari esa yorug'lik bo'yicha siljib
   yuzning relyefini chizadi. Odam qimirlasa yoki qorong'i bo'lsa
   darhol aytiladi: «Yorug'roq joyga o'ting», «Qimirlatmang»,
-  «Yaqinroq keling». Tugma faqat kadr yaxshi bo'lganda ochiladi.
+  «Yaqinroq keling», «Biroz uzoqlashing», «Yuzingizni markazga
+  oling». Tugma faqat kadr yaxshi bo'lganda ochiladi.
+
+  To'r **yuz shakliga o'tiradi**: meridian va parallellar, ko'z,
+  burun, lab va qosh konturlari — peshona kengroq, iyak torroq.
+  Aynan shu narsa yuz skanerining tanish ko'rinishini beradi.
 
   > Bu **lidar emas** — brauzerda chuqurlik sensori yo'q. To'r
   > haqiqiy o'lchov ko'rinishi: Laplas operatori (tiniqlik), yuz

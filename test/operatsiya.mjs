@@ -3261,13 +3261,160 @@ console.log('\n── JONLI KAMERA ──');
   test('o‘lchov taymeri ham to‘xtaydi', /clearInterval\(kamHalqa\)/.test(js));
 
   // To'r — o'lchov ko'rinishi
-  test('to‘r kataklari TINIQLIK bo‘yicha bo‘yaladi',
-    /ball\[r \* ustun \+ cc\] \/ chegara/.test(js));
-  test('tugunlar yorug‘lik bo‘yicha siljiydi', /chuqur\(px, py\) \* chuqurlik/.test(js));
+  test('to‘r chiziqlari TINIQLIK bo‘yicha bo‘yaladi',
+    /\(\(a\.t \+ b\.t\) \/ 2\) \/ chegara/.test(js));
+  test('tugunlar yorug‘lik bo‘yicha siljiydi', /yorqin \* chuqurlik/.test(js));
   test('kamera uslublari bor', /\.kam-quti\{/.test(css) && /\.kam-olchov\{/.test(css));
   test('selfi ko‘zguda ko‘rinadi', /transform:scaleX\(-1\)/.test(css));
   test('SAQLANADIGAN rasm esa ko‘zgusiz',
     /x\.drawImage\(video, 0, 0, c\.width, c\.height\)/.test(js));
+}
+
+// ═══════════ MASOFA VA MARKAZ (SKANER) ═══════════
+console.log('\n── KADR: MASOFA VA MARKAZ ──');
+{
+  const fs = await import('node:fs');
+  const vm = await import('node:vm');
+  const ctx = vm.createContext({});
+  vm.runInContext(fs.readFileSync('public/app/sifat.js', 'utf8'), ctx);
+  const S = ctx.Sifat;
+
+  const EN = 200, BOY = 260;
+  /** Teri rangidagi oval — o'lchami va joyi beriladi. */
+  const kadr = ({ yuz = 1, sx = 0, sy = 0 } = {}) => {
+    const d = new Uint8ClampedArray(EN * BOY * 4);
+    const rx = 62 * yuz, ry = 82 * yuz;
+    const cx = EN / 2 + sx * EN, cy = BOY / 2 + sy * BOY;
+    for (let y = 0; y < BOY; y++) for (let x = 0; x < EN; x++) {
+      const p = (y * EN + x) * 4;
+      const ichida = ((x - cx) ** 2) / (rx * rx) + ((y - cy) ** 2) / (ry * ry) <= 1;
+      const t = (x + y) % 4 < 2 ? 18 : -18;
+      d[p] = ichida ? 216 + t : 150; d[p + 1] = ichida ? 165 + t : 148;
+      d[p + 2] = ichida ? 131 + t : 146; d[p + 3] = 255;
+    }
+    return { data: d, width: EN, height: BOY };
+  };
+
+  const normal = S.kadrniOlch(kadr(), null);
+  test('normal masofa «normal» deb belgilanadi', normal.masofa === 'normal',
+    `${normal.masofa}, ulush ${normal.yuz_ulush.toFixed(2)}`);
+
+  const yaqin = S.kadrniOlch(kadr({ yuz: 1.7 }), null);
+  test('juda YAQIN kelsa aytiladi', /uzoqlashing/i.test(yaqin.maslahat), yaqin.maslahat);
+  test('masofa «yaqin» deb belgilanadi', yaqin.masofa === 'yaqin',
+    `ulush ${yaqin.yuz_ulush.toFixed(2)}`);
+  const uzoq = S.kadrniOlch(kadr({ yuz: 0.42 }), null);
+  test('juda UZOQ bo‘lsa ham', /Yaqinroq/.test(uzoq.maslahat), uzoq.maslahat);
+  test('masofa «uzoq» deb belgilanadi', uzoq.masofa === 'uzoq');
+  test('ikkala holatda ham TAYYOR emas', !yaqin.tayyor && !uzoq.tayyor);
+
+  const chetda = S.kadrniOlch(kadr({ sx: 0.3 }), null);
+  test('yuz chetda bo‘lsa markazga chaqiriladi', /markazga/i.test(chetda.maslahat),
+    `${chetda.maslahat} (chetlanish ${chetda.chetlanish.toFixed(2)})`);
+  test('markazdagi yuzda bunday ogohlantirish yo‘q',
+    !/markazga/i.test(normal.maslahat), normal.maslahat);
+}
+
+// ═══════════ YUZ TO'RI (ANATOMIK SIMTOR) ═══════════
+console.log('\n── YUZ TO‘RI ──');
+{
+  const fs = await import('node:fs');
+  const js = fs.readFileSync('public/app/app.js', 'utf8');
+
+  // yuzKengligi — yuz kesimining eni. Iyakka borib TORAYADI.
+  const kod = js.slice(js.indexOf('function yuzKengligi'), js.indexOf('function kamChiz'));
+  const yuzKengligi = new Function(`${kod}; return yuzKengligi;`)();
+  test('peshona kengligi o‘rtachadan tor', yuzKengligi(-1) < yuzKengligi(-0.2),
+    `${yuzKengligi(-1).toFixed(2)} ↔ ${yuzKengligi(-0.2).toFixed(2)}`);
+  test('yonoq eng keng joy', yuzKengligi(-0.1) > 0.9, yuzKengligi(-0.1).toFixed(2));
+  test('iyakka borib torayadi', yuzKengligi(1) < 0.3, yuzKengligi(1).toFixed(2));
+  test('eni hech qachon manfiy emas',
+    [-1, -0.5, 0, 0.5, 1].every((v) => yuzKengligi(v) > 0));
+
+  // To'rtburchak katak emas, YUZ shakli chiziladi
+  test('meridian va parallellar bor',
+    /PARALLELLAR/.test(js) && /MERIDIANLAR/.test(js));
+  test('ko‘z, lab va burun konturlari chiziladi',
+    /chap ko'z/.test(js) && /\/\/ lab/.test(js) && /Burun: ikki yon/.test(js));
+  test('qosh chiziqlari ham', /Qosh chiziqlari/.test(js));
+  test('chiziq rangi TINIQLIKdan olinadi',
+    /const yaxshi = Math\.min\(1, \(\(a\.t \+ b\.t\) \/ 2\) \/ chegara\)/.test(js));
+  test('tugun yorug‘lik bo‘yicha siljiydi', /yorqin \* chuqurlik/.test(js));
+  test('eski to‘rtburchak to‘r olib tashlandi', !/x\.strokeRect\(K\(x0/.test(js));
+}
+
+// ═══════════ NATIJA EKRANI ═══════════
+// Shikoyat: «natijalar juda xunuk shaklda yozilyapti, bu haqiqiy
+// diagnostikaga o'xshamaydi», «pastdagi telegram tugmalari ko'plik
+// qilyapti», «odam bu MENING rasmim ekaniga ishonsin».
+console.log('\n── NATIJA EKRANI ──');
+{
+  const fs = await import('node:fs');
+  const js  = fs.readFileSync('public/app/app.js', 'utf8');
+  const css = fs.readFileSync('public/app/style.css', 'utf8');
+
+  // Zona matnidan yuzdagi joyni topish
+  const kod = js.slice(js.indexOf('const ZONA_JOY'), js.indexOf("/** Ko'rsatkich rangi"));
+  const zonaJoyi = new Function(`${kod}; return zonaJoyi;`)();
+  const j1 = zonaJoyi('peshona va burun qanotlari', 0);
+  test('peshona YUQORIDA belgilanadi', j1.y < 30, JSON.stringify(j1));
+  const j2 = zonaJoyi('iyak va jag‘ chizig‘i', 0);
+  test('iyak PASTDA belgilanadi', j2.y > 70, JSON.stringify(j2));
+  const chap = zonaJoyi('chap yonoqning yuqori qismi', 0);
+  const ong  = zonaJoyi('o‘ng yonoq', 0);
+  test('«chap» va «o‘ng» yonoq turli tomonda', chap.x < 50 && ong.x > 50,
+    `${chap.x} ↔ ${ong.x}`);
+  test('tomon aytilmasa navbat bilan taqsimlanadi',
+    zonaJoyi('yonoq', 0).x !== zonaJoyi('yonoq', 1).x);
+  const nomalum = zonaJoyi('butun yuz bo‘ylab', 0);
+  test('aniqlanmagan zona ham joy oladi',
+    nomalum.x === 50 && nomalum.y > 0, JSON.stringify(nomalum));
+
+  // «Bu mening rasmim» — ishonch
+  test('rasm ustida belgilar qo‘yiladi',
+    /n-nuqta/.test(js) && /n-yorliq/.test(js) && /n-chiziqlar/.test(js));
+  test('«Rasmda nimani ko‘rdim» ko‘rsatiladi', /Rasmda nimani ko‘rdim/.test(js));
+  test('tavsif AI dan keladi', /t\.raw\?\.tavsif/.test(js));
+
+  // Diagnostika ko'rinishi
+  test('ball HALQA bilan ko‘rsatiladi', /function ballHalqa/.test(js)
+    && /n-halqa-yoy/.test(css));
+  test('ko‘rsatkichlar chiziq bilan', /n-satr-nom/.test(js) && /\.n-chiziq i\{/.test(css));
+  test('rang MA’NO anglatadi — bitta shkala',
+    /const ballRang = \(b\) => \(b >= 70 \? 'yaxshi' : b >= 45 \? 'orta' : 'yomon'\)/.test(js));
+  test('100 eng yaxshi ekani aytiladi', /100 — eng yaxshi/.test(js));
+  test('to‘rt bo‘lim bor',
+    /\['tavsiya',/.test(js) && /\['holat',/.test(js)
+      && /\['dieta',/.test(js) && /\['parvarish',/.test(js));
+  test('kundalik tartib ertalab/kechqurunga bo‘linadi',
+    /const ERTALAB/.test(js) && /const KECHASI/.test(js));
+  test('dieta bo‘limi parhezdan chiziladi', /function natijaDieta/.test(js));
+
+  // Ortiqcha tugmalar OLIB TASHLANDI
+  const natija = js.slice(js.indexOf('function natijaniChiz'), js.indexOf('function arzonAlmashtir'));
+  test('natijada «Telegramda yozish» tugmasi yo‘q', !/Telegramda yozish/.test(natija));
+  test('natijada telefon raqami tugmasi ham yo‘q',
+    !/href="tel:/.test(natija) && !/menejer\?\.telefon/.test(natija));
+  test('faqat ikkita oxirgi tugma qoldi',
+    /t-ulash2/.test(natija) && /t-qayta/.test(natija));
+
+  // Har qanday ekranga moslashish
+  test('sarlavha ekranga qarab kichrayadi', /clamp\(21px,6vw,26px\)/.test(css));
+  test('mahsulotlar to‘ri o‘zi joylashadi',
+    /repeat\(auto-fill,minmax\(132px,1fr\)\)/.test(css));
+  test('keng ekranda ikki ustun', /@media \(min-width:680px\)\{\.n-tepa/.test(css));
+
+  // Kartochka RASMIDA ham tavsif bor
+  const kart = fs.readFileSync('src/rasm/natija-kartochka.js', 'utf8');
+  test('yuklab olinadigan rasmda ham tavsif bor', /Rasmda nimani ko‘rdim|t\.tavsif/.test(kart));
+
+  // AI tomoni
+  const ai = fs.readFileSync('src/ai/faceAnalysis.js', 'utf8');
+  test('AI sxemasida tavsif maydoni bor', /tavsif:\s*\{ type: 'string' \}/.test(ai));
+  test('ko‘rinadigan tafsilot so‘raladi',
+    /ko[‘'`]zoynak, zirak, quloqchin/i.test(ai));
+  test('odamni TANISH taqiqlangan',
+    /odamni TANIMA va ismini aytma/.test(ai) && /millat\/irq\/din haqida gapirma/.test(ai));
 }
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);

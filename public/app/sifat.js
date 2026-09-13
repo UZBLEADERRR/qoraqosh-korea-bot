@@ -201,6 +201,8 @@
     oq_ulush: 0.12,
     harakat: 14,
     yuz_ulush: 0.14,        // yuz kadrning kamida shuncha qismi
+    yuz_ulush_maks: 0.72,   // bundan katta bo'lsa yuz kadrga sig'may qoladi
+    markaz: 0.20,           // markazdan chetlanish (kadr o'lchamiga nisbatan)
   };
 
   /**
@@ -212,6 +214,16 @@
   function baho(o) {
     const y = o.yoruglik, quti = o.quti;
     const yuzUlush = quti ? (quti.en * quti.boy) / (o.en * o.boy) : 0;
+    // Markazdan chetlanish: yuz kadrning o'rtasida turishi kerak,
+    // aks holda yonoqning yarmi kadrdan chiqib ketadi
+    const chetlanish = quti
+      ? Math.max(Math.abs((quti.x + quti.en / 2) / o.en - 0.5),
+                 Math.abs((quti.y + quti.boy / 2) / o.boy - 0.5)) : 0;
+    // Masofa — kadrdagi ulushga qarab. Kamerada masofa o'lchagich yo'q,
+    // lekin yuz kadrning qanchasini egallayotgani aynan shu haqda gapiradi.
+    const masofa = !quti ? 'yoq'
+      : yuzUlush < CHEGARA.yuz_ulush ? 'uzoq'
+      : yuzUlush > CHEGARA.yuz_ulush_maks ? 'yaqin' : 'normal';
 
     var maslahat = '', holat = 'yaxshi';
     if (!quti) {
@@ -223,8 +235,14 @@
     } else if (y.oq_ulush > CHEGARA.oq_ulush || y.ora > CHEGARA.yoruglik_yuqori) {
       maslahat = 'Yorug‘lik ko‘p — chiroqni yonlab oling';
       holat = 'yomon';
-    } else if (yuzUlush < CHEGARA.yuz_ulush) {
+    } else if (masofa === 'uzoq') {
       maslahat = 'Yaqinroq keling';
+      holat = 'yomon';
+    } else if (masofa === 'yaqin') {
+      maslahat = 'Biroz uzoqlashing — yuz kadrga sig‘maydi';
+      holat = 'yomon';
+    } else if (chetlanish > CHEGARA.markaz) {
+      maslahat = 'Yuzingizni markazga oling';
       holat = 'yomon';
     } else if (o.harakat > CHEGARA.harakat) {
       maslahat = 'Qimirlatmang — telefonni mahkam ushlang';
@@ -242,12 +260,17 @@
     const ballar = [
       Math.min(100, (o.tiniqlik / CHEGARA.tiniqlik) * 100),
       Math.min(100, (y.ora / CHEGARA.yoruglik_past) * 100),
-      Math.min(100, (yuzUlush / CHEGARA.yuz_ulush) * 100),
+      // Masofa: uzoq bo'lsa ulushga qarab, yaqin bo'lsa ortiqcha qismiga
+      masofa === 'yaqin'
+        ? Math.max(0, 100 - ((yuzUlush - CHEGARA.yuz_ulush_maks) / 0.2) * 100)
+        : Math.min(100, (yuzUlush / CHEGARA.yuz_ulush) * 100),
       Math.max(0, 100 - (o.harakat / CHEGARA.harakat) * 100 + 0),
+      Math.max(0, 100 - (chetlanish / CHEGARA.markaz) * 100 + 0),
     ];
     const ball = Math.max(0, Math.min(100, Math.round(Math.min.apply(null, ballar))));
 
-    return { ball, holat, maslahat, yuz_ulush: yuzUlush, tayyor: holat === 'yaxshi' };
+    return { ball, holat, maslahat, yuz_ulush: yuzUlush, masofa, chetlanish,
+             tayyor: holat === 'yaxshi' };
   }
 
   /**

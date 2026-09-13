@@ -42,10 +42,13 @@ const SXEMA = {
         teri_rangi:    { type: 'string' },
         teri_turi:     { type: 'string', enum: ['quruq', 'yogli', 'aralash', 'normal', 'sezgir'] },
         ball:          { type: 'integer' },
+        // «Men rasmda nimani ko'rdim» — odam o'z suratini tanishi uchun
+        tavsif:        { type: 'string' },
         xulosa:        { type: 'string' },
       },
-      required: ['taxminiy_yosh', 'jins', 'teri_rangi', 'teri_turi', 'ball', 'xulosa'],
-      propertyOrdering: ['taxminiy_yosh', 'jins', 'teri_rangi', 'teri_turi', 'ball', 'xulosa'],
+      required: ['taxminiy_yosh', 'jins', 'teri_rangi', 'teri_turi', 'ball', 'tavsif', 'xulosa'],
+      propertyOrdering: ['taxminiy_yosh', 'jins', 'teri_rangi', 'teri_turi', 'ball',
+                         'tavsif', 'xulosa'],
     },
     muammolar: {
       type: 'array',
@@ -182,7 +185,19 @@ QADAM 2 — faqat sifat yaroqli bo'lsa tahlil qil:
   umumiy.teri_rangi    — o'zbekcha tavsif, masalan "och bug'doyrang, iliq tonli"
   umumiy.teri_turi     — bitta qiymat
   umumiy.ball          — terining umumiy holati 0-100 (100 = ideal)
-  umumiy.xulosa        — 1-2 jumlada umumiy holat
+  umumiy.tavsif        — «MEN RASMDA NIMA KO'RYAPMAN», 1-2 qisqa jumla.
+                         Odam o'z suratini tanishi uchun: bu tahlil
+                         AYNAN uning rasmidan chiqqaniga ishonch hosil
+                         qilsin. KO'ZGA TASHLANADIGAN belgilarni ayt:
+                         ko'zoynak, zirak, quloqchin, soqol, soch
+                         turmagi, bosh kiyim, yuz burilishi, yoritish.
+                         Masalan: «Ko'zoynak taqqan, qulog'ida simsiz
+                         quloqchin bor yigit. Yuz yarim burilgan, tabiiy
+                         yorug'likda olingan surat.»
+                         TAQIQ: odamni TANIMA va ismini aytma, mashhur
+                         odamga o'xshatma, millat/irq/din haqida gapirma,
+                         tashqi ko'rinishiga baho berma (chiroyli,
+                         xunuk). Faqat KO'RINAYOTGAN, neytral tafsilot.
 
 QADAM 3 — muammolar. ENG MUHIM QOIDA:
   FAQAT rasmda O'Z KO'ZING BILAN KO'RIB TURGAN narsani yoz.
@@ -438,6 +453,7 @@ function tozala(javob, products) {
     teri_rangi:    String(u.teri_rangi || "aniqlanmadi").slice(0, 60),
     teri_turi:     String(u.teri_turi || 'normal').slice(0, 20),
     ball:          Math.min(100, Math.max(0, Number(u.ball) || 60)),
+    tavsif:        kasallikniOlib(String(u.tavsif || '')).slice(0, 240),
     xulosa:        String(u.xulosa || '').slice(0, 400),
     // Tavsiya soni TERI HOLATIGA qarab: 10 tagacha to'liq to'plam
     muammolar, prognoz, tavsiya: tavsiya.slice(0, 10), parhez,
@@ -464,6 +480,7 @@ function oflaynTahlil(products) {
   }
   return {
     taxminiy_yosh: '—', jins: 'nomalum', teri_rangi: '—', teri_turi: 'normal', ball: 0,
+    tavsif: '',
     xulosa: "AI tahlili hozir mavjud emas. Quyida barcha teri turlariga mos bazaviy parvarish ko'rsatilgan.",
     muammolar: [], prognoz: [], tavsiya,
     parhez: { foydali: [], cheklang: [], izoh: '' },

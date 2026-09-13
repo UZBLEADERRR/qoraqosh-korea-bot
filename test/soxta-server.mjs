@@ -36,7 +36,9 @@ const TAHLIL = {
   sifat: { yaroqli: true, sabab: 'yaroqli', ishonch: 92, izoh: '' },
   umumiy: { taxminiy_yosh: '22–26', jins: 'erkak',
             teri_rangi: "och bug'doyrang, iliq ton",
-            teri_turi: 'aralash', ball: 64, xulosa: 'Teri umuman sog‘lom.' },
+            teri_turi: 'aralash', ball: 64,
+            tavsif: 'Ko‘zoynak taqqan yigit, tabiiy yorug‘likda olingan surat.',
+            xulosa: 'Teri umuman sog‘lom.' },
   muammolar: [
     { kalit:'teshik', nom:'Kengaygan teshiklar', foiz:71, zona:'Burun qanotlari va peshona',
       izoh:'Teshiklar ko‘rinadi', sabab:'Yog‘ bezlari faol', yechim:'BHA bilan tozalang',

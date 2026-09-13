@@ -207,6 +207,17 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     oy += qat.length * 30 + 8;
   }
 
+  // «Rasmda nimani ko'rdim» — odam suratni O'ZINIKI ekanini tanisin.
+  // Kartochka boshqa odamga ham yuboriladi, shuning uchun bu satr
+  // faqat KO'RINAYOTGAN neytral tafsilotdan iborat (AI qoidasi).
+  const tavsif = String(t.tavsif || '').trim();
+  if (tavsif) {
+    const qat = qatorlarga(tavsif, ONG_ENI, 21).slice(0, 2);
+    qat.forEach((s, i) => q.push(matn(s, oy + 20 + i * 26,
+      { x: ONG, olcham: 21, rang: oq, shaffof: 0.7 })));
+    oy += qat.length * 26 + 6;
+  }
+
   // Katta ball va chiziq
   const ballY = Math.max(oy + 24, RASM_Y + RASM_BOYI - 96);
   q.push(matn(String(ball), ballY + 46, { x: ONG, olcham: 62, ogirlik: 700, rang: oq }));
