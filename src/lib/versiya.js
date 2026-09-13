@@ -13,7 +13,8 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 
 /** Versiyaga ta'sir qiladigan fayllar (papkaga nisbatan). */
-const KUZATILADI = ['index.html', 'app.js', 'style.css', 'ikon.js', 'hududlar.js'];
+const KUZATILADI = ['index.html', 'app.js', 'style.css', 'ikon.js', 'hududlar.js',
+  'sifat.js', 'yuz.js'];
 
 const keshlangan = new Map();
 

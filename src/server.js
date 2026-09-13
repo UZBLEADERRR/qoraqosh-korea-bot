@@ -39,7 +39,8 @@ const PUBLIC = path.join(__dirname, '..', 'public');
 // ularni uzoq keshlash xavfsiz va yangilanish DARROV yetib boradi.
 const SAHIFA_FAYL = {
   app:   { yol: 'app/index.html',   papka: 'app',
-           fayllar: ['index.html', 'app.js', 'style.css', 'ikon.js', 'hududlar.js'] },
+           fayllar: ['index.html', 'app.js', 'style.css', 'ikon.js', 'hududlar.js',
+                     'sifat.js', 'yuz.js'] },
   admin: { yol: 'admin/index.html', papka: 'admin',
            fayllar: ['index.html', 'admin.js', 'style.css'] },
 };

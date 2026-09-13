@@ -844,7 +844,7 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-chiziqlar line{stroke:rgba(255,255,255,.8);stroke-width:1;stroke-dasharray:2 3}
 .n-nuqta{position:absolute;width:10px;height:10px;border-radius:50%;
   transform:translate(-50%,-50%);box-shadow:0 0 0 3px rgba(255,255,255,.6)}
-.n-nuqta.d1{background:#2ebe78}.n-nuqta.d2{background:#e0a33c}.n-nuqta.d3{background:#e05252}
+.n-nuqta.d1{background:var(--yashil)}.n-nuqta.d2{background:var(--sariq)}.n-nuqta.d3{background:var(--qizil)}
 .n-yorliq{position:absolute;transform:translateY(-50%);max-width:46%;
   background:rgba(255,255,255,.94);color:#17161a;font-size:11.5px;font-weight:600;
   padding:6px 10px;border-radius:99px;line-height:1.2;
@@ -852,17 +852,36 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-yorliq.chap{left:9px}.n-yorliq.ong{right:9px;text-align:right}
 
 /* Ball halqasi */
+/* Suratdagi ball paneli: pastdan yuqoriga qorayadigan parda,
+   uning ustida halqa va bitta so'z. Rasm o'z holicha qoladi —
+   parda faqat pastki uchdan birida. */
+.n-surat-baho{position:absolute;left:0;right:0;bottom:0;display:flex;
+  align-items:center;gap:12px;padding:38px 14px 13px;
+  background:linear-gradient(to top,rgba(8,8,10,.82) 12%,rgba(8,8,10,.45) 55%,transparent);
+  color:#fff;pointer-events:none}
+.n-surat-baho .n-halqa{width:66px;flex:0 0 auto}
+.n-surat-baho .n-halqa-fon{stroke:rgba(255,255,255,.24)}
+.n-surat-baho .n-halqa-son{fill:#fff;font-size:40px}
+.n-surat-baho .n-halqa-mayda{fill:rgba(255,255,255,.65)}
+.n-surat-baho>div{min-width:0}
+.n-surat-baho span{display:block;font-size:11.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:rgba(255,255,255,.7)}
+.n-surat-baho b{display:block;font-size:22px;line-height:1.15;margin-top:3px;
+  letter-spacing:-.02em}
+.n-surat-baho b.yaxshi,.n-surat-baho b.orta,.n-surat-baho b.yomon{color:#fff}
+.n-xulosa{margin:0;font-size:14px;line-height:1.6;color:var(--kul)}
+
 .n-ball-ich{display:flex;gap:15px;align-items:center}
 .n-halqa{flex:0 0 auto;width:clamp(104px,30vw,128px);height:auto}
 .n-halqa-fon{fill:none;stroke:var(--chiziq);stroke-width:9}
 .n-halqa-yoy{fill:none;stroke-width:9;stroke-linecap:round}
-.n-halqa-yoy.yaxshi{stroke:#2ebe78}.n-halqa-yoy.orta{stroke:#e0a33c}
-.n-halqa-yoy.yomon{stroke:#e05252}
+.n-halqa-yoy.yaxshi{stroke:var(--yashil)}.n-halqa-yoy.orta{stroke:var(--sariq)}
+.n-halqa-yoy.yomon{stroke:var(--qizil)}
 .n-halqa-son{font-size:36px;font-weight:800;text-anchor:middle;fill:var(--matn)}
 .n-halqa-mayda{font-size:12px;text-anchor:middle;fill:var(--och)}
 .n-ball-yor{display:block;font-size:12.5px;color:var(--kul)}
 .n-ball-ich b{display:block;font-size:20px;margin:2px 0 6px}
-.n-ball-ich b.yaxshi{color:#2ebe78}.n-ball-ich b.orta{color:#b07d16}
+.n-ball-ich b.yaxshi{color:var(--yashil)}.n-ball-ich b.orta{color:var(--sariq)}
 .n-ball-ich b.yomon{color:var(--qizil)}
 .n-ball-ich p{margin:0;font-size:13px;line-height:1.55;color:var(--kul)}
 
@@ -875,22 +894,53 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-tavsif b{color:var(--matn)}
 
 /* Ko'rsatkich satrlari */
+/* Ko'rsatkich kataklari. Shikoyat: «scroll qilib pastga tushguncha
+   esdan chiqyapti» — ingichka satrlar ketma-ket kelganda ko'z
+   hech nimaga ilashmasdi. Katakda rang, son va nom bir joyda,
+   telefonda ikki ustun, kengroq ekranda uch ustun. */
+.n-kalitlar{display:grid;gap:9px;grid-template-columns:repeat(2,1fr)}
+@media (min-width:520px){.n-kalitlar{grid-template-columns:repeat(3,1fr)}}
+.n-kalit{position:relative;display:grid;grid-template-columns:30px 1fr;
+  align-items:center;gap:9px;padding:12px;border-radius:14px;
+  background:var(--chiziq-och);border:1px solid transparent}
+.n-kalit>i{grid-row:1;grid-column:1;width:30px;height:30px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;line-height:0}
+/* Son — ikonning yonida, KATTA: katakda ko'z birinchi shunga tushadi */
+.n-kalit>b{grid-row:1;grid-column:2;font-size:20px;line-height:1;
+  font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+/* Nom butun kenglikni oladi — ilgari son bilan joy talashib,
+   «Pigment atsiya» bo'lib bo'linib ketardi */
+.n-kalit-nom{grid-row:2;grid-column:1/-1;font-size:12px;font-weight:600;
+  line-height:1.3;color:var(--kul);min-width:0;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.n-kalit .n-chiziq{grid-column:1/-1;grid-row:3;height:5px;margin-top:2px}
+.n-kalit.yaxshi{background:var(--yashil-och);border-color:color-mix(in srgb,var(--yashil) 22%,transparent)}
+.n-kalit.orta{background:var(--sariq-och);border-color:color-mix(in srgb,var(--sariq) 22%,transparent)}
+.n-kalit.yomon{background:var(--qizil-och);border-color:color-mix(in srgb,var(--qizil) 22%,transparent)}
+.n-kalit.yaxshi>i{background:var(--panel);color:var(--yashil)}
+.n-kalit.orta>i{background:var(--panel);color:var(--sariq)}
+.n-kalit.yomon>i{background:var(--panel);color:var(--qizil)}
+.n-kalit.yaxshi>b{color:var(--yashil)}
+.n-kalit.orta>b{color:var(--sariq)}
+.n-kalit.yomon>b{color:var(--qizil)}
+.n-kalit .n-chiziq{background:color-mix(in srgb,var(--matn) 10%,transparent)}
+
 .n-satr{display:grid;grid-template-columns:26px minmax(84px,32%) 1fr 38px;gap:9px;
   align-items:center;margin:0 0 11px;font-size:13px}
 .n-satr-ikon{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;
   justify-content:center;line-height:0}
-.n-satr-ikon.yaxshi{background:var(--yashil-och);color:#2ebe78}
-.n-satr-ikon.orta{background:var(--sariq-och);color:#b07d16}
+.n-satr-ikon.yaxshi{background:var(--yashil-och);color:var(--yashil)}
+.n-satr-ikon.orta{background:var(--sariq-och);color:var(--sariq)}
 .n-satr-ikon.yomon{background:var(--qizil-och);color:var(--qizil)}
 .n-satr-nom{color:var(--matn);line-height:1.25}
 .n-chiziq{height:8px;border-radius:4px;background:var(--chiziq-och);overflow:hidden;display:block}
 .n-chiziq i{display:block;height:100%;border-radius:4px;transition:width .4s ease}
-.n-chiziq i.yaxshi{background:#2ebe78}.n-chiziq i.orta{background:#e0a33c}
-.n-chiziq i.yomon{background:#e05252}
+.n-chiziq i.yaxshi{background:var(--yashil)}.n-chiziq i.orta{background:var(--sariq)}
+.n-chiziq i.yomon{background:var(--qizil)}
 .n-satr b{text-align:right;font-variant-numeric:tabular-nums;font-size:14px}
-.n-satr b.yaxshi{color:#2ebe78}.n-satr b.orta{color:#b07d16}.n-satr b.yomon{color:var(--qizil)}
+.n-satr b.yaxshi{color:var(--yashil)}.n-satr b.orta{color:var(--sariq)}.n-satr b.yomon{color:var(--qizil)}
 
-.n-toza{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:#2ebe78}
+.n-toza{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--yashil)}
 .n-toza b{font-size:15px}
 .n-toza span{flex:1 1 100%;font-size:13px;color:var(--kul)}
 
@@ -904,7 +954,17 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-tablar button.tanlangan{background:var(--urgu);border-color:var(--urgu);color:#fff}
 
 /* Mahsulotlar */
-.n-mahsulotlar{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(146px,1fr))}
+/* Mahsulotlar YON TARAFGA siriladi: to'rda ular ekranni to'ldirib,
+   pastdagi bo'limlar ko'rinmay qolardi. Endi bir qatorda turadi,
+   barmoq bilan suriladi va har karta joyiga «qulflanadi». */
+.n-mahsulotlar{display:flex;gap:10px;overflow-x:auto;padding:2px 16px 6px;
+  margin:0 -16px;scroll-snap-type:x mandatory;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch}
+.n-mahsulotlar::-webkit-scrollbar{display:none}
+.n-mahsulotlar>*{flex:0 0 clamp(142px,42vw,168px);scroll-snap-align:start}
+/* `.n-karta` ning ichki chekkasi 16px — lenta shu chekkadan
+   «chiqib» ketadi, shunda oxirgi karta ekran chetiga tegib turadi
+   va yana ketishi borligi ko'rinadi. */
 .n-mahsulot{position:relative;display:flex;flex-direction:column;gap:3px;text-align:left;
   padding:0 0 11px;border:1px solid var(--chiziq);border-radius:14px;
   background:var(--panel);overflow:hidden;cursor:pointer;color:var(--matn)}
@@ -926,7 +986,7 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
   margin:14px 0 0;padding:13px 0 0;border-top:1px solid var(--chiziq);font-size:14px}
 .n-jami b{font-size:17px}
 .n-tejash{display:flex;gap:7px;align-items:center;margin:9px 0 0;font-size:12.5px;
-  color:#2ebe78}
+  color:var(--yashil)}
 
 /* Teri holati — har belgi alohida karta, matn O'QILADIGAN o'lchamda */
 .n-belgi-karta{background:var(--panel);border:1px solid var(--chiziq);
@@ -948,7 +1008,7 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .nb-shkala .n-chiziq{flex:1}
 .nb-shkala b{font-size:14px;font-variant-numeric:tabular-nums}
 .nb-shkala b small{font-size:11px;color:var(--och);font-weight:500}
-.nb-shkala b.yaxshi{color:#2ebe78}.nb-shkala b.orta{color:#b07d16}
+.nb-shkala b.yaxshi{color:var(--yashil)}.nb-shkala b.orta{color:var(--sariq)}
 .nb-shkala b.yomon{color:var(--qizil)}
 .nb-satr{margin:12px 0 0;font-size:13.5px;line-height:1.6;color:var(--matn)}
 .nb-yorliq{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;
@@ -991,12 +1051,18 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-tartib li span{color:var(--kul)}
 
 /* Pastdagi chaqiriq */
+/* Pastki chaqiriq — BREND rangida. Ilgari u yashil edi va sahifadagi
+   qizil urg'u bilan urishib turardi: «ranglar uyg'unlashmagan». */
 .n-chaqiriq{display:flex;gap:12px;align-items:center;flex-wrap:wrap;
-  background:var(--yashil);color:#fff;border-radius:var(--r);padding:16px;margin:4px 0 12px}
+  background:var(--urgu);color:#fff;border-radius:var(--r);padding:16px;margin:4px 0 12px}
 .n-chaqiriq b{display:block;font-size:14.5px;line-height:1.35}
 .n-chaqiriq span{display:block;font-size:12.5px;opacity:.85;margin-top:3px}
+/* Tugma oq TO'LDIRILMAYDI: urg'u rangi admin panelidan o'zgaradi va
+   och rangda oq tugma ustidagi yozuv o'qilmay qolardi. Shaffof
+   tugma har qanday urg'u rangida bir xil ishonchli ko'rinadi. */
 .n-chaqiriq button{margin-left:auto;flex:0 0 auto;display:flex;align-items:center;gap:7px;
-  background:#fff;color:var(--yashil);border:0;border-radius:99px;padding:11px 18px;
+  background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.5);
+  border-radius:99px;padding:11px 18px;
   font-size:13.5px;font-weight:700;cursor:pointer}
 .n-chaqiriq button:active{transform:scale(.97)}
 
@@ -1021,7 +1087,7 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
   backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .kam-nuqta{width:9px;height:9px;border-radius:50%;background:#ebaa3c;flex:0 0 auto;
   animation:kam-puls 1.4s infinite}
-.kam-holat[data-holat="yaxshi"] .kam-nuqta{background:#2ebe78;animation:none}
+.kam-holat[data-holat="yaxshi"] .kam-nuqta{background:var(--yashil);animation:none}
 .kam-holat[data-holat="yoq"] .kam-nuqta{background:#9a9aa3}
 @keyframes kam-puls{0%,100%{opacity:1}50%{opacity:.3}}
 
@@ -1035,7 +1101,7 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
   overflow:hidden;display:block}
 .kam-chiziq b{display:block;height:100%;border-radius:3px;width:3%;
   transition:width .18s linear,background .18s linear}
-.kam-chiziq b.yaxshi{background:#2ebe78}
+.kam-chiziq b.yaxshi{background:var(--yashil)}
 .kam-chiziq b.orta{background:#ebaa3c}
 .kam-chiziq b.yomon{background:#eb5050}
 

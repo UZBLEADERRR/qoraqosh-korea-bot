@@ -1302,7 +1302,12 @@ let kamOldingi = null;         // oldingi kadrning kulrangi
 let kamOxirgi = null;          // oxirgi o'lchov natijasi
 let kamYaxshiKetma = 0;        // ketma-ket nechta yaxshi kadr
 
-const KAM_OLCHOV_ENI = 240;    // o'lchov shu kenglikda bajariladi
+const KAM_OLCHOV_ENI = 240;    // tiniqlik/yorug'lik shu kenglikda o'lchanadi
+// Yuz aniqlash KENGROQ kadrda bajariladi. 240 px da yuz 60-70
+// pikselga tushib qoladi va kaskad ba'zan ko'zoynak atrofinigina
+// «yuz» deb topadi — quti siljib ketadi. 288 px da xato yo'qoladi,
+// hisob esa atigi ~20 ms ga uzayadi (uchtadan bir kadrda).
+const KAM_YUZ_ENI = 288;
 const KAM_MAKS = 1600;         // yuboriladigan rasmning eng katta tomoni
 const KAM_SIFAT = 0.92;
 
@@ -1318,6 +1323,8 @@ async function kameraniYoq() {
   kor($('#skaner-boshlash'), false);
   kor($('#skaner-kamera'), true);
   $('#kam-maslahat').textContent = 'Kamera yoqilmoqda…';
+  kaskadniYukla();
+  yuzOxirgi = null; yuzNuqta = null; yuzSanoq = 0; yuzYoq = 0;
 
   try {
     // Eng yuqori o'lcham so'raladi. `ideal` — «iloji bo'lsa shuncha»:
@@ -1396,6 +1403,98 @@ const kamKanvas = (() => {
   };
 })();
 
+/* ── YUZ ANIQLASH ──────────────────────────────────────────────
+ *
+ * Kaskad fayli ~270 KB. Uni bosh sahifada yuklash ahmoqlik bo'lardi:
+ * odamlarning ko'pchiligi skanerga umuman kirmaydi. Shuning uchun
+ * fayl FAQAT skaner ochilganda, bir marta yuklanadi.
+ */
+let kaskadHolat = 'yoq';            // yoq | yuklanmoqda | tayyor | xato
+
+function kaskadniYukla() {
+  if (kaskadHolat === 'tayyor' || kaskadHolat === 'yuklanmoqda') return;
+  kaskadHolat = 'yuklanmoqda';
+  const sc = document.createElement('script');
+  // Versiyani O'ZIMIZNING <script> manzilimizdan olamiz — server uni
+  // HTML ga qo'yib beradi ("app.js?v=a1b2c3")
+  const meniki = document.querySelector('script[src*="app.js"]');
+  const v = (meniki?.src.match(/[?&]v=([0-9a-f]+)/) || [])[1];
+  sc.src = v ? `yuz-kaskad.js?v=${v}` : 'yuz-kaskad.js';
+  sc.async = true;
+  sc.onload = () => { kaskadHolat = window.YUZ_KASKAD ? 'tayyor' : 'xato'; };
+  // Yuklanmasa ilova to'xtamaydi — teri rangi bo'yicha chamalashga
+  // qaytamiz, shunchaki aniqligi pastroq bo'ladi
+  sc.onerror = () => { kaskadHolat = 'xato'; };
+  document.head.appendChild(sc);
+}
+
+// Aniqlash har kadrda emas: 240px kadrda ~50 ms ketadi, bu esa
+// 8 kadr/soniya oqimning yarmini yeb qo'yardi. Yuz kadrdan kadrga
+// sakramaydi, shuning uchun uchtadan bir marta qidirish kifoya.
+let yuzOxirgi = null;               // oxirgi topilgan quti
+let yuzNuqta = null;                // oxirgi anatomik nuqtalar
+let yuzSanoq = 0;
+let yuzYoq = 0;                     // ketma-ket nechta kadrda topilmadi
+const YUZ_HAR = 3;
+
+/**
+ * Kadrdan yuzni topadi va qutini SILLIQLAYDI.
+ *
+ * Silliqlash shart: har o'lchovda quti bir necha piksel siljiydi va
+ * ekrandagi chiziqlar titrab turadi. O'rtacha olsak — tinch turadi.
+ */
+function yuzniAniqla(video, en, boy) {
+  if (kaskadHolat !== 'tayyor' || !window.Yuz) return null;
+  if (yuzSanoq++ % YUZ_HAR !== 0 && yuzOxirgi) return yuzOxirgi;
+
+  let q = null;
+  try {
+    // Aniqlash o'z kadrida — kengroq, shuning uchun aniqroq
+    const ye = KAM_YUZ_ENI;
+    const yb = Math.round(ye * video.videoHeight / video.videoWidth);
+    const yc = yuzKanvas(ye, yb);
+    const yx = yc.getContext('2d', { willReadFrequently: true });
+    yx.drawImage(video, 0, 0, ye, yb);
+    const gd = yx.getImageData(0, 0, ye, yb);
+    q = Yuz.yuzniTop(Sifat.kulrang(gd.data, ye, yb), ye, yb, window.YUZ_KASKAD);
+    // O'lchov kadrining koordinatasiga qaytaramiz
+    if (q) {
+      const k = en / ye;
+      q = { x: q.x * k, y: q.y * k, en: q.en * k, boy: q.boy * k };
+    }
+  } catch { return yuzOxirgi; }
+
+  if (!q) {
+    // Bir-ikki kadrda yo'qolib qolishi normal (ko'z qisildi, bosh
+    // burildi). Faqat uzoq yo'qolsa haqiqatan yo'q deymiz.
+    if (++yuzYoq >= 4) { yuzOxirgi = null; yuzNuqta = null; }
+    return yuzOxirgi;
+  }
+  yuzYoq = 0;
+
+  if (yuzOxirgi) {
+    const a = 0.45;                  // yangi o'lchovning ulushi
+    q = {
+      x: yuzOxirgi.x + (q.x - yuzOxirgi.x) * a,
+      y: yuzOxirgi.y + (q.y - yuzOxirgi.y) * a,
+      en: yuzOxirgi.en + (q.en - yuzOxirgi.en) * a,
+      boy: yuzOxirgi.boy + (q.boy - yuzOxirgi.boy) * a,
+    };
+  }
+  yuzOxirgi = q;
+  return q;
+}
+
+/** Aniqlash uchun alohida kanvas — har kadrda qayta yaratilmaydi. */
+const yuzKanvas = (() => {
+  let c = null;
+  return (en, boy) => {
+    if (!c) c = document.createElement('canvas');
+    if (c.width !== en || c.height !== boy) { c.width = en; c.height = boy; }
+    return c;
+  };
+})();
+
 function kamOlch() {
   const video = $('#kam-video');
   if (!video || !video.videoWidth || video.paused) return;
@@ -1407,8 +1506,18 @@ function kamOlch() {
   x.drawImage(video, 0, 0, en, boy);
 
   let n;
-  try { n = Sifat.kadrniOlch(x.getImageData(0, 0, en, boy), kamOldingi); }
-  catch { return; }                      // kadr hali tayyor emas
+  try {
+    const yuzQuti = yuzniAniqla(video, en, boy);
+    n = Sifat.kadrniOlch(x.getImageData(0, 0, en, boy), kamOldingi, yuzQuti);
+    // Ko'zlar — o'lchov kadrida qidiriladi (yuz qutisi ichida,
+    // shuning uchun arzon). Belgilar shundan joylashadi.
+    if (yuzQuti && n.kulrang) {
+      try {
+        yuzNuqta = Yuz.nuqtalar(yuzQuti,
+          Yuz.kozlarniTop(n.kulrang, en, boy, yuzQuti, window.KOZ_KASKAD));
+      } catch { yuzNuqta = Yuz.nuqtalar(yuzQuti, null); }
+    } else { yuzNuqta = null; }
+  } catch { return; }                    // kadr hali tayyor emas
   kamOldingi = n.kulrang;
   kamOxirgi = n;
 
@@ -1419,7 +1528,13 @@ function kamOlch() {
   chiziq('#kam-tiniq', n.tiniqlik, Sifat.CHEGARA.tiniqlik);
   chiziq('#kam-yorug', Math.min(100, Math.round(n.yoruglik.ora / 1.6)),
     Math.round(Sifat.CHEGARA.yoruglik_past / 1.6));
-  chiziq('#kam-yuz', Math.round(n.yuz_ulush * 100), Math.round(Sifat.CHEGARA.yuz_ulush * 100));
+  // «Yuz» chizig'i: haqiqiy yuz topilganda bo'y bo'yicha, teri
+  // chamasida esa maydon bo'yicha o'lchanadi
+  chiziq('#kam-yuz',
+    n.manba === 'yuz' ? Math.round((n.boy_ulush / Sifat.CHEGARA.yuz_boy_maks) * 100)
+                      : Math.round(n.yuz_ulush * 100),
+    n.manba === 'yuz' ? Math.round((Sifat.CHEGARA.yuz_boy / Sifat.CHEGARA.yuz_boy_maks) * 100)
+                      : Math.round(Sifat.CHEGARA.yuz_ulush * 100));
 
   // Tugma faqat kadr YAXSHI bo'lganda ochiladi, lekin ketma-ket
   // ikki kadr kerak: bitta tasodifiy yaxshi kadr aldab qo'ymasin
@@ -1434,37 +1549,31 @@ function chiziq(tanlov, qiymat, chegara) {
   el.className = qiymat >= chegara ? 'yaxshi' : qiymat >= chegara * 0.6 ? 'orta' : 'yomon';
 }
 
-/**
- * YUZ NUQTALARI — «yuz aniqlandi» ko'rinishi.
+/* ── SKANER KO'RINISHI ────────────────────────────────────────
  *
- * Ilgari bu yerda anatomik simtor chizilardi: chiroyli, lekin
- * kadrni to'sib qo'yardi va yuzga aniq o'tirmasa g'alati ko'rinardi.
- * Endi soddaroq va tinchroq: yuz sohasiga nuqtalar sepiladi, ular
- * to'lqin bo'lib yonib-o'chadi va skaner chizig'i o'tganda
- * yorishadi — yuz aniqlanayotgani shundan bilinadi.
+ * Uchinchi urinish. Birinchisi — anatomik simtor: chiroyli, lekin
+ * yuzga o'tirmasa g'alati ko'rinardi. Ikkinchisi — sepilgan
+ * nuqtalar: «haqiqiy animatsiya emas, o'yinchoq bo'lib qolgan».
  *
- * Nuqta RANGI — o'sha joydagi TINIQLIK: yashil tiniq, sariq
- * chegarada, qizil xira. Ya'ni bezak emas, o'lchov ko'rinishi.
- * Chuqurlik sensori yo'q — bu lidar emas.
+ * Endi ekranda FAQAT o'lchangan narsa ko'rsatiladi va har biri
+ * o'z joyida turadi, chunki joylar endi taxmin emas — yuz
+ * aniqlagichdan keladi:
+ *
+ *   kontur    — topilgan yuzning ovali, rangi umumiy sifatdan
+ *   qavslar   — «nishonga olindi»: yuz topilganda yopiladi
+ *   skaner    — pastga tushadigan yupqa chiziq va uning izi
+ *   belgilar  — ko'z, burun, lab, iyak: mayda nishon xochlari
+ *
+ * Bezak yo'q: chiziq qizil bo'lsa — rasm haqiqatan yaroqsiz.
  */
 
-// Nuqtalar yuz fazosida bir marta hisoblanadi: har kadrda qayta
-// yaratish telefonni bejizga qizdiradi.
-const YUZ_NUQTALARI = (() => {
-  const n = [];
-  const QATOR = 11;
-  for (let r = 0; r < QATOR; r++) {
-    const v = -1 + (2 * r) / (QATOR - 1);
-    // Yuz kesimining eni: peshona tor, yonoq keng, iyak torroq
-    const en = Math.sqrt(Math.max(0, 1 - v * v * 0.92)) * (v > 0.45 ? 1 - (v - 0.45) * 0.9 : 1);
-    const soni = Math.max(3, Math.round(en * 9));
-    for (let i = 0; i < soni; i++) {
-      const u = soni === 1 ? 0 : (-1 + (2 * i) / (soni - 1)) * en;
-      n.push({ u, v, faza: (r * 0.7 + i * 0.9) });
-    }
-  }
-  return n;
-})();
+/** Yuzning ovali: markaz va yarim o'qlar. */
+function yuzOvali(q) {
+  // Haar qutisi peshonadan iyakkacha; haqiqiy bosh biroz uzunroq
+  // va torroq — oval shunga moslanadi
+  return { mx: q.x + q.en / 2, my: q.y + q.boy * 0.52,
+           rx: q.en * 0.44, ry: q.boy * 0.58 };
+}
 
 function kamChiz(n, olchovEni, olchovBoyi) {
   const c = $('#kam-tor');
@@ -1476,17 +1585,19 @@ function kamChiz(n, olchovEni, olchovBoyi) {
   x.clearRect(0, 0, en, boy);
 
   // O'lchov kanvasi «object-fit: cover» bilan ko'rsatiladi; video esa
-  // ko'zguga o'girilgan — nuqtalar ham shunday bo'lishi kerak
+  // ko'zguga o'girilgan — chiziqlar ham shunday bo'lishi kerak
   const k = Math.max(en / olchovEni, boy / olchovBoyi);
   const siljishX = (en - olchovEni * k) / 2;
   const siljishY = (boy - olchovBoyi * k) / 2;
   const K = (px) => en - (siljishX + px * k);
   const Y = (py) => siljishY + py * k;
 
-  if (!n.quti || !n.tor) {
-    // Yuz topilmadi — faqat ko'rsatma ovali
-    x.strokeStyle = 'rgba(255,255,255,.45)'; x.lineWidth = 2;
-    x.setLineDash([10, 12]);
+  if (!n.quti) {
+    // Yuz topilmadi — faqat ko'rsatma ovali, sokin puls bilan
+    const p = 0.35 + 0.15 * Math.sin(Date.now() / 520);
+    x.strokeStyle = `rgba(255,255,255,${p.toFixed(3)})`;
+    x.lineWidth = 1.6;
+    x.setLineDash([9, 13]);
     x.beginPath();
     x.ellipse(en / 2, boy * 0.46, en * 0.29, boy * 0.33, 0, 0, Math.PI * 2);
     x.stroke(); x.setLineDash([]);
@@ -1494,53 +1605,86 @@ function kamChiz(n, olchovEni, olchovBoyi) {
   }
 
   const q = n.quti;
-  const { ustun, qator, ball } = n.tor;
-  const chegara = Sifat.CHEGARA.tiniqlik;
-  const mx = q.x + q.en / 2, my = q.y + q.boy / 2;
-  const rx = q.en / 2, ry = q.boy / 2;
+  const o = yuzOvali(q);
+  // Umumiy rang — ENG zaif ko'rsatkich bo'yicha, ya'ni maslahat
+  // bilan bir xil narsani aytadi
+  const rang = n.tayyor ? '86,230,170' : n.ball >= 55 ? '250,205,110' : '250,120,120';
 
-  const vaqt = Date.now() / 1000;
-  // Skaner chizig'i: 0 (tepa) dan 1 (past) gacha
-  const sweep = (Date.now() % 2600) / 2600;
+  // ── 1. Kontur
+  const ox = K(o.mx), oy = Y(o.my), orx = o.rx * k, ory = o.ry * k;
+  x.save();
+  x.beginPath();
+  x.ellipse(ox, oy, orx, ory, 0, 0, Math.PI * 2);
+  x.strokeStyle = `rgba(${rang},.5)`;
+  x.lineWidth = 1.4;
+  x.shadowColor = `rgba(${rang},.55)`;
+  x.shadowBlur = 12;
+  x.stroke();
+  x.restore();
 
-  for (const p of YUZ_NUQTALARI) {
-    const px = mx + p.u * rx, py = my + p.v * ry;
-    // Shu joydagi tiniqlik
-    const cc = Math.max(0, Math.min(ustun - 1, Math.floor((px - q.x) / (q.en / ustun))));
-    const rr = Math.max(0, Math.min(qator - 1, Math.floor((py - q.y) / (q.boy / qator))));
-    const yaxshi = Math.min(1, ball[rr * ustun + cc] / chegara);
-    const rang = yaxshi >= 1 ? '110,240,190' : yaxshi >= 0.6 ? '250,205,110' : '250,120,120';
+  // ── 2. Skaner chizig'i: konturning ichida yuradi
+  const sweep = (Date.now() % 2400) / 2400;
+  const sy = oy - ory + 2 * ory * sweep;
+  // Shu balandlikdagi oval kengligi — chiziq konturdan chiqmasin
+  const t = (sy - oy) / ory;
+  const yarimEn = orx * Math.sqrt(Math.max(0, 1 - t * t));
+  if (yarimEn > 2) {
+    const iz = x.createLinearGradient(0, sy - ory * 0.32, 0, sy);
+    iz.addColorStop(0, `rgba(${rang},0)`);
+    iz.addColorStop(1, `rgba(${rang},.16)`);
+    x.fillStyle = iz;
+    x.save();
+    x.beginPath(); x.ellipse(ox, oy, orx, ory, 0, 0, Math.PI * 2); x.clip();
+    x.fillRect(ox - orx, sy - ory * 0.32, orx * 2, ory * 0.32);
+    x.restore();
 
-    // To'lqin: nuqtalar navbat bilan yonadi
-    const tolqin = 0.55 + 0.45 * Math.sin(vaqt * 2.2 + p.faza);
-    // Skaner chizig'i yonidan o'tganda yorishadi
-    const masofa = Math.abs((p.v + 1) / 2 - sweep);
-    const yorish = Math.max(0, 1 - masofa * 7);
-
-    const ex = K(px), ey = Y(py);
-    const r = (2.1 + yorish * 2.2) * Math.min(2, k);
     x.beginPath();
-    x.arc(ex, ey, r, 0, Math.PI * 2);
-    x.fillStyle = `rgba(${rang},${(0.46 * tolqin + 0.5 * yorish).toFixed(3)})`;
-    x.fill();
-    if (yorish > 0.35) {
+    x.moveTo(ox - yarimEn, sy); x.lineTo(ox + yarimEn, sy);
+    x.strokeStyle = `rgba(${rang},.85)`;
+    x.lineWidth = 1.2;
+    x.stroke();
+  }
+
+  // ── 3. Anatomik belgilar — mayda nishon xochlari
+  const nq = yuzNuqta;
+  if (nq) {
+    const belgilar = [nq.koz_chap, nq.koz_ong, nq.burun, nq.lab, nq.iyak,
+                      nq.yonoq_chap, nq.yonoq_ong];
+    x.strokeStyle = `rgba(${rang},.9)`;
+    x.lineWidth = 1.1;
+    for (let i = 0; i < belgilar.length; i++) {
+      const p = belgilar[i];
+      if (!p) continue;
+      const px = K(p.x), py = Y(p.y);
+      // Skaner chizig'i yonidan o'tganda belgi kattalashadi
+      const yaqin = Math.max(0, 1 - Math.abs(py - sy) / (ory * 0.28));
+      const r = 3 + yaqin * 3.5;
       x.beginPath();
-      x.arc(ex, ey, r + 3.5, 0, Math.PI * 2);
-      x.strokeStyle = `rgba(${rang},${(0.35 * yorish).toFixed(3)})`;
-      x.lineWidth = 1;
+      x.moveTo(px - r, py); x.lineTo(px - r * 0.35, py);
+      x.moveTo(px + r * 0.35, py); x.lineTo(px + r, py);
+      x.moveTo(px, py - r); x.lineTo(px, py - r * 0.35);
+      x.moveTo(px, py + r * 0.35); x.lineTo(px, py + r);
       x.stroke();
+      if (yaqin > 0.05) {
+        x.beginPath();
+        x.arc(px, py, r + 2, 0, Math.PI * 2);
+        x.strokeStyle = `rgba(${rang},${(0.45 * yaqin).toFixed(3)})`;
+        x.stroke();
+        x.strokeStyle = `rgba(${rang},.9)`;
+      }
     }
   }
 
-  // Burchak qavslari — kadr «nishonga olingani» sezilsin
+  // ── 4. Burchak qavslari: yuz topilganda ichkariga «yopiladi»
   const bx = K(q.x + q.en), by = Y(q.y), bEn = q.en * k, bBoy = q.boy * k;
-  const uz = Math.min(bEn, bBoy) * 0.15;
-  x.strokeStyle = 'rgba(255,255,255,.85)'; x.lineWidth = 2.5; x.lineCap = 'round';
-  for (const [sx, sy, dx, dy] of [
+  const uz = Math.min(bEn, bBoy) * 0.17;
+  x.strokeStyle = `rgba(255,255,255,${n.tayyor ? '.92' : '.6'})`;
+  x.lineWidth = 2.2; x.lineCap = 'round';
+  for (const [sx2, sy2, dx, dy] of [
     [bx, by, 1, 1], [bx + bEn, by, -1, 1],
     [bx, by + bBoy, 1, -1], [bx + bEn, by + bBoy, -1, -1]]) {
     x.beginPath();
-    x.moveTo(sx + dx * uz, sy); x.lineTo(sx, sy); x.lineTo(sx, sy + dy * uz);
+    x.moveTo(sx2 + dx * uz, sy2); x.lineTo(sx2, sy2); x.lineTo(sx2, sy2 + dy * uz);
     x.stroke();
   }
 }
@@ -1606,8 +1750,16 @@ function kadrTiniqligi(c) {
   x.drawImage(c, 0, 0, en, boy);
   try {
     const d = x.getImageData(0, 0, en, boy);
-    const quti = Sifat.teriQutisi(d.data, en, boy);
-    return Sifat.tiniqlik(Sifat.kulrang(d.data, en, boy), en, boy, quti);
+    const g = Sifat.kulrang(d.data, en, boy);
+    // Tiniqlik aynan YUZ ustida o'lchanadi. Teri qutisi bo'yin va
+    // fonni ham qamrab olar, natijada yuzi xira rasm ham «tiniq»
+    // bo'lib chiqardi.
+    let quti = null;
+    if (kaskadHolat === 'tayyor' && window.Yuz) {
+      try { quti = Yuz.yuzniTop(g, en, boy, window.YUZ_KASKAD); } catch {}
+    }
+    if (!quti) quti = Sifat.teriQutisi(d.data, en, boy);
+    return Sifat.tiniqlik(g, en, boy, quti);
   } catch { return 0; }
 }
 
@@ -1840,31 +1992,55 @@ const KALIT_NOM = {
  * beradi; noto'g'ri joyga qo'yilgan belgidan ko'ra buni ochiq
  * aytgan yaxshi.
  */
+/* Yuzdagi zonalar — YUZ QUTISIGA nisbatan foizda.
+ *
+ * Ilgari bu sonlar butun RASMGA nisbatan edi va shu sababli
+ * telefonda «peshona» belgisi sochga, «iyak» esa ko'ylakka tushib
+ * qolardi: rasmda yuz hech qachon aniq o'rtada va aniq shu
+ * kattalikda turmaydi.
+ *
+ * Endi ular yuz qutisi ICHIDAGI joy: 0 — qutining tepasi
+ * (peshona), 100 — iyak. Quti `Yuz` aniqlagichidan keladi;
+ * topilmasa quyidagi TAXMIN ishlatiladi.
+ */
 const ZONA_JOY = [
-  [/peshona|peshana/i,            50, 17],
-  [/t-?zona/i,                    50, 33],
-  [/burun/i,                      50, 46],
-  [/chakka/i,                     18, 27],
-  [/qosh/i,                       36, 27],
-  [/ko[‘'`ʻ]?z\s*ost|qora\s*doira/i, 33, 40],
-  [/ko[‘'`ʻ]?z|qovoq/i,           33, 36],
-  [/yonoq|yuz\s*yon/i,            24, 50],
-  [/lab|og[‘'`ʻ]?iz|dahan/i,      50, 70],
-  [/iyak|jag[‘'`ʻ]?|engak/i,      50, 78],
-  [/bo[‘'`ʻ]?yin/i,               50, 92],
+  [/peshona|peshana/i,            50, 15],
+  [/t-?zona/i,                    50, 35],
+  [/burun/i,                      50, 51],
+  [/chakka/i,                      8, 27],
+  [/qosh/i,                       32, 27],
+  [/ko[‘'`ʻ]?z\s*ost|qora\s*doira/i, 28, 44],
+  [/ko[‘'`ʻ]?z|qovoq/i,           28, 39],
+  [/yonoq|yuz\s*yon/i,           16, 56],
+  [/lab|og[‘'`ʻ]?iz|dahan/i,      50, 81],
+  [/iyak|jag[‘'`ʻ]?|engak/i,      50, 91],
+  [/bo[‘'`ʻ]?yin/i,               50, 109],
 ];
 
-function zonaJoyi(matn, tartib) {
+// Yuz topilmaganda: o'rtacha selfida yuz taxminan shu joyda turadi
+// (rasm foizida). Aniqlagich ishlasa bu qiymat almashtiriladi.
+const YUZ_TAXMIN = { x: 12, y: 5, en: 76, boy: 80 };
+
+/**
+ * Zona matnidan yuzdagi joyni topadi.
+ * @param {{x:number,y:number,en:number,boy:number}} [yuz] quti RASM FOIZIDA
+ * @returns {{x:number,y:number}} rasm foizida
+ */
+function zonaJoyi(matn, tartib, yuz) {
   const s = String(matn || '');
   let joy = null;
   for (const [re, x, y] of ZONA_JOY) if (re.test(s)) { joy = { x, y }; break; }
-  if (!joy) joy = { x: 50, y: 40 + (tartib % 3) * 14 };     // aniqlanmadi — markaz
+  if (!joy) joy = { x: 50, y: 45 + (tartib % 3) * 17 };     // aniqlanmadi — markaz
   // «chap»/«o'ng» aytilgan bo'lsa shu tomonga, aytilmasa navbat bilan
   if (joy.x !== 50) {
     const ong = /o[‘'`ʻ]?ng/i.test(s) || (!/chap/i.test(s) && tartib % 2 === 1);
     joy = { x: ong ? 100 - joy.x : joy.x, y: joy.y };
   }
-  return joy;
+  const q = yuz || YUZ_TAXMIN;
+  return {
+    x: Math.round(Math.max(3, Math.min(97, q.x + (joy.x / 100) * q.en))),
+    y: Math.round(Math.max(3, Math.min(97, q.y + (joy.y / 100) * q.boy))),
+  };
 }
 
 /** Ko'rsatkich rangi: MA'NO anglatadi, bezak emas. */
@@ -1985,19 +2161,31 @@ function natijaniChiz() {
         ${belgili.map((m, i) => {
           const chap = m.joy.x < 50;
           return `<line x1="${m.joy.x}" y1="${m.joy.y}" x2="${chap ? 13 : 87}"
-            y2="${14 + i * 22}" vector-effect="non-scaling-stroke"/>`;
+            y2="${11 + i * 20}" vector-effect="non-scaling-stroke"/>`;
         }).join('')}
       </svg>
       ${belgili.map((m) => `
         <span class="n-nuqta d${Math.min(3, m.daraja || 1)}"
           style="left:${m.joy.x}%;top:${m.joy.y}%"></span>`).join('')}
       ${belgili.map((m, i) => `
-        <span class="n-yorliq ${m.joy.x < 50 ? 'chap' : 'ong'}" style="top:${14 + i * 22}%">
+        <span class="n-yorliq ${m.joy.x < 50 ? 'chap' : 'ong'}" style="top:${11 + i * 20}%">
           ${esc(KALIT_NOM[m.kalit] || m.nom)}</span>`).join('')}` : ''}
+      <!-- Ball SURATNING O'ZIDA. Ilgari u pastdagi alohida kartada
+           edi va ekranda ikkita bosh narsa bo'lib qolardi: rasm ham,
+           halqa ham. Endi bitta — «mening suratim, mening ballim». -->
+      <figcaption class="n-surat-baho">
+        ${ballHalqa(ball, 66)}
+        <div>
+          <span>Umumiy holat</span>
+          <b class="${ballRang(ball)}">${holatSoz}</b>
+        </div>
+      </figcaption>
     </figure>` : ''}
 
     <div class="n-ong">
       <div class="n-karta n-ball">
+        ${t.yuz_rasm_id ? `
+        <p class="n-xulosa">${esc(t.raw?.xulosa || 'Teri holati baholandi.')}</p>` : `
         <div class="n-ball-ich">
           ${ballHalqa(ball)}
           <div>
@@ -2005,7 +2193,7 @@ function natijaniChiz() {
             <b class="${ballRang(ball)}">${holatSoz}</b>
             <p>${esc(t.raw?.xulosa || 'Teri holati baholandi.')}</p>
           </div>
-        </div>
+        </div>`}
         <div class="n-teglar">
           ${t.age_estimate ? `<span>${esc(t.age_estimate)} yosh</span>` : ''}
           ${JINS[t.jins] ? `<span>${JINS[t.jins]}</span>` : ''}
@@ -2023,14 +2211,20 @@ function natijaniChiz() {
       <div class="n-karta">
         <div class="n-karta-bosh">Asosiy ko‘rsatkichlar
           <span class="n-izoh">100 — eng yaxshi</span></div>
-        ${muammolar.map((m) => `
-          <div class="n-satr">
-            <i class="n-satr-ikon ${ballRang(m.ballHolat)}">${ik(KALIT_IKON[m.kalit] || 'tomchi', 15)}</i>
-            <span class="n-satr-nom">${esc(KALIT_NOM[m.kalit] || m.nom)}</span>
-            <span class="n-chiziq"><i class="${ballRang(m.ballHolat)}"
-              style="width:${Math.max(4, m.ballHolat)}%"></i></span>
-            <b class="${ballRang(m.ballHolat)}">${m.ballHolat}</b>
-          </div>`).join('')}
+        <!-- Katak ko'rinishi: ilgari bu yerda ingichka satrlar
+             bor edi, telefonda ular bir-biriga qo'shilib ketardi va
+             pastga sirg'alganda esda qolmasdi. Katakda har
+             ko'rsatkich o'z joyida turadi va rangi darrov ko'rinadi. -->
+        <div class="n-kalitlar">
+          ${muammolar.map((m) => `
+            <div class="n-kalit ${ballRang(m.ballHolat)}">
+              <i>${ik(KALIT_IKON[m.kalit] || 'tomchi', 16)}</i>
+              <span class="n-kalit-nom">${esc(KALIT_NOM[m.kalit] || m.nom)}</span>
+              <b>${m.ballHolat}</b>
+              <span class="n-chiziq"><i class="${ballRang(m.ballHolat)}"
+                style="width:${Math.max(4, m.ballHolat)}%"></i></span>
+            </div>`).join('')}
+        </div>
       </div>` : `
       <div class="n-karta n-toza">
         ${ik('tasdiq', 22)} <b>Sezilarli muammo topilmadi</b>
@@ -2083,6 +2277,61 @@ function natijaniChiz() {
   const a = $('#t-arzon');
   if (a) a.onclick = () => { holat.arzon = !holat.arzon; titra(); natijaniChiz(); };
   $('#t-qayta').onclick = () => tabOch('skaner');
+
+  // Belgilar avval TAXMINIY joyga qo'yildi. Endi rasmda yuzni
+  // haqiqatan topib, ularni o'z joyiga suramiz.
+  belgilarniYuzgaQoy(el, belgili);
+}
+
+/* Muammo belgilarini RASMDAGI yuzga moslashtirish.
+ *
+ * Shikoyat aniq edi: «diagnoz qo'yganda sochimni belgilayapti».
+ * Sabab — belgilar rasmning o'rtasiga nisbatan qo'yilardi, yuzga
+ * emas. Rasm serverda saqlanadi va ilova uni qayta o'lchay oladi,
+ * shuning uchun tahlil ESKI bo'lsa ham belgilar to'g'rilanadi.
+ *
+ * Yuz topilmasa hech narsa o'zgarmaydi — taxminiy joy qoladi.
+ */
+function belgilarniYuzgaQoy(el, belgilar) {
+  const im = el.querySelector('.n-surat img');
+  if (!im || !belgilar.length) return;
+  kaskadniYukla();
+
+  const ishla = () => {
+    if (kaskadHolat === 'yuklanmoqda') { setTimeout(ishla, 150); return; }
+    if (kaskadHolat !== 'tayyor' || !window.Yuz || !im.naturalWidth) return;
+
+    let q = null;
+    try {
+      const EN = 300;
+      const BOY = Math.max(1, Math.round(im.naturalHeight * EN / im.naturalWidth));
+      const c = document.createElement('canvas');
+      c.width = EN; c.height = BOY;
+      const x = c.getContext('2d', { willReadFrequently: true });
+      x.drawImage(im, 0, 0, EN, BOY);
+      const d = x.getImageData(0, 0, EN, BOY);
+      const yuz = Yuz.yuzniTop(Sifat.kulrang(d.data, EN, BOY), EN, BOY, window.YUZ_KASKAD);
+      if (yuz) {
+        q = { x: (yuz.x / EN) * 100, y: (yuz.y / BOY) * 100,
+              en: (yuz.en / EN) * 100, boy: (yuz.boy / BOY) * 100 };
+      }
+    } catch { return; }                  // boshqa domendagi rasm — o'qib bo'lmaydi
+    if (!q) return;
+
+    const nuqtalar = el.querySelectorAll('.n-nuqta');
+    const chiziqlar = el.querySelectorAll('.n-chiziqlar line');
+    belgilar.forEach((m, i) => {
+      const joy = zonaJoyi(m.zona || m.nom, i, q);
+      m.joy = joy;
+      const nq = nuqtalar[i];
+      if (nq) { nq.style.left = `${joy.x}%`; nq.style.top = `${joy.y}%`; }
+      const ch = chiziqlar[i];
+      if (ch) { ch.setAttribute('x1', joy.x); ch.setAttribute('y1', joy.y); }
+    });
+  };
+
+  if (im.complete && im.naturalWidth) ishla();
+  else im.addEventListener('load', ishla, { once: true });
 }
 
 /** 1-bo'lim: mos mahsulotlar. */
@@ -3916,6 +4165,9 @@ function tabOch(nom) {
     // batareyani yeydi va odam uni ko'rmay qoladi
     if (nom !== 'skaner' && kamOqim) kameraniYop();
   });
+  // Kaskad ~270 KB — skaner bo'limi ochilishi bilan yuklab qo'yamiz,
+  // kamera bosilganda kutib turmasin
+  if (nom === 'skaner') kaskadniYukla();
   if (nom === 'profil') profilniChiz();   // buyurtmalar bo'lim ochilganda yuklanadi
   if (nom === 'maslahat') maslahatniChiz();
   if (nom === 'natija' && !holat.natijaKesh) natijaniChiz();

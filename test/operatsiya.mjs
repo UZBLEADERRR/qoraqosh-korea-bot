@@ -3260,11 +3260,10 @@ console.log('\n── JONLI KAMERA ──');
   test('yopilganda oqim to‘xtatiladi', /getTracks\(\)\.forEach\(\(t\) => t\.stop\(\)\)/.test(js));
   test('o‘lchov taymeri ham to‘xtaydi', /clearInterval\(kamHalqa\)/.test(js));
 
-  // To'r — o'lchov ko'rinishi
-  test('nuqtalar TINIQLIK bo‘yicha bo‘yaladi',
-    /ball\[rr \* ustun \+ cc\] \/ chegara/.test(js));
-  test('nuqtalar to‘lqin bo‘lib yonadi va skanerda yorishadi',
-    /const tolqin =/.test(js) && /const yorish =/.test(js));
+  // O'lchov ko'rinishi — tafsiloti «SKANER KO'RINISHI» bo'limida
+  test('yuz qutisi bo‘yicha kontur chiziladi',
+    /const o = yuzOvali\(q\)/.test(js));
+  test('skaner chizig‘i yuradi', /const sweep = \(Date\.now\(\) % 2400\) \/ 2400/.test(js));
   test('kamera uslublari bor', /\.kam-quti\{/.test(css) && /\.kam-olchov\{/.test(css));
   test('selfi ko‘zguda ko‘rinadi', /transform:scaleX\(-1\)/.test(css));
   test('SAQLANADIGAN rasm esa ko‘zgusiz',
@@ -3316,35 +3315,220 @@ console.log('\n── KADR: MASOFA VA MARKAZ ──');
     !/markazga/i.test(normal.maslahat), normal.maslahat);
 }
 
-// ═══════════ YUZ NUQTALARI (SKANER KO'RINISHI) ═══════════
-// Anatomik simtor chiroyli edi, lekin kadrni to'sib qo'yardi va
-// yuzga aniq o'tirmasa g'alati ko'rinardi. Endi soddaroq: nuqtalar
-// to'lqin bo'lib yonadi, skaner chizig'i o'tganda yorishadi.
-console.log('\n── YUZ NUQTALARI ──');
+// ═══════════ YUZ ANIQLASH (VIOLA-JONES) ═══════════
+// Shikoyat: «Biroz uzoqlashing deyapti bu qanaqasi», «diagnoz
+// qo'yganda sochimni belgilayapti», «nahotki aniq ishlaydigan
+// yuzni ko'zni aniq aniqlaydigan qilolmaysan».
+//
+// Sabab: yuz TERI RANGI bo'yicha chamalanardi — devor, qo'l va
+// bo'yin ham «teri» bo'lib chiqar, quti kadrning 78% ini egallar
+// va ilova «uzoqlashing» derdi. Endi Haar kaskadi: yuz rangi
+// emas, SHAKLI bo'yicha topiladi.
+console.log('\n── YUZ ANIQLASH ──');
+{
+  const fs = await import('node:fs');
+  const vm = await import('node:vm');
+  const ctx = vm.createContext({});
+  vm.runInContext(fs.readFileSync('public/app/yuz.js', 'utf8'), ctx);
+  const Y = ctx.Yuz;
+
+  // ── Integral rasm: har to'rtburchak yig'indisi 4 ta qo'shish ──
+  {
+    const w = 7, h = 5;
+    const g = new Float32Array(w * h);
+    for (let i = 0; i < g.length; i++) g[i] = (i * 13) % 31;
+    const it = Y.integral(g, w, h);
+    // Sekin, lekin aniq usul bilan solishtiramiz
+    const sekin = (x, y, en, boy) => {
+      let s = 0;
+      for (let j = y; j < y + boy; j++) for (let i = x; i < x + en; i++) s += g[j * w + i];
+      return s;
+    };
+    let xato = 0;
+    for (const [x, y, en, boy] of [[0,0,7,5],[1,1,3,2],[4,2,3,3],[0,3,2,2],[2,0,1,1]]) {
+      if (Math.abs(Y.jam(it.s, it.W, x, y, en, boy) - sekin(x, y, en, boy)) > 1e-6) xato++;
+    }
+    test('integral rasm to‘rtburchak yig‘indisini to‘g‘ri beradi', xato === 0);
+
+    // Kvadratlar integrali — dispersiya uchun
+    const kvadrat = Y.jam(it.k, it.W, 1, 1, 3, 2);
+    let kutilgan = 0;
+    for (let j = 1; j < 3; j++) for (let i = 1; i < 4; i++) kutilgan += g[j * w + i] ** 2;
+    test('kvadratlar integrali ham to‘g‘ri', Math.abs(kvadrat - kutilgan) < 1e-6);
+  }
+
+  // ── Qutilarni birlashtirish ──
+  {
+    const iou = Y.kesishuv({ x: 0, y: 0, en: 10, boy: 10 }, { x: 5, y: 0, en: 10, boy: 10 });
+    test('kesishuv (IoU) hisoblanadi', Math.abs(iou - 50 / 150) < 1e-6, iou.toFixed(3));
+    test('tegmaydigan qutilarda nol',
+      Y.kesishuv({ x: 0, y: 0, en: 4, boy: 4 }, { x: 9, y: 9, en: 4, boy: 4 }) === 0);
+
+    // Bitta yuz bir necha o'lchamda topiladi — bitta qutiga qo'shiladi
+    const bir = Y.birlashtir([
+      { x: 10, y: 10, en: 40, boy: 40 },
+      { x: 12, y: 11, en: 40, boy: 40 },
+      { x: 11, y: 12, en: 42, boy: 42 },
+      { x: 200, y: 200, en: 30, boy: 30 },
+    ]);
+    test('ustma-ust qutilar bittaga qo‘shiladi', bir.length === 2, `${bir.length} ta`);
+    test('guruh nechta topilgani saqlanadi',
+      bir[0].soni === 3 && bir[1].soni === 1, JSON.stringify(bir.map((b) => b.soni)));
+    test('o‘rtacha olinadi — quti kadrdan kadrga sakramaydi',
+      bir[0].x === 11 && bir[0].y === 11, JSON.stringify(bir[0]));
+
+    // Zanjir: A-B kesishadi, B-C kesishadi, A-C esa yo'q.
+    // Bir marta yurish bilan ular ikkita guruh bo‘lib qolardi.
+    const zanjir = Y.birlashtir([
+      { x: 0,  y: 0, en: 40, boy: 40 },
+      { x: 12, y: 0, en: 40, boy: 40 },
+      { x: 24, y: 0, en: 40, boy: 40 },
+    ]);
+    // 1-3 qutilar bir-biri bilan kesishmaydi (IoU 0.25), faqat
+    // o'rtadagisi orqali bog'lanadi — shuning uchun bir yurish yetmaydi
+    test('chetdagi ikkita quti o‘zaro kesishmaydi',
+      Y.kesishuv({ x: 0, y: 0, en: 40, boy: 40 },
+                 { x: 24, y: 0, en: 40, boy: 40 }) < Y.QOPLAMA);
+    test('zanjir ham bitta guruhga yig‘iladi', zanjir.length === 1, `${zanjir.length} ta`);
+  }
+
+  // ── Anatomik nuqtalar ──
+  {
+    const yuz = { x: 100, y: 60, en: 200, boy: 200 };
+    const n = Y.nuqtalar(yuz, null);
+    test('ko‘z topilmasa ham nuqtalar chiqadi', !!n);
+    test('peshona ko‘zdan YUQORIDA', n.peshona.y < n.koz_chap.y,
+      `${n.peshona.y.toFixed(0)} < ${n.koz_chap.y.toFixed(0)}`);
+    test('burun ko‘z bilan lab orasida',
+      n.burun.y > n.koz_chap.y && n.burun.y < n.lab.y);
+    test('iyak eng pastda', n.iyak.y > n.lab.y);
+    test('chap va o‘ng yonoq turli tomonda', n.yonoq_chap.x < n.yonoq_ong.x);
+    test('peshona SOCHGA tushmaydi — quti tepasidan pastda',
+      n.peshona.y > yuz.y, `peshona ${n.peshona.y.toFixed(0)}, quti tepasi ${yuz.y}`);
+
+    // Bosh qiyshaygan bo'lsa belgilar ham qiyshayadi
+    const qiya = Y.nuqtalar(yuz, {
+      chap: { x: 150, y: 120 }, ong: { x: 250, y: 160 },
+    });
+    test('bosh qiyshaysa belgilar ham buriladi', qiya.burchak > 0.2,
+      `burchak ${qiya.burchak.toFixed(2)} rad`);
+    test('iyak ko‘zlar chizig‘iga PERPENDIKULAR yotadi',
+      qiya.iyak.x < qiya.koz_ora.x && qiya.iyak.y > qiya.koz_ora.y,
+      JSON.stringify({ iyak: qiya.iyak, ora: qiya.koz_ora }));
+  }
+
+  // ── Ko'z: qorong'i joy bo'yicha zaxira usul ──
+  {
+    // Sun'iy yuz: och fon, ikkita to'q dog' (ko'z)
+    const w = 120, h = 150;
+    const g = new Float32Array(w * h).fill(190);
+    const dog = (cx, cy) => {
+      for (let y = cy - 6; y <= cy + 6; y++) for (let x = cx - 9; x <= cx + 9; x++) g[y * w + x] = 35;
+    };
+    dog(38, 58); dog(82, 58);
+    const k = Y.kozQorongi(g, w, h, { x: 10, y: 10, en: 100, boy: 130 });
+    test('ko‘zoynak/ko‘z qorong‘iligidan topiladi', !!k);
+    test('chap ko‘z chapda, o‘ng ko‘z o‘ngda',
+      k && Math.abs(k.chap.x - 38) < 6 && Math.abs(k.ong.x - 82) < 6,
+      k && `${k.chap.x.toFixed(0)} / ${k.ong.x.toFixed(0)}`);
+    test('balandligi ham to‘g‘ri', k && Math.abs(k.chap.y - 58) < 6, k && k.chap.y.toFixed(0));
+
+    // Bir tekis kadrda yolg'on ko'z «topilmasin»
+    const tekis = new Float32Array(w * h).fill(150);
+    const yoq = Y.kozQorongi(tekis, w, h, { x: 10, y: 10, en: 100, boy: 130 });
+    test('bir tekis kadrda ko‘z markazlari qo‘shilib ketmaydi',
+      !yoq || yoq.ong.x - yoq.chap.x > 100 * 0.18);
+  }
+
+  // ── Kaskad fayli va uning ulanishi ──
+  {
+    const kas = fs.readFileSync('public/app/yuz-kaskad.js', 'utf8');
+    test('yuz kaskadi bor', /window\.YUZ_KASKAD = new Float64Array/.test(kas));
+    test('ko‘z kaskadi ham', /window\.KOZ_KASKAD = new Float64Array/.test(kas));
+    test('manba va litsenziya yozilgan',
+      /OpenCV/.test(kas) && /BSD/.test(kas));
+
+    const html = fs.readFileSync('public/app/index.html', 'utf8');
+    test('yuz.js ilovaga ulangan', html.includes('src="yuz.js"'));
+    test('KASKAD esa bosh sahifada YUKLANMAYDI — u og‘ir',
+      !html.includes('yuz-kaskad.js'));
+
+    const js = fs.readFileSync('public/app/app.js', 'utf8');
+    test('kaskad skaner ochilganda yuklanadi',
+      /function kaskadniYukla/.test(js) && /nom === 'skaner'\) kaskadniYukla/.test(js));
+    test('kaskad yuklanmasa ilova to‘xtamaydi',
+      /sc\.onerror = \(\) => \{ kaskadHolat = 'xato'; \}/.test(js));
+    test('aniqlash har kadrda emas', /YUZ_HAR = 3/.test(js));
+    test('quti silliqlanadi — chiziqlar titramaydi',
+      /yuzOxirgi\.x \+ \(q\.x - yuzOxirgi\.x\) \* a/.test(js));
+    test('bir-ikki kadrda yo‘qolsa quti saqlanadi', /\+\+yuzYoq >= 4/.test(js));
+    test('aniqlash KENGROQ kadrda bajariladi', /KAM_YUZ_ENI = 288/.test(js));
+  }
+
+  // ── O'lchov: yuz qutisi bo'yicha masofa ──
+  {
+    const sctx = vm.createContext({});
+    vm.runInContext(fs.readFileSync('public/app/sifat.js', 'utf8'), sctx);
+    const S = sctx.Sifat;
+    const EN = 200, BOY = 260;
+    const bosh = { data: new Uint8ClampedArray(EN * BOY * 4), width: EN, height: BOY };
+    for (let i = 0; i < EN * BOY; i++) {
+      const p = i * 4, t = (i % 7 < 3) ? 20 : -20;
+      bosh.data[p] = 150 + t; bosh.data[p + 1] = 140 + t;
+      bosh.data[p + 2] = 135 + t; bosh.data[p + 3] = 255;
+    }
+    // Yuz qutisi TASHQARIDAN berilsa — masofa BO'Y bo'yicha o'lchanadi
+    const normal = S.kadrniOlch(bosh, null, { x: 50, y: 40, en: 100, boy: 130 });
+    test('yuz qutisi berilsa manba «yuz» bo‘ladi', normal.manba === 'yuz');
+    test('yarim kadrni egallagan yuz — NORMAL masofa',
+      normal.masofa === 'normal', `bo‘y ulushi ${normal.boy_ulush.toFixed(2)}`);
+
+    // Aynan shu quti MAYDON bo'yicha o'lchansa «uzoq» chiqardi:
+    // 100*130 / (200*260) = 0.25 — eski chegara 0.14 dan katta, lekin
+    // teri qutisi odatda ancha kattaroq bo'lardi. Asosiysi: yuz
+    // qutisi butun kadrni egallamaydi.
+    const yaqin = S.kadrniOlch(bosh, null, { x: 10, y: 2, en: 180, boy: 250 });
+    test('yuz kadrga sig‘masa «uzoqlashing» deyiladi',
+      /uzoqlashing/i.test(yaqin.maslahat), yaqin.maslahat);
+    const uzoq = S.kadrniOlch(bosh, null, { x: 80, y: 100, en: 40, boy: 45 });
+    test('yuz juda kichik bo‘lsa «yaqinroq keling»',
+      /Yaqinroq/.test(uzoq.maslahat), uzoq.maslahat);
+
+    // ENG MUHIMI: bo'yin va devorni ham qamrab olgan TERI qutisi
+    // (kadrning 78% i) endi «uzoqlashing» demaydi, chunki yuz
+    // qutisi undan mustaqil o'lchanadi
+    const keng = S.kadrniOlch(bosh, null, { x: 20, y: 20, en: 160, boy: 160 });
+    test('keng, lekin kadrga sig‘adigan yuz — ogohlantirish yo‘q',
+      !/uzoqlashing|Yaqinroq/i.test(keng.maslahat), keng.maslahat);
+  }
+}
+
+// ═══════════ SKANER KO'RINISHI ═══════════
+// Uchinchi urinish. Simtor «eplanmadi», nuqtalar esa «haqiqiy
+// animatsiya emas, o'yinchoq bo'lib qolgan». Endi ekranda faqat
+// O'LCHANGAN narsa: kontur, skaner chizig'i va anatomik belgilar.
+console.log('\n── SKANER KO‘RINISHI ──');
 {
   const fs = await import('node:fs');
   const js = fs.readFileSync('public/app/app.js', 'utf8');
+  const css = fs.readFileSync('public/app/style.css', 'utf8');
 
-  const kod = js.slice(js.indexOf('const YUZ_NUQTALARI'), js.indexOf('function kamChiz'));
-  const nuqtalar = new Function(`${kod}; return YUZ_NUQTALARI;`)();
-  test('nuqtalar oldindan hisoblanadi', nuqtalar.length > 40 && nuqtalar.length < 140,
-    `${nuqtalar.length} ta nuqta`);
-  test('hammasi yuz ovali ICHIDA', nuqtalar.every((p) => p.u * p.u + p.v * p.v <= 2.05),
-    'u,v ∈ [-1,1]');
-  test('iyak tomonida nuqta kamayadi',
-    nuqtalar.filter((p) => p.v > 0.7).length < nuqtalar.filter((p) => Math.abs(p.v) < 0.2).length,
-    'yuz pastga qarab torayadi');
-  test('har nuqtaning o‘z fazasi bor — to‘lqin bo‘lib yonadi',
-    new Set(nuqtalar.map((p) => p.faza)).size > nuqtalar.length * 0.8);
-
-  test('nuqta rangi TINIQLIKdan olinadi',
-    /const yaxshi = Math\.min\(1, ball\[rr \* ustun \+ cc\] \/ chegara\)/.test(js));
-  test('skaner chizig‘i nuqtalarni yoritadi', /const yorish = Math\.max\(0, 1 - masofa \* 7\)/.test(js));
-  test('to‘lqin animatsiyasi bor', /Math\.sin\(vaqt \* 2\.2 \+ p\.faza\)/.test(js));
+  test('yuz ovali topilgan qutidan chiziladi', /function yuzOvali/.test(js));
+  test('rang UMUMIY BALLdan keladi — bezak emas',
+    /n\.tayyor \? '86,230,170' : n\.ball >= 55/.test(js));
+  test('skaner chizig‘i konturdan chiqmaydi',
+    /const yarimEn = orx \* Math\.sqrt\(Math\.max\(0, 1 - t \* t\)\)/.test(js));
+  test('anatomik belgilar qo‘yiladi',
+    /nq\.koz_chap, nq\.koz_ong, nq\.burun, nq\.lab, nq\.iyak/.test(js));
+  test('belgilar skaner chizig‘i yonida kattalashadi',
+    /const yaqin = Math\.max\(0, 1 - Math\.abs\(py - sy\)/.test(js));
   test('burchak qavslari qoldi', /Burchak qavslari/.test(js));
   test('eski simtor olib tashlandi',
     !/MERIDIANLAR/.test(js) && !/function yuzKengligi/.test(js));
-  test('yuz topilmasa ko‘rsatma ovali chiziladi', /ko'rsatma ovali/.test(js));
+  test('sepilgan nuqtalar ham olib tashlandi', !/YUZ_NUQTALARI/.test(js));
+  test('yuz topilmasa ko‘rsatma ovali chiziladi', /ko‘rsatma ovali|ko\'rsatma ovali/.test(js));
+  test('selfi ko‘zguda, belgilar ham ko‘zguda',
+    /transform:scaleX\(-1\)/.test(css) && /const K = \(px\) => en - \(siljishX/.test(js));
 }
 
 // ═══════════ NATIJA EKRANI ═══════════
@@ -3403,9 +3587,26 @@ console.log('\n── NATIJA EKRANI ──');
     /t-ulash2/.test(natija) && /t-qayta/.test(natija));
 
   // Har qanday ekranga moslashish
+  // ── Dizayn: «scroll qilib pastga tushguncha esdan chiqyapti» ──
+  test('ball SURATNING o‘zida ko‘rsatiladi',
+    /n-surat-baho/.test(js) && /\.n-surat-baho\{/.test(css));
+  test('ko‘rsatkichlar KATAK ko‘rinishida',
+    /n-kalitlar/.test(js) && /\.n-kalit\{/.test(css));
+  test('katakda son KATTA — ko‘z birinchi shunga tushadi',
+    /\.n-kalit>b\{grid-row:1;grid-column:2;font-size:20px/.test(css));
+  test('nom butun kenglikni oladi — so‘z bo‘linib ketmaydi',
+    /\.n-kalit-nom\{grid-row:2;grid-column:1\/-1/.test(css));
+  test('mahsulotlar YON TARAFGA siriladi',
+    /\.n-mahsulotlar\{display:flex;gap:10px;overflow-x:auto/.test(css)
+      && /scroll-snap-type:x mandatory/.test(css));
+  test('holat ranglari MAVZUdan olinadi — uyg‘un bo‘ladi',
+    !/#2ebe78|#e05252|#e0a33c/.test(css));
+  test('pastki chaqiriq ham brend rangida',
+    /\.n-chaqiriq\{[^}]*background:var\(--urgu\)/.test(css.replace(/\n\s*/g, ' ')));
+
   test('sarlavha ekranga qarab kichrayadi', /clamp\(21px,5\.8vw,27px\)/.test(css));
-  test('mahsulotlar to‘ri o‘zi joylashadi',
-    /\.n-mahsulotlar\{[^}]*repeat\(auto-fill,minmax\(146px,1fr\)\)/.test(css));
+  test('mahsulot kartasi ekranga qarab kengayadi',
+    /\.n-mahsulotlar>\*\{flex:0 0 clamp\(142px,42vw,168px\)/.test(css));
   test('keng ekranda ikki ustun', /@media \(min-width:720px\)\{\.n-tepa/.test(css));
 
   // Kartochka RASMIDA ham tavsif bor

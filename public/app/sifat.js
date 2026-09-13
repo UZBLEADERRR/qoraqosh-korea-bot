@@ -203,6 +203,17 @@
     yuz_ulush: 0.14,        // yuz kadrning kamida shuncha qismi
     yuz_ulush_maks: 0.72,   // bundan katta bo'lsa yuz kadrga sig'may qoladi
     markaz: 0.20,           // markazdan chetlanish (kadr o'lchamiga nisbatan)
+
+    // HAQIQIY yuz qutisi (Haar) uchun boshqa o'lchov ishlatiladi.
+    // Teri qutisi bo'yin va qo'lni ham qamrab olardi, shuning uchun
+    // u kadrning 70-80% ini egallar va ilova bejizga «uzoqlashing»
+    // derdi. Yuz qutisi esa faqat peshonadan iyakkacha — uni
+    // MAYDON emas, BO'Y bilan o'lchash to'g'ri:
+    //   bo'y/kadr < 0.30  → yuz juda kichik, tafsilot ko'rinmaydi
+    //   bo'y/kadr > 0.92  → iyak yoki peshona kadrdan chiqib ketadi
+    yuz_boy: 0.30,
+    yuz_boy_maks: 0.92,
+    yuz_markaz: 0.24,
   };
 
   /**
@@ -213,17 +224,25 @@
    */
   function baho(o) {
     const y = o.yoruglik, quti = o.quti;
+    // Quti QAYERDAN keldi: haqiqiy yuz aniqlagichdan («yuz») yoki
+    // teri rangidan chamalab («teri»). Chegaralar ham shunga qarab.
+    const yuzdan = o.manba === 'yuz';
     const yuzUlush = quti ? (quti.en * quti.boy) / (o.en * o.boy) : 0;
+    const boyUlush = quti ? quti.boy / o.boy : 0;
     // Markazdan chetlanish: yuz kadrning o'rtasida turishi kerak,
     // aks holda yonoqning yarmi kadrdan chiqib ketadi
     const chetlanish = quti
       ? Math.max(Math.abs((quti.x + quti.en / 2) / o.en - 0.5),
                  Math.abs((quti.y + quti.boy / 2) / o.boy - 0.5)) : 0;
-    // Masofa — kadrdagi ulushga qarab. Kamerada masofa o'lchagich yo'q,
-    // lekin yuz kadrning qanchasini egallayotgani aynan shu haqda gapiradi.
+    const markazChegara = yuzdan ? CHEGARA.yuz_markaz : CHEGARA.markaz;
+    // Masofa. Kamerada masofa o'lchagich yo'q, lekin yuz kadrning
+    // qanchasini egallayotgani aynan shu haqda gapiradi.
     const masofa = !quti ? 'yoq'
-      : yuzUlush < CHEGARA.yuz_ulush ? 'uzoq'
-      : yuzUlush > CHEGARA.yuz_ulush_maks ? 'yaqin' : 'normal';
+      : yuzdan
+        ? (boyUlush < CHEGARA.yuz_boy ? 'uzoq'
+           : boyUlush > CHEGARA.yuz_boy_maks ? 'yaqin' : 'normal')
+        : (yuzUlush < CHEGARA.yuz_ulush ? 'uzoq'
+           : yuzUlush > CHEGARA.yuz_ulush_maks ? 'yaqin' : 'normal');
 
     var maslahat = '', holat = 'yaxshi';
     if (!quti) {
@@ -241,7 +260,7 @@
     } else if (masofa === 'yaqin') {
       maslahat = 'Biroz uzoqlashing — yuz kadrga sig‘maydi';
       holat = 'yomon';
-    } else if (chetlanish > CHEGARA.markaz) {
+    } else if (chetlanish > markazChegara) {
       maslahat = 'Yuzingizni markazga oling';
       holat = 'yomon';
     } else if (o.harakat > CHEGARA.harakat) {
@@ -261,15 +280,20 @@
       Math.min(100, (o.tiniqlik / CHEGARA.tiniqlik) * 100),
       Math.min(100, (y.ora / CHEGARA.yoruglik_past) * 100),
       // Masofa: uzoq bo'lsa ulushga qarab, yaqin bo'lsa ortiqcha qismiga
-      masofa === 'yaqin'
-        ? Math.max(0, 100 - ((yuzUlush - CHEGARA.yuz_ulush_maks) / 0.2) * 100)
-        : Math.min(100, (yuzUlush / CHEGARA.yuz_ulush) * 100),
+      yuzdan
+        ? (masofa === 'yaqin'
+            ? Math.max(0, 100 - ((boyUlush - CHEGARA.yuz_boy_maks) / 0.12) * 100)
+            : Math.min(100, (boyUlush / CHEGARA.yuz_boy) * 100))
+        : (masofa === 'yaqin'
+            ? Math.max(0, 100 - ((yuzUlush - CHEGARA.yuz_ulush_maks) / 0.2) * 100)
+            : Math.min(100, (yuzUlush / CHEGARA.yuz_ulush) * 100)),
       Math.max(0, 100 - (o.harakat / CHEGARA.harakat) * 100 + 0),
-      Math.max(0, 100 - (chetlanish / CHEGARA.markaz) * 100 + 0),
+      Math.max(0, 100 - (chetlanish / markazChegara) * 100 + 0),
     ];
     const ball = Math.max(0, Math.min(100, Math.round(Math.min.apply(null, ballar))));
 
-    return { ball, holat, maslahat, yuz_ulush: yuzUlush, masofa, chetlanish,
+    return { ball, holat, maslahat, yuz_ulush: yuzUlush, boy_ulush: boyUlush,
+             manba: o.manba || 'teri', masofa, chetlanish,
              tayyor: holat === 'yaxshi' };
   }
 
@@ -278,14 +302,19 @@
    * @param {ImageData|{data:Uint8ClampedArray,width:number,height:number}} kadr
    * @param {Float32Array|null} oldingi  oldingi kadrning kulrangi
    */
-  function kadrniOlch(kadr, oldingi) {
+  function kadrniOlch(kadr, oldingi, yuzQutisi) {
     const w = kadr.width, h = kadr.height;
     const g = kulrang(kadr.data, w, h);
-    const quti = teriQutisi(kadr.data, w, h);
+    // Haqiqiy yuz qutisi berilsa — o'shani ishlatamiz. Teri rangi
+    // bo'yicha chamalash faqat ZAXIRA: u devor va qo'lni ham «teri»
+    // deb hisoblaydi.
+    const quti = yuzQutisi || teriQutisi(kadr.data, w, h);
+    const manba = yuzQutisi ? 'yuz' : 'teri';
     const y = yoruglik(g, w, h, quti);
     const t = tiniqlik(g, w, h, quti);
     const harakati = harakat(g, oldingi);
-    const natija = baho({ yoruglik: y, quti, tiniqlik: t, harakat: harakati, en: w, boy: h });
+    const natija = baho({ yoruglik: y, quti, tiniqlik: t, harakat: harakati,
+                          en: w, boy: h, manba });
     return Object.assign(natija, {
       kulrang: g, quti, tiniqlik: t, yoruglik: y, harakat: harakati,
       tor: quti ? toriTiniqlik(g, w, h, quti) : null,

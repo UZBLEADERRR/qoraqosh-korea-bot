@@ -227,12 +227,24 @@ Google Gemini · Railway.
   rasmiylashtirish tugmasi ochilmaydi va nechchi so'm yetmayotgani aytiladi.
   Tekshiruv `place_order()` ichida ham bor — klientga ishonilmaydi.
 - **Natija — diagnostika hujjati ko'rinishida.** Suratingiz ustida
-  topilgan belgilar nuqta va yorliq bilan belgilanadi (zona matnidan
-  joyi chamalanadi), yonida umumiy ball halqasi, ostida ko'rsatkich
-  chiziqlari. **Rang butun ekranda bitta ma'noda:** yashil — yaxshi,
-  sariq — e'tibor bering, qizil — muammo. Tafsilotlar to'rt bo'limga
-  ajratilgan: *Tavsiyalar*, *Teri holati*, *Dieta*, *Kundalik
-  parvarish* — birdan hammasi ko'rinib odamni bosib ketmaydi.
+  topilgan belgilar nuqta va yorliq bilan belgilanadi, suratning
+  pastida esa umumiy ball halqasi va bitta so'z bilan holat. Ostida
+  ko'rsatkichlar **katak** ko'rinishida: har birida son katta,
+  rangi ma'noli. **Rang butun ekranda bitta ma'noda:** yashil —
+  yaxshi, sariq — e'tibor bering, qizil — muammo, va hammasi
+  mavzudan (`--yashil`, `--sariq`, `--qizil`) olinadi — shuning
+  uchun kunduzgi va tungi rejimda ham uyg'un turadi. Tafsilotlar
+  to'rt bo'limga ajratilgan: *Tavsiyalar*, *Teri holati*, *Dieta*,
+  *Kundalik parvarish* — birdan hammasi ko'rinib odamni bosib
+  ketmaydi. Mahsulotlar **yon tarafga siriladi**, aks holda ular
+  ekranni to'ldirib, pastdagi bo'limlar ko'rinmay qolardi.
+
+  **Belgilar yuzga nisbatan qo'yiladi.** Ilgari zona foizlari butun
+  RASMGA nisbatan edi va telefonda «peshona» belgisi sochga tushib
+  qolardi. Endi ilova rasmni ochganda undagi yuzni **qayta topadi**
+  (`belgilarniYuzgaQoy`) va belgilarni yuz qutisining ichiga
+  ko'chiradi — eski tahlillar ham shu tarzda to'g'rilanadi. Yuz
+  topilmasa taxminiy joy qoladi.
 
   **«Rasmda nimani ko'rdim»** — AI suratdagi ko'zga tashlanadigan
   neytral tafsilotni yozadi (ko'zoynak, zirak, quloqchin, soch
@@ -251,28 +263,61 @@ Google Gemini · Railway.
   > Sahifa yangilangandan keyin (`/api/me`) paydo bo'lardi, ya'ni
   > xato faqat birinchi ko'rishda bilinardi.
 
+- **Yuz aniqlash — rangdan emas, SHAKLDAN.** Ilgari yuz teri rangi
+  bo'yicha chamalanardi. Haqiqiy telefonlarda bu ishlamadi: bej
+  devor, yog'och eshik, bo'yin va qo'l ham «teri» bo'lib chiqdi,
+  quti kadrning 78% ini egalladi va ilova bejizga **«Biroz
+  uzoqlashing»** dedi. Natija ekranida esa «peshona» belgisi
+  sochga tushib qolardi.
+
+  Endi **Viola-Jones** (Haar kaskadi) ishlaydi: yuz rangi emas,
+  SHAKLI bo'yicha topiladi — ko'z sohasi yonoqdan to'q, burun
+  ko'prigi ko'z kosasidan yorug' va hokazo. Har qanday teri
+  rangida bir xil aniqlikda ishlaydi.
+
+  | Fayl | Nima |
+  |---|---|
+  | `public/app/yuz-kaskad.js` | OpenCV kaskad ma'lumoti (yuz + ko'z), BSD. **Faqat skaner ochilganda** yuklanadi — bosh sahifa undan sekinlashmaydi |
+  | `public/app/yuz.js` | hisoblash mantig'i: integral rasm, bosqichlar, ko'p o'lchamda qidirish, qutilarni birlashtirish |
+
+  Ko'zlar avval kaskad bilan, topilmasa **qorong'i joy** bo'yicha
+  qidiriladi (ko'zoynak taqqan odamda kaskad ishlamay qoladi,
+  lekin ko'z kosasi baribir yuzning eng to'q joyi). Ko'zlar
+  topilgach yuzning **burchagi** ham ma'lum bo'ladi — bosh
+  qiyshaygan bo'lsa belgilar ham qiyshayadi.
+
+  Yuz aniqlash HAR kadrda emas, uchtadan birida bajariladi
+  (~60 ms) va quti silliqlanadi — aks holda chiziqlar titrab
+  turardi. Aniqlash o'lchovdan **kengroq** kadrda (288 px)
+  bajariladi: 240 px da yuz 60-70 pikselga tushib qoladi va
+  kaskad ba'zan ko'zoynak atrofinigina «yuz» deb topadi.
+
 - **Yuz skaneri — jonli kamera va sifat nazorati.** «Kamerani yoqish»
-  bosilganda kadr EKRANDA o'lchanadi: yuz ustida to'r chiqadi va har
-  katak o'sha joydagi **tiniqlikni** ko'rsatadi (yashil — tiniq,
-  qizil — xira), to'r tugunlari esa yorug'lik bo'yicha siljib
-  yuzning relyefini chizadi. Odam qimirlasa yoki qorong'i bo'lsa
-  darhol aytiladi: «Yorug'roq joyga o'ting», «Qimirlatmang»,
+  bosilganda kadr EKRANDA o'lchanadi va odamga AYNAN nima qilish
+  kerakligi aytiladi: «Yorug'roq joyga o'ting», «Qimirlatmang»,
   «Yaqinroq keling», «Biroz uzoqlashing», «Yuzingizni markazga
   oling». Tugma faqat kadr yaxshi bo'lganda ochiladi.
 
-  Yuz sohasiga **nuqtalar** sepiladi: ular to'lqin bo'lib yonib-
-  o'chadi va skaner chizig'i o'tganda yorishadi — «yuz aniqlandi»
-  degan tanish ko'rinish. Nuqta rangi o'sha joydagi tiniqlikni
-  bildiradi. (Avval anatomik simtor chizilgan edi: chiroyli, lekin
-  kadrni to'sib qo'yardi va yuzga aniq o'tirmasa g'alati
-  ko'rinardi.)
+  Ekranda **faqat o'lchangan narsa** ko'rsatiladi: topilgan yuzning
+  konturi (rangi umumiy balldan), pastga tushadigan skaner chizig'i
+  va anatomik belgilar — ko'z, burun, lab, iyak, yonoq. Belgilar
+  skaner chizig'i yonidan o'tganda kattalashadi.
 
-  > Bu **lidar emas** — brauzerda chuqurlik sensori yo'q. To'r
-  > haqiqiy o'lchov ko'rinishi: Laplas operatori (tiniqlik), yuz
-  > sohasidagi yorug'lik, teri rangidagi piksellar qutisi va
-  > kadrlararo farq (qo'l titrashi). Hammasi `public/app/sifat.js`
-  > da — DOM siz, shuning uchun sinovda oddiy massiv bilan
-  > tekshiriladi.
+  > Bu uchinchi urinish. Birinchisi — anatomik simtor: chiroyli,
+  > lekin yuzga o'tirmasa g'alati ko'rinardi. Ikkinchisi — sepilgan
+  > nuqtalar: «haqiqiy animatsiya emas, o'yinchoq bo'lib qolgan».
+  > Uchinchisi endi TAXMINGA emas, topilgan yuzga tayanadi.
+
+  > Bu **lidar emas** — brauzerda chuqurlik sensori yo'q. O'lchov
+  > haqiqiy: Laplas operatori (tiniqlik), yuz sohasidagi yorug'lik
+  > va kadrlararo farq (qo'l titrashi). Hammasi
+  > `public/app/sifat.js` da — DOM siz, shuning uchun sinovda
+  > oddiy massiv bilan tekshiriladi.
+
+  Masofa **yuz qutisining BO'YI** bo'yicha o'lchanadi (kadrning
+  30-92% i — normal), maydon bo'yicha emas: teri qutisi bo'yin va
+  fonni ham qamrab olardi, shuning uchun eski o'lchov «yaqin»
+  deb yanglishardi.
 
 - **Nega surat xira chiqardi.** Ikki sabab bor edi va ikkalasi ham
   tuzatildi: (1) rasm yuborishdan oldin **1024 px** ga
