@@ -3084,5 +3084,191 @@ console.log('\n── NATIJA KARTOCHKASI ──');
     JSON.stringify(yangi));
 }
 
+// ═══════════ KAMERA VA KADR SIFATI ═══════════
+// Shikoyat: «kamera veb-kamera bo'lmasin, negadir xira oladi» va
+// «skanerlayotganda yuz ustida chiziqlar chiqib tiniqlikni o'lchasin».
+//
+// O'lchov matematikasi (public/app/sifat.js) DOM siz yozilgan —
+// shuning uchun uni shu yerda oddiy massiv bilan sinash mumkin.
+console.log('\n── KADR SIFATI (SKANER) ──');
+{
+  const fs = await import('node:fs');
+  const vm = await import('node:vm');
+  const ctx = vm.createContext({});
+  vm.runInContext(fs.readFileSync('public/app/sifat.js', 'utf8'), ctx);
+  const S = ctx.Sifat;
+
+  const EN = 200, BOY = 260;
+  /** Sun'iy kadr: to'q fon + teri rangidagi oval + mayda tekstura. */
+  function kadr({ yuz = 1, yoruglik = 1, tekstura = true, teri = true } = {}) {
+    const d = new Uint8ClampedArray(EN * BOY * 4);
+    const rx = 62 * yuz, ry = 82 * yuz, cx = EN / 2, cy = BOY / 2;
+    for (let y = 0; y < BOY; y++) {
+      for (let x = 0; x < EN; x++) {
+        const p = (y * EN + x) * 4;
+        const ichida = teri
+          && ((x - cx) ** 2) / (rx * rx) + ((y - cy) ** 2) / (ry * ry) <= 1;
+        let r, g, b;
+        if (ichida) {
+          // Teri rangi + mayda tekstura (teri teshiklari o'rniga)
+          const t = tekstura ? ((x + y) % 4 < 2 ? 18 : -18) : 0;
+          r = 216 + t; g = 165 + t; b = 131 + t;
+        } else { r = 27; g = 27; b = 31; }
+        d[p] = r * yoruglik; d[p + 1] = g * yoruglik; d[p + 2] = b * yoruglik; d[p + 3] = 255;
+      }
+    }
+    return { data: d, width: EN, height: BOY };
+  }
+
+  /** 3x3 o'rtacha filtr — «xira» kadrni yasaydi. */
+  function xiralat(k, marta = 2) {
+    let d = k.data;
+    for (let n = 0; n < marta; n++) {
+      const y = new Uint8ClampedArray(d.length);
+      for (let j = 1; j < BOY - 1; j++) {
+        for (let i = 1; i < EN - 1; i++) {
+          for (let c = 0; c < 3; c++) {
+            let s = 0;
+            for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+              s += d[((j + dj) * EN + (i + di)) * 4 + c];
+            }
+            y[(j * EN + i) * 4 + c] = s / 9;
+          }
+          y[(j * EN + i) * 4 + 3] = 255;
+        }
+      }
+      d = y;
+    }
+    return { data: d, width: EN, height: BOY };
+  }
+
+  // ── Tiniqlik ──
+  const tiniq = S.kadrniOlch(kadr(), null);
+  const xira  = S.kadrniOlch(xiralat(kadr()), null);
+  test('tiniq kadr yuqori ball oladi', tiniq.tiniqlik >= S.CHEGARA.tiniqlik,
+    `${tiniq.tiniqlik} (chegara ${S.CHEGARA.tiniqlik})`);
+  test('XIRA kadr chegaradan o‘tmaydi', xira.tiniqlik < S.CHEGARA.tiniqlik,
+    `${xira.tiniqlik}`);
+  test('farq sezilarli', tiniq.tiniqlik > xira.tiniqlik * 2,
+    `${tiniq.tiniqlik} ↔ ${xira.tiniqlik}`);
+  test('xira kadrda AYNAN nima qilish aytiladi',
+    /fokus|tiniq/i.test(xira.maslahat), xira.maslahat);
+  test('tiniq kadr TAYYOR deb belgilanadi', tiniq.tayyor === true, tiniq.maslahat);
+
+  // KONTRASTLI, lekin xira kadr aldab o'tmasligi kerak. Laplas
+  // qiymati kontrastga bo'linadi — aynan shuning uchun.
+  const kontrastliXira = S.kadrniOlch(xiralat(kadr({ yoruglik: 1.35 }), 2), null);
+  test('kontrastli bo‘lsa ham XIRA kadr o‘tmaydi',
+    kontrastliXira.tiniqlik < S.CHEGARA.tiniqlik, String(kontrastliXira.tiniqlik));
+
+  // ── Yorug'lik ──
+  const toq = S.kadrniOlch(kadr({ yoruglik: 0.18 }), null);
+  test('qorong‘i kadr topiladi', /Qorong‘i/.test(toq.maslahat), toq.maslahat);
+  const yorug = S.kadrniOlch(kadr({ yoruglik: 1.9 }), null);
+  test('haddan tashqari yorug‘ kadr ham', /Yorug‘lik ko‘p/.test(yorug.maslahat),
+    yorug.maslahat);
+
+  // ── Yuz bor-yo'qligi va kattaligi ──
+  const yuzsiz = S.kadrniOlch(kadr({ teri: false }), null);
+  test('yuz yo‘q bo‘lsa aytiladi', yuzsiz.quti === null && /kadrga/i.test(yuzsiz.maslahat),
+    yuzsiz.maslahat);
+  test('yuz yo‘q bo‘lsa TAYYOR emas', yuzsiz.tayyor === false);
+  const kichik = S.kadrniOlch(kadr({ yuz: 0.45 }), null);
+  test('yuz kichik bo‘lsa «yaqinroq keling»', /Yaqinroq/.test(kichik.maslahat),
+    `${kichik.maslahat} (ulush ${kichik.yuz_ulush.toFixed(2)})`);
+  // To'q fon oldida turgan odam: YUZ yoritilgan bo'lsa «qorong'i»
+  // deb bejiz ogohlantirmaymiz — yorug'lik yuz bo'yicha o'lchanadi
+  test('yorug‘lik FON bo‘yicha emas, yuz bo‘yicha o‘lchanadi',
+    kichik.yoruglik.ora > 120, `yuzdagi yorug‘lik ${kichik.yoruglik.ora}`);
+  test('yuz qutisi topiladi', tiniq.quti && tiniq.quti.en > 40 && tiniq.quti.boy > 60,
+    JSON.stringify(tiniq.quti && { en: tiniq.quti.en, boy: tiniq.quti.boy }));
+
+  // ── Harakat (qo'l titrashi) ──
+  const a = kadr(), b = kadr({ yuz: 1.25 });
+  const gA = S.kulrang(a.data, EN, BOY);
+  const qimirlagan = S.kadrniOlch(b, gA);
+  test('qo‘l qimirlasa sezamiz', qimirlagan.harakat > S.CHEGARA.harakat,
+    `harakat ${qimirlagan.harakat}`);
+  test('qimirlaganda ogohlantiriladi', /Qimirlatmang/.test(qimirlagan.maslahat),
+    qimirlagan.maslahat);
+
+  // ── To'r (ekrandagi chiziqlar) ──
+  test('to‘r kataklari hisoblanadi',
+    tiniq.tor && tiniq.tor.ball.length === tiniq.tor.ustun * tiniq.tor.qator,
+    `${tiniq.tor?.ustun}×${tiniq.tor?.qator}`);
+  const ortacha = (t) => t.ball.reduce((s, x) => s + x, 0) / t.ball.length;
+  test('xira joyda katak ham past ball oladi',
+    ortacha(xira.tor) < ortacha(tiniq.tor),
+    `${ortacha(xira.tor).toFixed(0)} ↔ ${ortacha(tiniq.tor).toFixed(0)}`);
+
+  // ── Umumiy ball eng ZAIF ko'rsatkich bo'yicha ──
+  test('bitta shart buzilsa umumiy ball tushadi', toq.ball < tiniq.ball,
+    `${toq.ball} ↔ ${tiniq.ball}`);
+}
+
+// ═══════════ JONLI KAMERA (ILOVA) ═══════════
+console.log('\n── JONLI KAMERA ──');
+{
+  const fs = await import('node:fs');
+  const js   = fs.readFileSync('public/app/app.js', 'utf8');
+  const html = fs.readFileSync('public/app/index.html', 'utf8');
+  const css  = fs.readFileSync('public/app/style.css', 'utf8');
+
+  test('o‘lchov moduli ilovaga ulangan', html.includes('src="sifat.js"'));
+  test('jonli kamera ekrani bor', html.includes('id="skaner-kamera"')
+    && html.includes('id="kam-video"') && html.includes('id="kam-tor"'));
+  test('uchta yo‘l: jonli kamera, telefon kamerasi, galereya',
+    html.includes('id="tushirish"') && html.includes('id="t-telefon-kamera"')
+      && html.includes('id="t-galereya"'));
+  test('telefon kamerasi NATIV rejimda ochiladi', /id="fayl"[^>]*capture="user"/.test(html));
+  test('galereya uchun capture YO‘Q', /id="fayl-galereya"(?![^>]*capture)/.test(html));
+
+  // Eng yuqori o'lcham so'raladi — «veb-kamera xira oladi» shikoyatining sababi
+  test('kamera eng yuqori o‘lchamda so‘raladi',
+    /width:\s*\{ ideal: 1920 \}/.test(js) && /height:\s*\{ ideal: 1440 \}/.test(js));
+  test('avtofokus doimiy rejimga qo‘yiladi', /focusMode: 'continuous'/.test(js));
+  test('past o‘lchamli kamera haqida OGOHLANTIRILADI',
+    /olchov\.width \|\| 0\) < 720/.test(js) && html.includes('id="kam-ogoh"'));
+  test('past sifatda telefon kamerasiga yo‘l ko‘rsatiladi',
+    /t-kam-telefon/.test(js) && /kameraniYop\(\); \$\('#fayl'\)\.click\(\)/.test(js));
+
+  // Bitta kadr yetmaydi — eng tiniqi tanlanadi
+  test('bir necha kadr olinadi', /for \(let i = 0; i < 5; i\+\+\)/.test(js));
+  test('eng TINIQ kadr tanlanadi', /if \(b > engBall\) \{ eng = k; engBall = b; \}/.test(js)
+    || /if \(b > engBall\) \{ engBall = b; eng = k; \}/.test(js));
+
+  // 1024 px da teri teksturasi yo'qoladi va AI rasmni xira deb rad etadi
+  test('skaner rasmi 1600 px gacha yuboriladi', /KAM_MAKS = 1600/.test(js));
+  test('siqish sifati yuqori', /KAM_SIFAT = 0\.92/.test(js));
+  test('fayl ham shu o‘lchamda tayyorlanadi',
+    /rasmniTayyorla\(fayl, KAM_MAKS, KAM_SIFAT\)/.test(js));
+
+  // Yuborishdan OLDIN tekshiriladi
+  test('tanlangan rasm sifati oldindan tekshiriladi',
+    /function rasmSifatiniTekshir/.test(js) && /oldindan-ogoh/.test(css));
+  test('xira bo‘lsa sababi tushuntiriladi', /Rasm xira ko‘rinmoqda/.test(js));
+  test('lekin TAQIQLANMAYDI — qaror odamniki',
+    !/t-tahlil'\)\.disabled = true/.test(js));
+
+  // Tugma faqat kadr yaxshi bo'lganda
+  test('tugma ikki ketma-ket yaxshi kadrdan keyin ochiladi',
+    /kamYaxshiKetma < 2/.test(js));
+
+  // Batareya va maxfiylik
+  test('boshqa bo‘limga o‘tilsa kamera o‘chadi',
+    /nom !== 'skaner' && kamOqim\) kameraniYop\(\)/.test(js));
+  test('yopilganda oqim to‘xtatiladi', /getTracks\(\)\.forEach\(\(t\) => t\.stop\(\)\)/.test(js));
+  test('o‘lchov taymeri ham to‘xtaydi', /clearInterval\(kamHalqa\)/.test(js));
+
+  // To'r — o'lchov ko'rinishi
+  test('to‘r kataklari TINIQLIK bo‘yicha bo‘yaladi',
+    /ball\[r \* ustun \+ cc\] \/ chegara/.test(js));
+  test('tugunlar yorug‘lik bo‘yicha siljiydi', /chuqur\(px, py\) \* chuqurlik/.test(js));
+  test('kamera uslublari bor', /\.kam-quti\{/.test(css) && /\.kam-olchov\{/.test(css));
+  test('selfi ko‘zguda ko‘rinadi', /transform:scaleX\(-1\)/.test(css));
+  test('SAQLANADIGAN rasm esa ko‘zgusiz',
+    /x\.drawImage\(video, 0, 0, c\.width, c\.height\)/.test(js));
+}
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

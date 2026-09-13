@@ -226,6 +226,33 @@ Google Gemini · Railway.
 - **Minimal buyurtma** — admin sozlaydigan eng kam summa. Kam bo'lsa
   rasmiylashtirish tugmasi ochilmaydi va nechchi so'm yetmayotgani aytiladi.
   Tekshiruv `place_order()` ichida ham bor — klientga ishonilmaydi.
+- **Yuz skaneri — jonli kamera va sifat nazorati.** «Kamerani yoqish»
+  bosilganda kadr EKRANDA o'lchanadi: yuz ustida to'r chiqadi va har
+  katak o'sha joydagi **tiniqlikni** ko'rsatadi (yashil — tiniq,
+  qizil — xira), to'r tugunlari esa yorug'lik bo'yicha siljib
+  yuzning relyefini chizadi. Odam qimirlasa yoki qorong'i bo'lsa
+  darhol aytiladi: «Yorug'roq joyga o'ting», «Qimirlatmang»,
+  «Yaqinroq keling». Tugma faqat kadr yaxshi bo'lganda ochiladi.
+
+  > Bu **lidar emas** — brauzerda chuqurlik sensori yo'q. To'r
+  > haqiqiy o'lchov ko'rinishi: Laplas operatori (tiniqlik), yuz
+  > sohasidagi yorug'lik, teri rangidagi piksellar qutisi va
+  > kadrlararo farq (qo'l titrashi). Hammasi `public/app/sifat.js`
+  > da — DOM siz, shuning uchun sinovda oddiy massiv bilan
+  > tekshiriladi.
+
+- **Nega surat xira chiqardi.** Ikki sabab bor edi va ikkalasi ham
+  tuzatildi: (1) rasm yuborishdan oldin **1024 px** ga
+  kichraytirilardi — bunday o'lchamda teri teshiklari va mayda
+  tuklar yo'qoladi, AI esa aynan shularga qaraydi va rasmni
+  «xira» deb rad etardi. Endi **1600 px**, sifat 0.92. (2) Noutbuk
+  veb-kamerasi odatda **640×480** beradi; endi kamera eng yuqori
+  o'lchamda so'raladi (`ideal: 1920×1440`, doimiy avtofokus) va
+  past o'lcham chiqsa odam ogohlantirilib, **telefonning o'z
+  kamerasiga** yo'naltiriladi. Tushirishda bitta emas, **besh kadr**
+  olinadi va eng tiniqi tanlanadi — qo'l titrasa ham yaxshi kadr
+  ilinib qoladi.
+
 - **Natija RASM bo'lib keladi** — rangli sarlavhada surat, yonida taxminiy
   yosh, teri turi va rangi, katta ball va ball halqasi; ostida uchta
   ko'rsatkich (nechta belgi, eng kuchlisi, xavf ehtimoli). Pastda belgilar
@@ -1200,6 +1227,7 @@ src/
 public/
   index.html           qo'nish sahifasi
   app/                 Mini App
+    sifat.js           kadr sifatini o'lchash (tiniqlik, yorug'lik, yuz)
     manifest.json      PWA: telefon ekraniga o'rnatish
     sw.js              service worker (faqat qobiqni keshlaydi)
     ikon-*.png         o'rnatilgan ilovaning ikonkasi (scripts/ikon-yarat.mjs)

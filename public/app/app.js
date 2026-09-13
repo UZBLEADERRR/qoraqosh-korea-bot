@@ -1243,22 +1243,414 @@ $$('[data-yop]').forEach((el) => el.onclick = modalYop);
 // ---------------- Skaner ----------------
 let tanlanganRasm = null;
 let tanlanganMime = 'image/jpeg';
-$('#tushirish').onclick = () => $('#fayl').click();
-$('#fayl').onchange = async (e) => {
+$('#tushirish').onclick = kameraniYoq;
+$('#t-telefon-kamera').onclick = () => $('#fayl').click();
+$('#t-galereya').onclick = () => $('#fayl-galereya').click();
+$('#t-kam-yop').onclick = kameraniYop;
+$('#t-kam-ol').onclick = kamSuratOl;
+
+const faylTanlandi = async (e) => {
   const fayl = e.target.files?.[0];
   if (!fayl) return;
   if (fayl.size > 20 * 1024 * 1024) return ogohlantir('Rasm juda katta (20 MB dan ortiq).');
-  const r = await rasmniTayyorla(fayl);
+  // Skaner uchun 1600 px: 1024 px da teri teksturasi (teshiklar, mayda
+  // tuklar) yo'qoladi va AI rasmni XIRA deb rad etadi — aynan shu
+  // «negadir xira oladi» degan shikoyatning sababi edi.
+  const r = await rasmniTayyorla(fayl, KAM_MAKS, KAM_SIFAT);
   if (!r) return ogohlantir('Rasmni o‘qib bo‘lmadi. Boshqa surat tanlang.');
   tanlanganRasm = r.data; tanlanganMime = r.mime;
   $('#oldindan-rasm').src = r.data;
   kor($('#skaner-boshlash'), false); kor($('#skaner-oldindan'), true);
+  rasmSifatiniTekshir(await faylSifati(r.data));
 };
+$('#fayl').onchange = faylTanlandi;
+$('#fayl-galereya').onchange = faylTanlandi;
+
 $('#t-boshqa').onclick = () => {
-  tanlanganRasm = null; $('#fayl').value = '';
+  tanlanganRasm = null; $('#fayl').value = ''; $('#fayl-galereya').value = '';
+  $('#oldindan-ogoh')?.remove();
   kor($('#skaner-oldindan'), false); kor($('#skaner-boshlash'), true);
 };
 $('#t-tahlil').onclick = tahlilQil;
+
+// ═══════════ JONLI KAMERA VA SIFAT NAZORATI ═══════════
+//
+// Muammo. Odam suratga olar, yuborar va bir necha soniyadan keyin
+// «rasm xira» degan javob olardi: kvota yonar, vaqt ketar, u esa
+// nima noto'g'ri ekanini bilmasdi. Ustiga noutbukning veb-kamerasi
+// yoki past sifatli oldingi kamera 640x480 beradi — bunday kadrda
+// teri teksturasi umuman ko'rinmaydi va tahlil chinakam ishonchsiz
+// bo'ladi.
+//
+// Yechim uch qismdan iborat:
+//   1. Kadr KAMERADA turganida o'lchanadi (sifat.js) va odamga
+//      AYNAN nima qilish kerakligi aytiladi.
+//   2. Tushirishda BIR NECHA kadr olinadi va eng tiniqi tanlanadi —
+//      qo'l titrasa ham yaxshi kadr ilinib qoladi.
+//   3. Kamera eng yuqori o'lchamda so'raladi; qurilma past sifat
+//      bersa, telefonning O'Z kamerasiga yo'naltiriladi.
+//
+// LIDAR EMAS. Brauzerda chuqurlik sensori yo'q. Ekrandagi to'r —
+// haqiqiy o'lchov ko'rinishi: har katak o'sha joydagi tiniqlik
+// bo'yicha rangga kiradi, tugunlar esa yorug'lik bo'yicha siljiydi.
+// Shuning uchun u «bezak» emas, lekin uni 3D skaner deb atash ham
+// noto'g'ri bo'lardi.
+
+let kamOqim = null;            // MediaStream
+let kamHalqa = 0;              // o'lchov taymeri
+let kamOldingi = null;         // oldingi kadrning kulrangi
+let kamOxirgi = null;          // oxirgi o'lchov natijasi
+let kamYaxshiKetma = 0;        // ketma-ket nechta yaxshi kadr
+
+const KAM_OLCHOV_ENI = 240;    // o'lchov shu kenglikda bajariladi
+const KAM_MAKS = 1600;         // yuboriladigan rasmning eng katta tomoni
+const KAM_SIFAT = 0.92;
+
+/** Kamera umuman bormi (Telegram WebView da bo'lmasligi mumkin). */
+const kameraBormi = () => Boolean(navigator.mediaDevices?.getUserMedia);
+
+async function kameraniYoq() {
+  if (!kameraBormi()) {
+    ogohlantir('Bu qurilmada brauzer kamerasi ishlamaydi — telefon kamerasidan foydalaning.');
+    $('#fayl').click();
+    return;
+  }
+  kor($('#skaner-boshlash'), false);
+  kor($('#skaner-kamera'), true);
+  $('#kam-maslahat').textContent = 'Kamera yoqilmoqda…';
+
+  try {
+    // Eng yuqori o'lcham so'raladi. `ideal` — «iloji bo'lsa shuncha»:
+    // `exact` qo'yilsa kamera umuman ochilmay qolishi mumkin.
+    kamOqim = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        facingMode: 'user',
+        width:  { ideal: 1920 },
+        height: { ideal: 1440 },
+        frameRate: { ideal: 30 },
+      },
+    });
+  } catch (e) {
+    kameraniYop();
+    // Ruxsat berilmagan bo'lsa aytamiz, aks holda telefon kamerasiga
+    const rad = /NotAllowed|Permission/i.test(e.name || e.message || '');
+    ogohlantir(rad
+      ? 'Kameraga ruxsat berilmadi. Brauzer sozlamalaridan ruxsat bering yoki telefon kamerasidan foydalaning.'
+      : 'Kamera ochilmadi — telefon kamerasidan foydalaning.');
+    if (!rad) $('#fayl').click();
+    return;
+  }
+
+  const video = $('#kam-video');
+  video.srcObject = kamOqim;
+  try { await video.play(); } catch { /* avtomatik o'ynash bloklandi */ }
+
+  // Avtofokusni doimiy rejimga o'tkazishga urinamiz — qo'llab-quvvatlanmasa
+  // xato tashlamaydi, shunchaki e'tiborsiz qoladi
+  const yol = kamOqim.getVideoTracks()[0];
+  try { await yol.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch {}
+
+  // Kamera past o'lchamda ochilgan bo'lsa — ogohlantiramiz. 640x480 da
+  // (noutbuk veb-kamerasining odatdagi o'lchami) teri teshiklari va
+  // mayda tuklar umuman ko'rinmaydi, tahlil esa aynan shularga
+  // tayanadi. Bu — «negadir xira oladi» degan shikoyatning ikkinchi
+  // sababi: kamera emas, uning O'LCHAMI past edi.
+  const olchov = yol.getSettings?.() || {};
+  const past = (olchov.width || 0) < 720;
+  const ogoh = $('#kam-ogoh');
+  kor(ogoh, past);
+  if (past) {
+    ogoh.innerHTML = `<b>Kamera sifati past —
+      ${olchov.width || '?'}×${olchov.height || '?'}</b>
+      <span>Bunday kadrda teri teksturasi ko‘rinmaydi. Aniqroq natija
+      uchun telefonning o‘z kamerasidan foydalaning.</span>
+      <button class="ikkilamchi" id="t-kam-telefon">Telefon kamerasiga o‘tish</button>`;
+    const t = $('#t-kam-telefon');
+    if (t) t.onclick = () => { kameraniYop(); $('#fayl').click(); };
+  }
+
+  kamOldingi = null; kamYaxshiKetma = 0;
+  clearInterval(kamHalqa);
+  // 8 kadr/soniya yetadi: ko'proq o'lchash telefonni qizdiradi va
+  // batareyani yeydi, odamga esa foydasi yo'q
+  kamHalqa = setInterval(kamOlch, 125);
+}
+
+function kameraniYop() {
+  clearInterval(kamHalqa); kamHalqa = 0;
+  try { kamOqim?.getTracks().forEach((t) => t.stop()); } catch {}
+  kamOqim = null; kamOldingi = null; kamOxirgi = null;
+  const v = $('#kam-video'); if (v) v.srcObject = null;
+  kor($('#skaner-kamera'), false);
+  kor($('#skaner-boshlash'), true);
+}
+
+/** O'lchov uchun kichik kanvas — har kadrda qayta yaratilmaydi. */
+const kamKanvas = (() => {
+  let c = null;
+  return (en, boy) => {
+    if (!c) c = document.createElement('canvas');
+    if (c.width !== en || c.height !== boy) { c.width = en; c.height = boy; }
+    return c;
+  };
+})();
+
+function kamOlch() {
+  const video = $('#kam-video');
+  if (!video || !video.videoWidth || video.paused) return;
+
+  const en = KAM_OLCHOV_ENI;
+  const boy = Math.round(en * video.videoHeight / video.videoWidth);
+  const c = kamKanvas(en, boy);
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(video, 0, 0, en, boy);
+
+  let n;
+  try { n = Sifat.kadrniOlch(x.getImageData(0, 0, en, boy), kamOldingi); }
+  catch { return; }                      // kadr hali tayyor emas
+  kamOldingi = n.kulrang;
+  kamOxirgi = n;
+
+  kamChiz(n, en, boy);
+
+  $('#kam-maslahat').textContent = n.maslahat;
+  $('#kam-holat').dataset.holat = n.holat;
+  chiziq('#kam-tiniq', n.tiniqlik, Sifat.CHEGARA.tiniqlik);
+  chiziq('#kam-yorug', Math.min(100, Math.round(n.yoruglik.ora / 1.6)),
+    Math.round(Sifat.CHEGARA.yoruglik_past / 1.6));
+  chiziq('#kam-yuz', Math.round(n.yuz_ulush * 100), Math.round(Sifat.CHEGARA.yuz_ulush * 100));
+
+  // Tugma faqat kadr YAXSHI bo'lganda ochiladi, lekin ketma-ket
+  // ikki kadr kerak: bitta tasodifiy yaxshi kadr aldab qo'ymasin
+  kamYaxshiKetma = n.tayyor ? kamYaxshiKetma + 1 : 0;
+  $('#t-kam-ol').disabled = kamYaxshiKetma < 2;
+}
+
+function chiziq(tanlov, qiymat, chegara) {
+  const el = $(tanlov);
+  if (!el) return;
+  el.style.width = `${Math.max(3, Math.min(100, qiymat))}%`;
+  el.className = qiymat >= chegara ? 'yaxshi' : qiymat >= chegara * 0.6 ? 'orta' : 'yomon';
+}
+
+/**
+ * O'lchov TO'RI.
+ * Kataklar tiniqlik bo'yicha rangga kiradi, tugunlar esa yorug'lik
+ * bo'yicha siljiydi — yuzning shakli sezilib turadi.
+ */
+function kamChiz(n, olchovEni, olchovBoyi) {
+  const c = $('#kam-tor');
+  const quti = c.getBoundingClientRect();
+  const en = Math.round(quti.width), boy = Math.round(quti.height);
+  if (!en || !boy) return;
+  if (c.width !== en || c.height !== boy) { c.width = en; c.height = boy; }
+  const x = c.getContext('2d');
+  x.clearRect(0, 0, en, boy);
+
+  // O'lchov kanvasi «object-fit: cover» bilan ko'rsatiladi — koordinatalarni
+  // o'shanga moslaymiz, aks holda to'r yuzdan siljib qoladi
+  const k = Math.max(en / olchovEni, boy / olchovBoyi);
+  const siljishX = (en - olchovEni * k) / 2;
+  const siljishY = (boy - olchovBoyi * k) / 2;
+  // Video ko'zguga o'girilgan (selfi) — to'r ham shunday bo'lishi kerak
+  const K = (px) => en - (siljishX + px * k);
+  const Y = (py) => siljishY + py * k;
+
+  if (!n.quti || !n.tor) {
+    // Yuz topilmadi — faqat ko'rsatma ramkasi
+    x.strokeStyle = 'rgba(255,255,255,.5)'; x.lineWidth = 2;
+    x.setLineDash([10, 12]);
+    x.beginPath();
+    x.ellipse(en / 2, boy * 0.46, en * 0.3, boy * 0.34, 0, 0, Math.PI * 2);
+    x.stroke(); x.setLineDash([]);
+    return;
+  }
+
+  const { ustun, qator, ball } = n.tor;
+  const q = n.quti;
+  const chegara = Sifat.CHEGARA.tiniqlik;
+
+  // Tugunlar: chuqurlik — yorug'lik farqidan
+  const g = n.kulrang;
+  const chuqur = (cx, cy) => {
+    const px = Math.max(0, Math.min(olchovEni - 1, Math.round(cx)));
+    const py = Math.max(0, Math.min(olchovBoyi - 1, Math.round(cy)));
+    return (g[py * olchovEni + px] - 128) / 255;     // -0.5 .. 0.5
+  };
+
+  const kx = q.en / ustun, ky = q.boy / qator;
+  // Tugunlar yorug'lik bo'yicha siljiydi — yuzning burun, yonoq va
+  // iyak relyefi to'rda sezilib turadi. Chuqurlik SOXTA emas:
+  // yorug'lik farqi shaklning haqiqiy ko'rsatkichi (sun'iy yoritishda
+  // yaqin joy yorug'roq), lekin bu chuqurlik SENSORI emas.
+  const chuqurlik = Math.min(22, boy * 0.028);
+
+  // Tugunlar to'ri: (ustun+1) x (qator+1)
+  const tugun = [];
+  for (let r = 0; r <= qator; r++) {
+    const satr = [];
+    for (let cc = 0; cc <= ustun; cc++) {
+      const px = q.x + cc * kx, py = q.y + r * ky;
+      satr.push({ x: K(px), y: Y(py) + chuqur(px, py) * chuqurlik });
+    }
+    tugun.push(satr);
+  }
+
+  // 1. Kataklar — rangi TINIQLIK bo'yicha
+  for (let r = 0; r < qator; r++) {
+    for (let cc = 0; cc < ustun; cc++) {
+      const yaxshi = Math.min(1, ball[r * ustun + cc] / chegara);
+      const rang = yaxshi >= 1 ? '46,190,120' : yaxshi >= 0.6 ? '235,170,60' : '235,80,80';
+      const a = tugun[r][cc], b2 = tugun[r][cc + 1];
+      const c2 = tugun[r + 1][cc + 1], d2 = tugun[r + 1][cc];
+      x.beginPath();
+      x.moveTo(a.x, a.y); x.lineTo(b2.x, b2.y); x.lineTo(c2.x, c2.y); x.lineTo(d2.x, d2.y);
+      x.closePath();
+      // Xira katak KO'PROQ bo'yaladi — ko'z o'sha joyga tushsin
+      x.fillStyle = `rgba(${rang},${(0.05 + 0.2 * (1 - yaxshi)).toFixed(3)})`;
+      x.fill();
+      x.strokeStyle = `rgba(${rang},${(0.3 + 0.45 * yaxshi).toFixed(3)})`;
+      x.lineWidth = 1;
+      x.stroke();
+    }
+  }
+
+  // 2. Relyef chiziqlari — tugunlar orqali o'tuvchi silliq egri
+  x.strokeStyle = 'rgba(255,255,255,.22)'; x.lineWidth = 1.2;
+  for (const satr of tugun) {
+    x.beginPath();
+    satr.forEach((t, i) => (i ? x.lineTo(t.x, t.y) : x.moveTo(t.x, t.y)));
+    x.stroke();
+  }
+
+  // 3. Burchak qavslari — kadrning «nishonga olingani» sezilsin
+  const bx = K(q.x + q.en), by = Y(q.y), bEn = q.en * k, bBoy = q.boy * k;
+  const uz = Math.min(bEn, bBoy) * 0.16;
+  x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = 3; x.lineCap = 'round';
+  for (const [sx, sy, dx, dy] of [
+    [bx, by, 1, 1], [bx + bEn, by, -1, 1],
+    [bx, by + bBoy, 1, -1], [bx + bEn, by + bBoy, -1, -1]]) {
+    x.beginPath();
+    x.moveTo(sx + dx * uz, sy); x.lineTo(sx, sy); x.lineTo(sx, sy + dy * uz);
+    x.stroke();
+  }
+
+  // 4. Skaner chizig'i — pastdan yuqoriga yuradi
+  const vaqt = (Date.now() % 2200) / 2200;
+  const sy = by + bBoy * vaqt;
+  const grad = x.createLinearGradient(bx, sy - 18, bx, sy + 18);
+  grad.addColorStop(0, 'rgba(90,220,255,0)');
+  grad.addColorStop(0.5, 'rgba(90,220,255,.75)');
+  grad.addColorStop(1, 'rgba(90,220,255,0)');
+  x.fillStyle = grad;
+  x.fillRect(bx, sy - 18, bEn, 36);
+}
+
+/**
+ * Suratga oladi.
+ *
+ * Bitta kadr YETMAYDI: qo'l titrasa aynan o'sha kadr xira chiqishi
+ * mumkin. Shuning uchun bir necha kadr olinadi va eng TINIQI
+ * tanlanadi — bu telefon kameralaridagi «seriya» rejimining
+ * soddalashtirilgan ko'rinishi.
+ */
+async function kamSuratOl() {
+  const video = $('#kam-video');
+  if (!video?.videoWidth) return;
+  $('#t-kam-ol').disabled = true;
+  $('#kam-maslahat').textContent = 'Olinmoqda — qimirlamang…';
+  titra('medium');
+
+  const kadrlar = [];
+  for (let i = 0; i < 5; i++) {
+    kadrlar.push(kadrniOl(video));
+    await uxlaQisqa(70);
+  }
+  // Eng tiniq kadrni tanlaymiz
+  let eng = kadrlar[0], engBall = -1;
+  for (const k of kadrlar) {
+    const b = kadrTiniqligi(k);
+    if (b > engBall) { engBall = b; eng = k; }
+  }
+
+  const data = eng.toDataURL('image/jpeg', KAM_SIFAT);
+  kameraniYop();
+
+  tanlanganRasm = data; tanlanganMime = 'image/jpeg';
+  $('#oldindan-rasm').src = data;
+  kor($('#skaner-boshlash'), false); kor($('#skaner-oldindan'), true);
+  rasmSifatiniTekshir(engBall);
+}
+
+const uxlaQisqa = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Videodan bitta kadr — KAM_MAKS gacha kichraytirib. */
+function kadrniOl(video) {
+  const n = Math.min(1, KAM_MAKS / Math.max(video.videoWidth, video.videoHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.round(video.videoWidth * n);
+  c.height = Math.round(video.videoHeight * n);
+  const x = c.getContext('2d');
+  // Selfi ko'zguga o'girilgan holda ko'rinadi; SAQLANADIGAN rasm esa
+  // to'g'ri bo'lishi kerak — aks holda chap yonoq o'ngda ko'rinadi
+  x.drawImage(video, 0, 0, c.width, c.height);
+  return c;
+}
+
+/** Kanvasdagi rasmning tiniqlik balli. */
+function kadrTiniqligi(c) {
+  const en = 480;
+  const boy = Math.round(en * c.height / c.width);
+  const k = document.createElement('canvas');
+  k.width = en; k.height = boy;
+  const x = k.getContext('2d', { willReadFrequently: true });
+  x.drawImage(c, 0, 0, en, boy);
+  try {
+    const d = x.getImageData(0, 0, en, boy);
+    const quti = Sifat.teriQutisi(d.data, en, boy);
+    return Sifat.tiniqlik(Sifat.kulrang(d.data, en, boy), en, boy, quti);
+  } catch { return 0; }
+}
+
+/**
+ * Tanlangan rasmni YUBORISHDAN OLDIN tekshiradi.
+ * Xira bo'lsa ogohlantiramiz, lekin taqiqlamaymiz: o'lchov taxminiy,
+ * oxirgi qarorni odam o'zi qiladi.
+ */
+function rasmSifatiniTekshir(ball) {
+  const el = $('#skaner-oldindan');
+  let ogoh = $('#oldindan-ogoh');
+  if (!ogoh) {
+    ogoh = document.createElement('div');
+    ogoh.id = 'oldindan-ogoh'; ogoh.className = 'oldindan-ogoh';
+    el.insertBefore(ogoh, el.querySelector('.ichki'));
+  }
+  if (ball >= Sifat.CHEGARA.tiniqlik) {
+    ogoh.className = 'oldindan-ogoh yaxshi';
+    ogoh.innerHTML = `<b>Rasm tiniq</b><span>Tahlilga tayyor</span>`;
+  } else {
+    ogoh.className = 'oldindan-ogoh yomon';
+    ogoh.innerHTML = `<b>Rasm xira ko‘rinmoqda</b>
+      <span>Yorug‘roq joyda, telefonni qimirlatmay qayta oling —
+      xira suratdan chiqqan tahlil ishonchsiz bo‘ladi.</span>`;
+  }
+}
+
+/** Tanlangan faylning sifatini ham shu tarzda tekshiramiz. */
+function faylSifati(dataUrl) {
+  return new Promise((res) => {
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = im.width; c.height = im.height;
+      c.getContext('2d').drawImage(im, 0, 0);
+      try { res(kadrTiniqligi(c)); } catch { res(100); }
+    };
+    im.onerror = () => res(100);        // o'qib bo'lmasa — to'smaymiz
+    im.src = dataUrl;
+  });
+}
 
 /** Skaner ekranida qolgan limitni ko'rsatadi. */
 function limitniChiz() {
@@ -3262,6 +3654,9 @@ function tabOch(nom) {
       b.classList.toggle('tanlangan',
         b.dataset.tab === nom || (nom === 'natija' && b.dataset.tab === 'skaner')));
     if (nom !== 'maslahat') document.body.classList.remove('yozilmoqda');
+    // Boshqa bo'limga o'tilsa kamera o'chadi: yonib turgan kamera
+    // batareyani yeydi va odam uni ko'rmay qoladi
+    if (nom !== 'skaner' && kamOqim) kameraniYop();
   });
   if (nom === 'profil') profilniChiz();   // buyurtmalar bo'lim ochilganda yuklanadi
   if (nom === 'maslahat') maslahatniChiz();

@@ -813,6 +813,54 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .menyu .nishon{background:var(--urgu);color:#fff}
 
 /* ---------- Skaner: sodda ---------- */
+/* ── JONLI KAMERA VA O'LCHOV TO'RI ──
+   To'r bezak emas: har katak o'sha joydagi tiniqlikni ko'rsatadi
+   (yashil — tiniq, qizil — xira), tugunlar esa yorug'lik bo'yicha
+   siljiydi. Brauzerda chuqurlik sensori yo'q — bu haqiqiy o'lchov
+   ko'rinishi, lidar emas. */
+.kam-quti{position:relative;border-radius:var(--r-katta);overflow:hidden;
+  background:#0b0b0d;aspect-ratio:3/4;max-height:62vh;margin:0 auto}
+.kam-quti video{width:100%;height:100%;object-fit:cover;display:block;
+  transform:scaleX(-1)}          /* selfi ko'zguda ko'ringani tabiiy */
+.kam-quti canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+
+.kam-holat{position:absolute;left:10px;right:10px;top:10px;display:flex;gap:8px;
+  align-items:center;padding:9px 13px;border-radius:99px;font-size:13.5px;
+  font-weight:600;color:#fff;background:rgba(10,10,12,.62);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.kam-nuqta{width:9px;height:9px;border-radius:50%;background:#ebaa3c;flex:0 0 auto;
+  animation:kam-puls 1.4s infinite}
+.kam-holat[data-holat="yaxshi"] .kam-nuqta{background:#2ebe78;animation:none}
+.kam-holat[data-holat="yoq"] .kam-nuqta{background:#9a9aa3}
+@keyframes kam-puls{0%,100%{opacity:1}50%{opacity:.3}}
+
+.kam-olchov{position:absolute;left:10px;right:10px;bottom:10px;display:flex;
+  flex-direction:column;gap:6px;padding:11px 13px;border-radius:14px;
+  background:rgba(10,10,12,.62);backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px)}
+.kam-satr{display:flex;align-items:center;gap:10px;font-size:11.5px;color:#d8d8de}
+.kam-satr span{flex:0 0 84px}
+.kam-chiziq{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.16);
+  overflow:hidden;display:block}
+.kam-chiziq b{display:block;height:100%;border-radius:3px;width:3%;
+  transition:width .18s linear,background .18s linear}
+.kam-chiziq b.yaxshi{background:#2ebe78}
+.kam-chiziq b.orta{background:#ebaa3c}
+.kam-chiziq b.yomon{background:#eb5050}
+
+.kam-ogoh{margin:12px 0 0;padding:12px 14px;border-radius:14px;
+  background:var(--sariq-och);color:var(--sariq);font-size:13px;line-height:1.45;
+  display:flex;flex-direction:column;gap:4px}
+.kam-ogoh b{font-size:14px}
+.kam-ogoh button{margin-top:6px}
+
+/* Tanlangan rasm ustidagi xulosa: yuborishdan OLDIN aytiladi */
+.oldindan-ogoh{margin:12px 0 0;padding:12px 14px;border-radius:14px;
+  display:flex;flex-direction:column;gap:3px;font-size:13px;line-height:1.45}
+.oldindan-ogoh b{font-size:14px}
+.oldindan-ogoh.yaxshi{background:var(--yashil-och);color:var(--yashil)}
+.oldindan-ogoh.yomon{background:var(--qizil-och);color:var(--qizil)}
+
 .skaner-namuna{position:relative;margin:18px auto 16px;border-radius:20px;overflow:hidden;
   background:var(--chiziq-och);aspect-ratio:3/4;max-width:calc(100% - 32px);
   display:grid;place-items:center}

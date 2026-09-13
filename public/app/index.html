@@ -145,8 +145,51 @@
 
       <div class="ichki">
         <button class="asosiy" id="tushirish">
-          <i data-ik="kamera" data-ik-olcham="20"></i>Suratga olish</button>
+          <i data-ik="kamera" data-ik-olcham="20"></i>Kamerani yoqish</button>
+        <!-- Telefonning O'Z kamerasi — sensorning to'liq o'lchamida,
+             avtofokus va HDR bilan suratga oladi. Ba'zi qurilmalarda
+             brauzer kamerasi (getUserMedia) past sifat beradi, shuning
+             uchun bu yo'l har doim ochiq turadi. -->
+        <button class="ikkilamchi" id="t-telefon-kamera" style="margin-top:9px">
+          <i data-ik="selfi" data-ik-olcham="19"></i>Telefon kamerasi</button>
+        <button class="ikkilamchi" id="t-galereya" style="margin-top:9px">
+          Galereyadan tanlash</button>
         <input id="fayl" type="file" accept="image/*" capture="user" hidden>
+        <input id="fayl-galereya" type="file" accept="image/*" hidden>
+      </div>
+    </div>
+
+    <!-- ---------- JONLI KAMERA ----------
+         Kadr KAMERADA turganida o'lchanadi: tiniqlik, yorug'lik,
+         yuzning kattaligi va qo'l titrashi. Ekrandagi to'r shu
+         o'lchovdan chiziladi — har katak o'sha joydagi tiniqlikni
+         ko'rsatadi, tugunlar esa yorug'lik chuqurligiga qarab
+         siljiydi. Bezak emas: qizil katak — o'sha joy xira. -->
+    <div id="skaner-kamera" class="yashirin">
+      <div class="kam-quti">
+        <video id="kam-video" playsinline muted autoplay></video>
+        <canvas id="kam-tor"></canvas>
+        <div class="kam-holat" id="kam-holat">
+          <span class="kam-nuqta"></span><span id="kam-maslahat">Kamera yoqilmoqda…</span>
+        </div>
+        <div class="kam-olchov">
+          <div class="kam-satr"><span>Tiniqlik</span>
+            <i class="kam-chiziq"><b id="kam-tiniq"></b></i></div>
+          <div class="kam-satr"><span>Yorug‘lik</span>
+            <i class="kam-chiziq"><b id="kam-yorug"></b></i></div>
+          <div class="kam-satr"><span>Yuz o‘lchami</span>
+            <i class="kam-chiziq"><b id="kam-yuz"></b></i></div>
+        </div>
+      </div>
+      <!-- Kamera past o'lchamda ochilsa (noutbukning veb-kamerasi
+           odatda 640x480) teri teksturasi ko'rinmaydi va tahlil
+           ishonchsiz bo'ladi — shuni AYTAMIZ va telefon kamerasiga
+           yo'l ko'rsatamiz. -->
+      <div id="kam-ogoh" class="kam-ogoh yashirin"></div>
+      <div class="ichki">
+        <button class="asosiy" id="t-kam-ol" disabled>
+          <i data-ik="kamera" data-ik-olcham="20"></i>Suratga olish</button>
+        <button class="ikkilamchi" id="t-kam-yop" style="margin-top:9px">Yopish</button>
       </div>
     </div>
 
@@ -242,6 +285,7 @@
 </div>
 
 <script src="hududlar.js"></script>
+<script src="sifat.js"></script>
 <script src="ikon.js"></script>
 <script src="app.js"></script>
 </body>
