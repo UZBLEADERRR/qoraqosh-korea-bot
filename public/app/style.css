@@ -823,6 +823,10 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 
    O'lcham va rang mavzudan keladi, shuning uchun kunduzgi va tungi
    rejimda ham bir xil uyg'un turadi. */
+/* Natija tanasining chetki bo'shlig'i SHU YERDA. Mahsulot lentasi
+   undan «chiqib» ketadi (margin:0 -16px), shuning uchun u aniq
+   16px bo'lishi kerak. */
+#natija-tan{padding:0 16px}
 .n-shapka{display:flex;align-items:baseline;gap:10px;padding:18px 0 14px}
 .n-shapka>div{flex:1;min-width:0}
 .n-shapka b{display:block;font-size:clamp(22px,6.4vw,28px);line-height:1.1;
@@ -831,17 +835,23 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-sana{flex:0 0 auto;font-size:12.5px;color:var(--och);white-space:nowrap}
 
 .n-karta{background:var(--panel);border:1px solid var(--chiziq);border-radius:var(--r);
-  padding:16px;margin:0 0 12px}
+  padding:14px;margin:0 0 10px}
 .n-karta-bosh{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:800;
   letter-spacing:-.02em;color:var(--matn);margin:0 0 14px}
 .n-izoh{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--och)}
 .n-oyoq{margin:12px 0 0;font-size:12px;color:var(--och);line-height:1.5}
 
 /* ── Surat va ball ── */
-.n-tepa{display:grid;gap:12px;grid-template-columns:1fr}
-@media (min-width:720px){.n-tepa{grid-template-columns:1fr 1fr;align-items:start}}
-.n-surat{position:relative;margin:0 0 12px;border-radius:var(--r-katta);overflow:hidden;
+/* Surat va ball YONMA-YON — telefonda ham. Ustma-ust qo'yilganda
+   sahifa ikki barobar uzayardi va odam pastga yetguncha yuqoridagi
+   ballni unutardi. Namunada ham ular yonma-yon. */
+.n-tepa{display:grid;gap:10px;grid-template-columns:minmax(0,46%) minmax(0,1fr);
+  align-items:start}
+.n-chap{min-width:0}
+@media (min-width:720px){.n-tepa{grid-template-columns:1fr 1fr}}
+.n-surat{position:relative;margin:0;border-radius:var(--r-katta);overflow:hidden;
   background:var(--chiziq-och);aspect-ratio:3/4}
+.n-surat img{transition:filter .3s ease}
 .n-surat img{width:100%;height:100%;object-fit:cover;display:block}
 
 /* Raqamli nishon. Yorliq va uzun chiziqlar OLIB TASHLANDI: telefon
@@ -861,17 +871,20 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-nishon.d3 b{background:var(--qizil)}  .n-nishon.d3 i{border-color:var(--qizil)}
 
 .n-surat-baho{position:absolute;left:0;right:0;bottom:0;display:flex;
-  align-items:center;gap:12px;padding:38px 14px 13px;
+  align-items:center;gap:9px;padding:30px 10px 10px;
   background:linear-gradient(to top,rgba(8,8,10,.86) 12%,rgba(8,8,10,.48) 55%,transparent);
   color:#fff;pointer-events:none}
-.n-surat-baho .n-halqa{width:66px;flex:0 0 auto}
+.n-surat-baho .n-halqa{width:clamp(48px,14vw,66px);flex:0 0 auto}
 .n-surat-baho .n-halqa-fon{stroke:rgba(255,255,255,.24)}
 .n-surat-baho .n-halqa-son{fill:#fff;font-size:40px}
 .n-surat-baho .n-halqa-mayda{fill:rgba(255,255,255,.65)}
 .n-surat-baho>div{min-width:0}
-.n-surat-baho span{display:block;font-size:11.5px;letter-spacing:.14em;
+.n-surat-baho span{display:block;font-size:10.5px;letter-spacing:.08em;
   text-transform:uppercase;color:rgba(255,255,255,.7)}
-.n-surat-baho b{display:block;font-size:22px;line-height:1.15;margin-top:3px;
+/* Tor ekranda surat ham tor: «UMUMIY HOLAT» ikki qatorga bo'linib,
+   ballni pastga surib yuborardi. Halqa va bitta so'z yetarli. */
+@media (max-width:430px){.n-surat-baho span{display:none}}
+.n-surat-baho b{display:block;font-size:clamp(15px,4.6vw,22px);line-height:1.15;margin-top:2px;
   letter-spacing:-.02em;color:#fff}
 
 .n-halqa{flex:0 0 auto;width:clamp(104px,30vw,128px);height:auto}
@@ -886,18 +899,36 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-ball-ich b{display:block;font-size:22px;margin-top:2px}
 .n-ball-ich b.yaxshi{color:var(--yashil)}.n-ball-ich b.orta{color:var(--sariq)}
 .n-ball-ich b.yomon{color:var(--qizil)}
-.n-xulosa{margin:0;font-size:15px;line-height:1.6;color:var(--matn)}
+.n-xulosa{margin:0;font-size:14px;line-height:1.55;color:var(--matn)}
 
-.n-teglar{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 0}
-.n-teglar span{background:var(--chiziq-och);border-radius:99px;padding:6px 12px;
-  font-size:12.5px;font-weight:600;color:var(--kul)}
-.n-tavsif{display:flex;gap:9px;margin:12px 0 0;padding:12px;border-radius:12px;
-  background:var(--chiziq-och);font-size:13px;line-height:1.55;color:var(--kul)}
+/* Teglar RANGLI: yosh, jins, teri turi va rangi — har biri o'z
+   tusida. Kulrang bo'lsa ular bir-biriga qo'shilib ketardi. */
+.n-teglar{display:flex;flex-wrap:wrap;gap:5px;margin:11px 0 0}
+.n-teglar span{display:inline-flex;align-items:center;gap:5px;border-radius:99px;
+  padding:5px 10px;font-size:12px;font-weight:700;line-height:1}
+.n-teglar .t-yosh{background:var(--kok-och);color:var(--kok)}
+.n-teglar .t-jins{background:var(--urgu-och);color:var(--urgu)}
+.n-teglar .t-teri{background:var(--yashil-och);color:var(--yashil)}
+.n-teglar .t-rang{background:var(--sariq-och);color:var(--sariq)}
+
+/* Teri «rentgeni» — bitta suratning to'rt ko'rinishi */
+.n-rentgen{display:flex;gap:6px;margin:8px 0 0;overflow-x:auto;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.n-rentgen::-webkit-scrollbar{display:none}
+.n-rentgen button{flex:0 0 auto;width:62px;padding:0;border:2px solid transparent;
+  border-radius:12px;background:none;cursor:pointer;overflow:hidden;
+  display:flex;flex-direction:column;gap:3px;font:inherit}
+.n-rentgen img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:9px;display:block}
+.n-rentgen span{font-size:10.5px;font-weight:700;color:var(--och);letter-spacing:.01em}
+.n-rentgen button.tanlangan{border-color:var(--urgu)}
+.n-rentgen button.tanlangan span{color:var(--urgu)}
+.n-tavsif{display:flex;gap:9px;margin:0 0 10px;padding:11px 12px;border-radius:12px;
+  background:var(--chiziq-och);font-size:12.5px;line-height:1.5;color:var(--kul)}
 .n-tavsif i{flex:0 0 auto;color:var(--och);line-height:0;margin-top:2px}
 
 /* ── Ko'rsatkichlar: BIR QATOR, namunadagidek ── */
-.n-olchamlar{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:0 0 12px}
-.n-olch{display:flex;flex-direction:column;gap:5px;padding:10px 8px 11px;
+.n-olchamlar{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:0 0 10px}
+.n-olch{display:flex;flex-direction:column;gap:4px;padding:9px 7px 10px;
   border-radius:14px;background:var(--panel);border:1px solid var(--chiziq);min-width:0}
 .n-olch>i{width:26px;height:26px;border-radius:9px;display:flex;align-items:center;
   justify-content:center;line-height:0}
@@ -909,12 +940,22 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-olch>em{display:block;height:5px;border-radius:3px;margin-top:1px;
   background:color-mix(in srgb,var(--matn) 12%,transparent)}
 .n-olch>em u{display:block;height:100%;border-radius:3px}
-.n-olch.yaxshi>i{background:var(--yashil-och);color:var(--yashil)}
-.n-olch.yaxshi>em u{background:var(--yashil)}
+/* BESH bosqich: uch rang bilan to'rtta katakning uchtasi bir xil
+   chiqib qolardi — «ranglar takrorlanib ketyapti». Endi 62 va 71
+   ball boshqa-boshqa ko'rinadi, lekin ma'no saqlanadi. */
+.n-olch.alo>i{background:var(--yashil-och);color:var(--yashil)}
+.n-olch.alo>em u{background:var(--yashil)}
+.n-olch.yaxshi>i{background:var(--kok-och);color:var(--kok)}
+.n-olch.yaxshi>em u{background:var(--kok)}
 .n-olch.orta>i{background:var(--sariq-och);color:var(--sariq)}
 .n-olch.orta>em u{background:var(--sariq)}
-.n-olch.yomon>i{background:var(--qizil-och);color:var(--qizil)}
-.n-olch.yomon>em u{background:var(--qizil)}
+.n-olch.past>i{background:var(--urgu-och);color:var(--urgu)}
+.n-olch.past>em u{background:var(--urgu)}
+.n-olch.zaif>i{background:var(--qizil-och);color:var(--qizil)}
+.n-olch.zaif>em u{background:var(--qizil)}
+.n-olch.alo>b{color:var(--yashil)} .n-olch.yaxshi>b{color:var(--kok)}
+.n-olch.orta>b{color:var(--sariq)} .n-olch.past>b{color:var(--urgu)}
+.n-olch.zaif>b{color:var(--qizil)}
 
 /* ── Muammolar ro'yxati ── */
 .n-raqam{flex:0 0 auto;width:24px;height:24px;border-radius:50%;display:grid;
@@ -955,14 +996,13 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-toza span{flex:1 1 100%;font-size:13.5px;color:var(--kul)}
 
 /* ── Ovqat: ikki qarama-qarshi panel ── */
-.n-panellar{display:grid;gap:10px;grid-template-columns:1fr;margin:0 0 12px}
-@media (min-width:560px){.n-panellar{grid-template-columns:1fr 1fr}}
-.n-panel{border-radius:var(--r);padding:15px 16px 16px;border:1px solid}
-.n-panel h3{display:flex;align-items:center;gap:8px;margin:0 0 11px;font-size:16px;
+.n-panellar{display:grid;gap:8px;grid-template-columns:1fr 1fr;margin:0 0 12px}
+.n-panel{border-radius:var(--r);padding:13px 12px 14px;border:1px solid;min-width:0}
+.n-panel h3{display:flex;align-items:center;gap:6px;margin:0 0 10px;font-size:15px;
   font-weight:800;letter-spacing:-.02em}
 .n-panel ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
-.n-panel li{display:flex;gap:9px;align-items:flex-start;font-size:14px;line-height:1.4;
-  color:var(--matn)}
+.n-panel li{display:flex;gap:7px;align-items:flex-start;font-size:13px;line-height:1.35;
+  color:var(--matn);overflow-wrap:anywhere}
 .n-panel li i{flex:0 0 auto;width:19px;height:19px;border-radius:50%;display:grid;
   place-items:center;line-height:0;margin-top:1px}
 .n-panel.yaxshi{background:var(--yashil-och);border-color:color-mix(in srgb,var(--yashil) 26%,transparent)}
@@ -1003,17 +1043,17 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 /* ── Kundalik tartib: ko'k panel ── */
 .n-kok{background:var(--kok-och);border-color:color-mix(in srgb,var(--kok) 24%,transparent)}
 .n-kok .n-karta-bosh{color:var(--kok)}
-.n-vaqtlar{display:grid;gap:14px;grid-template-columns:1fr}
-@media (min-width:520px){.n-vaqtlar{grid-template-columns:1fr 1fr}}
+.n-vaqtlar{display:grid;gap:12px;grid-template-columns:1fr 1fr}
 .n-vaqt h4{display:flex;align-items:center;gap:7px;margin:0 0 9px;font-size:13px;
   font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--kok)}
 .n-vaqt ol{list-style:none;counter-reset:qadam;margin:0;padding:0;
   display:flex;flex-direction:column;gap:8px}
-.n-vaqt li{counter-increment:qadam;display:flex;gap:10px;align-items:baseline;
-  font-size:13.5px;line-height:1.4}
-.n-vaqt li::before{content:counter(qadam);flex:0 0 21px;height:21px;border-radius:50%;
-  display:grid;place-items:center;font-size:11px;font-weight:800;
-  background:var(--kok);color:#fff;align-self:flex-start}
+.n-vaqt li{counter-increment:qadam;display:flex;flex-direction:column;gap:1px;
+  font-size:12.5px;line-height:1.35;position:relative;padding-left:27px}
+.n-vaqt li::before{content:counter(qadam);position:absolute;left:0;top:0;
+  width:20px;height:20px;border-radius:50%;
+  display:grid;place-items:center;font-size:10.5px;font-weight:800;
+  background:var(--kok);color:#fff}
 .n-vaqt li b{flex:0 0 auto;color:var(--matn)}
 .n-vaqt li span{color:var(--kul);min-width:0}
 

@@ -167,7 +167,19 @@ export async function apiRoutes(req, res, yol) {
         // Surat ilovadagi tahlil bo'limida belgilar bilan ko'rsatiladi
         natija.yuz_rasm_id = await yuzniSaqla({
           analysisId: natija.analysisId, rasmBase64: base64, mime });
-        if (rasm) kanalgaTahlil(rasm.bayt, user, natija.tahlil).catch(() => {});
+        if (rasm) {
+          kanalgaTahlil(rasm.bayt, user, natija.tahlil).catch(() => {});
+          // Natija rasmi BOTGA ham o'zi keladi. Ilgari odam «Saqlash»
+          // tugmasini bosishi kerak edi va ko'pchilik bosmasdi — natija
+          // ilova yopilishi bilan yo'qolardi. Endi u Telegram
+          // suhbatida turadi: istalgan vaqtda ochadi, do'stiga yuboradi.
+          rasmYubor(user.telegram_id, rasm.bayt,
+            '📸 <b>Teri tahlilingiz tayyor</b>\n\n'
+            + 'Rasmni bosib turib saqlang yoki do‘stlaringizga ulashing.')
+            .then((r) => { if (r?.ok) hodisa(user.id, 'natija_yuborildi',
+              { analysis_id: natija.analysisId, avto: true }); })
+            .catch(() => {});
+        }
       }
       return ok(res, natija);
     } catch (e) {

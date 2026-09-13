@@ -36,8 +36,18 @@ export async function yangilanish(upd) {
   const chatId = msg.chat.id;
   const matn = (msg.text || '').trim();
 
+  // «Yozmoqda…» DARHOL ko'rinadi. Javobning o'zi bir necha baza
+  // so'rovidan keyin keladi va shu bir lahzada odam «bot o'lganmi?»
+  // deb o'ylardi. Kutish shu bilan sezilmaydi.
+  tg('sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {});
+
   // ---- Majburiy obuna ----
-  const obuna = await obunaHolati(user.telegram_id, user);
+  // Brend nomi ham shu yerda, PARALLEL so'raladi: ikkalasi ham
+  // javobga kerak va ketma-ket kutish javobni ikki barobar sekinlashtiradi
+  const [obuna] = await Promise.all([
+    obunaHolati(user.telegram_id, user),
+    brendNomi().catch(() => null),
+  ]);
   if (obuna.kerak) {
     const x = obunaXabari(obuna.havola, await brendNomi(), obuna.kanal);
     return yubor(chatId, x.matn, { reply_markup: x.reply_markup });

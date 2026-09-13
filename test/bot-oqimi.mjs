@@ -424,10 +424,10 @@ console.log('\n── JINS ──');
   const { natijaSvg } = await import('../src/rasm/natija-kartochka.js');
   const svg = natijaSvg({ tahlil: { ball: 70, jins: 'erkak', taxminiy_yosh: '24-28',
     teri_turi: 'aralash', muammolar: [] } });
-  test('kartochkada «erkak» yorlig‘i bor', /erkak/.test(svg), '');
+  test('kartochkada «erkak» yorlig‘i bor', /erkak/i.test(svg), '');
   const ayolSvg = natijaSvg({ tahlil: { ball: 70, jins: 'ayol', taxminiy_yosh: '24-28',
     teri_turi: 'aralash', muammolar: [] } });
-  test('«ayol» ham chiqadi', /ayol/.test(ayolSvg));
+  test('«ayol» ham chiqadi', /ayol/i.test(ayolSvg));
   // Noma'lum bo'lsa yorliq UMUMAN chiqmaydi — «noma'lum jins» degan
   // yozuv odamga hech nima bermaydi
   const nomalum = natijaSvg({ tahlil: { ball: 70, jins: 'nomalum', taxminiy_yosh: '24-28',

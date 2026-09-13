@@ -27,6 +27,13 @@ const CHET = 40;
 
 // Qora varaq palitrasi. Urg'u rangi mavzudan keladi (admin tanlaydi),
 // qolgani qotib turadi: qora fon uchun kontrast hisoblab tanlangan.
+/* BESH bosqichli shkala. Uch rang bilan to'rtta ko'rsatkichning
+ * uchtasi bir xil chiqib qolardi — «ranglar takrorlanib ketyapti».
+ * Endi 62 va 71 ball boshqa-boshqa ko'rinadi, lekin ma'no
+ * saqlanadi: yashil tomon yaxshi, qizil tomon yomon. */
+const SHKALA = ['#FF6B5A', '#FF9A5A', '#F0B429', '#4AA3FF', '#3DD68C'];
+const beshRang = (b) => SHKALA[Math.max(0, Math.min(4, Math.floor(b / 20)))];
+
 const T = {
   fon:     '#08080A',
   karta:   '#141417',
@@ -39,6 +46,28 @@ const T = {
   sariq:   '#F0B429',
   qizil:   '#FF6B5A',
 };
+
+/* Teri «rentgeni» — SVG filtrlari bilan.
+ *
+ * `feColorMatrix` — resvg to'liq qo'llab-quvvatlaydigan standart
+ * filtr. Rasmning o'zi o'zgarmaydi: faqat rang kanallari boshqacha
+ * aralashtiriladi, xuddi dermatolog lampasi ostida ko'rgandek.
+ */
+const RENTGEN = [
+  { kalit: 'qizarish', nom: 'Qizarish',
+    filtr: '<feColorMatrix type="saturate" values="2.2"/>'
+         + '<feColorMatrix type="hueRotate" values="-14"/>' },
+  { kalit: 'yog', nom: 'Yog‘lilik',
+    filtr: '<feColorMatrix type="saturate" values="0"/>'
+         + '<feComponentTransfer><feFuncR type="linear" slope="2.4" intercept="-0.6"/>'
+         + '<feFuncG type="linear" slope="2.4" intercept="-0.6"/>'
+         + '<feFuncB type="linear" slope="2.4" intercept="-0.6"/></feComponentTransfer>' },
+  { kalit: 'pigment', nom: 'Pigment',
+    filtr: '<feColorMatrix type="matrix" values="'
+         + '-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0"/>'
+         + '<feColorMatrix type="hueRotate" values="165"/>'
+         + '<feColorMatrix type="saturate" values="1.5"/>' },
+];
 
 const OYLAR = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
   'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
@@ -215,8 +244,32 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     }
   }
 
+  // ── Teri «rentgeni» — bitta suratning uch ko'rinishi ──
+  // Hech narsa o'ylab topilmaydi: bu o'sha surat, faqat boshqa
+  // kanalda. AI muammoni aniq joyga bog'lay olmaganda ham odam
+  // o'z terisini boshqacha ko'radi.
+  const RENTGEN_KEN = Math.floor((SURAT_ENI - 20) / 3);
+  // Balandlik: kvadrat + yozuv + pastki bo'shliq. Ilgari qotib
+  // turgan 128 edi va yozuv keyingi bo'lim ustiga tushib ketardi.
+  const RENTGEN_H = rasmBase64 ? RENTGEN_KEN + 42 : 0;
+  if (rasmBase64) {
+    const oraliq = 10;
+    const ken = RENTGEN_KEN;
+    const tomon = ken;
+    const ry = y + HERO_H + 10;
+    RENTGEN.forEach((r, i) => {
+      const kx = CHET + i * (ken + oraliq);
+      q.push(`<clipPath id="rk${i}"><rect x="${kx}" y="${ry}" width="${ken}" height="${tomon}" rx="16"/></clipPath>
+        <image href="data:${mime};base64,${rasmBase64}" x="${kx}" y="${ry}"
+          width="${ken}" height="${tomon}" clip-path="url(#rk${i})"
+          preserveAspectRatio="xMidYMid slice" filter="url(#f-${r.kalit})"/>`);
+      q.push(matn(r.nom, ry + tomon + 24, { x: kx + ken / 2, markaz: true,
+        olcham: 19, ogirlik: 700, rang: T.kul }));
+    });
+  }
+
   // Ball kartasi
-  q.push(karta(BALL_X, y, BALL_ENI, HERO_H, { r: 26 }));
+  q.push(karta(BALL_X, y, BALL_ENI, HERO_H + RENTGEN_H, { r: 26 }));
   q.push(matn('Umumiy teri bali', y + 52, { x: BALL_X + 30, olcham: 30, ogirlik: 700, rang: T.oq }));
   {
     const cx = BALL_X + BALL_ENI / 2, cy = y + 214, r = 92, qal = 18;
@@ -231,15 +284,36 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     q.push(matn('/ 100', cy + 52, { x: cx, markaz: true, olcham: 22, rang: T.och }));
     q.push(matn(holatSoz, y + 368, { x: cx, markaz: true, olcham: 34, ogirlik: 700, rang: ballRang }));
 
+    // RANGLI teglar: yosh, jins, teri turi. Ilgari ular pastda,
+    // kulrang mayda matnda edi va ko'rinmasdi.
+    const teglar = [
+      yosh && { matn: `${yosh} yosh`, rang: '#4AA3FF' },
+      jins === 'erkak' ? { matn: 'Erkak', rang: URGU }
+        : jins === 'ayol' ? { matn: 'Ayol', rang: URGU } : null,
+      teriTuri && { matn: `${teriTuri} teri`, rang: T.yashil },
+    ].filter(Boolean);
+    let tx = BALL_X + 30;
+    for (const g of teglar) {
+      const ken = Math.round(g.matn.length * 12.2) + 32;
+      if (tx + ken > BALL_X + BALL_ENI - 26) break;
+      q.push(`<rect x="${tx}" y="${y + 386}" width="${ken}" height="42" rx="21"
+        fill="${g.rang}22" stroke="${g.rang}66" stroke-width="1.5"/>`);
+      q.push(matn(g.matn, y + 414, { x: tx + ken / 2, markaz: true, olcham: 21,
+        ogirlik: 700, rang: g.rang }));
+      tx += ken + 8;
+    }
+
     const xulosa = S.bloklar.xulosa ? String(t.xulosa || t.summary || '') : '';
     if (xulosa) {
-      // To'rt qator: uchtasi kam edi va oxirgi gap yarmida uzilardi
-      const qat = qatorlarga(xulosa, BALL_ENI - 60, 23).slice(0, 4);
-      qat.forEach((str, i) => q.push(matn(str, y + 420 + i * 32,
-        { x: BALL_X + 30, olcham: 23, rang: T.kul })));
+      // Uch qator: teglar qo'shilgach to'rttasi sig'maydi
+      // Besh qator: karta rentgen yo'lakchasi hisobiga uzaydi,
+      // shuning uchun joy bor — gap yarmida uzilmasin
+      const qat = qatorlarga(xulosa, BALL_ENI - 60, 22).slice(0, 5);
+      qat.forEach((str, i) => q.push(matn(str, y + 462 + i * 30,
+        { x: BALL_X + 30, olcham: 22, rang: T.kul })));
     }
   }
-  y += HERO_H + 18;
+  y += HERO_H + RENTGEN_H + 18;
 
   // ══════════════════════════════════════════════
   // 3. KO'RSATKICHLAR — BITTA QATOR
@@ -251,7 +325,7 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     const H = 152;
     royxat.forEach((m, i) => {
       const kx = CHET + i * (en + oraliq);
-      const rang = (100 - m.foiz) >= 70 ? T.yashil : (100 - m.foiz) >= 45 ? T.sariq : T.qizil;
+      const rang = beshRang(100 - m.foiz);
       q.push(karta(kx, y, en, H, { r: 20 }));
       q.push(`<rect x="${kx + 18}" y="${y + 18}" width="46" height="46" rx="14" fill="${T.plitka}"/>`);
       q.push(belgiChiz(KALIT_BELGI[m.kalit] || 'tomchi', kx + 41, y + 41, 24, rang));
@@ -412,12 +486,10 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   q.push(`<line x1="${CHET}" y1="${y + 6}" x2="${ENI - CHET}" y2="${y + 6}"
     stroke="${T.chiziq}" stroke-width="1.5"/>`);
   y += 48;
-  const yorliqlar = [yosh && `${yosh} yosh`, jins === 'erkak' ? 'erkak' : jins === 'ayol' ? 'ayol' : '',
-    teriTuri && `${teriTuri} teri`].filter(Boolean);
+  // Yosh va jins TEPADA, rangli teglarda yozilgan — bu yerda
+  // takrorlanmaydi
   q.push(matn(brend, y, { olcham: 25, ogirlik: 700, rang: URGU }));
-  if (yorliqlar.length) {
-    q.push(matn(yorliqlar.join('  ·  '), y, { x: ENI - CHET, oxiri: true, olcham: 21, rang: T.kul }));
-  }
+  q.push(matn(sana(), y, { x: ENI - CHET, oxiri: true, olcham: 21, rang: T.och }));
   y += 30;
   if (S.izoh) {
     q.push(matn(S.izoh, y, { olcham: 21, rang: T.och }));
@@ -427,6 +499,10 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
 
   const H = Math.round(y);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${ENI}" height="${H}" viewBox="0 0 ${ENI} ${H}">
+  <defs>
+    ${RENTGEN.map((r) => `<filter id="f-${r.kalit}" color-interpolation-filters="sRGB">
+      ${r.filtr}</filter>`).join('\n    ')}
+  </defs>
   <rect width="${ENI}" height="${H}" fill="${T.fon}"/>
   ${q.join('\n  ')}
 </svg>`;

@@ -239,6 +239,25 @@ Google Gemini · Railway.
   ketmaydi. Mahsulotlar **yon tarafga siriladi**, aks holda ular
   ekranni to'ldirib, pastdagi bo'limlar ko'rinmay qolardi.
 
+  **Teri «rentgeni».** Suratning tagida to'rt kichik ko'rinish
+  turadi: *Asl*, *Qizarish*, *Yog'lilik*, *Tekstura*, *Pigment*.
+  Bosilsa asosiy surat ham o'sha ko'rinishga o'tadi. Hech narsa
+  o'ylab topilmaydi — bu odamning O'Z surati, faqat boshqa
+  kanalda ko'rsatilgan (rangdorlik, kontrast, invert). AI muammoni
+  aniq joyga bog'lay olmaganda ham odam o'z terisini boshqacha
+  ko'radi.
+
+  **Ranglar takrorlanmaydi.** Ko'rsatkichlar uch emas, **besh**
+  bosqichli shkalada bo'yaladi: uch rang bilan to'rtta katakning
+  uchtasi bir xil chiqib qolardi. Yosh, jins va teri turi ham
+  rangli teglarda — kulrang bo'lsa ular bir-biriga qo'shilib
+  ketardi.
+
+  **Sahifa QISQA.** Surat va ball, ovqat panellari, ertalab va
+  kechqurun tartibi — hammasi yonma-yon, telefonda ham. Ustma-ust
+  qo'yilganda sahifa ikki barobar uzayardi va odam pastga yetguncha
+  yuqoridagi ballni unutardi.
+
   **Belgilar yuzga nisbatan qo'yiladi.** Ilgari zona foizlari butun
   RASMGA nisbatan edi va telefonda «peshona» belgisi sochga tushib
   qolardi. Endi ilova rasmni ochganda undagi yuzni **qayta topadi**
@@ -262,6 +281,19 @@ Google Gemini · Railway.
   > ko'chirardi — parhez va tavsif yo'lda tashlab ketilardi.
   > Sahifa yangilangandan keyin (`/api/me`) paydo bo'lardi, ya'ni
   > xato faqat birinchi ko'rishda bilinardi.
+
+- **Natija rasmi botga O'ZI keladi.** Ilovada tahlil tugashi bilan
+  qora fonli natija varaqasi Telegram suhbatiga yuboriladi. Ilgari
+  odam «Saqlash» tugmasini bosishi kerak edi va ko'pchilik
+  bosmasdi — natija ilova yopilishi bilan yo'qolardi.
+
+- **Bot tez javob beradi.** `/start` bosilganda sozlamalar bir necha
+  marta bazadan so'ralardi: majburiy kanal, uning havolasi, brend
+  nomi. Supabase pooleri internet orqali ishlaydi va har so'rov
+  50-150 ms oladi. Endi `sozlama()` 20 soniya keshlanadi (yozilganda
+  kesh darhol tozalanadi, ya'ni admin o'zgartirishi shu zahoti kuchga
+  kiradi), obuna va brend so'rovlari parallel ketadi, va xabar
+  kelishi bilan «yozmoqda…» ko'rsatiladi.
 
 - **Yuz aniqlash — rangdan emas, SHAKLDAN.** Ilgari yuz teri rangi
   bo'yicha chamalanardi. Haqiqiy telefonlarda bu ishlamadi: bej
@@ -318,6 +350,25 @@ Google Gemini · Railway.
   30-92% i — normal), maydon bo'yicha emas: teri qutisi bo'yin va
   fonni ham qamrab olardi, shuning uchun eski o'lchov «yaqin»
   deb yanglishardi.
+
+- **Halqa chiroq va avtomatik surat.** Old kamera yonida chiroq
+  yo'q, lekin ekranning o'zi — katta oq yuza. Skaner ochilganda
+  butun sahifa oqaradi va kadr atrofida keng oq halqa qoladi:
+  yuzga tushgan nur shundan keladi. Yuz uzoq yoki qorong'i bo'lsa
+  kadr kichrayadi, oq maydon kengayadi va halqa nafas oladi — odam
+  beixtiyor yaqinroq keladi. `wakeLock` ekran so'nishiga yo'l
+  qo'ymaydi, Telegram sarlavhasi ham oqaradi.
+
+  Kadr ketma-ket to'rt marta yaxshi chiqsa ilova **o'zi oladi**:
+  3-2-1 sanoq ko'rinadi. Sabab oddiy — tugmani qidirib barmoq
+  ekranga borganda telefon qimirlaydi va aynan o'sha kadr xira
+  chiqadi.
+
+  > **Ko'zgu xatosi.** Odam ekranda o'zini ko'zguda ko'radi va
+  > aynan o'sha ko'rinishga qarab turadi. Kadr ko'zgusiz saqlansa
+  > tushirilgan surat «teskari» chiqadi — sochning oldi, yoqa,
+  > yuzdagi xol boshqa tomonda bo'lib qoladi va odam «bu men
+  > emasman» deydi. Endi saqlanadigan rasm ham ko'zguda.
 
 - **Nega surat xira chiqardi.** Ikki sabab bor edi va ikkalasi ham
   tuzatildi: (1) rasm yuborishdan oldin **1024 px** ga

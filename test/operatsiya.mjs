@@ -3683,11 +3683,74 @@ console.log('\n── NATIJA EKRANI ──');
   test('holat ranglari MAVZUdan olinadi — uyg‘un bo‘ladi',
     !/#2ebe78|#e05252|#e0a33c/.test(css));
 
+  // ── Yosh, jins va teri turi RANGLI ──
+  test('teglar rangli — kulrang bo‘lsa qo‘shilib ketardi',
+    /\.n-teglar \.t-yosh\{background:var\(--kok-och\)/.test(css)
+      && /\.n-teglar \.t-jins\{background:var\(--urgu-och\)/.test(css)
+      && /\.n-teglar \.t-teri\{background:var\(--yashil-och\)/.test(css));
+  test('uzun teri rangi qisqartiriladi',
+    /String\(t\.skin_tone\)\.split\(\/\[,;\(\]\/\)\[0\]/.test(js));
+
+  // ── Ranglar TAKRORLANMAYDI: besh bosqich ──
+  {
+    const kodB = js.slice(js.indexOf('const BESH ='), js.indexOf('/* Teri «rentgeni»'));
+    const beshRang = new Function(`${kodB}; return beshRang;`)();
+    const ranglar = [15, 35, 55, 72, 92].map(beshRang);
+    test('besh xil ball — besh xil rang', new Set(ranglar).size === 5, ranglar.join(','));
+    test('yuqori ball yashil tomonda', beshRang(92) === 'alo' && beshRang(15) === 'zaif');
+    test('har bosqichning o‘z rangi bor',
+      ['alo', 'yaxshi', 'orta', 'past', 'zaif'].every((k) =>
+        new RegExp(`\\.n-olch\\.${k}>em u\\{background:var\\(`).test(css)));
+  }
+
+  // ── Teri «rentgeni» ──
+  // «Muammolarni aniq ko'rsatolmasa, o'rniga yuz rasmini turli
+  // effektlarda qo'yib qo'ysa ham mayli — haqiqiy rentgendek»
+  test('rentgen ko‘rinishlari bor', /const RENTGEN = \[/.test(js)
+    && /\.n-rentgen\{/.test(css));
+  test('hammasi SHU suratdan — chizilgan rasm emas',
+    /filter:\$\{r\.css\}/.test(js)
+      && !/dall-e|midjourney|generate/i.test(js));
+  test('bosilganda asosiy surat ham o‘zgaradi',
+    /data-filtr/.test(js) && /im\.style\.filter = r\.css/.test(js));
+  test('kamida to‘rt ko‘rinish', (js.match(/\{ kalit: '(asl|qizarish|yog|tekstura|pigment)'/g) || []).length >= 4);
+
+  // ── Sahifa QISQA: hammasi bitta ekranda ──
+  test('surat va ball YONMA-YON — telefonda ham',
+    /\.n-tepa\{display:grid;gap:10px;grid-template-columns:minmax\(0,46%\)/.test(css));
+  test('ovqat panellari ham yonma-yon',
+    /\.n-panellar\{display:grid;gap:8px;grid-template-columns:1fr 1fr;/.test(css));
+  test('ertalab va kechqurun ham yonma-yon',
+    /\.n-vaqtlar\{display:grid;gap:12px;grid-template-columns:1fr 1fr\}/.test(css));
+
   // ── Ortiqcha tugmalar YO'Q ──
   const natija = js.slice(js.indexOf('function natijaniChiz'), js.indexOf('function belgilarniYuzgaQoy'));
   test('natijada «Telegramda yozish» tugmasi yo‘q', !/Telegramda yozish/.test(natija));
   test('natijada telefon raqami tugmasi ham yo‘q',
     !/href="tel:/.test(natija) && !/menejer\?\.telefon/.test(natija));
+
+  // ── Natija rasmi botga O'ZI keladi ──
+  {
+    const yollar = fs.readFileSync('src/api/routes.js', 'utf8');
+    test('tahlil tugashi bilan rasm botga yuboriladi',
+      /rasmYubor\(user\.telegram_id, rasm\.bayt/.test(yollar));
+    test('yuborish tahlilni TO‘XTATMAYDI', /\.catch\(\(\) => \{\}\);/.test(
+      yollar.slice(yollar.indexOf('rasmYubor(user.telegram_id'),
+                   yollar.indexOf('rasmYubor(user.telegram_id') + 600)));
+  }
+
+  // ── Bot tez javob bersin ──
+  {
+    const db = fs.readFileSync('src/db.js', 'utf8');
+    test('sozlamalar keshlanadi', /const sozlamaKesh = new Map\(\)/.test(db)
+      && /SOZLAMA_KESH_MS = 20_000/.test(db));
+    test('settings ga YOZILSA kesh tozalanadi',
+      /\/\\bsettings\\b\/i\.test\(matn\)/.test(db) && /sozlamalarniUnut\(\)/.test(db));
+    const bot = fs.readFileSync('src/bot/index.js', 'utf8');
+    test('«yozmoqda…» darhol ko‘rsatiladi', /action: 'typing'/.test(bot));
+    test('obuna va brend PARALLEL so‘raladi',
+      /await Promise\.all\(\[\s*obunaHolati/.test(bot));
+  }
 
   // ── SERVER VA ILOVA bir xil joyni hisoblasin ──
   {
@@ -3721,6 +3784,12 @@ console.log('\n── NATIJA EKRANI ──');
     test('kartochkada ham yuzning bo‘lagi kattalashtiriladi', /zoom = 4\.2/.test(kart));
     test('kartochkada ham ko‘rsatkichlar bitta qatorda',
       /BITTA QATOR/.test(kart) && /const en = Math\.floor\(\(TOLA - oraliq/.test(kart));
+    test('kartochkada ham besh bosqichli rang', /const SHKALA = \[/.test(kart)
+      && /const beshRang = \(b\) => SHKALA/.test(kart));
+    test('kartochkada ham rentgen yo‘lakchasi', /const RENTGEN = \[/.test(kart)
+      && /feColorMatrix/.test(kart));
+    test('yosh va jins RANGLI teglarda', /const teglar = \[/.test(kart)
+      && /\$\{yosh\} yosh/.test(kart));
   }
 
   // AI tomoni

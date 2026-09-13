@@ -2210,6 +2210,15 @@ function zonaJoyi(matn, tartib, yuz) {
 /** Ko'rsatkich rangi: MA'NO anglatadi, bezak emas. */
 const ballRang = (b) => (b >= 70 ? 'yaxshi' : b >= 45 ? 'orta' : 'yomon');
 
+/* BESH bosqichli shkala — ko'rsatkichlar uchun.
+ *
+ * Uch rang bilan to'rtta katakning uchtasi bir xil chiqib qolardi:
+ * «ranglar takrorlanib ketyapti». Besh bosqichda 62 va 71 ball
+ * boshqa-boshqa ko'rinadi, lekin ma'no saqlanadi: yashil tomon —
+ * yaxshi, qizil tomon — yomon. */
+const BESH = ['zaif', 'past', 'orta', 'yaxshi', 'alo'];
+const beshRang = (b) => BESH[Math.max(0, Math.min(4, Math.floor(b / 20)))];
+
 /** Ball halqasi — SVG, har qanday ekranga cho'ziladi. */
 function ballHalqa(ball, olcham = 132) {
   const r = 54, c = 2 * Math.PI * r;
@@ -2243,6 +2252,25 @@ function ovqatBandi(matn) {
   const m = s.match(/^(.+?)\s*[（(]\s*(.+?)\s*[)）]\s*$/);
   return m ? { nom: m[1], sabab: m[2] } : { nom: s, sabab: '' };
 }
+
+/* Teri «rentgeni» — bitta suratdan to'rt xil ko'rinish.
+ *
+ * Hech narsa o'ylab topilmaydi: bu odamning O'Z surati, faqat
+ * boshqa kanalda ko'rsatilgan. Qizarish uchun rang to'yinganligi
+ * ko'tariladi, yog'lilik uchun yorug'lik cho'qqilari ajratiladi,
+ * tekstura uchun rang olib tashlanib kontrast oshiriladi.
+ *
+ * Nima uchun kerak: AI ba'zan muammoni aniq joyga bog'lay olmaydi
+ * («butun yuz bo'ylab»). Shunda ham odam o'z terisini boshqacha
+ * ko'radi va tahlil quruq matn bo'lib qolmaydi.
+ */
+const RENTGEN = [
+  { kalit: 'asl',      nom: 'Asl',      css: 'none' },
+  { kalit: 'qizarish', nom: 'Qizarish', css: 'saturate(2.1) hue-rotate(-14deg) contrast(1.18)' },
+  { kalit: 'yog',      nom: 'Yog‘lilik', css: 'grayscale(1) brightness(1.3) contrast(2.4)' },
+  { kalit: 'tekstura', nom: 'Tekstura', css: 'grayscale(1) contrast(2.7) brightness(.92)' },
+  { kalit: 'pigment',  nom: 'Pigment',  css: 'invert(1) hue-rotate(165deg) saturate(1.5) contrast(1.25)' },
+];
 
 /** Katakka sig'adigan qisqa nom (to'liq nomi ro'yxatda qoladi). */
 const KALIT_QISQA = {
@@ -2304,7 +2332,7 @@ function natijaniChiz() {
   ${t.is_offline ? `<div class="n-karta"><div class="ogoh">AI hozir mavjud emas — bazaviy tavsiya ko‘rsatilmoqda.</div></div>` : ''}
 
   <div class="n-tepa">
-    ${t.yuz_rasm_id ? `
+    ${t.yuz_rasm_id ? `<div class="n-chap">
     <figure class="n-surat">
       <img src="/media/${esc(t.yuz_rasm_id)}" alt="Tahlil qilingan surat">
       ${belgili.map((m) => `
@@ -2319,7 +2347,19 @@ function natijaniChiz() {
           <b class="${ballRang(ball)}">${holatSoz}</b>
         </div>
       </figcaption>
-    </figure>` : ''}
+    </figure>
+    <!-- TERI «RENTGENI». Kamera oddiy surat oladi, lekin o'sha
+         suratdan ko'p narsani ko'rsatish mumkin: kanallarni ajratib,
+         kontrastni ko'tarib. Bu SIZNING suratingiz — hech qanday
+         chizilgan rasm emas, shunchaki boshqa yorug'likda. -->
+    <div class="n-rentgen" role="tablist">
+      ${RENTGEN.map((r, i) => `
+        <button role="tab" data-filtr="${r.kalit}"
+          class="${i === 0 ? 'tanlangan' : ''}" aria-selected="${i === 0}">
+          <img src="/media/${esc(t.yuz_rasm_id)}" alt="" loading="lazy" style="filter:${r.css}">
+          <span>${r.nom}</span>
+        </button>`).join('')}
+    </div></div>` : ''}
 
     <div class="n-karta n-ball">
       ${t.yuz_rasm_id ? '' : `
@@ -2328,21 +2368,29 @@ function natijaniChiz() {
             <b class="${ballRang(ball)}">${holatSoz}</b></div>
         </div>`}
       <p class="n-xulosa">${esc(t.raw?.xulosa || 'Teri holati baholandi.')}</p>
+      <!-- Teglar RANGLI: kulrang bo'lsa ular bir-biriga qo'shilib
+           ketardi va hech kim o'qimasdi -->
       <div class="n-teglar">
-        ${t.age_estimate ? `<span>${esc(t.age_estimate)} yosh</span>` : ''}
-        ${JINS[t.jins] ? `<span>${JINS[t.jins]}</span>` : ''}
-        ${t.skin_type ? `<span>${esc(t.skin_type)} teri</span>` : ''}
+        ${t.age_estimate ? `<span class="t-yosh">${ik('soat',13)}${esc(t.age_estimate)} yosh</span>` : ''}
+        ${JINS[t.jins] ? `<span class="t-jins">${ik('profil',13)}${JINS[t.jins]}</span>` : ''}
+        ${t.skin_type ? `<span class="t-teri">${ik('tomchi',13)}${esc(t.skin_type)}</span>` : ''}
+        ${t.skin_tone ? `<span class="t-rang">${ik('quyosh',13)}${esc(
+          // Teri rangi ba'zan uzun yoziladi («och bug'doyrang, iliq
+          // tonli») va teg uch qatorga cho'zilib ketadi — birinchi
+          // qismi yetarli
+          String(t.skin_tone).split(/[,;(]/)[0].trim())}</span>` : ''}
       </div>
-      ${t.raw?.tavsif ? `
-        <div class="n-tavsif"><i>${ik('koz', 16)}</i>
-          <span>${esc(t.raw.tavsif)}</span></div>` : ''}
     </div>
   </div>
+
+  ${t.raw?.tavsif ? `
+    <div class="n-tavsif"><i>${ik('koz', 16)}</i>
+      <span>${esc(t.raw.tavsif)}</span></div>` : ''}
 
   ${olchovlar.length ? `
   <div class="n-olchamlar">
     ${olchovlar.map((m) => `
-      <div class="n-olch ${ballRang(m.ballHolat)}">
+      <div class="n-olch ${beshRang(m.ballHolat)}">
         <i>${ik(KALIT_IKON[m.kalit] || 'tomchi', 15)}</i>
         <b>${m.ballHolat}<small>/100</small></b>
         <span>${esc(kalitQisqa(m))}</span>
@@ -2402,6 +2450,16 @@ function natijaniChiz() {
     const ochiq = !ich.classList.contains('yashirin');
     kor(ich, ochiq ? false : true);
     b.classList.toggle('ochiq', !ochiq);
+    titra();
+  });
+  $$('[data-filtr]', el).forEach((b) => b.onclick = () => {
+    const r = RENTGEN.find((x) => x.kalit === b.dataset.filtr);
+    const im = el.querySelector('.n-surat img');
+    if (im && r) im.style.filter = r.css;
+    $$('[data-filtr]', el).forEach((x) => {
+      x.classList.toggle('tanlangan', x === b);
+      x.setAttribute('aria-selected', String(x === b));
+    });
     titra();
   });
   $$('[data-tavsiya]', el).forEach((b) => b.onclick = (ev) => {

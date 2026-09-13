@@ -51,6 +51,12 @@ const SEKIN_MS = Number(process.env.SLOW_QUERY_MS || 1000);
 /** Xom so'rov. */
 export async function sorov(matn, qiymatlar = []) {
   const boshi = Date.now();
+  // `settings` ga YOZILSA kesh darhol tozalanadi. Yozuvchi joylar
+  // o'nlab: admin panel, agent, marketplace jadvali... Har birini
+  // alohida eslash o'rniga yagona darvozada tekshiramiz.
+  if (/\bsettings\b/i.test(matn) && /^\s*(insert|update|delete)/i.test(matn)) {
+    sozlamalarniUnut();
+  }
   try {
     return await pool.query(matn, qiymatlar);
   } finally {
@@ -95,11 +101,34 @@ export async function tranzaksiya(ish) {
   }
 }
 
-/** settings jadvalidan qiymat. */
+/* settings jadvalidan qiymat — QISQA MUDDAT keshlanadi.
+ *
+ * Nega. Botga /start bosilganda sozlamalar bir necha marta
+ * so'ralardi: majburiy kanal, uning havolasi, brend nomi, ilova
+ * manzili. Supabase pooleri internet orqali ishlaydi va har so'rov
+ * 50-150 ms oladi — javob sezilarli kechikardi.
+ *
+ * Sozlamalar kunda bir marta o'zgaradi, shuning uchun 20 soniyalik
+ * kesh xavfsiz. Yozilganda esa `sorov` darhol tozalaydi, ya'ni
+ * admin o'zgartirgan sozlama shu zahoti kuchga kiradi.
+ */
+const sozlamaKesh = new Map();
+const SOZLAMA_KESH_MS = 20_000;
+
 export async function sozlama(kalit, zaxira = null) {
+  const bor = sozlamaKesh.get(kalit);
+  if (bor && Date.now() - bor.vaqt < SOZLAMA_KESH_MS) {
+    return bor.qiymat === null ? zaxira : bor.qiymat;
+  }
   const r = await qator('select value from settings where key = $1', [kalit]);
-  return r ? r.value : zaxira;
+  const qiymat = r ? r.value : null;
+  sozlamaKesh.set(kalit, { qiymat, vaqt: Date.now() });
+  return qiymat === null ? zaxira : qiymat;
 }
+
+/** Keshni tozalaydi (yozilganda va sinovda).
+ *  `function` — `sorov` undan OLDIN e'lon qilingan, ko'tarilishi kerak. */
+export function sozlamalarniUnut() { sozlamaKesh.clear(); }
 
 /** Voronka hodisasi. Analitika hech qachon asosiy oqimni to'xtatmasin. */
 export async function hodisa(userId, tur, meta = {}) {
