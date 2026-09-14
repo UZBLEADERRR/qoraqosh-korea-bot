@@ -1,7 +1,8 @@
 // Rasm keldi → sifat nazorati → tahlil → BITTA qisqa xabar + Mini App tugmasi.
 import { harakat, yubor, faylOl, tg, rasmYubor } from '../tg.js';
 import { qator, sozlama } from '../../db.js';
-import { natijaRasminiYarat, kanalgaTahlil, yuzniSaqla } from '../../services/natija-rasm.js';
+import { natijaRasminiYarat, kanalgaTahlil, yuzniSaqla, saqlanganRasm }
+  from '../../services/natija-rasm.js';
 import { tahlilQil } from '../../services/analysis.js';
 import { radXabari, tahlilXabari, tavsiyaMatni, qisqaIzoh } from '../render.js';
 import { natijaTugmalari, appUrl, ortga } from '../keyboards.js';
@@ -142,4 +143,41 @@ export async function rasmniQabulQil(msg, user) {
       await tg('deleteMessage', { chat_id: chatId, message_id: kutish.result.message_id });
     }
   }
+}
+
+/**
+ * Saqlangan natijani QAYTA yuboradi.
+ *
+ * Ikki joydan chaqiriladi: «Natijani olish» tugmasidan (eski
+ * xabarlarda ham bor) va Instagramdan kelgan odam tokenni «da'vo»
+ * qilganda. Ikkalasida ham yangi tahlil QILINMAYDI — rasm allaqachon
+ * chizilgan va bazada turibdi, kvota bejiz yonmasin.
+ */
+export async function natijaniQaytaYubor(chatId, user, analysisId = null) {
+  const a = analysisId
+    ? await qator(`select id from analyses where id = $1 and user_id = $2`,
+        [Number(analysisId), user.id])
+    : await qator(`select id from analyses where user_id = $1
+                   order by created_at desc limit 1`, [user.id]);
+  if (!a) {
+    await yubor(chatId, '📸 Hali tahlil qilinmagan. Yuzingiz suratini yuboring.',
+      { reply_markup: ortga() });
+    return false;
+  }
+
+  const bayt = await saqlanganRasm(a.id, user.id);
+  if (!bayt) {
+    // Rasm chizilmagan (eski tahlil yoki chizishda xato) — hech
+    // bo'lmasa ilovaga yo'l ko'rsatamiz
+    await yubor(chatId,
+      '💡 Bu tahlilning rasmi saqlanmagan, lekin to‘liq natija ilovada turibdi.',
+      { reply_markup: natijaTugmalari() });
+    return true;
+  }
+
+  await rasmYubor(chatId, bayt,
+    '📸 <b>Teri tahlilingiz</b>\n\nRasmni bosib turib saqlang yoki '
+    + 'do‘stlaringizga ulashing. To‘liq tavsiya — quyidagi tugmada.',
+    { reply_markup: natijaTugmalari() });
+  return true;
 }

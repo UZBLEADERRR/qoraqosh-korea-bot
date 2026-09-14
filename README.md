@@ -282,18 +282,81 @@ Google Gemini · Railway.
   > Sahifa yangilangandan keyin (`/api/me`) paydo bo'lardi, ya'ni
   > xato faqat birinchi ko'rishda bilinardi.
 
+- **Instagram uchun ochiq skaner — `/skan`.** Reklama havolasi
+  (`https://<sayt>/skan`) do'kon emas, BITTA amalga olib boradi:
+  odam yuzini skanerlaydi va o'zi haqida darhol biror narsa biladi.
+  Do'kon, savat va menyu bu sahifada umuman yo'q — har ortiqcha
+  tugma asosiy amaldan chalg'itadi.
+
+  Bepul ko'rinadi: «rasmda nimani ko'rdim» tavsifi, **biologik
+  yosh**, jins, teri turi va umumiy ball. Qolgani — muammolarning
+  foizi, sababi, yechimi va mahsulot tavsiyasi — **xira** qilib
+  berkitiladi va «To'liq natija Telegramda» deyiladi.
+
+  > Xira qism brauzerda «ochilmaydi»: berkitilgan matn javobga
+  > UMUMAN qo'shilmaydi. Ekranda ko'rinayotgani — shunchaki
+  > bo'yalgan to'rtburchaklar. Sinov aynan shuni tekshiradi.
+
+  Tugma `t.me/<bot>?start=n_<token>` ga olib boradi. Bot tokendan
+  aynan o'sha tahlilni topadi: ro'yxatdan o'tgan bo'lsa natija
+  darhol keladi, o'tmagan bo'lsa uch qisqa savoldan keyin.
+  Tahlil vaqtinchalik MEHMON hisobida turadi va «da'vo»
+  qilinganda haqiqiy hisobga ko'chadi.
+
+  Suiiste'moldan himoya: bitta IP kuniga **3 marta** (IP ning o'zi
+  emas, xeshi saqlanadi), butun tizim bo'yicha soatiga 120 ta.
+
+- **Kartochkaning KO'RINISHINI yordamchi o'zi yozadi.** Do'kon egasi
+  «kartochka mana bunday bo'lsin» deydi — admin yordamchisi
+  natija rasmining to'liq SVG shablonini yozadi, ko'rinish
+  havolasini beradi, egasi ochib ko'radi va o'sha sahifadagi tugma
+  bilan **tasdiqlaydi**. Tasdiqlanmaguncha mijozlarga eski
+  ko'rinish boradi.
+
+  | Nima | Qayerda |
+  |---|---|
+  | Shablon motori | `src/rasm/shablon.js` |
+  | Shablonga beriladigan ma'lumot | `src/rasm/shablon-malumot.js` |
+  | Ko'rinish sahifasi | `src/lib/kartochka-korinish.js` → `/kartochka/<versiya>` |
+  | Yordamchi vositalari | `kartochka_kodi`, `kartochka_kodi_yoz`, `kartochka_kodi_ochir` |
+
+  Shablon tili ataylab kichik: `{{ball}}`, `{{#muammolar}}…{{/}}`,
+  `{{?xulosa}}…{{/}}`, `{{^tavsif}}…{{/}}` va ro'yxat sanog'i ustida
+  kichik hisob — `{{@i*60+970}}` (qatorlarni pastga tushirish uchun).
+  Rasm kesish `<clipPath>`, effektlar `<filter><feColorMatrix>` —
+  ya'ni «rentgen» ko'rinishlarini ham yordamchi o'zi yasay oladi.
+
+  > **Nega SVG, JavaScript emas.** AI yozgan kodni serverda bajarish
+  > — botga to'g'ridan-to'g'ri kod yuborish bilan barobar: bitta
+  > noto'g'ri qadamda baza ham, kalitlar ham ochiq qoladi. SVG esa
+  > rasmning o'zi; motor unga faqat ma'lumot qo'yadi. `eval` ham,
+  > `new Function` ham yo'q. `<script>`, `<foreignObject>`,
+  > `onclick` va tashqi havolalar **saqlashdan oldin** rad etiladi,
+  > shablon esa namuna ma'lumot bilan chizib ko'riladi — admin bo'sh
+  > sahifa ochib ovora bo'lmaydi.
+
 - **Natija rasmi botga O'ZI keladi.** Ilovada tahlil tugashi bilan
   qora fonli natija varaqasi Telegram suhbatiga yuboriladi. Ilgari
   odam «Saqlash» tugmasini bosishi kerak edi va ko'pchilik
   bosmasdi — natija ilova yopilishi bilan yo'qolardi.
 
+- **«Natijani olish» har doim qo'l ostida.** Natija xabarining
+  ostidagi birinchi tugma — `📥 Natijani olish`. Eski xabarlarda ham
+  ishlaydi va tahlili borlar uchun asosiy menyuda ham chiqadi. Yangi
+  tahlil QILINMAYDI: rasm bazada turibdi, kvota bejiz yonmaydi.
+
 - **Bot tez javob beradi.** `/start` bosilganda sozlamalar bir necha
   marta bazadan so'ralardi: majburiy kanal, uning havolasi, brend
   nomi. Supabase pooleri internet orqali ishlaydi va har so'rov
-  50-150 ms oladi. Endi `sozlama()` 20 soniya keshlanadi (yozilganda
-  kesh darhol tozalanadi, ya'ni admin o'zgartirishi shu zahoti kuchga
-  kiradi), obuna va brend so'rovlari parallel ketadi, va xabar
-  kelishi bilan «yozmoqda…» ko'rsatiladi.
+  50-150 ms oladi. Endi `sozlama()` 20 soniya keshlanadi, obuna va
+  brend so'rovlari parallel ketadi, va xabar kelishi bilan
+  «yozmoqda…» ko'rsatiladi.
+
+  > Kesh AVLOD bilan bekor qilinadi, shunchaki tozalash bilan emas.
+  > Sabab: o'qish yo'lda bo'lganda yozuv kelsa, o'qish qaytib
+  > ESKI qiymatni keshga yozib qo'yardi va u yana 20 soniya
+  > yashardi. Sinovda aynan shu ushlandi — kanal yoqilgandan keyin
+  > ham tahlil kanalga tushmasdi.
 
 - **Yuz aniqlash — rangdan emas, SHAKLDAN.** Ilgari yuz teri rangi
   bo'yicha chamalanardi. Haqiqiy telefonlarda bu ishlamadi: bej

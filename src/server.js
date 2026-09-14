@@ -15,6 +15,7 @@ import crypto from 'node:crypto';
 import { config } from './config.js';
 import { statik, ok, xato, tana, sorovniEsla } from './lib/http.js';
 import { apiRoutes } from './api/routes.js';
+import { ochiqRoutes } from './api/ochiq.js';
 import { adminRoutes } from './api/admin.js';
 import { yangilanish } from './bot/index.js';
 import { ilovaHavolasi } from './lib/ilova-havola.js';
@@ -23,10 +24,12 @@ import { jpegQil } from './rasm/olcham.js';
 import { tg } from './bot/tg.js';
 import { ofertaSahifasi } from './lib/oferta.js';
 import { postSahifasi, imzoTogrimi } from './lib/post-korinish.js';
+import { shablonSahifasi, shablonImzoTogrimi } from './lib/kartochka-korinish.js';
+import { svgdanPng } from './rasm/chiz.js';
 import { migratsiyalarniQoll } from './db/migrate.js';
 import { agentniIshgaTushir } from './services/agent-jadval.js';
 import { vazifaniTiklash, jadvalniIshgaTushir } from './services/marketplace-vazifa.js';
-import { qator, sozlama, ulanishniTekshir } from './db.js';
+import { qator, sorov, sozlama, ulanishniTekshir } from './db.js';
 import { brendNomi } from './lib/brend.js';
 import { verifyAdminToken } from './lib/auth.js';
 import { versiyaOl, versiyalaHtml, versiyalanganmi } from './lib/versiya.js';
@@ -43,6 +46,8 @@ const SAHIFA_FAYL = {
                      'sifat.js', 'yuz.js'] },
   admin: { yol: 'admin/index.html', papka: 'admin',
            fayllar: ['index.html', 'admin.js', 'style.css'] },
+  skan:  { yol: 'skan/index.html',  papka: 'skan',
+           fayllar: ['index.html', 'app.js', 'style.css'] },
 };
 
 function sahifa(res, nom) {
@@ -132,6 +137,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ---------- API ----------
+    // `/api/ochiq/*` — Telegram initData SIZ ishlaydi: Instagramdan
+    // kelgan odam hali bizning mijozimiz emas. Chegaralari o'z ichida.
+    if (yol.startsWith('/api/ochiq/')) {
+      const j = await ochiqRoutes(req, res, yol);
+      if (j !== null) return j;
+      return notFound(res);
+    }
     if (yol.startsWith('/api/admin/')) return await adminRoutes(req, res, yol);
     if (yol.startsWith('/api/'))       return await apiRoutes(req, res, yol);
 
@@ -170,6 +182,46 @@ const server = http.createServer(async (req, res) => {
       return res.end(html);
     }
 
+    // ---------- Kartochka shabloni ko'rinishi ----------
+    // Admin yordamchisi yozgan kartochkani admin ochib ko'radi va
+    // shu sahifadagi tugma bilan TASDIQLAYDI. Havola imzolangan.
+    const kartMos = yol.match(/^\/kartochka\/([a-z0-9]+)(\/tasdiq)?$/i);
+    if (kartMos) {
+      const versiya = kartMos[1];
+      const tasdiq = Boolean(kartMos[2]);
+      const imzo = new URL(req.url, 'http://x').searchParams.get('i') || '';
+      if (!shablonImzoTogrimi(versiya, imzo)) return notFound(res);
+
+      const sh = await sozlama('natija_shablon', null);
+      if (!sh?.svg || sh.versiya !== versiya) return notFound(res);
+
+      if (tasdiq) {
+        if (req.method !== 'POST') return xato(res, 405, 'POST kutilgan');
+        await sorov(
+          `insert into settings (key, value, updated_at)
+           values ('natija_shablon', $1::jsonb, now())
+           on conflict (key) do update set value = excluded.value, updated_at = now()`,
+          [JSON.stringify({ ...sh, holat: 'tasdiq', tasdiqlangan: new Date().toISOString() })]);
+        return ok(res, { ok: true });
+      }
+
+      const { toldir, tekshir } = await import('./rasm/shablon.js');
+      const { namunaMalumot } = await import('./rasm/shablon-malumot.js');
+      const brend = await brendNomi().catch(() => 'KiOVO');
+      let png = '', chizXato = '';
+      try {
+        const bayt = await svgdanPng(toldir(sh.svg, namunaMalumot(brend)), 1080);
+        png = Buffer.from(bayt).toString('base64');
+      } catch (e) { chizXato = e.message; }
+
+      const html = shablonSahifasi({
+        png, holat: sh.holat, versiya, imzo, svg: sh.svg, xato: chizXato,
+        izoh: sh.izoh || '', ogoh: tekshir(sh.svg).ogoh,
+      });
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      return res.end(html);
+    }
+
     // ---------- Statik ----------
     if (yol === '/' )        return statik(res, PUBLIC, 'index.html') || notFound(res);
     if (yol === '/app' )     return redirect(res, '/app/');
@@ -197,6 +249,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (yol === '/app/')     return sahifa(res, 'app');
     if (yol === '/admin/')   return sahifa(res, 'admin');
+    // Reklama sahifasi — Instagram bio'siga qo'yiladigan havola
+    if (yol === '/skan')     return redirect(res, '/skan/');
+    if (yol === '/skan/')    return sahifa(res, 'skan');
 
     if (statik(res, PUBLIC, yol.replace(/^\/+/, ''), { uzoqKesh: versiyalanganmi(req.url) })) return;
     return notFound(res);

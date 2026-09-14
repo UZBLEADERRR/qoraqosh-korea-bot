@@ -60,8 +60,16 @@ export function shartnomaTugmalari() {
  * Botdagi xabar qisqa — muammo, sabab, yechim va mahsulotlarning to'liq
  * tafsiloti shu birinchi tugma ostida, ilovada.
  */
+/**
+ * Natija xabari ostidagi tugmalar.
+ *
+ * «Natijani olish» HAR DOIM bo'ladi — eski xabarlarda ham. Odam
+ * chatni pastga sirg'itib eski tahlilini topganda, o'sha yerdan
+ * to'liq natijani qaytadan olishi kerak: yangi skaner qilib, kvota
+ * yoqib o'tirmasin.
+ */
 export function natijaTugmalari() {
-  const qatorlar = [];
+  const qatorlar = [[{ text: '📥 Natijani olish', callback_data: 'natija_ol' }]];
   const toliq = appTugma('💡 Tavsiyani ochish', '/app/?tab=natija');
   const savatga = appTugma('🛒 Hammasini savatga', '/app/?tavsiya=1');
   if (toliq)   qatorlar.push([toliq]);

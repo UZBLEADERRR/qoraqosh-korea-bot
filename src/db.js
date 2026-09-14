@@ -115,20 +115,35 @@ export async function tranzaksiya(ish) {
 const sozlamaKesh = new Map();
 const SOZLAMA_KESH_MS = 20_000;
 
+/* Kesh AVLODI.
+ *
+ * Tozalash yetmaydi. Tasavvur qiling: A so'rovi qiymatni bazadan
+ * o'qiyapti, shu payt B uni O'ZGARTIRDI va keshni tozaladi. A
+ * qaytib kelib ESKI qiymatni keshga yozadi — va u yana 20 soniya
+ * yashaydi. Aynan shu xato sinovda ushlandi: kanal yoqilgandan
+ * keyin ham tahlil kanalga tushmasdi.
+ *
+ * Shuning uchun har tozalashda avlod raqami oshadi. O'qish
+ * boshlangandagi avlod bilan tugagandagisi teng bo'lmasa — natija
+ * eskirgan, keshga yozilmaydi.
+ */
+let sozlamaAvlod = 0;
+
 export async function sozlama(kalit, zaxira = null) {
   const bor = sozlamaKesh.get(kalit);
   if (bor && Date.now() - bor.vaqt < SOZLAMA_KESH_MS) {
     return bor.qiymat === null ? zaxira : bor.qiymat;
   }
+  const avlod = sozlamaAvlod;
   const r = await qator('select value from settings where key = $1', [kalit]);
   const qiymat = r ? r.value : null;
-  sozlamaKesh.set(kalit, { qiymat, vaqt: Date.now() });
+  if (avlod === sozlamaAvlod) sozlamaKesh.set(kalit, { qiymat, vaqt: Date.now() });
   return qiymat === null ? zaxira : qiymat;
 }
 
 /** Keshni tozalaydi (yozilganda va sinovda).
  *  `function` — `sorov` undan OLDIN e'lon qilingan, ko'tarilishi kerak. */
-export function sozlamalarniUnut() { sozlamaKesh.clear(); }
+export function sozlamalarniUnut() { sozlamaAvlod++; sozlamaKesh.clear(); }
 
 /** Voronka hodisasi. Analitika hech qachon asosiy oqimni to'xtatmasin. */
 export async function hodisa(userId, tur, meta = {}) {

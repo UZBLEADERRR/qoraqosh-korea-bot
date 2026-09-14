@@ -1,5 +1,5 @@
 // Botdagi matnli bo'limlar — hammasi qisqa, batafsili ilovada.
-import { qatorlar, qiymat, sozlama } from '../../db.js';
+import { qatorlar, qiymat, qator, sozlama } from '../../db.js';
 import { yubor } from '../tg.js';
 import { adminmi } from '../../lib/admin.js';
 import { bosqich, jarayonMatni } from '../../lib/bosqichlar.js';
@@ -92,10 +92,20 @@ export async function yordamKorsat(chatId) {
 }
 
 export async function menyuniKorsat(chatId, user) {
-  const brend = await brendNomi();
+  const [brend, tahlili] = await Promise.all([
+    brendNomi(),
+    // Tahlili bor odamga «Natijani olish» tugmasi ham chiqadi: u
+    // eski xabarni chatdan qidirib o'tirmasin
+    qator(`select 1 as bor from analyses where user_id = $1 limit 1`, [user.id])
+      .catch(() => null),
+  ]);
   const admin = adminmi(user);
   const ism = esc((user.full_name || '').split(' ')[0] || 'do‘stim');
   const qatorlar = [`🌸 <b>${esc(brend)}</b>`, ``, `Nima qilamiz, ${ism}?`];
   if (admin) qatorlar.push('', '⚙️ <i>Siz adminsiz — panel tugmasi quyida.</i>');
-  return yubor(chatId, qatorlar.join('\n'), { reply_markup: await asosiyMenyu(admin) });
+  const menyu = await asosiyMenyu(admin);
+  if (tahlili?.bor) {
+    menyu.inline_keyboard.unshift([{ text: '📥 Natijani olish', callback_data: 'natija_ol' }]);
+  }
+  return yubor(chatId, qatorlar.join('\n'), { reply_markup: menyu });
 }

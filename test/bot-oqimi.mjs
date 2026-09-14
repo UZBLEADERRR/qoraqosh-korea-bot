@@ -91,11 +91,24 @@ test('«Tavsiyani ochish» tugmasi bor',
 // Asosiy menyu ikkita tugmadan iborat: skaner va do'kon
 await bosish('menyu');
 const menyuTugmalari = (oxirgi().reply_markup?.inline_keyboard || []).flat();
-test('asosiy menyuda 2 ta tugma', menyuTugmalari.length === 2,
+// Menyu ataylab qisqa: skaner va do'kon. Tahlili BORLARGA yana
+// bittasi qo'shiladi — «Natijani olish»: odam eski rasmni chatdan
+// qidirib o'tirmasin.
+test('asosiy menyuda ortiqcha tugma yo‘q', menyuTugmalari.length <= 3,
   menyuTugmalari.map((b) => b.text).join(' | '));
 test('menyuda skaner va do‘kon bor',
   menyuTugmalari.some((b) => /skaner/i.test(b.text)) &&
   menyuTugmalari.some((b) => /Do‘kon|Dokon/i.test(b.text)));
+test('tahlili borga «Natijani olish» ham chiqadi',
+  menyuTugmalari.some((b) => b.callback_data === 'natija_ol'),
+  menyuTugmalari.map((b) => b.text).join(' | '));
+
+// Tugma bosilsa saqlangan rasm QAYTA yuboriladi — yangi tahlil emas
+yuborilgan.length = 0;
+await bosish('natija_ol');
+test('«Natijani olish» saqlangan natijani qaytaradi',
+  yuborilgan.some((x) => x.photo || /tahlil/i.test(x.text || '')),
+  yuborilgan.map((x) => (x.photo ? '[rasm]' : (x.text || '').slice(0, 30))).join(' | '));
 
 for (const [data, kutilgan] of [
   ['menyu', /KiOVO/], ['skaner', /Yuz skaneri/], ['konsultatsiya', /Konsultatsiya/],
@@ -447,6 +460,10 @@ console.log('\n── JINS ──');
   // sozlama esa o'zgaradi. Aks holda jins yorlig'i baytlarni baribir
   // farqlantirib, sinov hech nima isbotlamasdi.
   const u = await qator(`select id from users where telegram_id = $1`, [TG]);
+  // Yordamchi yozgan shablon tasdiqlangan bo'lsa kartochka O'SHANDAN
+  // chiziladi va mavzu rangiga umuman bog'liq bo'lmaydi — sinov
+  // uchun ichki ko'rinishga qaytaramiz
+  await sorov(`delete from settings where key = 'natija_shablon'`);
   const chiz = () => natijaRasminiYarat({ analysisId: null, userId: u.id,
     rasmBase64: null, mime: 'image/jpeg',
     tahlil: { ball: 70, jins: 'erkak', muammolar: [], tavsiya: [] }, mahsulotlar: [] });

@@ -42,6 +42,29 @@ const chaqirAdmin = (yol, usul, tana) => new Promise((res) => {
     .catch((e) => res({ kod: 500, tana: { error: e.message } }));
 });
 
+// OCHIQ yo'llar (Instagram sahifasi) — admin tokeni ham, Telegram
+// initData ham yo'q. IP sarlavhasi beriladi: chegara shunga bog'liq.
+const { ochiqRoutes } = await import('../src/api/ochiq.js');
+const chaqirOchiq = (yol, usul, tana, ip = '198.51.100.5') => new Promise((res) => {
+  const bayt = Buffer.from(JSON.stringify(tana ?? {}));
+  const req = Object.assign(new Readable({ read() { this.push(bayt); this.push(null); } }), {
+    url: yol, method: usul,
+    headers: { 'content-type': 'application/json', 'content-length': String(bayt.length),
+               'x-forwarded-for': ip },
+    socket: { remoteAddress: ip },
+  });
+  const bolaklar = [];
+  const javob = {
+    statusCode: 200, headersSent: false,
+    writeHead(k) { this.statusCode = k; return this; },
+    setHeader() {},
+    end(x) { if (x) bolaklar.push(x); res({ kod: this.statusCode,
+      tana: JSON.parse(Buffer.concat(bolaklar.map(Buffer.from)).toString() || '{}') }); },
+  };
+  ochiqRoutes(req, javob, yol.split('?')[0])
+    .catch((e) => res({ kod: 500, tana: { error: e.message } }));
+});
+
 // Agent endi FONDA ishlaydi: so'rov ish raqamini qaytaradi, natija
 // esa holat so'rovi orqali keladi. Sinov ham xuddi panel kabi kutadi.
 const agentSora = async (tana) => {
@@ -3716,8 +3739,15 @@ console.log('\n── NATIJA EKRANI ──');
   test('kamida to‘rt ko‘rinish', (js.match(/\{ kalit: '(asl|qizarish|yog|tekstura|pigment)'/g) || []).length >= 4);
 
   // ── Sahifa QISQA: hammasi bitta ekranda ──
-  test('surat va ball YONMA-YON — telefonda ham',
-    /\.n-tepa\{display:grid;gap:10px;grid-template-columns:minmax\(0,46%\)/.test(css));
+  // «Hozir ilovada teri holati haqidagi qismi rasmning ostki
+  // qismida bo'laversin» — yonma-yon qo'yilganda o'ng ustun tor
+  // bo'lib, xulosa besh qatorga cho'zilar edi
+  test('teri holati SURAT OSTIDA',
+    /\.n-tepa\{display:grid;gap:10px;grid-template-columns:1fr;/.test(css));
+  test('keng ekranda esa yana yonma-yon',
+    /@media \(min-width:720px\)\{\.n-tepa\{grid-template-columns:minmax\(0,44%\)/.test(css));
+  test('surat 4:5 — sahifa bejiz uzaymaydi',
+    /\.n-surat\{[^}]*aspect-ratio:4\/5/.test(css.replace(/\n\s*/g, '')));
   test('ovqat panellari ham yonma-yon',
     /\.n-panellar\{display:grid;gap:8px;grid-template-columns:1fr 1fr;/.test(css));
   test('ertalab va kechqurun ham yonma-yon',
@@ -3746,6 +3776,25 @@ console.log('\n── NATIJA EKRANI ──');
       && /SOZLAMA_KESH_MS = 20_000/.test(db));
     test('settings ga YOZILSA kesh tozalanadi',
       /\/\\bsettings\\b\/i\.test\(matn\)/.test(db) && /sozlamalarniUnut\(\)/.test(db));
+    // Tozalash YETMAYDI: o'qish yo'lda bo'lganda yozuv kelsa, o'qish
+    // qaytib eski qiymatni keshga yozib qo'yardi. Sinovda aynan shu
+    // ushlandi — kanal yoqilgandan keyin ham tahlil tushmasdi.
+    test('yo‘ldagi o‘qish ESKI qiymatni keshga qaytara olmaydi',
+      /let sozlamaAvlod = 0/.test(db)
+        && /if \(avlod === sozlamaAvlod\) sozlamaKesh\.set/.test(db));
+
+    // Haqiqiy tekshiruv: o'qish boshlanib, tugagunicha qiymat o'zgarsa
+    {
+      const { sozlama, sorov: s2 } = await import('../src/db.js');
+      await s2(`insert into settings (key, value) values ('kesh_sinov','"eski"'::jsonb)
+                on conflict (key) do update set value = excluded.value`);
+      const oqish = sozlama('kesh_sinov');            // boshladi, hali tugamadi
+      await s2(`update settings set value = '"yangi"'::jsonb where key = 'kesh_sinov'`);
+      await oqish;
+      test('o‘zgartirilgan qiymat DARHOL ko‘rinadi',
+        (await sozlama('kesh_sinov')) === 'yangi', String(await sozlama('kesh_sinov')));
+      await s2(`delete from settings where key = 'kesh_sinov'`);
+    }
     const bot = fs.readFileSync('src/bot/index.js', 'utf8');
     test('«yozmoqda…» darhol ko‘rsatiladi', /action: 'typing'/.test(bot));
     test('obuna va brend PARALLEL so‘raladi',
@@ -3799,6 +3848,252 @@ console.log('\n── NATIJA EKRANI ──');
     /ko[‘'`]zoynak, zirak, quloqchin/i.test(ai));
   test('odamni TANISH taqiqlangan',
     /odamni TANIMA va ismini aytma/.test(ai) && /millat\/irq\/din haqida gapirma/.test(ai));
+}
+
+// ═══════════ OCHIQ SKANER (INSTAGRAM) ═══════════
+// «Sen menga bir link tayyorlab ber, buni Instagramga qo'yaman:
+// userlar uchun face scan bo'ladi, boshqa shop qismlar ko'rinmaydi.»
+console.log('\n── OCHIQ SKANER ──');
+{
+  const fs = await import('node:fs');
+  const html = fs.readFileSync('public/skan/index.html', 'utf8');
+  // Izohlar hisobga olinmaydi — ular sahifada ko'rinmaydi
+  const korinadi = html.replace(/<!--[\s\S]*?-->/g, '');
+
+  test('reklama sahifasi bor', html.length > 1000);
+  test('do‘kon, savat va menyu YO‘Q',
+    !/savat|do.kon|katalog|mahsulot/i.test(korinadi));
+  test('bitta amal: yuzni skanerlash',
+    /Kamerani yoqish/.test(korinadi) && /Galereyadan/.test(korinadi));
+  test('biologik yosh va jins va’da qilinadi', /biologik yosh/i.test(korinadi));
+  test('to‘liq natija TELEGRAMDA deyiladi', /To‘liq natija Telegramda/.test(korinadi));
+  test('berkitilgan qism xira ko‘rsatiladi',
+    /class="xira"/.test(korinadi) && /filter:blur/.test(fs.readFileSync('public/skan/style.css', 'utf8')));
+  test('skaner moduli ILOVADAN olinadi — kod takrorlanmaydi',
+    /src="\/app\/sifat\.js"/.test(html) && /src="\/app\/yuz\.js"/.test(html));
+
+  const js = fs.readFileSync('public/skan/app.js', 'utf8');
+  test('saqlanadigan rasm ko‘zguda', /x\.scale\(-1, 1\)/.test(js));
+  test('avtomatik surat bu yerda ham bor', /sanoqniBoshla/.test(js));
+  test('halqa chiroq bu yerda ham bor', /classList\.add\('yorug'\)/.test(js));
+
+  // ── Haqiqiy so'rovlar ──
+  // Oldingi yurishdan qolgan yozuvlar chegarani band qilib turmasin
+  await sorov('delete from ochiq_skan');
+  await sorov(`delete from users where telegram_id like 'mehmon:%'`);
+
+  const holat = await chaqirOchiq('/api/ochiq/holat', 'GET');
+  test('holat brend va qolgan limitni beradi',
+    holat.kod === 200 && typeof holat.tana.qolgan === 'number',
+    `${holat.tana.brend} · qolgan ${holat.tana.qolgan}`);
+
+  const rasm = fs.readFileSync('test/namuna-yuz.b64', 'utf8').trim();
+  const IP = '198.51.100.77';
+  const r = await chaqirOchiq('/api/ochiq/skan', 'POST',
+    { image: rasm, mime: 'image/jpeg' }, IP);
+  test('ochiq skaner ishlaydi', r.kod === 200 && r.tana.yaroqli === true,
+    r.tana.error || r.tana.sabab || '');
+  test('ochiq qismda tavsif, yosh va jins bor',
+    Boolean(r.tana.ochiq?.tavsif) && Boolean(r.tana.ochiq?.yosh)
+      && Boolean(r.tana.ochiq?.jins),
+    `${r.tana.ochiq?.yosh} · ${r.tana.ochiq?.jins}`);
+  test('ball ham bepul ko‘rinadi', Number(r.tana.ochiq?.ball) > 0);
+
+  // ENG MUHIMI: berkitilgan matn klientga UMUMAN ketmaydi —
+  // «blur» ni brauzerda ochib bo'lmasin
+  const xom = JSON.stringify(r.tana);
+  test('muammo sababi va yechimi javobda YO‘Q', !/"sabab"|"yechim"/.test(xom));
+  test('foizlar ham YO‘Q', !/"foiz"/.test(xom));
+  test('mahsulot tavsiyasi ham YO‘Q', !/product_id|"narx"|routine/.test(xom));
+  test('faqat muammo SONI va nomlari aytiladi',
+    typeof r.tana.yopiq?.muammo_soni === 'number' && Array.isArray(r.tana.yopiq?.nomlar));
+
+  test('botga TOKENLI havola qaytadi',
+    /\?start=n_[0-9a-f]{32}$/.test(r.tana.havola || ''), r.tana.havola);
+  test('natija rasmi oldindan chizilgan', r.tana.rasm_bor === true);
+
+  // ── Chegara ──
+  const yana = async () => (await chaqirOchiq('/api/ochiq/skan', 'POST',
+    { image: rasm, mime: 'image/jpeg' }, IP)).kod;
+  await yana(); await yana();
+  test('bir IP kuniga uch marta', (await yana()) === 429);
+  const boshqa = await chaqirOchiq('/api/ochiq/skan', 'POST',
+    { image: rasm, mime: 'image/jpeg' }, '198.51.100.78');
+  test('boshqa IP ga ta’sir qilmaydi', boshqa.kod === 200);
+
+  // ── Botda tokenni olish ──
+  const token = r.tana.havola.split('start=n_')[1];
+  const TG = 811001;
+  await sorov('delete from users where telegram_id = $1', [String(TG)]);
+  yuborilgan.length = 0;
+  await yangilanish({ update_id: 90001, message: { message_id: 1, date: 1,
+    chat: { id: TG, type: 'private' }, from: { id: TG, first_name: 'Insta' },
+    text: `/start n_${token}` } });
+  const matnlar = yuborilgan.map((x) => x.text || '').join('\n');
+  test('bot tokenni tanidi', /Tahlilingiz tayyor/.test(matnlar));
+
+  const u = await qator('select * from users where telegram_id = $1', [String(TG)]);
+  test('kutayotgan tahlil eslab qolindi', Boolean(u?.state_data?.kutayotgan_tahlil));
+  const a = await qator('select user_id from analyses where id = $1',
+    [u.state_data.kutayotgan_tahlil]);
+  test('tahlil MEHMONdan yangi egasiga ko‘chdi', String(a.user_id) === String(u.id));
+  test('mehmon foydalanuvchi o‘chirildi',
+    !(await qator(`select 1 as b from users where telegram_id = $1`, [`mehmon:${token}`])));
+
+  yuborilgan.length = 0;
+  await yangilanish({ update_id: 90002, message: { message_id: 2, date: 1,
+    chat: { id: 811002, type: 'private' }, from: { id: 811002, first_name: 'Bosqinchi' },
+    text: `/start n_${token}` } });
+  test('boshqa odam o‘sha tokenni OLOLMAYDI',
+    /allaqachon olingan/i.test(yuborilgan.map((x) => x.text || '').join('\n')));
+  await sorov('delete from users where telegram_id in ($1,$2)', ['811001', '811002']);
+}
+
+// ═══════════ BOTDA «NATIJANI OLISH» ═══════════
+// «Botda eski natija rasmlarida ham har safar natijani olish
+// qismi kelsin, ya'ni tugmasi.»
+console.log('\n── NATIJANI QAYTA OLISH ──');
+{
+  const fs = await import('node:fs');
+  const kb = fs.readFileSync('src/bot/keyboards.js', 'utf8');
+  test('natija ostida «Natijani olish» tugmasi bor',
+    /Natijani olish.*callback_data: 'natija_ol'/s.test(kb));
+  test('u BIRINCHI turadi — eng ko‘p bosiladigan amal',
+    /const qatorlar = \[\[\{ text: '📥 Natijani olish'/.test(kb));
+
+  const bot = fs.readFileSync('src/bot/index.js', 'utf8');
+  test('callback ulangan', /natija_ol:\s+\(chatId, user\) => skaner\.natijaniQaytaYubor/.test(bot));
+  const sk = fs.readFileSync('src/bot/handlers/scanner.js', 'utf8');
+  test('qayta yuborishda TAHLIL QAYTARILMAYDI — kvota yonmaydi',
+    /export async function natijaniQaytaYubor/.test(sk) && !/tahlilQil/.test(
+      sk.slice(sk.indexOf('export async function natijaniQaytaYubor'))));
+  test('saqlangan rasm bazadan olinadi', /saqlanganRasm\(a\.id, user\.id\)/.test(sk));
+  const shop = fs.readFileSync('src/bot/handlers/shop.js', 'utf8');
+  test('tahlili borlarga menyuda ham chiqadi',
+    /callback_data: 'natija_ol'/.test(shop));
+}
+
+// ═══════════ KARTOCHKA KODINI AI YOZADI ═══════════
+// «AI yordamchi natija rasmini UI uchun to'liq kodlay olsin, avval
+// men istagan UI ni yaratadi va artifact qilib beradi, men sinab
+// ko'raman, yoqsa tasdiqlayman.»
+console.log('\n── KARTOCHKA SHABLONI ──');
+{
+  const { toldir, tekshir, MAYDONLAR } = await import('../src/rasm/shablon.js');
+  const { namunaMalumot, shablonMalumoti } = await import('../src/rasm/shablon-malumot.js');
+
+  // ── Shablon tili ──
+  const d = { brend: 'KiOVO', ball: 68, xulosa: 'Yaxshi', tavsif: '',
+    muammolar: [{ nom: 'Akne', foiz: 65 }, { nom: 'Pora', foiz: 40 }], foydali: [] };
+  test('oddiy qiymat qo‘yiladi', toldir('{{brend}}-{{ball}}', d) === 'KiOVO-68');
+  test('ro‘yxat bo‘ylab takrorlanadi',
+    toldir('{{#muammolar}}[{{@n}}{{nom}}]{{/}}', d) === '[1Akne][2Pora]');
+  test('shart ishlaydi', toldir('{{?xulosa}}A{{/}}{{^tavsif}}B{{/}}', d) === 'AB');
+  test('bo‘sh ro‘yxat chiqmaydi', toldir('{{#foydali}}X{{/}}Y', d) === 'Y');
+  test('ichma-ich bloklar', toldir('{{?ball}}({{#muammolar}}{{nom}}{{/}}){{/}}', d)
+    === '(AknePora)');
+  test('nuqtali yo‘l', toldir('{{a.b}}', { a: { b: 'ichkarida' } }) === 'ichkarida');
+  // Qatorlarni pastga tushirish — ifodasiz bo‘lmaydi, lekin `eval` ham xavfli
+  test('sanoq ustida kichik hisob',
+    toldir('{{#muammolar}}[{{@i*60+970}}]{{/}}', d) === '[970][1030]');
+  test('manfiy qadam ham', toldir('{{#muammolar}}({{@n*-24}}){{/}}', d) === '(-24)(-48)');
+  test('boshqa ifoda BAJARILMAYDI — matn bo‘lib qoladi',
+    toldir('{{a + b}}', { a: 1, b: 2 }) === '{{a + b}}');
+  test('matn EKRANLANADI — SVG buzilmaydi',
+    toldir('{{n}}', { n: '<x>&"' }) === '&lt;x&gt;&amp;&quot;');
+
+  // ── Xavfsizlik: AI yozgan kod SERVERDA BAJARILMAYDI ──
+  const rad = (sh) => tekshir(sh).ok === false;
+  test('<script> rad etiladi', rad('<svg width="1" height="1"><script>x</script></svg>'));
+  test('<foreignObject> rad etiladi', rad('<svg width="1" height="1"><foreignObject/></svg>'));
+  test('onclick rad etiladi', rad('<svg width="1" height="1"><rect onclick="x()"/></svg>'));
+  test('tashqi manzil rad etiladi',
+    rad('<svg width="1" height="1"><image href="https://x/a.png"/></svg>'));
+  test('javascript: havolasi rad etiladi',
+    rad('<svg width="1" height="1"><a href="javascript:x">t</a></svg>'));
+  test('yopilmagan blok SAQLASHDAN OLDIN topiladi',
+    rad('<svg width="1" height="1">{{#muammolar}}{{nom}}</svg>'));
+  test('<svg> bo‘lmasa rad etiladi', rad('salom, bu shablon emas'));
+  test('data: rasm esa RUXSAT',
+    tekshir('<svg width="1080" height="10">{{brend}}{{ball}}'
+      + '<image href="{{yuz}}"/></svg>').ok);
+
+  // ── Ma'lumot ──
+  const m = namunaMalumot('KiOVO');
+  test('namunada hamma maydon bor',
+    Object.keys(MAYDONLAR).every((k) => k in m || k === 'yuz_bor'),
+    Object.keys(MAYDONLAR).filter((k) => !(k in m)).join(','));
+  test('muammolar og‘irligi bo‘yicha tartiblangan',
+    m.muammolar[0].foiz >= m.muammolar[1].foiz);
+  test('har muammoda yuzdagi JOY bor',
+    m.muammolar.every((x) => typeof x.joy_x === 'number' && typeof x.joy_y === 'number'));
+  test('rang oldindan hisoblangan — shablonda hisob yo‘q',
+    /^#[0-9A-F]{6}$/i.test(m.ball_rang) && m.muammolar.every((x) => /^#/.test(x.rang)));
+  test('mahsulotlar tartib raqami bilan',
+    m.mahsulotlar[0].tartib === 1 && m.mahsulotlar[4].tartib === 5);
+  test('ovqat bandidan qavs ichidagi izoh olib tashlanadi',
+    m.foydali[0].nom === 'Yog‘li baliq', m.foydali[0].nom);
+
+  // ── AI yozgan shablon HAQIQATAN chiziladimi ──
+  const { svgdanPng } = await import('../src/rasm/chiz.js');
+  const namunaSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="420"
+      viewBox="0 0 1080 420">
+    <rect width="1080" height="420" fill="#08080A"/>
+    <text x="40" y="70" font-family="Liberation Sans" font-size="42" font-weight="700"
+      fill="#fff">{{brend}}</text>
+    <text x="40" y="150" font-family="Liberation Sans" font-size="90" font-weight="700"
+      fill="{{ball_rang}}">{{ball}}</text>
+    {{?yuz_bor}}<image href="{{yuz}}" x="700" y="30" width="340" height="340"/>{{/}}
+    {{#muammolar}}
+      <rect x="40" y="{{@i}}" width="10" height="10" fill="{{rang}}"/>
+      <text x="70" y="{{@n}}" font-family="Liberation Sans" font-size="24"
+        fill="#9A9AA6">{{@n}}. {{nom}} — {{foiz}}%</text>
+    {{/}}
+  </svg>`;
+  test('AI yozgan shablon tekshiruvdan o‘tadi', tekshir(namunaSvg).ok);
+  const chizilgan = toldir(namunaSvg, m);
+  test('shablonda qiymat qoladi', chizilgan.includes('KiOVO') && chizilgan.includes('68'));
+  test('barcha muammo chizildi',
+    (chizilgan.match(/Yallig|Kengaygan|Qizargan|Pigment|soya/g) || []).length >= 5);
+  const bayt = await svgdanPng(chizilgan, 540);
+  test('PNG haqiqatan chiqadi', bayt.length > 3000, `${(bayt.length / 1024).toFixed(0)} KB`);
+
+  // ── Vositalar ──
+  const V = await import('../src/services/admin-vositalar.js');
+  test('yordamchida kartochka kodi vositalari bor',
+    'kartochka_kodi' in V.VOSITALAR && 'kartochka_kodi_yoz' in V.VOSITALAR
+      && 'kartochka_kodi_ochir' in V.VOSITALAR);
+  test('yozish vositasi TASDIQ so‘raydi', V.VOSITALAR.kartochka_kodi_yoz.oqish === false);
+
+  const yomon = await V.VOSITALAR.kartochka_kodi_yoz.ishla({ svg: '<svg><script>x</script></svg>' });
+  test('xavfli shablon SAQLANMAYDI', yomon.saqlandi === false, yomon.xato);
+
+  const yaxshi = await V.VOSITALAR.kartochka_kodi_yoz.ishla(
+    { svg: namunaSvg, izoh: 'Sinov ko‘rinishi' });
+  test('to‘g‘ri shablon saqlanadi', yaxshi.saqlandi === true, yaxshi.xato || '');
+  test('QORALAMA bo‘lib saqlanadi — avtomatik ishlatilmaydi',
+    yaxshi.holat === 'qoralama');
+  test('ko‘rinish havolasi qaytadi', /\/kartochka\/[a-z0-9]+\?i=[0-9a-f]{24}$/.test(
+    yaxshi.korinish || ''), yaxshi.korinish);
+
+  const oqi = await V.VOSITALAR.kartochka_kodi.ishla({});
+  test('yordamchi holatni o‘qiy oladi', oqi.holat === 'qoralama');
+  test('maydonlar ro‘yxati beriladi', Object.keys(oqi.maydonlar).length > 10);
+  test('qoidalar ham beriladi — AI taxmin qilmasin', oqi.qoida.length >= 6);
+
+  // Tasdiqlanmaguncha MIJOZGA ESKI ko'rinish boradi
+  const { natijaRasminiYarat } = await import('../src/services/natija-rasm.js');
+  const u2 = await qator(`insert into users (telegram_id) values ('shablon-sinov')
+    on conflict (telegram_id) do update set last_active = now() returning id`);
+  const eski = await natijaRasminiYarat({ analysisId: null, userId: u2.id,
+    rasmBase64: null, mime: 'image/jpeg',
+    tahlil: { ball: 70, muammolar: [] }, mahsulotlar: [] });
+  test('qoralama MIJOZGA ketmaydi', eski && eski.bayt.length > 1000);
+
+  await V.VOSITALAR.kartochka_kodi_ochir.ishla({});
+  test('shablonni o‘chirib ichki ko‘rinishga qaytish mumkin',
+    (await V.VOSITALAR.kartochka_kodi.ishla({})).holat === 'yoq');
+  await sorov(`delete from users where telegram_id = 'shablon-sinov'`);
 }
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);

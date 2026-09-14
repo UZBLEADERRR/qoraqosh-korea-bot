@@ -842,15 +842,17 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-oyoq{margin:12px 0 0;font-size:12px;color:var(--och);line-height:1.5}
 
 /* ── Surat va ball ── */
-/* Surat va ball YONMA-YON — telefonda ham. Ustma-ust qo'yilganda
-   sahifa ikki barobar uzayardi va odam pastga yetguncha yuqoridagi
-   ballni unutardi. Namunada ham ular yonma-yon. */
-.n-tepa{display:grid;gap:10px;grid-template-columns:minmax(0,46%) minmax(0,1fr);
-  align-items:start}
+/* Teri holati SURAT OSTIDA. Yonma-yon qo'yilganda o'ng ustun tor
+   bo'lib qolar, xulosa besh qatorga cho'zilar va teglar ustma-ust
+   tushardi — telefonda o'qib bo'lmasdi. Sahifa uzayib ketmasligi
+   uchun suratning nisbati 4:5 (3:4 emas) va qolgan hamma narsa
+   zich terilgan. Keng ekranda esa ular yana yonma-yon turadi. */
+.n-tepa{display:grid;gap:10px;grid-template-columns:1fr;align-items:start}
 .n-chap{min-width:0}
-@media (min-width:720px){.n-tepa{grid-template-columns:1fr 1fr}}
+@media (min-width:720px){.n-tepa{grid-template-columns:minmax(0,44%) minmax(0,1fr)}}
 .n-surat{position:relative;margin:0;border-radius:var(--r-katta);overflow:hidden;
-  background:var(--chiziq-och);aspect-ratio:3/4}
+  background:var(--chiziq-och);aspect-ratio:4/5}
+@media (min-width:720px){.n-surat{aspect-ratio:3/4}}
 .n-surat img{transition:filter .3s ease}
 .n-surat img{width:100%;height:100%;object-fit:cover;display:block}
 
@@ -871,10 +873,10 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-nishon.d3 b{background:var(--qizil)}  .n-nishon.d3 i{border-color:var(--qizil)}
 
 .n-surat-baho{position:absolute;left:0;right:0;bottom:0;display:flex;
-  align-items:center;gap:9px;padding:30px 10px 10px;
+  align-items:center;gap:12px;padding:36px 14px 12px;
   background:linear-gradient(to top,rgba(8,8,10,.86) 12%,rgba(8,8,10,.48) 55%,transparent);
   color:#fff;pointer-events:none}
-.n-surat-baho .n-halqa{width:clamp(48px,14vw,66px);flex:0 0 auto}
+.n-surat-baho .n-halqa{width:clamp(58px,17vw,72px);flex:0 0 auto}
 .n-surat-baho .n-halqa-fon{stroke:rgba(255,255,255,.24)}
 .n-surat-baho .n-halqa-son{fill:#fff;font-size:40px}
 .n-surat-baho .n-halqa-mayda{fill:rgba(255,255,255,.65)}
@@ -883,8 +885,8 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
   text-transform:uppercase;color:rgba(255,255,255,.7)}
 /* Tor ekranda surat ham tor: «UMUMIY HOLAT» ikki qatorga bo'linib,
    ballni pastga surib yuborardi. Halqa va bitta so'z yetarli. */
-@media (max-width:430px){.n-surat-baho span{display:none}}
-.n-surat-baho b{display:block;font-size:clamp(15px,4.6vw,22px);line-height:1.15;margin-top:2px;
+
+.n-surat-baho b{display:block;font-size:clamp(19px,5.6vw,24px);line-height:1.15;margin-top:2px;
   letter-spacing:-.02em;color:#fff}
 
 .n-halqa{flex:0 0 auto;width:clamp(104px,30vw,128px);height:auto}
@@ -915,7 +917,7 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-rentgen{display:flex;gap:6px;margin:8px 0 0;overflow-x:auto;
   scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .n-rentgen::-webkit-scrollbar{display:none}
-.n-rentgen button{flex:0 0 auto;width:62px;padding:0;border:2px solid transparent;
+.n-rentgen button{flex:1 1 0;min-width:0;padding:0;border:2px solid transparent;
   border-radius:12px;background:none;cursor:pointer;overflow:hidden;
   display:flex;flex-direction:column;gap:3px;font:inherit}
 .n-rentgen img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:9px;display:block}

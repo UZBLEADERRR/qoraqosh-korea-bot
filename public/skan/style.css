@@ -1,0 +1,149 @@
+/* KiOVO — ochiq yuz skaneri (Instagram reklamasi uchun).
+   Qora fon, bitta urg'u rangi, bitta amal. Do'kon uslubidan
+   ATAYLAB farq qiladi: bu yerda sotish yo'q, faqat qiziqish. */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
+:root{
+  --fon:#08080A; --panel:#141417; --chiziq:#26262C; --plitka:#1C1C21;
+  --matn:#FFFFFF; --kul:#9A9AA6; --och:#6C6C78;
+  --urgu:#FF6B5A; --yashil:#3DD68C; --sariq:#F0B429; --kok:#4AA3FF;
+  --r:18px;
+  --sans:Manrope,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--fon);color:var(--matn);font:15.5px/1.55 var(--sans);
+  -webkit-font-smoothing:antialiased;min-height:100dvh;
+  padding:0 0 calc(24px + env(safe-area-inset-bottom))}
+.yashirin{display:none!important}
+.ekran{max-width:520px;margin:0 auto;padding:0 18px}
+.mayda{font-size:12.5px;color:var(--och);line-height:1.5}
+.markaz{text-align:center}
+
+/* ---------- Kirish ---------- */
+.shapka{padding:26px 0 6px;text-align:center}
+.brend{font-size:26px;font-weight:800;letter-spacing:-.03em}
+.shior{margin:4px 0 0;font-size:13px;color:var(--kul)}
+
+.qahramon{position:relative;display:grid;place-items:center;margin:18px 0 6px;
+  height:190px}
+.halqa-fon{position:absolute;width:210px;height:210px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,107,90,.22),transparent 68%);
+  animation:nafas 3.4s ease-in-out infinite}
+@keyframes nafas{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.1);opacity:1}}
+.yuz-belgi{position:relative;width:120px;height:140px;color:var(--urgu)}
+
+h1{margin:6px 0 8px;font-size:clamp(25px,7.4vw,32px);line-height:1.12;
+  letter-spacing:-.03em;text-align:center}
+.izoh{margin:0 0 22px;font-size:14.5px;line-height:1.6;color:var(--kul);
+  text-align:center}
+.izoh b{color:var(--matn)}
+
+.tugmalar{display:flex;flex-direction:column;gap:9px;margin:0 0 18px}
+.asosiy,.ikkilamchi{display:flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;padding:16px;border-radius:14px;font:700 16px/1 var(--sans);
+  cursor:pointer;border:0;text-decoration:none}
+.asosiy{background:var(--urgu);color:#0b0b0d}
+.asosiy:disabled{opacity:.45}
+.asosiy:active{transform:scale(.985)}
+.ikkilamchi{background:transparent;color:var(--matn);border:1px solid var(--chiziq)}
+
+.foyda{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:9px}
+.foyda li{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--kul)}
+.foyda i{flex:0 0 auto;width:18px;height:18px;border-radius:50%;
+  background:var(--yashil);position:relative}
+.foyda i::after{content:'';position:absolute;left:5px;top:4px;width:5px;height:9px;
+  border:2px solid #08080A;border-top:0;border-left:0;transform:rotate(42deg)}
+#chegara-izoh{margin-top:16px;text-align:center}
+
+/* ---------- Kamera ---------- */
+#ekran-kamera{padding-top:14px}
+.kam-nur{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;
+  transition:opacity .4s ease;z-index:0}
+body.yorug{background:#fff;color:#141414}
+body.yorug .kam-nur{opacity:1}
+body.yorug #ekran-kamera{position:relative;z-index:1}
+body.yorug .ikkilamchi{color:#141414;border-color:#d8d8dc}
+.kam-quti{position:relative;border-radius:20px;overflow:hidden;background:#0b0b0d;
+  aspect-ratio:3/4;max-height:62vh;margin:0 auto 14px}
+body.yorug .kam-quti{box-shadow:0 0 0 12px #fff,0 0 72px 26px rgba(255,255,255,.98)}
+.kam-quti video{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)}
+.kam-quti canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.kam-holat{position:absolute;left:10px;right:10px;top:10px;display:flex;gap:8px;
+  align-items:center;padding:9px 13px;border-radius:99px;font-size:13.5px;
+  font-weight:600;color:#fff;background:rgba(10,10,12,.62);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.kam-holat .nuqta{width:9px;height:9px;border-radius:50%;background:var(--sariq);
+  flex:0 0 auto;animation:puls 1.4s infinite}
+.kam-holat[data-holat="yaxshi"] .nuqta{background:var(--yashil);animation:none}
+@keyframes puls{0%,100%{opacity:1}50%{opacity:.3}}
+.kam-sanoq{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:6px;pointer-events:none;
+  background:radial-gradient(60% 50% at 50% 50%,rgba(0,0,0,.34),transparent 72%)}
+.kam-sanoq b{font-size:clamp(64px,22vw,104px);line-height:1;color:#fff;font-weight:800;
+  text-shadow:0 4px 26px rgba(0,0,0,.55)}
+.kam-sanoq span{font-size:14px;font-weight:700;color:#fff;
+  text-shadow:0 2px 12px rgba(0,0,0,.6)}
+
+/* ---------- Kutish ---------- */
+#ekran-kutish{text-align:center;padding-top:50px}
+.kutish-rasm{width:150px;height:190px;margin:0 auto 22px;border-radius:18px;
+  overflow:hidden;background:var(--plitka);position:relative}
+.kutish-rasm img{width:100%;height:100%;object-fit:cover;display:block}
+.kutish-rasm::after{content:'';position:absolute;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--urgu),transparent);
+  animation:skan 1.8s linear infinite}
+@keyframes skan{0%{top:0}100%{top:100%}}
+.aylana{width:34px;height:34px;margin:0 auto 14px;border-radius:50%;
+  border:3px solid var(--chiziq);border-top-color:var(--urgu);
+  animation:aylan .8s linear infinite}
+@keyframes aylan{to{transform:rotate(360deg)}}
+#ekran-kutish b{display:block;font-size:17px}
+#kutish-qadam{margin-top:6px}
+
+/* ---------- Natija ---------- */
+#ekran-natija{padding-top:16px}
+.n-surat{position:relative;border-radius:20px;overflow:hidden;aspect-ratio:4/5;
+  background:var(--plitka);margin:0 0 12px}
+.n-surat img{width:100%;height:100%;object-fit:cover;display:block}
+.n-baho{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:baseline;
+  gap:6px;padding:40px 16px 14px;
+  background:linear-gradient(to top,rgba(8,8,10,.9) 14%,transparent)}
+.n-baho b{font-size:44px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.n-baho span{font-size:15px;color:var(--kul)}
+
+.karta{background:var(--panel);border:1px solid var(--chiziq);border-radius:var(--r);
+  padding:15px;margin:0 0 12px}
+.karta-bosh{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:800;
+  margin:0 0 9px}
+.n-tavsif p{margin:0;font-size:14px;line-height:1.6;color:var(--kul)}
+
+.n-teglar{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.n-teglar span{display:inline-flex;align-items:center;gap:6px;border-radius:99px;
+  padding:8px 13px;font-size:13px;font-weight:700;line-height:1}
+.n-teglar .t-yosh{background:rgba(74,163,255,.16);color:var(--kok)}
+.n-teglar .t-jins{background:rgba(255,107,90,.16);color:var(--urgu)}
+.n-teglar .t-teri{background:rgba(61,214,140,.16);color:var(--yashil)}
+.n-teglar .t-rang{background:rgba(240,180,41,.16);color:var(--sariq)}
+
+/* Berkitilgan qism: matn UMUMAN yuborilmaydi — bu shunchaki
+   bo'yalgan chiziqlar, «ochib» ko'rish uchun hech nima yo'q */
+.n-yopiq{position:relative;overflow:hidden}
+.xira{display:flex;flex-direction:column;gap:13px;padding:6px 0 10px;
+  filter:blur(4px);opacity:.75;pointer-events:none}
+.xira i{display:block;height:16px;border-radius:8px;
+  background:linear-gradient(90deg,#3a3a44,#26262c)}
+.qulf{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:5px;text-align:center;padding:16px;
+  background:linear-gradient(to bottom,rgba(20,20,23,.3),rgba(20,20,23,.86));
+  color:var(--urgu)}
+.qulf b{font-size:16px;color:var(--matn);margin-top:2px}
+.qulf span{font-size:12.5px;color:var(--kul);line-height:1.5;max-width:290px}
+
+#t-telegram{margin:0 0 8px;background:var(--kok);color:#06121f}
+#t-qayta{margin-top:14px}
+
+.xato{position:fixed;left:16px;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));
+  max-width:488px;margin:0 auto;padding:13px 15px;border-radius:14px;
+  background:rgba(255,107,90,.16);border:1px solid rgba(255,107,90,.45);
+  color:#ffb9b0;font-size:13.5px;line-height:1.5;z-index:40}

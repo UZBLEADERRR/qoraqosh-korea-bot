@@ -11,6 +11,7 @@ import * as skaner from './handlers/scanner.js';
 import * as dokon from './handlers/shop.js';
 import { esc } from './format.js';
 import { sorovJavobi } from '../services/ilova-kirish.js';
+import * as ochiq from '../services/ochiq-skan.js';
 
 async function foydalanuvchi(from) {
   const telegramId = String(from.id);
@@ -61,7 +62,30 @@ export async function yangilanish(upd) {
   if (await admin.adminHolati(msg, user)) return;
 
   // ---- Buyruqlar ----
-  if (matn === '/start') {
+  if (matn === '/start' || matn.startsWith('/start ')) {
+    // Instagramdan kelgan odam: havolada tahlil TOKENI bor
+    // (`t.me/bot?start=n_<token>`). Tokenni eslab qo'yamiz —
+    // ro'yxatdan o'tgach natija o'zi keladi.
+    const arg = matn.slice(6).trim();
+    if (/^n_[0-9a-f]{32}$/.test(arg)) {
+      const bor = await ochiq.tokenniOl(arg.slice(2), user);
+      if (bor.ok) {
+        if (reg.royxatdanOtganmi(user)) {
+          await yubor(chatId, '✅ Tahlilingiz topildi!');
+          return skaner.natijaniQaytaYubor(chatId, user, bor.analysisId);
+        }
+        // Hali ro'yxatdan o'tmagan — tahlil biriktirildi, oxirida beriladi
+        await sorov(`update users set state_data = state_data || $1::jsonb where id = $2`,
+          [JSON.stringify({ kutayotgan_tahlil: bor.analysisId }), user.id]);
+        await yubor(chatId,
+          '✅ <b>Tahlilingiz tayyor!</b>\n\nUni ko‘rsatish uchun uch qisqa '
+          + 'savolga javob bering — 30 soniya.');
+        return reg.boshla(chatId, user);
+      }
+      if (bor.sabab === 'olingan') {
+        await yubor(chatId, 'Bu natija allaqachon olingan.');
+      }
+    }
     if (reg.royxatdanOtganmi(user)) return dokon.menyuniKorsat(chatId, user);
     return reg.boshla(chatId, user);
   }
@@ -94,6 +118,7 @@ export async function yangilanish(upd) {
 // ---------- Inline tugmalar ----------
 const AMALLAR = {
   menyu:         (chatId, user) => dokon.menyuniKorsat(chatId, user),
+  natija_ol:     (chatId, user) => skaner.natijaniQaytaYubor(chatId, user),
   skaner:        (chatId)       => skaner.skanerYordami(chatId),
   buyurtmalar:   (chatId, user) => dokon.buyurtmalarniKorsat(chatId, user),
   profil:        (chatId, user) => dokon.profilniKorsat(chatId, user),

@@ -94,6 +94,21 @@ export async function roziBol(chatId, user) {
     [config.agreementVersion, user.id]);
   await hodisa(user.id, 'register');
 
+  // Instagramdan kelgan odam: havolada tahlil bor edi va u
+  // ro'yxatdan o'tishni AYNAN shuning uchun bosdi. Menyu emas,
+  // natijaning o'zi kelishi kerak.
+  const yangi = await qator('select state_data from users where id = $1', [user.id]);
+  const kutayotgan = yangi?.state_data?.kutayotgan_tahlil;
+  if (kutayotgan) {
+    await sorov(`update users set state_data = state_data - 'kutayotgan_tahlil' where id = $1`,
+      [user.id]);
+    await yubor(chatId, await xabar('xabar_royxat_tugadi',
+      { ism: esc((user.full_name || '').split(' ')[0] || '') },
+      '🎉 <b>Tayyor!</b>'));
+    const { natijaniQaytaYubor } = await import('./scanner.js');
+    return natijaniQaytaYubor(chatId, { ...user, agreed_at: new Date() }, kutayotgan);
+  }
+
   await yubor(chatId, await xabar('xabar_royxat_tugadi',
     { ism: esc((user.full_name || '').split(' ')[0] || '') },
     '🎉 <b>Tayyor!</b>\n\n<b>🔬 Yuz skaneri</b> ni bosing.'),

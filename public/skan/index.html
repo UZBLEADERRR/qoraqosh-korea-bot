@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>KiOVO — bepul yuz tahlili</title>
+<meta name="description" content="Suratdan teri holatini aniqlaymiz: biologik yosh, teri turi va parvarish tavsiyasi.">
+<meta name="theme-color" content="#08080A">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<meta property="og:title" content="Bepul yuz tahlili — KiOVO">
+<meta property="og:description" content="Teringizning biologik yoshi va holatini 30 soniyada biling.">
+<meta property="og:type" content="website">
+</head>
+<body>
+
+<!-- ============ 1. KIRISH ============
+     Instagramdan kelgan odam hali mijoz emas. Shuning uchun bu yerda
+     do'kon ham, savat ham, menyu ham YO'Q: bitta amal — yuzni
+     skanerlash. Har ortiqcha tugma shu amaldan chalg'itadi. -->
+<main id="ekran-bosh" class="ekran">
+  <header class="shapka">
+    <div class="brend" id="brend">KiOVO</div>
+    <p class="shior">Teringizni 30 soniyada tekshiring</p>
+  </header>
+
+  <div class="qahramon">
+    <div class="halqa-fon" aria-hidden="true"></div>
+    <svg class="yuz-belgi" viewBox="0 0 120 140" aria-hidden="true">
+      <ellipse cx="60" cy="70" rx="42" ry="55" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-dasharray="7 9"/>
+      <path d="M42 62c4-5 12-5 16 0M62 62c4-5 12-5 16 0" fill="none"
+            stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M60 74v10M50 96c6 5 14 5 20 0" fill="none"
+            stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>
+  </div>
+
+  <h1>Yuzingizda nima bor?</h1>
+  <p class="izoh">Sun’iy intellekt suratingizni tahlil qiladi:
+    <b>biologik yosh</b>, teri turi, toshma, pora va pigment.
+    Ro‘yxatdan o‘tish shart emas.</p>
+
+  <div class="tugmalar">
+    <button class="asosiy" id="t-kamera">Kamerani yoqish</button>
+    <button class="ikkilamchi" id="t-fayl">Galereyadan tanlash</button>
+    <input id="fayl" type="file" accept="image/*" capture="user" hidden>
+  </div>
+
+  <ul class="foyda">
+    <li><i></i>Bepul va ro‘yxatsiz</li>
+    <li><i></i>Surat faqat tahlil uchun</li>
+    <li><i></i>30 soniyada javob</li>
+  </ul>
+  <p class="mayda" id="chegara-izoh"></p>
+</main>
+
+<!-- ============ 2. KAMERA ============ -->
+<section id="ekran-kamera" class="ekran yashirin">
+  <div class="kam-nur" aria-hidden="true"></div>
+  <div class="kam-quti">
+    <video id="kam-video" playsinline muted autoplay></video>
+    <canvas id="kam-tor"></canvas>
+    <div class="kam-holat"><span class="nuqta"></span><span id="kam-maslahat">Kamera yoqilmoqda…</span></div>
+    <div class="kam-sanoq yashirin" id="kam-sanoq"><b id="kam-sanoq-son">3</b><span>Qimirlamang</span></div>
+  </div>
+  <div class="tugmalar">
+    <button class="asosiy" id="t-ol" disabled>Suratga olish</button>
+    <button class="ikkilamchi" id="t-yop">Bekor qilish</button>
+  </div>
+</section>
+
+<!-- ============ 3. KUTISH ============ -->
+<section id="ekran-kutish" class="ekran yashirin">
+  <div class="kutish-rasm"><img id="kutish-surat" alt=""></div>
+  <div class="aylana"></div>
+  <b>Teri tahlil qilinmoqda…</b>
+  <p class="mayda" id="kutish-qadam">Yuz aniqlanmoqda</p>
+</section>
+
+<!-- ============ 4. NATIJA ============
+     Ochiq qism — odam bepul ko'radi. Qolgani XIRA: matn umuman
+     yuborilmaydi, shuning uchun uni «ochib» bo'lmaydi. -->
+<section id="ekran-natija" class="ekran yashirin">
+  <div class="n-surat">
+    <img id="n-rasm" alt="Sizning suratingiz">
+    <div class="n-baho"><b id="n-ball">—</b><span>/ 100</span></div>
+  </div>
+
+  <div class="karta n-tavsif">
+    <div class="karta-bosh">Rasmda nimani ko‘rdim</div>
+    <p id="n-tavsif">—</p>
+  </div>
+
+  <div class="n-teglar" id="n-teglar"></div>
+
+  <div class="karta n-yopiq">
+    <div class="karta-bosh">Topilgan muammolar <span id="n-soni"></span></div>
+    <div class="xira" id="n-xira" aria-hidden="true"></div>
+    <div class="qulf">
+      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+        <rect x="5" y="10.5" width="14" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      </svg>
+      <b>To‘liq natija Telegramda</b>
+      <span>Har bir muammoning foizi, sababi, yechimi va sizga mos
+        parvarish tartibi — bepul.</span>
+    </div>
+  </div>
+
+  <a class="asosiy" id="t-telegram" href="#" rel="noopener">Telegramda ochish</a>
+  <p class="mayda markaz">Tugmani bosing → bot ochiladi → «Boshlash» →
+    natija darhol keladi.</p>
+  <button class="ikkilamchi" id="t-qayta">Boshqa surat</button>
+</section>
+
+<!-- ============ XATO ============ -->
+<div id="xato" class="xato yashirin"></div>
+
+<script src="/app/sifat.js"></script>
+<script src="/app/yuz.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

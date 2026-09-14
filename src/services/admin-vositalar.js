@@ -15,6 +15,7 @@
 //     tasdiqlamaguncha bajarilmaydi.
 import { qator, qatorlar, qiymat, sorov, sozlama } from '../db.js';
 import { HOLATLAR } from '../lib/bosqichlar.js';
+import { brendNomi } from '../lib/brend.js';
 import { palitra, rangTozala, kontrast, MAVZU_STANDART } from '../lib/mavzu.js';
 import { TAVSIF as SHABLON_TAVSIF } from '../bot/shablonlar-standart.js';
 import { eksportHajmi, BOLIMLAR as EKSPORT_BOLIMLAR } from './eksport.js';
@@ -681,6 +682,93 @@ async function kartochkaOzgartir(a) {
            natija: kartochkaSozlamasi(yangi, kim === 'umumiy' ? '' : kim) };
 }
 
+// ──────────────── KARTOCHKA KODI (SHABLON) ────────────────
+//
+// Do'kon egasi «kartochka mana bunday bo'lsin» deydi — yordamchi
+// SVG shablonini O'ZI yozadi, ko'rinish havolasini beradi, egasi
+// ochib ko'radi va tugma bilan tasdiqlaydi. Tasdiqlanmaguncha
+// mijozlarga eski ko'rinish boradi.
+//
+// Nima uchun SVG, JavaScript emas: AI yozgan kodni serverda bajarish
+// butun bazani ochiq qoldirardi. SVG esa rasmning o'zi — motor unga
+// faqat ma'lumot qo'yadi (`src/rasm/shablon.js`).
+
+/** Hozirgi shablon va qanday maydonlar borligi. */
+async function kartochkaKodi() {
+  const { MAYDONLAR } = await import('../rasm/shablon.js');
+  const { shablonHavolasi } = await import('../lib/kartochka-korinish.js');
+  const sh = await sozlama('natija_shablon', null);
+  return {
+    holat: sh?.holat || 'yoq',
+    izoh: sh?.holat === 'tasdiq' ? 'Mijozlarga SHU ko‘rinish boradi'
+        : sh?.svg ? 'Qoralama bor, lekin tasdiqlanmagan — mijozlarga ichki ko‘rinish boradi'
+        : 'Shablon yozilmagan — ichki (koddagi) ko‘rinish ishlatilyapti',
+    versiya: sh?.versiya || null,
+    uzunlik: sh?.svg ? sh.svg.length : 0,
+    korinish: sh?.versiya ? shablonHavolasi(sh.versiya) : null,
+    svg: sh?.svg || null,
+    maydonlar: MAYDONLAR,
+    qoida: [
+      'SVG yoz: <svg width="1080" height="…" viewBox="0 0 1080 …"> … </svg>',
+      'Eni DOIM 1080. Bo‘yini o‘zing tanla (mazmunga qarab 1600-2600).',
+      'Shrift: font-family="Liberation Sans" — serverda faqat shu bor.',
+      'Emoji CHIZILMAYDI — belgilarni <path> bilan chiz.',
+      'Rasm faqat {{yuz}} va {{mahsulot.rasm}} orqali. Tashqi havola ishlamaydi.',
+      'Kesish: <clipPath>. Effekt (rentgen): <filter><feColorMatrix>.',
+      'Takrorlash: {{#muammolar}} … {{/}} · Shart: {{?xulosa}} … {{/}}',
+      'Ro‘yxat ichida {{@n}} — tartib raqami (1 dan), {{@i}} — 0 dan.',
+      'Qatorlarni pastga tushirish: {{@i*60+970}} — 970, 1030, 1090 …',
+      'Qatorlar soni O‘ZGARUVCHAN: shuning uchun <svg> bo‘yini eng '
+      + 'ko‘p holatga (8 muammo, 6 mahsulot) qarab oling.',
+    ],
+  };
+}
+
+/** Shablonni YOZADI (qoralama) va ko'rinish havolasini qaytaradi. */
+async function kartochkaKodiYoz(a) {
+  const { tekshir } = await import('../rasm/shablon.js');
+  const { shablonHavolasi } = await import('../lib/kartochka-korinish.js');
+  const svg = String(a.svg ?? a.shablon ?? a.kod ?? '').trim();
+
+  const t = tekshir(svg);
+  if (!t.ok) return { saqlandi: false, xato: t.xato, maslahat: 'Tuzatib qayta yuboring.' };
+
+  // Haqiqatan chiziladimi — SHU YERDA tekshiramiz, admin bo'sh
+  // sahifa ko'rib ovora bo'lmasin
+  const { toldir } = await import('../rasm/shablon.js');
+  const { namunaMalumot } = await import('../rasm/shablon-malumot.js');
+  const { svgdanPng } = await import('../rasm/chiz.js');
+  try {
+    const bayt = await svgdanPng(toldir(svg, namunaMalumot(await brendNomi())), 600);
+    if (!bayt || bayt.length < 1000) throw new Error('rasm bo‘sh chiqdi');
+  } catch (e) {
+    return { saqlandi: false, xato: `Chizib bo‘lmadi: ${e.message}`,
+             maslahat: 'SVG sintaksisini tekshiring (yopilmagan teg?).' };
+  }
+
+  const versiya = Date.now().toString(36);
+  await sorov(
+    `insert into settings (key, value, updated_at) values ('natija_shablon', $1::jsonb, now())
+     on conflict (key) do update set value = excluded.value, updated_at = now()`,
+    [JSON.stringify({ svg, holat: 'qoralama', versiya,
+                      izoh: matn(a.izoh ?? '', 400), yangilangan: new Date().toISOString() })]);
+
+  return {
+    saqlandi: true, holat: 'qoralama', versiya,
+    korinish: shablonHavolasi(versiya),
+    ogoh: t.ogoh,
+    xabar: 'Qoralama saqlandi. Havolani oching, ko‘ring va yoqsa o‘sha '
+         + 'sahifadagi tugma bilan tasdiqlang. Tasdiqlanmaguncha mijozlarga '
+         + 'eski ko‘rinish boradi.',
+  };
+}
+
+/** Shablonni o'chiradi — ichki (koddagi) ko'rinishga qaytadi. */
+async function kartochkaKodiOchir() {
+  await sorov(`delete from settings where key = 'natija_shablon'`);
+  return { ochirildi: true, xabar: 'Ichki ko‘rinishga qaytdi.' };
+}
+
 // ─────────────────────────── GRAFIK ───────────────────────────
 
 // Nega grafik kerak. «Qaysi bo'lim ko'p sotilyapti» degan savolga
@@ -851,6 +939,29 @@ export const VOSITALAR = {
           + 'foizga ko‘tarish/tushirish yoki summa qo‘shish. Filtr: id lar, '
           + 'brend, bo‘lim yoki nom bo‘yicha qidiruv.',
     parametrlar: 'narx | foiz | qoshish, + idlar / brend / bolim / qidiruv / hammasi',
+  },
+  kartochka_kodi: {
+    oqish: true, ishla: kartochkaKodi,
+    tavsif: 'Natija kartochkasining KODI (SVG shabloni): hozir qaysi '
+          + 'ko‘rinish ishlatilyapti, qanday maydonlar bor va qanday '
+          + 'yozish kerak. Kartochkani QAYTA CHIZISHDAN OLDIN shuni o‘qi.',
+    parametrlar: 'yo‘q',
+  },
+  kartochka_kodi_yoz: {
+    oqish: false, ishla: kartochkaKodiYoz,
+    tavsif: 'Natija kartochkasini TO‘LIQ qayta yozadi — SVG shablon. '
+          + 'Ranglar, joylashuv, nechta belgi, rasm kesish (<clipPath>), '
+          + 'effektlar (<filter><feColorMatrix> — «rentgen» ko‘rinishlari) '
+          + '— hammasi sizniki. Saqlangani QORALAMA bo‘ladi va ko‘rinish '
+          + 'havolasi qaytadi: admin ochib ko‘radi va o‘sha sahifada '
+          + 'tasdiqlaydi. Maydonlar ro‘yxatini «kartochka_kodi» beradi.',
+    parametrlar: 'svg (to‘liq <svg>…</svg>), izoh (nima o‘zgartirdingiz)',
+  },
+  kartochka_kodi_ochir: {
+    oqish: false, ishla: kartochkaKodiOchir,
+    tavsif: 'Yozilgan shablonni o‘chiradi va ichki (koddagi) ko‘rinishga '
+          + 'qaytaradi. Shablon buzilgan bo‘lsa shu.',
+    parametrlar: 'yo‘q',
   },
   kartochka_ozgartir: {
     oqish: false, ishla: kartochkaOzgartir,

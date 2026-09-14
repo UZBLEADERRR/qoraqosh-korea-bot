@@ -3,6 +3,8 @@
 import { qator, qatorlar, sorov, sozlama } from '../db.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
 import { joylarniHisobla } from '../lib/zona.js';
+import { toldir } from '../rasm/shablon.js';
+import { shablonMalumoti } from '../rasm/shablon-malumot.js';
 import { svgdanPng } from '../rasm/chiz.js';
 import { rasmYubor } from '../bot/tg.js';
 import { brendNomi, brendLogosi } from '../lib/brend.js';
@@ -83,6 +85,27 @@ export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime,
     muammolar: joylarniHisobla(tahlil?.muammolar || tahlil?.problems || []),
   };
 
+  // ADMIN YORDAMCHISI yozgan shablon bo'lsa — kartochka o'sha
+  // ko'rinishda chiziladi. Tasdiqlanmagan qoralama ISHLATILMAYDI:
+  // mijozga faqat admin ko'rib ma'qullagani boradi.
+  const shablon = await sozlama('natija_shablon', null).catch(() => null);
+  if (shablon?.svg && shablon.holat === 'tasdiq') {
+    try {
+      const svgSh = toldir(shablon.svg, shablonMalumoti({
+        tahlil: bilanJoy, tavsiyalar, brend,
+        rasmBase64: mos ? rasmBase64 : null, mime: mos ? mime : 'image/jpeg',
+        logoBase64: logo && OCHILADI.has(logo.mime) ? logo.base64 : null,
+        logoMime: logo?.mime || 'image/png',
+      }));
+      const baytSh = await svgdanPng(svgSh, 1080);
+      if (baytSh?.length > 1000) return saqla(baytSh, analysisId);
+    } catch (e) {
+      // Shablon buzilgan bo'lsa mijoz rasmsiz qolmasin — ichki
+      // ko'rinishga qaytamiz va adminga log qoldiramiz
+      console.error('NATIJA SHABLONI ISHLAMADI:', e.message?.slice(0, 120));
+    }
+  }
+
   const svg = natijaSvg({
     rasmBase64: mos ? rasmBase64 : null,
     mime: mos ? mime : 'image/jpeg',
@@ -105,7 +128,11 @@ export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime,
     console.error('NATIJA RASMI CHIZILMADI:', e.message);
     return null;
   }
+  return saqla(bayt, analysisId);
+}
 
+/** Chizilgan rasmni bazaga qo'yadi va tahlilga bog'laydi. */
+async function saqla(bayt, analysisId) {
   const m = await qator(
     `insert into media (tur, mime, bayt, hajm, eni, goya)
      values ('natija', 'image/png', $1, $2, 1080, $3) returning id`,
