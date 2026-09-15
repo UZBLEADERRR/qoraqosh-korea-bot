@@ -25,6 +25,7 @@ import { tg } from './bot/tg.js';
 import { ofertaSahifasi } from './lib/oferta.js';
 import { postSahifasi, imzoTogrimi } from './lib/post-korinish.js';
 import { shablonSahifasi, shablonImzoTogrimi } from './lib/kartochka-korinish.js';
+import { eksportOchib } from './lib/eksport-havola.js';
 import { svgdanPng } from './rasm/chiz.js';
 import { migratsiyalarniQoll } from './db/migrate.js';
 import { agentniIshgaTushir } from './services/agent-jadval.js';
@@ -180,6 +181,43 @@ const server = http.createServer(async (req, res) => {
       });
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(html);
+    }
+
+    // ---------- Ma'lumotni yuklab olish ----------
+    // Yordamchi chatda bergan IMZOLANGAN havola. Brauzer hech qanday
+    // sarlavha yubormaydi, shuning uchun ruxsat havolaning o'zida.
+    const eksMos = yol.match(/^\/eksport\/([A-Za-z0-9_-]+)\.(json|csv)$/);
+    if (eksMos) {
+      const h = eksportOchib(eksMos[1], new URL(req.url, 'http://x').searchParams.get('i') || '');
+      if (!h.ok) {
+        return xato(res, h.sabab === 'muddat' ? 410 : 404,
+          h.sabab === 'muddat'
+            ? 'Havolaning muddati tugadi — yordamchidan yangisini so‘rang.'
+            : 'Havola noto‘g‘ri.');
+      }
+      const { eksportYig, csvQil, BOLIMLAR } = await import('./services/eksport.js');
+      const sana = new Date().toISOString().slice(0, 10);
+
+      if (h.tur === 'csv') {
+        const bolim = h.bolimlar[0];
+        if (!BOLIMLAR[bolim]) return xato(res, 400, 'Bo‘lim tanlanmadi.');
+        const matn = csvQil(await BOLIMLAR[bolim].ol());
+        res.writeHead(200, {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="kiovo-${bolim}-${sana}.csv"`,
+          'Cache-Control': 'no-store',
+        });
+        return res.end(Buffer.from(matn, 'utf8'));
+      }
+
+      const nom = h.bolimlar.length === 1 ? h.bolimlar[0] : 'baza';
+      const bayt = Buffer.from(JSON.stringify(await eksportYig(h.bolimlar), null, 2), 'utf8');
+      res.writeHead(200, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Content-Disposition': `attachment; filename="kiovo-${nom}-${sana}.json"`,
+        'Cache-Control': 'no-store',
+      });
+      return res.end(bayt);
     }
 
     // ---------- Kartochka shabloni ko'rinishi ----------

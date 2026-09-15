@@ -201,7 +201,7 @@ export async function rejaniBajar(token) {
       // mumkin — masalan «Mahsulot ID lari berilmadi». Ilgari bunday
       // qadam «ok» hisoblanardi va admin faqat «0 ta yozuv o'zgardi»
       // degan raqamni ko'rardi, SABABINI esa ko'rmasdi.
-      const ozgardi = Number(n?.ozgardi) || Number(n?.ochirildi) || 0;
+      const ozgardi = ozgarishSoni(n);
       const bajarilmadi = ozgardi === 0 && (n?.xabar || n?.xato);
       natijalar.push(bajarilmadi
         ? { vosita: q.vosita, ok: false, xato: String(n.xabar || n.xato).slice(0, 200), natija: n }
@@ -212,10 +212,7 @@ export async function rejaniBajar(token) {
   }
 
   // Nechta yozuv HAQIQATAN o'zgardi — da'vo emas, natija
-  const ozgardi = natijalar.reduce((s, x) => {
-    const n = x.natija || {};
-    return s + (Number(n.ozgardi) || Number(n.ochirildi) || 0);
-  }, 0);
+  const ozgardi = natijalar.reduce((s, x) => s + ozgarishSoni(x.natija), 0);
 
   const yiqilgan = natijalar.filter((x) => !x.ok);
   return {
@@ -229,7 +226,31 @@ export async function rejaniBajar(token) {
   };
 }
 
+/* Vosita ISHNI BAJARDIMI — bitta joyda hal qilinadi.
+ *
+ * Yozuvchi vositalar `ozgardi` (nechta yozuv o'zgardi) qaytaradi.
+ * Lekin hamma ish yozuv bilan o'lchanmaydi: kartochka shabloni
+ * saqlanishi, rasm chizilishi, fayl tayyorlanishi ham natija.
+ * Shuning uchun bu yerda TO'RT belgi qabul qilinadi.
+ *
+ * Nega muhim. Ilgari faqat `ozgardi` qaralardi va yangi vosita
+ * boshqacha javob qaytarsa admin «⚠️ Hech narsa o'zgarmadi»
+ * degan xabarni ko'rardi — ish esa bajarilgan bo'lardi. Aynan shu
+ * xato kartochka shabloni bilan yuz berdi.
+ */
+function ozgarishSoni(n) {
+  if (!n || typeof n !== 'object') return 0;
+  const son = Number(n.ozgardi) || Number(n.ochirildi)
+           || Number(n.qoshildi) || Number(n.yuborildi) || 0;
+  if (son) return son;
+  // Mantiqiy belgilar: `true` — bitta ish bajarildi
+  if (n.ozgardi === true || n.ochirildi === true || n.saqlandi === true
+      || n.bajarildi === true || n.tayyor === true) return 1;
+  return 0;
+}
+
 /** Sinov uchun. */
+export const vositaOzgarishi = ozgarishSoni;
 export const rejalarniTozala = () => rejalar.clear();
 export const rejaSoni = () => rejalar.size;
 

@@ -2265,11 +2265,18 @@ function ovqatBandi(matn) {
  * ko'radi va tahlil quruq matn bo'lib qolmaydi.
  */
 const RENTGEN = [
-  { kalit: 'asl',      nom: 'Asl',      css: 'none' },
-  { kalit: 'qizarish', nom: 'Qizarish', css: 'saturate(2.1) hue-rotate(-14deg) contrast(1.18)' },
-  { kalit: 'yog',      nom: 'Yog‘lilik', css: 'grayscale(1) brightness(1.3) contrast(2.4)' },
-  { kalit: 'tekstura', nom: 'Tekstura', css: 'grayscale(1) contrast(2.7) brightness(.92)' },
-  { kalit: 'pigment',  nom: 'Pigment',  css: 'invert(1) hue-rotate(165deg) saturate(1.5) contrast(1.25)' },
+  { kalit: 'asl',      nom: 'Asl',       izoh: 'filtrsiz',
+    css: 'none' },
+  { kalit: 'uv',       nom: 'UV',        izoh: 'yashirin dog‘lar',
+    css: 'grayscale(1) contrast(1.45) brightness(.9)' },
+  { kalit: 'qizarish', nom: 'Qizarish',  izoh: 'yallig‘lanish',
+    css: 'sepia(1) hue-rotate(-38deg) saturate(4.2) contrast(1.05)' },
+  { kalit: 'pigment',  nom: 'Pigment',   izoh: 'pigment dog‘lari',
+    css: 'sepia(.9) contrast(1.35) brightness(.95)' },
+  { kalit: 'tekstura', nom: 'Tekstura',  izoh: 'poralar va relef',
+    css: 'grayscale(1) contrast(1.95) brightness(1.05)' },
+  { kalit: 'namlik',   nom: 'Namlik',    izoh: 'teri namligi',
+    css: 'grayscale(1) sepia(1) hue-rotate(168deg) saturate(5) brightness(.85)' },
 ];
 
 /** Katakka sig'adigan qisqa nom (to'liq nomi ro'yxatda qoladi). */
@@ -2322,106 +2329,108 @@ function natijaniChiz() {
 
   el.innerHTML = `
   <header class="n-shapka">
-    <div>
-      <b>${ism ? `Salom, ${esc(ism)}!` : 'Teri tahlili'}</b>
-      <span>Yuzingiz tekshirildi</span>
-    </div>
-    <span class="n-sana">${sana}</span>
+    <div class="n-logo">K<i>i</i>OVO<small>Teri tahlili · ${sana}</small></div>
+    ${ism ? `<span class="n-salom">${esc(ism)}</span>` : ''}
   </header>
 
   ${t.is_offline ? `<div class="n-karta"><div class="ogoh">AI hozir mavjud emas — bazaviy tavsiya ko‘rsatilmoqda.</div></div>` : ''}
 
-  <div class="n-tepa">
-    ${t.yuz_rasm_id ? `<div class="n-chap">
-    <figure class="n-surat">
-      <img src="/media/${esc(t.yuz_rasm_id)}" alt="Tahlil qilingan surat">
+  <!-- ══ QAHRAMON: surat, ball va yorliqlar bitta kartada ══
+       Namunadagidek: rasm 4:3, ustida raqamli nishonlar, pastida
+       o'ng burchakda qaysi qatlam yoqilgani yozib turadi. -->
+  <section class="n-hero">
+    ${t.yuz_rasm_id ? `
+    <div class="n-yuz">
+      <div class="n-yuz-media" id="n-yuz-media">
+        <img src="/media/${esc(t.yuz_rasm_id)}" alt="Tahlil qilingan surat">
+      </div>
       ${belgili.map((m) => `
-        <span class="n-nishon d${Math.min(3, m.daraja || 1)}"
+        <button class="n-nishon d${Math.min(3, m.daraja || 1)}" data-nishon="${m.tartib}"
           style="left:${m.joy.x}%;top:${m.joy.y}%"
-          title="${esc(KALIT_NOM[m.kalit] || m.nom)}">
-          <i></i><b>${m.tartib}</b></span>`).join('')}
-      <figcaption class="n-surat-baho">
-        ${ballHalqa(ball, 66)}
-        <div>
-          <span>Umumiy holat</span>
-          <b class="${ballRang(ball)}">${holatSoz}</b>
-        </div>
-      </figcaption>
-    </figure>
-    <!-- TERI «RENTGENI». Kamera oddiy surat oladi, lekin o'sha
-         suratdan ko'p narsani ko'rsatish mumkin: kanallarni ajratib,
-         kontrastni ko'tarib. Bu SIZNING suratingiz — hech qanday
-         chizilgan rasm emas, shunchaki boshqa yorug'likda. -->
-    <div class="n-rentgen" role="tablist">
-      ${RENTGEN.map((r, i) => `
-        <button role="tab" data-filtr="${r.kalit}"
-          class="${i === 0 ? 'tanlangan' : ''}" aria-selected="${i === 0}">
-          <img src="/media/${esc(t.yuz_rasm_id)}" alt="" loading="lazy" style="filter:${r.css}">
-          <span>${r.nom}</span>
-        </button>`).join('')}
-    </div></div>` : ''}
+          title="${esc(KALIT_NOM[m.kalit] || m.nom)}">${m.tartib}</button>`).join('')}
+      <div class="n-qatlam-teg" id="n-qatlam-teg">Asl <span>· filtrsiz</span></div>
+    </div>` : ''}
 
-    <div class="n-karta n-ball">
-      ${t.yuz_rasm_id ? '' : `
-        <div class="n-ball-ich">${ballHalqa(ball)}
-          <div><span class="n-ball-yor">Umumiy holat</span>
-            <b class="${ballRang(ball)}">${holatSoz}</b></div>
-        </div>`}
-      <p class="n-xulosa">${esc(t.raw?.xulosa || 'Teri holati baholandi.')}</p>
-      <!-- Teglar RANGLI: kulrang bo'lsa ular bir-biriga qo'shilib
-           ketardi va hech kim o'qimasdi -->
-      <div class="n-teglar">
-        ${t.age_estimate ? `<span class="t-yosh">${ik('soat',13)}${esc(t.age_estimate)} yosh</span>` : ''}
-        ${JINS[t.jins] ? `<span class="t-jins">${ik('profil',13)}${JINS[t.jins]}</span>` : ''}
-        ${t.skin_type ? `<span class="t-teri">${ik('tomchi',13)}${esc(t.skin_type)}</span>` : ''}
-        ${t.skin_tone ? `<span class="t-rang">${ik('quyosh',13)}${esc(
-          // Teri rangi ba'zan uzun yoziladi («och bug'doyrang, iliq
-          // tonli») va teg uch qatorga cho'zilib ketadi — birinchi
-          // qismi yetarli
-          String(t.skin_tone).split(/[,;(]/)[0].trim())}</span>` : ''}
+    <div class="n-ball">
+      ${ballHalqa(ball, 92)}
+      <div>
+        <h2 class="${ballRang(ball)}">${holatSoz} holat</h2>
+        <p>${esc(t.raw?.xulosa || 'Teri holati baholandi.')}</p>
       </div>
     </div>
-  </div>
+
+    <div class="n-teglar">
+      ${t.age_estimate ? `<span>${esc(t.age_estimate)} yosh</span>` : ''}
+      ${JINS[t.jins] ? `<span>${JINS[t.jins]}</span>` : ''}
+      ${t.skin_type ? `<span class="hot">${esc(t.skin_type)} teri</span>` : ''}
+      ${t.skin_tone ? `<span>${esc(String(t.skin_tone).split(/[,;(]/)[0].trim())}</span>` : ''}
+    </div>
+  </section>
 
   ${t.raw?.tavsif ? `
     <div class="n-tavsif"><i>${ik('koz', 16)}</i>
       <span>${esc(t.raw.tavsif)}</span></div>` : ''}
 
+  ${t.yuz_rasm_id ? `
+  <!-- ══ TAHLIL QATLAMLARI ══
+       Hammasi SHU suratdan chiqadi: rang kanallari boshqacha
+       aralashtiriladi, xuddi dermatolog lampasi ostida ko'rgandek. -->
+  <section class="n-bolim">
+    <div class="n-bolim-bosh"><h3>Tahlil qatlamlari</h3></div>
+    <div class="n-qatlamlar" role="tablist">
+      ${RENTGEN.map((r, i) => `
+        <button role="tab" class="n-qatlam${i === 0 ? ' tanlangan' : ''}"
+          data-filtr="${r.kalit}" aria-selected="${i === 0}">
+          <span class="n-qatlam-rasm">
+            <img src="/media/${esc(t.yuz_rasm_id)}" alt="" loading="lazy"
+              style="filter:${r.css}"></span>
+          <b>${r.nom}</b>
+        </button>`).join('')}
+    </div>
+  </section>` : ''}
+
   ${olchovlar.length ? `
-  <div class="n-olchamlar">
-    ${olchovlar.map((m) => `
-      <div class="n-olch ${beshRang(m.ballHolat)}">
-        <i>${ik(KALIT_IKON[m.kalit] || 'tomchi', 15)}</i>
-        <b>${m.ballHolat}<small>/100</small></b>
-        <span>${esc(kalitQisqa(m))}</span>
-        <em><u style="width:${Math.max(5, m.ballHolat)}%"></u></em>
-      </div>`).join('')}
-  </div>` : ''}
+  <section class="n-bolim">
+    <div class="n-bolim-bosh"><h3>Ko‘rsatkichlar</h3></div>
+    <div class="n-olchamlar">
+      ${olchovlar.map((m) => `
+        <div class="n-olch">
+          <div class="n-olch-tepa">
+            <span>${esc(kalitQisqa(m))}</span>
+            <b>${m.ballHolat}<i>/100</i></b>
+          </div>
+          <div class="n-chiziq"><i class="${beshRang(m.ballHolat)}"
+            style="width:${Math.max(5, m.ballHolat)}%"></i></div>
+        </div>`).join('')}
+    </div>
+  </section>` : ''}
 
   ${muammolar.length ? `
-  <section class="n-karta">
-    <h3 class="n-karta-bosh">Nima topildi</h3>
-    ${muammolar.map((m) => `
-      <button class="n-muammo" data-muammo="${m.tartib}">
-        <span class="n-raqam d${Math.min(3, m.daraja || 1)}">${m.tartib}</span>
-        ${t.yuz_rasm_id ? `
-        <!-- Yuzning O'SHA joyi kattalashtirib ko'rsatiladi. Bu
-             odamga «qayerini aytyapti?» degan savolni butunlay
-             yopadi: u o'z terisining o'sha bo'lagini ko'radi. -->
-        <span class="n-kesim" data-kesim="${m.tartib}"
-          style="background-image:url(/media/${esc(t.yuz_rasm_id)});
-                 background-position:${m.joy.x}% ${m.joy.y}%"></span>` : ''}
-        <span class="n-muammo-nom">${esc(KALIT_NOM[m.kalit] || m.nom)}
-          ${m.zona ? `<em>${esc(m.zona)}</em>` : ''}</span>
-        <span class="n-muammo-foiz ${ballRang(m.ballHolat)}">${m.foiz}%</span>
-        <span class="n-chiziq"><i class="${ballRang(m.ballHolat)}"
-          style="width:${Math.max(5, m.foiz)}%"></i></span>
-      </button>
-      <div class="n-muammo-ich yashirin" id="muammo-${m.tartib}">
-        ${m.sabab ? `<p><b>Nega paydo bo‘ldi</b>${esc(m.sabab)}</p>` : ''}
-        ${m.yechim ? `<p><b>Nima qilish kerak</b>${esc(m.yechim)}</p>` : ''}
-        ${m.ogohlantirish ? `<p class="diqqat">${ik('ogoh', 14)}${esc(m.ogohlantirish)}</p>` : ''}
-      </div>`).join('')}
+  <section class="n-bolim">
+    <div class="n-bolim-bosh">
+      <h3>Aniqlangan muammolar</h3>
+      <button id="t-hammasini-och">Hammasini ochish</button>
+    </div>
+    ${muammolar.map((m, i) => `
+      <details class="n-muammo" id="muammo-${m.tartib}" data-muammo="${m.tartib}"${i === 0 ? ' open' : ''}>
+        <summary>
+          <span class="n-raqam d${Math.min(3, m.daraja || 1)}">${m.tartib}</span>
+          <span class="n-muammo-nom">${esc(KALIT_NOM[m.kalit] || m.nom)}
+            ${m.zona ? `<em>${esc(m.zona)}</em>` : ''}</span>
+          <span class="n-muammo-foiz ${ballRang(m.ballHolat)}">${m.foiz}%</span>
+        </summary>
+        <div class="n-muammo-ich">
+          <div class="n-chiziq"><i class="${ballRang(m.ballHolat)}"
+            style="width:${Math.max(5, m.foiz)}%"></i></div>
+          ${t.yuz_rasm_id ? `<span class="n-kesim" data-kesim="${m.tartib}"
+            style="background-image:url(/media/${esc(t.yuz_rasm_id)});
+                   background-position:${m.joy.x}% ${m.joy.y}%"></span>` : ''}
+          ${m.sabab ? `<div class="n-satr"><span>Sababi</span><p>${esc(m.sabab)}</p></div>` : ''}
+          ${m.yechim ? `<div class="n-satr"><span>Tavsiya</span><p>${esc(m.yechim)}</p></div>` : ''}
+          ${m.ogohlantirish ? `<div class="n-satr diqqat"><span>Diqqat</span>
+            <p>${esc(m.ogohlantirish)}</p></div>` : ''}
+        </div>
+      </details>`).join('')}
   </section>` : `
   <section class="n-karta n-toza">${ik('tasdiq', 22)}
     <b>Sezilarli muammo topilmadi</b>
@@ -2441,27 +2450,53 @@ function natijaniChiz() {
 
   <div class="n-karta n-oxir">
     <button class="ikkilamchi" id="t-qayta">${ik('kamera',18)}Qayta tahlil qilish</button>
-  </div>`;
+  </div>
+
+  <p class="n-eslatma">Bu tibbiy tashxis emas — kosmetologik tavsiya.<br>
+    KiOVO · Better Skin, Brighter You</p>`;
 
   // ── Ulanishlar ──
-  $$('[data-muammo]', el).forEach((b) => b.onclick = () => {
-    const ich = $(`#muammo-${b.dataset.muammo}`, el);
-    if (!ich) return;
-    const ochiq = !ich.classList.contains('yashirin');
-    kor(ich, ochiq ? false : true);
-    b.classList.toggle('ochiq', !ochiq);
+
+  // Suratdagi nishonni bosish — pastdagi o'sha muammoni ochadi va
+  // ko'rsatadi. «Qayerini aytyapti?» degan savol shu bilan yopiladi.
+  const nishonBelgila = (tartib) => {
+    $$('[data-nishon]', el).forEach((x) =>
+      x.classList.toggle('tanlangan', x.dataset.nishon === String(tartib)));
+  };
+  $$('[data-nishon]', el).forEach((b) => b.onclick = () => {
+    const nom = b.dataset.nishon;
+    $$('details.n-muammo', el).forEach((d) => { d.open = d.dataset.muammo === nom; });
+    nishonBelgila(nom);
+    $(`#muammo-${nom}`, el)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     titra();
   });
+  $$('details.n-muammo', el).forEach((d) => d.addEventListener('toggle', () => {
+    if (d.open) nishonBelgila(d.dataset.muammo);
+  }));
+  nishonBelgila(1);
+
+  const hammasi = $('#t-hammasini-och');
+  if (hammasi) hammasi.onclick = () => {
+    const yopiq = $$('details.n-muammo', el).some((d) => !d.open);
+    $$('details.n-muammo', el).forEach((d) => { d.open = yopiq; });
+    hammasi.textContent = yopiq ? 'Hammasini yopish' : 'Hammasini ochish';
+    titra();
+  };
+
   $$('[data-filtr]', el).forEach((b) => b.onclick = () => {
     const r = RENTGEN.find((x) => x.kalit === b.dataset.filtr);
-    const im = el.querySelector('.n-surat img');
-    if (im && r) im.style.filter = r.css;
+    if (!r) return;
+    const media = $('#n-yuz-media', el);
+    if (media) media.style.filter = r.css;
+    const teg = $('#n-qatlam-teg', el);
+    if (teg) teg.innerHTML = `${esc(r.nom)} <span>· ${esc(r.izoh)}</span>`;
     $$('[data-filtr]', el).forEach((x) => {
       x.classList.toggle('tanlangan', x === b);
       x.setAttribute('aria-selected', String(x === b));
     });
     titra();
   });
+
   $$('[data-tavsiya]', el).forEach((b) => b.onclick = (ev) => {
     ev.stopPropagation(); mahsulotOyna(Number(b.dataset.tavsiya));
   });
@@ -2493,7 +2528,7 @@ function natijaniChiz() {
  * Yuz topilmasa hech narsa o'zgarmaydi — taxminiy joy qoladi.
  */
 function belgilarniYuzgaQoy(el, belgilar) {
-  const im = el.querySelector('.n-surat img');
+  const im = el.querySelector('.n-yuz-media img');
   if (!im || !belgilar.length) return;
   kaskadniYukla();
 

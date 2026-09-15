@@ -226,37 +226,46 @@ Google Gemini · Railway.
 - **Minimal buyurtma** — admin sozlaydigan eng kam summa. Kam bo'lsa
   rasmiylashtirish tugmasi ochilmaydi va nechchi so'm yetmayotgani aytiladi.
   Tekshiruv `place_order()` ichida ham bor — klientga ishonilmaydi.
-- **Natija — diagnostika hujjati ko'rinishida.** Suratingiz ustida
-  topilgan belgilar nuqta va yorliq bilan belgilanadi, suratning
-  pastida esa umumiy ball halqasi va bitta so'z bilan holat. Ostida
-  ko'rsatkichlar **katak** ko'rinishida: har birida son katta,
-  rangi ma'noli. **Rang butun ekranda bitta ma'noda:** yashil —
-  yaxshi, sariq — e'tibor bering, qizil — muammo, va hammasi
-  mavzudan (`--yashil`, `--sariq`, `--qizil`) olinadi — shuning
-  uchun kunduzgi va tungi rejimda ham uyg'un turadi. Tafsilotlar
-  to'rt bo'limga ajratilgan: *Tavsiyalar*, *Teri holati*, *Dieta*,
-  *Kundalik parvarish* — birdan hammasi ko'rinib odamni bosib
-  ketmaydi. Mahsulotlar **yon tarafga siriladi**, aks holda ular
-  ekranni to'ldirib, pastdagi bo'limlar ko'rinmay qolardi.
+- **Natija — diagnostika hujjati ko'rinishida.** Eng tepada bitta
+  **qahramon karta**: 4:3 surat, uning ustida raqamli belgilar,
+  ostida ball halqasi (92px), bitta so'z bilan holat va bitta
+  jumla xulosa, undan keyin rangli teglar — yosh, jins, teri turi.
+  Hammasi bitta kartada, chunki ilgari surat va baho ikki alohida
+  blokda turib, odam pastga yetguncha yuqoridagi ballni unutardi.
+  **Rang butun ekranda bitta ma'noda:** yashil — yaxshi, sariq —
+  e'tibor bering, qizil — muammo, va hammasi mavzudan
+  (`--yashil`, `--sariq`, `--qizil`) olinadi — shuning uchun
+  kunduzgi va tungi rejimda ham uyg'un turadi. Mahsulotlar **yon
+  tarafga siriladi**, aks holda ular ekranni to'ldirib, pastdagi
+  bo'limlar ko'rinmay qolardi.
 
-  **Teri «rentgeni».** Suratning tagida to'rt kichik ko'rinish
-  turadi: *Asl*, *Qizarish*, *Yog'lilik*, *Tekstura*, *Pigment*.
-  Bosilsa asosiy surat ham o'sha ko'rinishga o'tadi. Hech narsa
-  o'ylab topilmaydi — bu odamning O'Z surati, faqat boshqa
-  kanalda ko'rsatilgan (rangdorlik, kontrast, invert). AI muammoni
-  aniq joyga bog'lay olmaganda ham odam o'z terisini boshqacha
-  ko'radi.
+  **Belgi — TUGMA.** Suratdagi raqamni bossangiz pastdagi o'sha
+  muammo ochiladi va ekran unga suriladi; teskarisi ham ishlaydi —
+  muammo ochilsa suratdagi belgisi kattalashadi. «Qayerini
+  aytyapti?» degan savol shu bilan yopiladi.
+
+  **Teri «rentgeni» — olti qatlam.** Suratning tagida lenta:
+  *Asl*, *UV*, *Qizarish*, *Pigment*, *Tekstura*, *Namlik*.
+  Bosilsa asosiy surat ham o'sha ko'rinishga o'tadi va rasm ustida
+  qaysi qatlam yoqilgani yozilib turadi. Hech narsa o'ylab
+  topilmaydi — bu odamning O'Z surati, faqat rang kanallari
+  boshqacha aralashtirilgan (`filter:` — CSS ning o'zi, qo'shimcha
+  so'rov ham, kanvas ham yo'q). AI muammoni aniq joyga bog'lay
+  olmaganda ham odam o'z terisini boshqacha ko'radi.
 
   **Ranglar takrorlanmaydi.** Ko'rsatkichlar uch emas, **besh**
   bosqichli shkalada bo'yaladi: uch rang bilan to'rtta katakning
   uchtasi bir xil chiqib qolardi. Yosh, jins va teri turi ham
   rangli teglarda — kulrang bo'lsa ular bir-biriga qo'shilib
-  ketardi.
+  ketardi, teri turi esa to'liq urg'u rangida, chunki u eng
+  muhimi.
 
-  **Sahifa QISQA.** Surat va ball, ovqat panellari, ertalab va
-  kechqurun tartibi — hammasi yonma-yon, telefonda ham. Ustma-ust
-  qo'yilganda sahifa ikki barobar uzayardi va odam pastga yetguncha
-  yuqoridagi ballni unutardi.
+  **Sahifa QISQA.** Muammolar `<details>` bo'lib yopiq turadi —
+  birinchisi ochiq, qolganini bosib ochasiz yoki «Hammasini
+  ochish» bilan birdan. Ovqat panellari, ertalab va kechqurun
+  tartibi yonma-yon. Ustma-ust qo'yilganda sahifa ikki barobar
+  uzayardi. `<details>` tanlangani bejiz emas: JS o'chib qolsa ham
+  ochiladi va ekran o'qigich uni «ochiq/yopiq» deb o'qiydi.
 
   **Belgilar yuzga nisbatan qo'yiladi.** Ilgari zona foizlari butun
   RASMGA nisbatan edi va telefonda «peshona» belgisi sochga tushib
@@ -1019,9 +1028,22 @@ Admin panel → Tizim holati → **💾 Ma'lumotni yuklab olish**.
   tahlillar, sharhlar, sozlamalar, bo'limlar.
 * **CSV** — bitta bo'lim, Excel uchun (BOM va `;` ajratgich bilan).
 
-Fayl serverda saqlanmaydi — to'g'ridan-to'g'ri brauzerga oqadi.
-Ichida mijoz telefonlari bor, shuning uchun fayl ichida ogohlantirish
-ham yozilgan.
+Ikkita tez tugma ham bor: **«Butun bazani JSON qilib olish»** va
+**«Faqat mahsulotlarni JSON qilib olish»**.
+
+Yordamchidan ham so'rasa bo'ladi: «mahsulotlarni JSON qilib ber».
+U chatga **bosiladigan havola** qaytaradi. Nega havola, tugma emas:
+admin API si `Authorization: Bearer …` sarlavhasini talab qiladi,
+brauzer esa oddiy bosishda uni yubormaydi — javob 401 bo'lardi.
+Shuning uchun havola **imzolangan** (`src/lib/eksport-havola.js`):
+ichida qaysi bo'limlar va qachon tugashi yozilgan, hammasi
+`ADMIN_JWT_SECRET` bilan HMAC qilingan. Havola **30 daqiqa** yashaydi
+— chatdan nusxa ko'chirib tarqatilsa ham uzoq ishlamaydi. Yo'lni
+qo'lda o'zgartirib boshqa bo'limni olib bo'lmaydi: imzo mos kelmaydi.
+
+Fayl serverda saqlanmaydi — to'g'ridan-to'g'ri brauzerga oqadi
+(`Cache-Control: no-store`). Ichida mijoz telefonlari bor, shuning
+uchun fayl ichida ogohlantirish ham yozilgan.
 
 ### Admin yordamchisi — savolga javob, topshiriqqa taklif
 
@@ -1032,7 +1054,26 @@ natijani ko'radi, keyin keyingi qadamni tanlaydi.
 | Vosita | Turi |
 |---|---|
 | mahsulotlar, takrorlar, buyurtmalar, buyurtma, statistika, mijozlar, bolimlar, muammo_statistikasi, sozlamalar, mavzu, eksport, **sql**, **sxema**, **grafik** | o'qish — erkin |
-| mahsulot_yop, mahsulot_ochir, narx_ozgartir, **narxlarni_ozgartir**, ombor_ozgartir, mahsulot_tahrir, toifa_ozgartir, bolim_birlashtir, bolim_ochir, sozlama_ozgartir, mavzu_ozgartir, **sql_yoz** | **YOZISH — tasdiq bilan** |
+| mahsulot_yop, mahsulot_ochir, narx_ozgartir, **narxlarni_ozgartir**, ombor_ozgartir, mahsulot_tahrir, toifa_ozgartir, bolim_birlashtir, bolim_ochir, sozlama_ozgartir, mavzu_ozgartir, **kartochka_kodi_yoz**, **sql_yoz** | **YOZISH — tasdiq bilan** |
+
+#### «Hech narsa o'zgarmadi» — nega shunday yozilardi
+
+Yordamchi kartochka shablonini bazaga **saqlab qo'yardi**, lekin panel
+«⚠️ Hech narsa o'zgarmadi» deb, ostiga «Bajarilmagan amallar:
+`kartochka_kodi_yoz`» deb yozardi. Ish bajarilgan, xabar esa teskari.
+
+Sabab: agent qadamni faqat `ozgardi` va `ochirildi` maydonlari bo'yicha
+sanardi, vosita esa `{saqlandi: true}` qaytarardi — nolga tenglashardi.
+Endi **bitta shartnoma** bor (`vositaOzgarishi`,
+`src/services/admin-agent.js`): yozuvchi vosita `ozgardi` ni qaytaradi,
+bundan tashqari `saqlandi`, `bajarildi`, `tayyor`, `yuborildi` kabi
+«ish bo'ldi» belgilarini ham agent tushunadi. Yangi vosita yozganda
+ikkinchi tomonni o'zgartirish kerak emas.
+
+Panel endi bajarilgan qadamning **natijasini** ham ko'rsatadi: vosita
+qaytargan izohni va **bosiladigan havolani** (masalan kartochka
+ko'rinishi yoki yuklab olish fayli). Ilgari ular yo'qolib ketardi va
+admin «ish bo'lmadi» deb o'ylardi.
 
 #### Bazaga to'liq kirish
 
@@ -1387,6 +1428,7 @@ src/
     kartochka.js       natija kartochkasining sozlamasi (erkak/ayol)
     narx.js            sotuv narxi: tannarx + yetkazish + sof foyda
     post-korinish.js   agent posti kanalda qanday chiqishini ko‘rsatuvchi sahifa
+    eksport-havola.js  imzolangan, 30 daqiqada o‘ladigan yuklab olish havolasi
     docx.js            .docx yozuvchi (ZIP + WordprocessingML), kutubxonasiz
     admin.js           kim admin — bot va admin API uchun bitta javob
     hududlar.js        14 viloyat, 210 tuman — manzil tekshiruvi uchun

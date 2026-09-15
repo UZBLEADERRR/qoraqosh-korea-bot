@@ -3637,14 +3637,21 @@ console.log('\n── NATIJA EKRANI ──');
   test('rasmdagi yuz ilovada QAYTA topiladi',
     /function belgilarniYuzgaQoy/.test(js) && /Yuz\.yuzniTop/.test(js));
   test('eski tahlil ham to‘g‘rilanadi — rasm serverdan o‘qiladi',
-    /el\.querySelector\('\.n-surat img'\)/.test(js));
+    /el\.querySelector\('\.n-yuz-media img'\)/.test(js));
 
   // ── «Bu mening rasmim» — ishonch ──
   test('muammolar suratda RAQAM bilan belgilanadi',
-    /n-nishon/.test(js) && /\.n-nishon b\{/.test(css));
+    /n-nishon/.test(js) && /\.n-nishon\{/.test(css));
   test('nishon raqami ro‘yxatdagi raqam bilan bir xil',
     /class="n-nishon d\$\{Math\.min\(3, m\.daraja \|\| 1\)\}"/.test(js)
-      && /<b>\$\{m\.tartib\}<\/b>/.test(js));
+      && /data-nishon="\$\{m\.tartib\}"/.test(js));
+  // Nishon endi TUGMA: bosilganda pastdagi o'sha muammo ochiladi.
+  // «Qayerini aytyapti?» degan savol shu bilan yopiladi.
+  test('nishon BOSILADI — muammoni ochadi',
+    /<button class="n-nishon/.test(js)
+      && /\$\$\('\[data-nishon\]', el\)\.forEach\(\(b\) => b\.onclick/.test(js));
+  test('tanlangan nishon kattalashadi',
+    /\.n-nishon\.tanlangan\{transform:translate\(-50%,-50%\) scale\(1\.22\)/.test(css));
   test('sakkiztagacha muammo belgilanadi — ilgari faqat to‘rttasi edi',
     /const belgili = muammolar\.slice\(0, 8\)/.test(js));
   test('eng og‘iri BIRINCHI raqamni oladi',
@@ -3656,14 +3663,17 @@ console.log('\n── NATIJA EKRANI ──');
   // ── Diagnostika ko'rinishi ──
   test('ball HALQA bilan ko‘rsatiladi', /function ballHalqa/.test(js)
     && /n-halqa-yoy/.test(css));
-  test('ball SURATNING o‘zida ko‘rsatiladi',
-    /n-surat-baho/.test(js) && /\.n-surat-baho\{/.test(css));
+  test('ball SURAT bilan BIR kartada — qahramon bo‘lim',
+    /<section class="n-hero">/.test(js) && /\.n-hero\{/.test(css)
+      && /ballHalqa\(ball, 92\)/.test(js));
   test('rang MA’NO anglatadi — bitta shkala',
     /const ballRang = \(b\) => \(b >= 70 \? 'yaxshi' : b >= 45 \? 'orta' : 'yomon'\)/.test(js));
 
   // ── Ko'rsatkichlar BIR QATORDA (namunadagidek) ──
-  test('ko‘rsatkichlar bitta qatorda',
-    /\.n-olchamlar\{display:grid;grid-template-columns:repeat\(4,1fr\)/.test(css));
+  // To'rt ustunda nom sig'masdi. Ikki ustunda nom bir qatorda,
+  // shkala esa uzun — barmoq bilan ham o'qib bo'ladi.
+  test('ko‘rsatkichlar ikki ustunda',
+    /\.n-olchamlar\{display:grid;grid-template-columns:1fr 1fr/.test(css));
   test('katakda faqat to‘rttasi — sig‘adigani',
     /const olchovlar = muammolar\.slice\(0, 4\)/.test(js));
   test('uzun nom katak uchun QISQARTIRILADI',
@@ -3701,53 +3711,63 @@ console.log('\n── NATIJA EKRANI ──');
       css.indexOf('JONLI KAMERA'))));
 
   // ── Har qanday ekranga moslashish ──
-  test('sarlavha ekranga qarab kichrayadi', /clamp\(22px,6\.4vw,28px\)/.test(css));
-  test('keng ekranda ikki ustun', /@media \(min-width:720px\)\{\.n-tepa/.test(css));
+  test('sarlavha ekranga qarab kichrayadi', /clamp\(19px,5\.6vw,23px\)/.test(css));
+  test('qatlamlar lentasi ekrandan chiqib siriladi',
+    /\.n-qatlamlar\{display:flex;gap:8px;overflow-x:auto/.test(css));
   test('holat ranglari MAVZUdan olinadi — uyg‘un bo‘ladi',
     !/#2ebe78|#e05252|#e0a33c/.test(css));
 
   // ── Yosh, jins va teri turi RANGLI ──
   test('teglar rangli — kulrang bo‘lsa qo‘shilib ketardi',
-    /\.n-teglar \.t-yosh\{background:var\(--kok-och\)/.test(css)
-      && /\.n-teglar \.t-jins\{background:var\(--urgu-och\)/.test(css)
-      && /\.n-teglar \.t-teri\{background:var\(--yashil-och\)/.test(css));
+    /\.n-teglar span:nth-child\(1\)\{background:var\(--kok-och\)/.test(css)
+      && /\.n-teglar span:nth-child\(2\)\{background:var\(--yashil-och\)/.test(css)
+      && /\.n-teglar span:nth-child\(4\)\{background:var\(--sariq-och\)/.test(css));
+  test('teri turi ENG ko‘zga tashlanadi — to‘liq urg‘u rangida',
+    /\.n-teglar span\.hot\{background:var\(--urgu\);color:#fff\}/.test(css)
+      && /class="hot">\$\{esc\(t\.skin_type\)\}/.test(js));
   test('uzun teri rangi qisqartiriladi',
     /String\(t\.skin_tone\)\.split\(\/\[,;\(\]\/\)\[0\]/.test(js));
 
   // ── Ranglar TAKRORLANMAYDI: besh bosqich ──
   {
-    const kodB = js.slice(js.indexOf('const BESH ='), js.indexOf('/* Teri «rentgeni»'));
+    const kodB = js.slice(js.indexOf('const BESH ='), js.indexOf('function ballHalqa'));
     const beshRang = new Function(`${kodB}; return beshRang;`)();
     const ranglar = [15, 35, 55, 72, 92].map(beshRang);
     test('besh xil ball — besh xil rang', new Set(ranglar).size === 5, ranglar.join(','));
     test('yuqori ball yashil tomonda', beshRang(92) === 'alo' && beshRang(15) === 'zaif');
     test('har bosqichning o‘z rangi bor',
       ['alo', 'yaxshi', 'orta', 'past', 'zaif'].every((k) =>
-        new RegExp(`\\.n-olch\\.${k}>em u\\{background:var\\(`).test(css)));
+        new RegExp(`\\.n-chiziq i\\.${k}\\{background:var\\(`).test(css)));
   }
 
   // ── Teri «rentgeni» ──
   // «Muammolarni aniq ko'rsatolmasa, o'rniga yuz rasmini turli
   // effektlarda qo'yib qo'ysa ham mayli — haqiqiy rentgendek»
   test('rentgen ko‘rinishlari bor', /const RENTGEN = \[/.test(js)
-    && /\.n-rentgen\{/.test(css));
+    && /\.n-qatlamlar\{/.test(css));
   test('hammasi SHU suratdan — chizilgan rasm emas',
     /filter:\$\{r\.css\}/.test(js)
       && !/dall-e|midjourney|generate/i.test(js));
   test('bosilganda asosiy surat ham o‘zgaradi',
-    /data-filtr/.test(js) && /im\.style\.filter = r\.css/.test(js));
-  test('kamida to‘rt ko‘rinish', (js.match(/\{ kalit: '(asl|qizarish|yog|tekstura|pigment)'/g) || []).length >= 4);
+    /data-filtr/.test(js) && /media\.style\.filter = r\.css/.test(js));
+  test('qaysi qatlam yoqilgani surat ustida yozilib turadi',
+    /n-qatlam-teg/.test(js) && /\.n-qatlam-teg\{position:absolute/.test(css));
+  test('olti ko‘rinish — UV va namlik ham bor',
+    (js.match(/\{ kalit: '(asl|uv|qizarish|pigment|tekstura|namlik)'/g) || []).length === 6);
 
   // ── Sahifa QISQA: hammasi bitta ekranda ──
   // «Hozir ilovada teri holati haqidagi qismi rasmning ostki
   // qismida bo'laversin» — yonma-yon qo'yilganda o'ng ustun tor
   // bo'lib, xulosa besh qatorga cho'zilar edi
   test('teri holati SURAT OSTIDA',
-    /\.n-tepa\{display:grid;gap:10px;grid-template-columns:1fr;/.test(css));
-  test('keng ekranda esa yana yonma-yon',
-    /@media \(min-width:720px\)\{\.n-tepa\{grid-template-columns:minmax\(0,44%\)/.test(css));
-  test('surat 4:5 — sahifa bejiz uzaymaydi',
-    /\.n-surat\{[^}]*aspect-ratio:4\/5/.test(css.replace(/\n\s*/g, '')));
+    js.indexOf('<div class="n-yuz">') < js.indexOf('<div class="n-ball">'));
+  test('surat 4:3 — namunadagidek keng',
+    /\.n-yuz\{[^}]*aspect-ratio:4\/3/.test(css.replace(/\n\s*/g, '')));
+  test('muammolar ro‘yxati OCHILADIGAN — sahifa qisqa turadi',
+    /<details class="n-muammo"/.test(js)
+      && /details\.n-muammo>summary\{display:grid/.test(css));
+  test('«Hammasini ochish» tugmasi bor',
+    /id="t-hammasini-och"/.test(js) && /Hammasini yopish/.test(js));
   test('ovqat panellari ham yonma-yon',
     /\.n-panellar\{display:grid;gap:8px;grid-template-columns:1fr 1fr;/.test(css));
   test('ertalab va kechqurun ham yonma-yon',
@@ -4094,6 +4114,117 @@ console.log('\n── KARTOCHKA SHABLONI ──');
   test('shablonni o‘chirib ichki ko‘rinishga qaytish mumkin',
     (await V.VOSITALAR.kartochka_kodi.ishla({})).holat === 'yoq');
   await sorov(`delete from users where telegram_id = 'shablon-sinov'`);
+}
+
+
+// ══════════════ YORDAMCHI HAQIQATAN ISH QILADI ══════════════
+//
+// Shikoyat: «Ai yordamchi hech narsa qilolmayapti». Ekranda
+// «⚠️ Hech narsa o'zgarmadi», «Bajarilmagan amallar:
+// kartochka_kodi_yoz» yozuvi turardi — vaholanki shablon bazaga
+// SAQLANGAN edi. Sabab: agent faqat `ozgardi` va `ochirildi`
+// maydonlarini tushunardi, vosita esa `{saqlandi:true}` qaytarardi.
+{
+  console.log('\n── YORDAMCHI NATIJANI TO‘G‘RI O‘QIYDI ──');
+  const { vositaOzgarishi } = await import('../src/services/admin-agent.js');
+  test('raqamli o‘zgarish sanaladi', vositaOzgarishi({ ozgardi: 3 }) === 3);
+  test('o‘chirilgan qator ham', vositaOzgarishi({ ochirildi: 2 }) === 2);
+  test('«saqlandi» ham BAJARILGAN ish', vositaOzgarishi({ saqlandi: true }) === 1);
+  test('«tayyor» ham — fayl yasash o‘zgarish emas, lekin ish',
+    vositaOzgarishi({ tayyor: true }) === 1);
+  test('«bajarildi» ham', vositaOzgarishi({ bajarildi: true }) === 1);
+  test('haqiqatan hech nima bo‘lmasa — nol',
+    vositaOzgarishi({ ozgardi: 0 }) === 0 && vositaOzgarishi({}) === 0
+      && vositaOzgarishi(null) === 0);
+
+  const V = await import('../src/services/admin-vositalar.js');
+  const n = await V.VOSITALAR.kartochka_kodi_yoz.ishla(
+    { svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10">'
+         + '<rect width="10" height="10" fill="#111"/><text x="1" y="5">{{ball}}</text></svg>',
+      izoh: 'sinov' });
+  test('shablon saqlansa yordamchi BAJARILDI deb sanaydi',
+    vositaOzgarishi(n) >= 1, JSON.stringify(n).slice(0, 120));
+  test('rad etilgan shablon esa sanalmaydi',
+    vositaOzgarishi(await V.VOSITALAR.kartochka_kodi_yoz.ishla(
+      { svg: '<svg><script>x</script></svg>' })) === 0);
+  await V.VOSITALAR.kartochka_kodi_ochir.ishla({});
+  const fs2 = await import('node:fs');
+  const panelJs = fs2.readFileSync('public/admin/admin.js', 'utf8');
+  test('panel bajarilgan qadamning NATIJASINI ko‘rsatadi',
+    /const n = q\.natija \|\| \{\}/.test(panelJs)
+      && /n\.korinish \|\| n\.havola/.test(panelJs)
+      && /Bajarildi — <b>\$\{soni\}<\/b> ta o‘zgarish/.test(panelJs));
+}
+
+// ══════════════ MA'LUMOTNI JSON QILIB YUKLAB OLISH ══════════════
+//
+// «mahsulot va baza faylini json qilib yuklab olishni ham qoshib ket»
+// Yordamchi chatda HAVOLA beradi — odam bosadi va fayl tushadi.
+// Admin API si Bearer sarlavhasini talab qiladi, brauzer esa oddiy
+// bosishda uni yubormaydi, shuning uchun havola IMZOLANGAN.
+{
+  console.log('\n── JSON QILIB YUKLAB OLISH ──');
+  const { eksportHavolasi, eksportOchib } = await import('../src/lib/eksport-havola.js');
+  const h = eksportHavolasi(['mahsulotlar'], 'json');
+  test('havola yasaladi', typeof h === 'string' && h.includes('/eksport/'), h);
+  const u = new URL(h);
+  const b64 = u.pathname.split('/').pop().replace(/\.(json|csv)$/, '');
+  const ochildi = eksportOchib(b64, u.searchParams.get('i'));
+  test('o‘z imzosi bilan ochiladi', ochildi.ok === true);
+  test('nima so‘ralgani saqlanadi',
+    ochildi.tur === 'json' && ochildi.bolimlar.join() === 'mahsulotlar');
+  test('IMZO buzilsa ochilmaydi',
+    eksportOchib(b64, 'a'.repeat(32)).ok === false);
+  test('yo‘lni o‘zgartirib boshqa bo‘limni olib bo‘lmaydi',
+    eksportOchib(Buffer.from('json~mijozlar~' + (Date.now() + 60000))
+      .toString('base64url'), u.searchParams.get('i')).ok === false);
+  const eski = Buffer.from(`json~~${Date.now() - 1000}`, 'utf8').toString('base64url');
+  const eskiImzo = new URL(eksportHavolasi([], 'json')).searchParams.get('i');
+  test('MUDDATI o‘tgan havola o‘lik', eksportOchib(eski, eskiImzo).ok === false);
+
+  const V = await import('../src/services/admin-vositalar.js');
+  const t1 = await V.VOSITALAR.eksport.ishla({ bolimlar: ['mahsulotlar'] });
+  test('yordamchi bosiladigan havola beradi',
+    t1.tayyor === true && String(t1.havola).includes('/eksport/'));
+  test('bu ham BAJARILGAN ish deb sanaladi',
+    (await import('../src/services/admin-agent.js')).vositaOzgarishi(t1) === 1);
+  const t2 = await V.VOSITALAR.eksport.ishla({ tur: 'csv' });
+  test('CSV uchun bitta bo‘lim TALAB qilinadi',
+    !t2.tayyor && /bitta bo‘lim/.test(t2.xabar));
+  const t3 = await V.VOSITALAR.eksport.ishla({});
+  test('hammasi so‘ralsa mijozlar haqida OGOHLANTIRADI',
+    /telefon/.test(t3.ogohlantirish || ''));
+
+  // Havolaning ORQASIDA haqiqiy fayl turadi
+  const { eksportYig, csvQil, BOLIMLAR } = await import('../src/services/eksport.js');
+  const fayl = await eksportYig(ochildi.bolimlar);
+  test('faylda mahsulotlar bor', Array.isArray(fayl.mahsulotlar));
+  test('so‘ralmagan bo‘lim ICHIDA YO‘Q — mijoz telefoni tarqamaydi',
+    fayl.mijozlar === undefined);
+  test('fayl nima ekanini O‘ZI aytadi', fayl._haqida?.manba === 'KiOVO');
+  test('Excel uchun CSV ham chiqadi',
+    csvQil(await BOLIMLAR.mahsulotlar.ol()).includes(';'));
+
+  // Server marshruti: imzoni tekshiradi va faylni YUKLAB berish
+  // (attachment) qilib qaytaradi — brauzerda ochilib ketmaydi
+  const fs3 = await import('node:fs');
+  const srvKod = fs3.readFileSync('src/server.js', 'utf8');
+  test('server /eksport/… yo‘lini biladi',
+    /\^\\\/eksport\\\/\(\[A-Za-z0-9_-\]\+\)\\\.\(json\|csv\)\$/.test(srvKod));
+  test('imzo har so‘rovda TEKSHIRILADI', /eksportOchib\(eksMos\[1\]/.test(srvKod));
+  test('muddati o‘tgan havolaga 410 — sabab aytiladi',
+    /410[\s\S]{0,160}muddati tugadi/.test(srvKod));
+  test('brauzer uni SAQLAYDI — attachment',
+    (srvKod.match(/Content-Disposition': `attachment/g) || []).length >= 2);
+  test('kesh saqlanmaydi — havola o‘lgach fayl ham qolmaydi',
+    (srvKod.slice(srvKod.indexOf('/^\\/eksport\\/'))
+      .match(/'Cache-Control': 'no-store'/g) || []).length >= 2);
+
+  const adminJs = fs3.readFileSync('public/admin/admin.js', 'utf8');
+  test('panelda «Faqat mahsulotlar» tugmasi bor',
+    /mahsulotlarni JSON/i.test(adminJs));
+  test('panelda butun bazani olish tugmasi ham bor',
+    /Butun bazani JSON/i.test(adminJs));
 }
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);

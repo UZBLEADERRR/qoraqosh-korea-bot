@@ -682,6 +682,49 @@ async function kartochkaOzgartir(a) {
            natija: kartochkaSozlamasi(yangi, kim === 'umumiy' ? '' : kim) };
 }
 
+// ──────────────── MA'LUMOTNI YUKLAB OLISH ────────────────
+//
+// Agent faylni suhbatga biriktira olmaydi, lekin HAVOLA bera oladi.
+// Havola imzolangan va 30 daqiqa yashaydi: admin bosadi — fayl
+// tushadi. Ilgari bu yerda `/api/admin/eksport` degan yalang'och yo'l
+// qaytarilardi, uni bosganda esa 401 chiqardi (brauzer admin
+// tokenini yubormaydi) — ya'ni maslahat amalda ishlamasdi.
+
+async function eksportHavola(a = {}) {
+  const { eksportHavolasi } = await import('../lib/eksport-havola.js');
+  const tur = String(a.tur ?? 'json').toLowerCase() === 'csv' ? 'csv' : 'json';
+  const xom = Array.isArray(a.bolimlar) ? a.bolimlar
+            : (a.bolimlar ? [a.bolimlar] : []);
+  const bolimlar = xom.map((x) => String(x).trim()).filter((x) => EKSPORT_BOLIMLAR[x]);
+  const notogri = xom.filter((x) => !EKSPORT_BOLIMLAR[String(x).trim()]);
+
+  if (tur === 'csv' && bolimlar.length !== 1) {
+    return { ozgardi: 0, bolimlar: Object.keys(EKSPORT_BOLIMLAR),
+      xabar: 'CSV uchun ANIQ bitta bo‘lim kerak (Excel ko‘p jadvalli '
+           + 'faylni ocholmaydi). Masalan: bolimlar=["mahsulotlar"], tur="csv".' };
+  }
+
+  const havola = eksportHavolasi(bolimlar, tur);
+  if (!havola) {
+    return { ozgardi: 0, xabar: 'PUBLIC_URL sozlanmagan — havola yasab bo‘lmadi. '
+      + 'Admin panel → Tizim holati → «Ma’lumotni yuklab olish» tugmasidan oling.' };
+  }
+
+  return {
+    // Fayl TAYYOR — bu bajarilgan ish, garchi bazada hech nima
+    // o'zgarmagan bo'lsa ham
+    tayyor: true,
+    havola,
+    tur,
+    bolimlar: bolimlar.length ? bolimlar : Object.keys(EKSPORT_BOLIMLAR),
+    hajm: await eksportHajmi(),
+    natija: `${tur.toUpperCase()} fayl tayyor — havolani bosing (30 daqiqa amal qiladi).`
+      + (notogri.length ? ` Tanilmagan bo‘lim: ${notogri.join(', ')}.` : ''),
+    ogohlantirish: bolimlar.length && !bolimlar.includes('mijozlar') ? ''
+      : 'Ichida mijoz telefonlari bor — begonaga bermang.',
+  };
+}
+
 // ──────────────── KARTOCHKA KODI (SHABLON) ────────────────
 //
 // Do'kon egasi «kartochka mana bunday bo'lsin» deydi — yordamchi
@@ -731,7 +774,9 @@ async function kartochkaKodiYoz(a) {
   const svg = String(a.svg ?? a.shablon ?? a.kod ?? '').trim();
 
   const t = tekshir(svg);
-  if (!t.ok) return { saqlandi: false, xato: t.xato, maslahat: 'Tuzatib qayta yuboring.' };
+  if (!t.ok) return { ozgardi: 0, saqlandi: false, xato: t.xato,
+                      xabar: `Shablon rad etildi: ${t.xato}`,
+                      maslahat: 'Tuzatib qayta yuboring.' };
 
   // Haqiqatan chiziladimi — SHU YERDA tekshiramiz, admin bo'sh
   // sahifa ko'rib ovora bo'lmasin
@@ -742,7 +787,8 @@ async function kartochkaKodiYoz(a) {
     const bayt = await svgdanPng(toldir(svg, namunaMalumot(await brendNomi())), 600);
     if (!bayt || bayt.length < 1000) throw new Error('rasm bo‘sh chiqdi');
   } catch (e) {
-    return { saqlandi: false, xato: `Chizib bo‘lmadi: ${e.message}`,
+    return { ozgardi: 0, saqlandi: false, xato: e.message,
+             xabar: `Chizib bo‘lmadi: ${e.message}`,
              maslahat: 'SVG sintaksisini tekshiring (yopilmagan teg?).' };
   }
 
@@ -753,20 +799,27 @@ async function kartochkaKodiYoz(a) {
     [JSON.stringify({ svg, holat: 'qoralama', versiya,
                       izoh: matn(a.izoh ?? '', 400), yangilangan: new Date().toISOString() })]);
 
+  // `ozgardi` — barcha yozuvchi vositalar uchun umumiy shartnoma:
+  // agent shu raqamga qarab «bajarildimi?» deb hukm chiqaradi.
+  // Ilgari bu yerda `saqlandi: true` turardi va shablon haqiqatan
+  // saqlangan bo‘lsa ham admin «hech narsa o‘zgarmadi» degan
+  // xabarni ko‘rardi.
   return {
-    saqlandi: true, holat: 'qoralama', versiya,
+    ozgardi: 1, saqlandi: true, holat: 'qoralama', versiya,
     korinish: shablonHavolasi(versiya),
     ogoh: t.ogoh,
-    xabar: 'Qoralama saqlandi. Havolani oching, ko‘ring va yoqsa o‘sha '
-         + 'sahifadagi tugma bilan tasdiqlang. Tasdiqlanmaguncha mijozlarga '
-         + 'eski ko‘rinish boradi.',
+    natija: 'Qoralama saqlandi. Havolani oching, ko‘ring va yoqsa o‘sha '
+          + 'sahifadagi tugma bilan tasdiqlang. Tasdiqlanmaguncha mijozlarga '
+          + 'eski ko‘rinish boradi.',
   };
 }
 
 /** Shablonni o'chiradi — ichki (koddagi) ko'rinishga qaytadi. */
 async function kartochkaKodiOchir() {
-  await sorov(`delete from settings where key = 'natija_shablon'`);
-  return { ochirildi: true, xabar: 'Ichki ko‘rinishga qaytdi.' };
+  const r = await sorov(`delete from settings where key = 'natija_shablon'`);
+  return { ozgardi: r.rowCount ?? 0,
+           natija: (r.rowCount ?? 0) ? 'Ichki (koddagi) ko‘rinishga qaytdi.' : '',
+           xabar: (r.rowCount ?? 0) ? '' : 'Shablon allaqachon yo‘q edi.' };
 }
 
 // ─────────────────────────── GRAFIK ───────────────────────────
@@ -887,18 +940,12 @@ export const VOSITALAR = {
                + 'qatorlar ([{nom, qiymat}])',
   },
   eksport: {
-    oqish: true,
-    ishla: async () => ({
-      hajm: await eksportHajmi(),
-      bolimlar: Object.keys(EKSPORT_BOLIMLAR),
-      // Agent faylni o'zi yasay olmaydi — havolani beradi, admin bosadi
-      havola: '/api/admin/eksport',
-      izoh: 'Admin panel → Tizim holati → «Ma’lumotni yuklab olish» tugmasi. '
-          + 'Yoki bo‘limni tanlab CSV: /api/admin/eksport?tur=csv&bolimlar=<bolim>',
-    }),
-    tavsif: 'Ma’lumotni faylga saqlash: nechta yozuv borligi va qanday '
-          + 'yuklab olish. JSON — hammasi, CSV — bitta bo‘lim (Excel uchun).',
-    parametrlar: 'yo‘q',
+    oqish: true, ishla: eksportHavola,
+    tavsif: 'Ma’lumotni FAYL qilib beradi va bosiladigan havola qaytaradi. '
+          + '«bolimlar» berilmasa — hammasi bitta JSON da. Faqat '
+          + 'mahsulotlar kerak bo‘lsa: bolimlar=["mahsulotlar"]. '
+          + 'Excel uchun tur="csv" (bitta bo‘lim). Havola 30 daqiqa yashaydi.',
+    parametrlar: 'bolimlar (ro‘yxat, ixtiyoriy), tur (json|csv)',
   },
   kartochka: {
     oqish: true, ishla: kartochka,

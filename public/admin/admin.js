@@ -3521,7 +3521,9 @@ async function eksportChiz() {
           <div class="kpi"><div class="k">${esc(NOM[k] || k)}</div>
             <div class="v">${v}</div></div>`).join('')}
       </div>
-      <button class="tug asos keng" id="t-eksport-json">Hammasini JSON qilib olish</button>
+      <button class="tug asos keng" id="t-eksport-json">Butun bazani JSON qilib olish</button>
+      <button class="tug keng" id="t-eksport-mahsulot" style="margin-top:8px">
+        Faqat mahsulotlarni JSON qilib olish</button>
       <p class="mayda" style="margin:14px 0 6px">Yoki bitta bo‘limni Excel uchun:</p>
       <div style="display:flex;flex-wrap:wrap;gap:6px">
         ${(j.bolimlar || []).map((b) => `<button class="tug kichik"
@@ -3548,7 +3550,9 @@ async function eksportChiz() {
 
   const sana = new Date().toISOString().slice(0, 10);
   $('#t-eksport-json').onclick = () =>
-    yukla('/api/admin/eksport', `kiovo-${sana}.json`);
+    yukla('/api/admin/eksport', `kiovo-baza-${sana}.json`);
+  $('#t-eksport-mahsulot').onclick = () =>
+    yukla('/api/admin/eksport?bolimlar=mahsulotlar', `kiovo-mahsulotlar-${sana}.json`);
   $$('[data-csv]').forEach((b) => b.onclick = () =>
     yukla(`/api/admin/eksport?tur=csv&bolimlar=${encodeURIComponent(b.dataset.csv)}`,
       `kiovo-${b.dataset.csv}-${sana}.csv`));
@@ -4216,18 +4220,34 @@ async function rejaniTasdiqla(token, tugma) {
       x.reja = null;
       // NATIJA ko'rsatiladi, da'vo emas: nechta yozuv haqiqatan
       // o'zgardi va qaysi qadam yiqildi
-      const yiqilgan = (j.qadamlar || []).filter((q) => !q.ok);
+      const qadamlar = j.qadamlar || [];
+      const yiqilgan = qadamlar.filter((q) => !q.ok);
       const soni = j.ozgardi ?? 0;
+
+      // Vosita natijasida IZOH yoki HAVOLA bo'lsa ular ham
+      // ko'rsatiladi. Ilgari ular yo'qolib ketardi: kartochka
+      // shabloni saqlanib, ko'rinish havolasi qaytardi, lekin admin
+      // uni umuman ko'rmasdi va «ish bo'lmadi» deb o'ylardi.
+      const foydali = qadamlar.filter((q) => q.ok).map((q) => {
+        const n = q.natija || {};
+        const izoh = n.natija || n.xabar || '';
+        const havola = n.korinish || n.havola || '';
+        if (!izoh && !havola) return '';
+        return `• <b>${q.vosita}</b>${izoh ? ` — ${izoh}` : ''}`
+          + (havola ? `\n  <a href="${havola}" target="_blank" rel="noopener">${havola}</a>` : '');
+      }).filter(Boolean);
+
       x.matn = `${x.matn}\n\n`
         + (soni
-          ? `✅ Bajarildi — <b>${soni}</b> ta yozuv o‘zgardi.`
+          ? `✅ Bajarildi — <b>${soni}</b> ta o‘zgarish.`
           : `⚠️ Hech narsa o‘zgarmadi.`)
+        + (foydali.length ? `\n\n${foydali.join('\n')}` : '')
         + (yiqilgan.length
           ? `\n\nBajarilmagan amallar:\n`
             + yiqilgan.map((q) => `• <b>${q.vosita}</b> — ${q.xato}`).join('\n')
           : '');
     }
-    tost(j.ozgardi ? `Bajarildi — ${j.ozgardi} ta yozuv`
+    tost(j.ozgardi ? `Bajarildi — ${j.ozgardi} ta o‘zgarish`
                    : 'Hech narsa o‘zgarmadi', j.ozgardi ? '' : 'xato');
     holat.kesh = {};          // katalog o'zgargan bo'lishi mumkin
     yordamchiChiz();
