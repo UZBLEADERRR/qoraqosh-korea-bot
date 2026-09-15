@@ -916,6 +916,8 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-bolim-bosh{display:flex;align-items:baseline;gap:10px;margin:0 0 9px}
 .n-bolim-bosh h3{flex:1;margin:0;font-size:15px;font-weight:800;
   letter-spacing:-.02em;color:var(--matn)}
+.n-bolim-izoh{flex:0 0 auto;font-size:11.5px;font-weight:600;color:var(--och);
+  white-space:nowrap}
 .n-bolim-bosh button{flex:0 0 auto;background:none;border:0;padding:0;
   font-family:inherit;font-size:12.5px;font-weight:700;line-height:1;
   white-space:nowrap;color:var(--urgu);cursor:pointer}
@@ -949,6 +951,12 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 .n-olch-tepa b{flex:0 0 auto;font-size:17px;font-weight:800;letter-spacing:-.03em;
   color:var(--matn);font-variant-numeric:tabular-nums}
 .n-olch-tepa b i{font-style:normal;font-size:10.5px;font-weight:600;color:var(--och)}
+/* Raqamning tagida O'ZBEKCHA baho: «72» ni hamma ham darrov
+   tushunmaydi, «Yaxshi» esa tushuntirishsiz o'qiladi. */
+.n-olch>em{font-style:normal;font-size:11.5px;font-weight:700;letter-spacing:.01em}
+.n-olch>em.alo{color:var(--yashil)} .n-olch>em.yaxshi{color:var(--kok)}
+.n-olch>em.orta{color:var(--sariq)} .n-olch>em.past{color:var(--urgu)}
+.n-olch>em.zaif{color:var(--qizil)}
 
 /* ── Muammolar: ochiladigan qatorlar ──
    <details> ishlatiladi — JS o'chib qolsa ham ochiladi, va ekran

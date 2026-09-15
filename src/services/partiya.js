@@ -34,10 +34,19 @@ export async function ochiqPartiya() {
         `select 1 from orders where partiya_id is null and status = 'tasdiqlangan' limit 1`);
       if (!bormi) return null;
 
+      // Raqam: P-YYMMDD-NN. NN ni `lpad(…, 2, '0')` bilan yasab
+      // bo'lmaydi — Postgres da lpad UZUNNI QIRQADI: yuzinchi
+      // partiyada '100' → '10' bo'lib qolardi va raqam 10-partiya
+      // bilan to'qnashardi. Natijada `/orders` butunlay ishlamay
+      // qolardi («Buyruq bajarilmadi»), do'kon esa xarid ro'yxatini
+      // umuman ololmasdi. Endi 100 dan keyin raqam shunchaki
+      // uzayadi: 99, 100, 101 …
       ({ rows: [p] } = await mijoz.query(
         `insert into partiyalar (raqam, holat)
-         values ('P-' || to_char(now() at time zone 'Asia/Tashkent', 'YYMMDD') || '-' ||
-                 lpad(nextval('partiya_seq')::text, 2, '0'), 'ochiq') returning *`));
+         select 'P-' || to_char(now() at time zone 'Asia/Tashkent', 'YYMMDD') || '-' ||
+                case when n < 10 then '0' || n::text else n::text end, 'ochiq'
+           from (select nextval('partiya_seq') as n) s
+         returning *`));
     }
     await mijoz.query(
       `update orders set partiya_id = $1

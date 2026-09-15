@@ -44,6 +44,10 @@ export const MAYDONLAR = {
   yuz_bor: 'surat bormi (shart uchun)',
   en: 'kartochka eni (px)',
   muammolar: 'ro‘yxat: nom, zona, foiz, ball, rang, tartib, joy_x, joy_y',
+  olchovlar: 'YETTITA doimiy o‘lchov (teshik, ajin, pigment, qizarish, '
+           + 'tekstura, namlik, yog‘lilik) — har birida: kalit, nom, ball '
+           + '(0-100, yuqori = yaxshi), baho («Yaxshi»), rang, tartib, izoh. '
+           + 'Muammo topilmasa ham to‘liq keladi.',
   mahsulotlar: 'ro‘yxat: nom, bosqich, narx, rasm (data URI), tartib, rang',
   foydali: 'ro‘yxat: nom',
   cheklang: 'ro‘yxat: nom',

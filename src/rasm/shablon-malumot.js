@@ -4,6 +4,7 @@
 // hamma narsa OLDINDAN hisoblanadi: rang, foiz, tartib raqami, yuzdagi
 // joy. Shablonda hisob-kitob yo'q — u faqat joylashtiradi.
 import { joylarniHisobla } from '../lib/zona.js';
+import { olchovlarniHisobla } from '../lib/olchov.js';
 
 const SHKALA = ['#FF6B5A', '#FF9A5A', '#F0B429', '#4AA3FF', '#3DD68C'];
 export const beshRang = (b) => SHKALA[Math.max(0, Math.min(4, Math.floor(b / 20)))];
@@ -65,6 +66,19 @@ export function shablonMalumoti({ tahlil = {}, tavsiyalar = [], brend = 'KiOVO',
       yechim: m.yechim || '',
     })),
     muammo_soni: muammolar.length,
+
+    // YETTITA DOIMIY O'LCHOV — muammo topilmasa ham to'liq chiqadi.
+    // Shablon yozayotgan yordamchi shu ro'yxat bo'ylab yura oladi:
+    //   {{#olchovlar}} … {{nom}} {{ball}} {{rang}} … {{/}}
+    olchovlar: olchovlarniHisobla(muammolar, t.olchovlar || null)
+      .map((o, i) => ({
+        kalit: o.kalit, nom: o.nom, qisqa: o.qisqa,
+        ball: o.ball, baho: o.baho,
+        rang: o.ball >= 80 ? '#3DD68C' : o.ball >= 65 ? '#4AA3FF'
+            : o.ball >= 50 ? '#F0B429' : o.ball >= 35 ? '#FF9A5A' : '#FF6B5A',
+        shkala_rang: beshRang(o.ball),
+        izoh: o.izoh, tartib: i + 1,
+      })),
 
     mahsulotlar: (tavsiyalar || []).map((r, i) => ({
       nom: r.nom || '',

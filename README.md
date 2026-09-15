@@ -239,6 +239,32 @@ Google Gemini · Railway.
   tarafga siriladi**, aks holda ular ekranni to'ldirib, pastdagi
   bo'limlar ko'rinmay qolardi.
 
+  **YETTITA DOIMIY O'LCHOV.** Ilgari ko'rsatkichlar TOPILGAN
+  MUAMMOLARDAN yasalardi: terisi toza odam bitta ham ko'rsatkich
+  ko'rmasdi, ikki kishinikida esa butunlay boshqa-boshqa qatorlar
+  chiqardi — va ularni solishtirib bo'lmasdi, ya'ni «bir oydan
+  keyin solishtirasiz» degan va'da ishlamasdi. Endi ro'yxat qat'iy
+  va u salon apparatlari beradigan o'sha yettita o'lchov:
+  **teshiklar, ajinlar, pigment, qizarish, tekstura, namlik,
+  yog'lilik**. Har biri 0-100, **ball qancha yuqori — shuncha
+  yaxshi**, va yoniga o'zbekcha baho yoziladi («Yaxshi», «E'tibor
+  kerak»). Bu bo'lim hech qachon bo'sh qolmaydi.
+
+  Modeldan ular alohida so'raladi (`olchovlar` — sxemada MAJBURIY
+  maydon) va muammolar bilan **ziddiyatsiz** bo'lishi talab
+  qilinadi: kuchli akne yozib «tekstura: 90» deb qo'yib bo'lmaydi.
+  Model bermasa (eski tahlil yoki oflayn rejim) o'lchov
+  muammolardan hisoblanadi — `src/lib/olchov.js` dagi
+  muammo→o'lchov jadvali bo'yicha, eng kuchli muammo hisobga
+  olinib. Muammo tegmagan o'lchov 82 ball oladi; **100 emas** —
+  hech kimning terisi ideal emas va «100/100» yozuv ishonchni
+  yo'qotadi. Muammo topilgan o'lchov izohini o'sha muammodan
+  oladi, topilmagani esa **bo'sh qoladi**: matn o'ylab topilmaydi.
+
+  Jadval ikki joyda — `src/lib/olchov.js` (server, natija rasmi)
+  va `public/app/app.js` (ilova). Sinov ularni har safar
+  solishtiradi, shuning uchun ajralib keta olmaydi.
+
   **Belgi — TUGMA.** Suratdagi raqamni bossangiz pastdagi o'sha
   muammo ochiladi va ekran unga suriladi; teskarisi ham ishlaydi —
   muammo ochilsa suratdagi belgisi kattalashadi. «Qayerini
@@ -334,6 +360,14 @@ Google Gemini · Railway.
   kichik hisob — `{{@i*60+970}}` (qatorlarni pastga tushirish uchun).
   Rasm kesish `<clipPath>`, effektlar `<filter><feColorMatrix>` —
   ya'ni «rentgen» ko'rinishlarini ham yordamchi o'zi yasay oladi.
+
+  **Yettita o'lchov shablonda ham bor:** `{{#olchovlar}} … {{nom}}
+  {{ball}} {{baho}} {{rang}} … {{/}}`. Ya'ni «ko'rsatkichlarni
+  boshqacha joylashtir» deb aytsangiz, yordamchi shu ro'yxat
+  bo'ylab yangi ko'rinish yozib bera oladi. Lekin **o'lchovlar
+  ro'yxatining o'zini** (qaysi yettita va ular qanday o'lchanadi)
+  u o'zgartira olmaydi — u tahlil sxemasida, koddadir. Yangi
+  o'lchov qo'shish — kod o'zgarishi.
 
   > **Nega SVG, JavaScript emas.** AI yozgan kodni serverda bajarish
   > — botga to'g'ridan-to'g'ri kod yuborish bilan barobar: bitta
@@ -1429,6 +1463,7 @@ src/
     narx.js            sotuv narxi: tannarx + yetkazish + sof foyda
     post-korinish.js   agent posti kanalda qanday chiqishini ko‘rsatuvchi sahifa
     eksport-havola.js  imzolangan, 30 daqiqada o‘ladigan yuklab olish havolasi
+    olchov.js          yettita doimiy teri o‘lchovi (ilova nusxasi bilan sinaladi)
     docx.js            .docx yozuvchi (ZIP + WordprocessingML), kutubxonasiz
     admin.js           kim admin — bot va admin API uchun bitta javob
     hududlar.js        14 viloyat, 210 tuman — manzil tekshiruvi uchun

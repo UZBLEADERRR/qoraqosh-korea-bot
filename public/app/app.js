@@ -2040,7 +2040,8 @@ async function tahlilQil() {
       // BO'SH chiqardi — ma'lumot serverdan kelgan, lekin yo'lda
       // tashlab ketilgan edi. Sahifa yangilangach (/api/me) paydo
       // bo'lardi, ya'ni xato faqat birinchi ko'rishda bilinardi.
-      raw: { xulosa: j.tahlil.xulosa, parhez: j.tahlil.parhez, tavsif: j.tahlil.tavsif },
+      raw: { xulosa: j.tahlil.xulosa, parhez: j.tahlil.parhez,
+             tavsif: j.tahlil.tavsif, olchovlar: j.tahlil.olchovlar || null },
       yuz_rasm_id: j.yuz_rasm_id || null,
     };
     holat.limit = j.limit || holat.limit;
@@ -2287,6 +2288,58 @@ const KALIT_QISQA = {
 const kalitQisqa = (m) =>
   KALIT_QISQA[m.kalit] || KALIT_NOM[m.kalit] || m.nom;
 
+/* ── YETTITA O'LCHOV ──
+ * Nusxasi `src/lib/olchov.js` da — server natija rasmini SHU
+ * jadval bo'yicha chizadi. Sinov ikkalasini solishtirib turadi,
+ * shuning uchun ular ajralib ketmaydi.
+ *
+ * Nega doimiy yettita: ilgari ko'rsatkichlar TOPILGAN
+ * MUAMMOLARDAN yasalardi — terisi toza odam bitta ham ko'rsatkich
+ * ko'rmasdi, ikki odamnikini esa solishtirib bo'lmasdi.
+ * Ball qancha YUQORI bo'lsa shuncha YAXSHI (100 — ideal). */
+const OLCHOVLAR = [
+  { kalit: 'pora',     nom: 'Teshiklar', ikon: 'tozalik' },
+  { kalit: 'ajin',     nom: 'Ajinlar',   ikon: 'soat' },
+  { kalit: 'pigment',  nom: 'Pigment',   ikon: 'quyosh' },
+  { kalit: 'qizarish', nom: 'Qizarish',  ikon: 'yurak' },
+  { kalit: 'tekstura', nom: 'Tekstura',  ikon: 'qalqon' },
+  { kalit: 'namlik',   nom: 'Namlik',    ikon: 'tomchi' },
+  { kalit: 'yoglilik', nom: 'Yog‘lilik', ikon: 'tomchi' },
+];
+const MUAMMO_OLCHOVI = {
+  teshik: 'pora', akne: 'tekstura', xiralik: 'tekstura', ajin: 'ajin',
+  dog: 'pigment', qora_doira: 'pigment', qizarish: 'qizarish',
+  sezgirlik: 'qizarish', quruqlik: 'namlik', shishish: 'namlik',
+  yoglilik: 'yoglilik',
+};
+// 100 EMAS: hech kimning terisi ideal emas va «100/100» yozuv
+// ishonchni yo'qotadi — odam «demak o'lchamagan» deb o'ylaydi.
+const MUAMMOSIZ = 82;
+const olchovBahosi = (b) => (b >= 80 ? 'A’lo' : b >= 65 ? 'Yaxshi'
+  : b >= 50 ? 'O‘rtacha' : b >= 35 ? 'E’tibor kerak' : 'Zaif');
+
+function olchovlarniHisobla(muammolar, xom) {
+  const eng = {};
+  (muammolar || []).forEach((m) => {
+    const k = MUAMMO_OLCHOVI[m.kalit];
+    if (!k) return;
+    if (!eng[k] || (m.foiz || 0) > (eng[k].foiz || 0)) eng[k] = m;
+  });
+  return OLCHOVLAR.map((o) => {
+    const m = eng[o.kalit];
+    const xomBall = Number(xom?.[o.kalit]);
+    // AI bergan ball ustun — u rasmni ko'rgan. Bermagan bo'lsa
+    // muammodan hisoblaymiz, u ham bo'lmasa «muammo ko'rinmadi».
+    const ball = Number.isFinite(xomBall)
+      ? Math.min(100, Math.max(0, Math.round(xomBall)))
+      : m ? Math.max(5, 100 - (m.foiz || 0)) : MUAMMOSIZ;
+    return { ...o, ball, baho: olchovBahosi(ball),
+             // Izoh O'YLAB TOPILMAYDI: faqat haqiqatan topilgan
+             // muammoning izohi, aks holda bo'sh
+             izoh: m ? (m.izoh || '') : '', muammo: m || null };
+  });
+}
+
 function natijaniChiz() {
   const t = holat.tahlil;
   const el = $('#natija-tan');
@@ -2321,7 +2374,9 @@ function natijaniChiz() {
   // Suratda HAMMASI belgilanadi (ilgari faqat 4 tasi edi — odam
   // «nega yonog'im belgilanmagan?» deb so'rardi)
   const belgili = muammolar.slice(0, 8);
-  const olchovlar = muammolar.slice(0, 4);
+  // Yettitasi HAM chiqadi — muammo topilmaganlari ham. Shu bilan
+  // ikki tahlilni bir oydan keyin solishtirish mumkin bo'ladi.
+  const olchovlar = olchovlarniHisobla(t.problems || [], t.raw?.olchovlar);
   const parhez = t.raw?.parhez || {};
   const d = t.created_at ? new Date(t.created_at) : new Date();
   const sana = `${d.getDate()}-${OYLAR_UZ[d.getMonth()]}`;
@@ -2389,21 +2444,22 @@ function natijaniChiz() {
     </div>
   </section>` : ''}
 
-  ${olchovlar.length ? `
   <section class="n-bolim">
-    <div class="n-bolim-bosh"><h3>Ko‘rsatkichlar</h3></div>
+    <div class="n-bolim-bosh"><h3>Teri ko‘rsatkichlari</h3>
+      <span class="n-bolim-izoh">7 o‘lchov · 100 = ideal</span></div>
     <div class="n-olchamlar">
-      ${olchovlar.map((m) => `
+      ${olchovlar.map((o) => `
         <div class="n-olch">
           <div class="n-olch-tepa">
-            <span>${esc(kalitQisqa(m))}</span>
-            <b>${m.ballHolat}<i>/100</i></b>
+            <span>${esc(o.nom)}</span>
+            <b>${o.ball}<i>/100</i></b>
           </div>
-          <div class="n-chiziq"><i class="${beshRang(m.ballHolat)}"
-            style="width:${Math.max(5, m.ballHolat)}%"></i></div>
+          <div class="n-chiziq"><i class="${beshRang(o.ball)}"
+            style="width:${Math.max(5, o.ball)}%"></i></div>
+          <em class="${beshRang(o.ball)}">${esc(o.baho)}</em>
         </div>`).join('')}
     </div>
-  </section>` : ''}
+  </section>
 
   ${muammolar.length ? `
   <section class="n-bolim">

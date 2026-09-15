@@ -99,7 +99,15 @@ export async function tahlilQil(user, base64, mime) {
      returning id`,
     [user.id, a.taxminiy_yosh, a.teri_rangi, a.teri_turi, a.ball,
      JSON.stringify(a.muammolar), JSON.stringify(a.prognoz), JSON.stringify(a.tavsiya),
-     Boolean(natija.oflayn), JSON.stringify({ xulosa: a.xulosa }), a.jins || 'nomalum'],
+     Boolean(natija.oflayn),
+     // `raw` ga XULOSADAN BOSHQASI ham tushadi. Ilgari faqat xulosa
+     // saqlanardi va sahifa yangilangach «Dieta» bo'limi hamda
+     // «rasmda nima ko'rdim» yo'qolardi: ma'lumot skanerdan keyin
+     // ekranda turardi, qayta ochilganda esa bazada yo'q edi.
+     // O'lchovlar ham shu yerda — ular tahlilning bir qismi.
+     JSON.stringify({ xulosa: a.xulosa, tavsif: a.tavsif,
+                      parhez: a.parhez, olchovlar: a.olchovlar || null }),
+     a.jins || 'nomalum'],
   );
 
   await hodisa(user.id, 'scan', { ball: a.ball, muammo: a.muammolar.length });

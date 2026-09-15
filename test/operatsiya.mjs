@@ -227,6 +227,34 @@ console.log('\n── XATO BO‘LSA ADMIN XABAR OLADI ──');
   await sorov(`delete from orders where order_no = 'QQ-XATO'`);
 }
 
+// Yuzinchi partiyada `/orders` BUTUNLAY ishlamay qolardi: raqam
+// `lpad(n, 2, '0')` bilan yasalar, Postgres esa uzun satrni QIRQAR
+// edi — '100' → '10'. Ya'ni 100-partiya 10-partiya bilan bir xil
+// raqam olib, unique cheklovga urilardi.
+console.log('\n── PARTIYA RAQAMI 100 DAN KEYIN HAM TO‘G‘RI ──');
+{
+  const oldin = await qiymat(`select last_value from partiya_seq`);
+  await sorov(`select setval('partiya_seq', 99, true)`);
+  const ikki = [];
+  for (let i = 0; i < 3; i++) {
+    const r = await qator(
+      `select 'P-' || to_char(now() at time zone 'Asia/Tashkent', 'YYMMDD') || '-' ||
+              case when n < 10 then '0' || n::text else n::text end as raqam
+         from (select nextval('partiya_seq') as n) s`);
+    ikki.push(r.raqam);
+  }
+  test('100 dan keyin raqam QIRQILMAYDI',
+    new Set(ikki).size === 3, ikki.join(', '));
+  test('oxiri 100, 101, 102 bo‘lib ketadi',
+    ikki.every((x, i) => x.endsWith(String(100 + i))), ikki.join(', '));
+  await sorov(`select setval('partiya_seq', 8, true)`);
+  const kichik = await qator(
+    `select case when n < 10 then '0' || n::text else n::text end as nn
+       from (select nextval('partiya_seq') as n) s`);
+  test('kichik raqam esa nol bilan to‘ldiriladi', kichik.nn === '09', kichik.nn);
+  await sorov(`select setval('partiya_seq', $1, true)`, [Number(oldin) || 1]);
+}
+
 console.log('\n── QAYTA /orders (yangi partiya) ──');
 await yoz('700001','/orders');
 test('ro‘yxat endi bo‘sh', /bo‘sh/i.test(hammasi()), hammasi().split('\n')[0]);
@@ -3674,8 +3702,11 @@ console.log('\n── NATIJA EKRANI ──');
   // shkala esa uzun — barmoq bilan ham o'qib bo'ladi.
   test('ko‘rsatkichlar ikki ustunda',
     /\.n-olchamlar\{display:grid;grid-template-columns:1fr 1fr/.test(css));
-  test('katakda faqat to‘rttasi — sig‘adigani',
-    /const olchovlar = muammolar\.slice\(0, 4\)/.test(js));
+  // Ro'yxat endi MUAMMOLARDAN emas, qat'iy yettitadan iborat —
+  // terisi toza odam ham to'liq ko'rsatkich ko'radi
+  test('ko‘rsatkichlar DOIM yettita',
+    /olchovlarniHisobla\(t\.problems/.test(js)
+      && !/const olchovlar = muammolar\.slice/.test(js));
   test('uzun nom katak uchun QISQARTIRILADI',
     /const KALIT_QISQA/.test(js) && /function kalitQisqa|const kalitQisqa/.test(js));
 
@@ -3752,8 +3783,15 @@ console.log('\n── NATIJA EKRANI ──');
     /data-filtr/.test(js) && /media\.style\.filter = r\.css/.test(js));
   test('qaysi qatlam yoqilgani surat ustida yozilib turadi',
     /n-qatlam-teg/.test(js) && /\.n-qatlam-teg\{position:absolute/.test(css));
-  test('olti ko‘rinish — UV va namlik ham bor',
-    (js.match(/\{ kalit: '(asl|uv|qizarish|pigment|tekstura|namlik)'/g) || []).length === 6);
+  {
+    // Faqat RENTGEN ro'yxatini sanaymiz: `OLCHOVLAR` jadvalida ham
+    // shunday kalitlar bor va ular hisobga qo'shilib ketardi
+    const rentgenKod = js.slice(js.indexOf('const RENTGEN = ['),
+      js.indexOf('const KALIT_QISQA'));
+    test('olti ko‘rinish — UV va namlik ham bor',
+      (rentgenKod.match(/kalit: '(asl|uv|qizarish|pigment|tekstura|namlik)'/g) || [])
+        .length === 6);
+  }
 
   // ── Sahifa QISQA: hammasi bitta ekranda ──
   // «Hozir ilovada teri holati haqidagi qismi rasmning ostki
@@ -4225,6 +4263,129 @@ console.log('\n── KARTOCHKA SHABLONI ──');
     /mahsulotlarni JSON/i.test(adminJs));
   test('panelda butun bazani olish tugmasi ham bor',
     /Butun bazani JSON/i.test(adminJs));
+}
+
+
+// ══════════════ YETTITA DOIMIY O'LCHOV ══════════════
+//
+// «Bu rasmdagi analizlar faqat bir xil chiqadimi, yuzdagi barcha
+// muammolarni aniqlay olmaydimi» — ilgari ko'rsatkichlar TOPILGAN
+// MUAMMOLARDAN yasalardi: terisi toza odam bitta ham ko'rsatkich
+// ko'rmasdi va ikki tahlilni solishtirib bo'lmasdi.
+{
+  console.log('\n── TERI O‘LCHOVLARI ──');
+  const fs4 = await import('node:fs');
+  const O = await import('../src/lib/olchov.js');
+
+  test('yettita o‘lchov bor', O.OLCHOVLAR.length === 7,
+    O.OLCHOV_KALITLARI.join(', '));
+  test('salon apparati beradigan o‘sha ro‘yxat',
+    ['pora','ajin','pigment','qizarish','tekstura','namlik','yoglilik']
+      .every((k) => O.OLCHOV_KALITLARI.includes(k)));
+
+  // Terisi TOZA odam ham to'liq ko'rsatkich ko'radi
+  const toza = O.olchovlarniHisobla([], null);
+  test('muammo topilmasa ham yettitasi chiqadi', toza.length === 7);
+  test('hammasiga baho qo‘yiladi', toza.every((o) => o.ball > 0 && o.ball <= 100));
+  test('«100/100» yozilmaydi — ishonchni yo‘qotadi',
+    toza.every((o) => o.ball < 100), String(toza[0].ball));
+
+  // Muammodan hisoblash (AI o'lchov bermagan — eski tahlil)
+  const bilan = O.olchovlarniHisobla(
+    [{ kalit: 'teshik', foiz: 72, izoh: 'Burun atrofida kengaygan' },
+     { kalit: 'akne', foiz: 40 }], null);
+  const pora = bilan.find((o) => o.kalit === 'pora');
+  test('muammo kuchli bo‘lsa o‘lchov PAST', pora.ball === 28, String(pora.ball));
+  test('teskari emas — ball qancha yuqori, shuncha yaxshi',
+    O.olchovBahosi(85) === 'A’lo' && O.olchovBahosi(25) === 'Zaif');
+  test('muammoning izohi o‘lchovga ko‘chadi',
+    pora.izoh === 'Burun atrofida kengaygan');
+  test('muammo TEGMAGAN o‘lchov izohi bo‘sh — matn o‘ylab topilmaydi',
+    bilan.find((o) => o.kalit === 'namlik').izoh === '');
+
+  // Bir o'lchovga ikki muammo tushsa — eng kuchlisi
+  const ikki = O.olchovlarniHisobla(
+    [{ kalit: 'dog', foiz: 30 }, { kalit: 'qora_doira', foiz: 70 }], null);
+  test('bitta o‘lchovga ikki muammo tushsa — ENG KUCHLISI',
+    ikki.find((o) => o.kalit === 'pigment').ball === 30);
+
+  // AI bergan ball muammodan hisoblanganini yengadi
+  const aiBilan = O.olchovlarniHisobla([{ kalit: 'teshik', foiz: 72 }],
+    { pora: 44, namlik: 91 });
+  test('AI bergan ball ustun — u rasmni ko‘rgan',
+    aiBilan.find((o) => o.kalit === 'pora').ball === 44);
+  test('AI bermagani muammodan/zaxiradan olinadi',
+    aiBilan.find((o) => o.kalit === 'ajin').ball === 82);
+  test('chegaradan chiqqan raqam qisiladi',
+    O.olchovlarniHisobla([], { pora: 999, ajin: -5 })
+      .filter((o) => o.ball === 100 || o.ball === 0).length === 2);
+  test('AI javobi tozalanadi — begona kalit o‘tmaydi',
+    Object.keys(O.olchovlarniTozala({ pora: 50, zararli: 1 })).join() === 'pora');
+  test('bo‘sh javob null — keyin muammodan hisoblanadi',
+    O.olchovlarniTozala({}) === null && O.olchovlarniTozala(null) === null);
+
+  // AI sxemasi
+  const aiKod = fs4.readFileSync('src/ai/faceAnalysis.js', 'utf8');
+  test('sxemada olchovlar MAJBURIY — model tashlab keta olmaydi',
+    /required: \['sifat', 'umumiy', 'olchovlar'/.test(aiKod));
+  test('modelga «yuqori = yaxshi» deb aytilgan',
+    /QANCHA YUQORI BO.LSA SHUNCHA YAXSHI/.test(aiKod));
+  test('modelga muammolar bilan ziddiyatsiz bo‘lishi aytilgan',
+    /ZIDDIYATSIZ/.test(aiKod));
+  test('dumaloq raqamlardan qochish aytilgan',
+    /dumaloq sonlardan qoch/.test(aiKod));
+
+  // Bazaga tushadimi — sahifa yangilangach yo'qolmasin
+  const servis = fs4.readFileSync('src/services/analysis.js', 'utf8');
+  test('o‘lchovlar BAZAGA saqlanadi', /olchovlar: a\.olchovlar/.test(servis));
+  test('parhez va tavsif ham saqlanadi — ilgari yo‘qolardi',
+    /tavsif: a\.tavsif/.test(servis) && /parhez: a\.parhez/.test(servis));
+
+  // Ilovadagi nusxa serverdagisidan ajralib ketmasin
+  const ilova = fs4.readFileSync('public/app/app.js', 'utf8');
+  const ilovaKalitlari = [...ilova.slice(ilova.indexOf('const OLCHOVLAR = ['),
+    ilova.indexOf('const MUAMMO_OLCHOVI')).matchAll(/kalit: '(\w+)'/g)].map((m) => m[1]);
+  test('ilovadagi jadval server bilan BIR XIL',
+    ilovaKalitlari.join() === O.OLCHOV_KALITLARI.join(),
+    ilovaKalitlari.join());
+  const ilovaMos = ilova.slice(ilova.indexOf('const MUAMMO_OLCHOVI'),
+    ilova.indexOf('const MUAMMOSIZ'));
+  test('muammo→o‘lchov jadvali ham bir xil',
+    Object.entries(O.MUAMMO_OLCHOVI).every(([k, v]) =>
+      new RegExp(`${k}: '${v}'`).test(ilovaMos)));
+  test('ilovada ham yettitasi DOIM chiziladi',
+    /olchovlarniHisobla\(t\.problems \|\| \[\], t\.raw\?\.olchovlar\)/.test(ilova)
+      && !/const olchovlar = muammolar\.slice/.test(ilova));
+  test('raqam yonida o‘zbekcha baho ham bor',
+    /<em class="\$\{beshRang\(o\.ball\)\}">\$\{esc\(o\.baho\)\}<\/em>/.test(ilova));
+
+  // Natija RASMIDA ham yettitasi
+  const { natijaSvg } = await import('../src/rasm/natija-kartochka.js');
+  const svg = natijaSvg({ rasmBase64: null, brend: 'KiOVO',
+    tahlil: { ball: 71, muammolar: [{ kalit: 'teshik', nom: 'Teshik', foiz: 60 }],
+              olchovlar: { pora: 40, namlik: 88 } } });
+  test('rasmda ham yettita o‘lchov chiziladi',
+    O.OLCHOVLAR.every((o) => svg.includes(o.nom)),
+    O.OLCHOVLAR.map((o) => o.nom).join(', '));
+  test('AI bergan ball rasmda ham ishlatiladi', svg.includes('>40<'));
+  const tozaSvg = natijaSvg({ rasmBase64: null, brend: 'KiOVO',
+    tahlil: { ball: 88, muammolar: [] } });
+  test('muammosiz odamda ham ko‘rsatkichlar bo‘limi bor',
+    tozaSvg.includes('Teri ko‘rsatkichlari'));
+
+  // Yordamchi shablon yozganda ham shu ro'yxatdan foydalanadi
+  const { namunaMalumot } = await import('../src/rasm/shablon-malumot.js');
+  const nm = namunaMalumot('KiOVO');
+  test('shablon ma’lumotida olchovlar bor', nm.olchovlar.length === 7);
+  test('har o‘lchovda rang oldindan hisoblangan',
+    nm.olchovlar.every((o) => /^#[0-9A-F]{6}$/i.test(o.rang)));
+  const { MAYDONLAR } = await import('../src/rasm/shablon.js');
+  test('yordamchiga maydon ro‘yxatida aytiladi',
+    /yettita/i.test(MAYDONLAR.olchovlar || ''));
+  const V4 = await import('../src/services/admin-vositalar.js');
+  test('yordamchining qoidalarida ham bor',
+    (await V4.VOSITALAR.kartochka_kodi.ishla({})).qoida
+      .some((r) => /olchovlar/.test(r)));
 }
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);

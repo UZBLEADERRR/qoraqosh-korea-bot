@@ -760,6 +760,11 @@ async function kartochkaKodi() {
       'Kesish: <clipPath>. Effekt (rentgen): <filter><feColorMatrix>.',
       'Takrorlash: {{#muammolar}} … {{/}} · Shart: {{?xulosa}} … {{/}}',
       'Ro‘yxat ichida {{@n}} — tartib raqami (1 dan), {{@i}} — 0 dan.',
+      'Teri ko‘rsatkichlari: {{#olchovlar}} … {{/}} — DOIM yettita '
+      + '(teshik, ajin, pigment, qizarish, tekstura, namlik, yog‘lilik). '
+      + 'Har birida {{nom}}, {{ball}} (0-100, yuqori = yaxshi), {{baho}}, '
+      + '{{rang}}. Muammo topilmagan odamda ham to‘liq keladi, shuning '
+      + 'uchun bu bo‘lim hech qachon bo‘sh qolmaydi.',
       'Qatorlarni pastga tushirish: {{@i*60+970}} — 970, 1030, 1090 …',
       'Qatorlar soni O‘ZGARUVCHAN: shuning uchun <svg> bo‘yini eng '
       + 'ko‘p holatga (8 muammo, 6 mahsulot) qarab oling.',

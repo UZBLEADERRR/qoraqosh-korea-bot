@@ -3,6 +3,7 @@
 // shuning uchun u mavjud bo'lmagan mahsulotni "o'ylab topa olmaydi".
 // Qaytgan id'lar baribir katalogga solishtirib tekshiriladi.
 import { aiJson, rasmPart, aiBormi } from './index.js';
+import { OLCHOV_KALITLARI, olchovlarniTozala } from '../lib/olchov.js';
 
 export const RAD_SABABLARI = {
   yuz_yoq:      { emoji: '🙈', matn: "Rasmda yuz topilmadi." },
@@ -49,6 +50,17 @@ const SXEMA = {
       required: ['taxminiy_yosh', 'jins', 'teri_rangi', 'teri_turi', 'ball', 'tavsif', 'xulosa'],
       propertyOrdering: ['taxminiy_yosh', 'jins', 'teri_rangi', 'teri_turi', 'ball',
                          'tavsif', 'xulosa'],
+    },
+    // YETTITA O'LCHOV — har tahlilda to'liq, muammo bor-yo'qligidan
+    // qat'i nazar. Ilgari ko'rsatkichlar topilgan muammolardan
+    // yasalardi: terisi toza odam bitta ham ko'rsatkich ko'rmasdi va
+    // ikki tahlilni solishtirib bo'lmasdi.
+    olchovlar: {
+      type: 'object',
+      properties: Object.fromEntries(
+        OLCHOV_KALITLARI.map((k) => [k, { type: 'integer' }])),
+      required: [...OLCHOV_KALITLARI],
+      propertyOrdering: [...OLCHOV_KALITLARI],
     },
     muammolar: {
       type: 'array',
@@ -110,8 +122,9 @@ const SXEMA = {
       propertyOrdering: ['foydali', 'cheklang', 'izoh'],
     },
   },
-  required: ['sifat', 'umumiy', 'muammolar', 'prognoz', 'tavsiya', 'parhez'],
-  propertyOrdering: ['sifat', 'umumiy', 'muammolar', 'prognoz', 'tavsiya', 'parhez'],
+  required: ['sifat', 'umumiy', 'olchovlar', 'muammolar', 'prognoz', 'tavsiya', 'parhez'],
+  propertyOrdering: ['sifat', 'umumiy', 'olchovlar', 'muammolar', 'prognoz',
+                     'tavsiya', 'parhez'],
 };
 
 function katalogMatni(products) {
@@ -198,6 +211,32 @@ QADAM 2 — faqat sifat yaroqli bo'lsa tahlil qil:
                          odamga o'xshatma, millat/irq/din haqida gapirma,
                          tashqi ko'rinishiga baho berma (chiroyli,
                          xunuk). Faqat KO'RINAYOTGAN, neytral tafsilot.
+
+QADAM 2b — O'LCHOVLAR. Yettita ko'rsatkichning HAMMASIGA baho ber,
+  muammo bor-yo'qligidan qat'i nazar. Bu qism HECH QACHON bo'sh
+  qolmaydi (sifat yaroqsiz bo'lgan holdan tashqari).
+
+  olchovlar.pora     — teri teshiklarining holati
+  olchovlar.ajin     — ajin va elastiklik
+  olchovlar.pigment  — dog', pigment, ton tekisligi
+  olchovlar.qizarish — qizarish va sezgirlik
+  olchovlar.tekstura — teri yuzasining silliqligi, relef
+  olchovlar.namlik   — namlanganlik darajasi
+  olchovlar.yoglilik — yog' muvozanati
+
+  HAR BIRI 0-100 va QANCHA YUQORI BO'LSA SHUNCHA YAXSHI:
+  100 — muammo umuman yo'q, 85 — a'lo, 70 — yaxshi, 55 — o'rtacha,
+  40 — e'tibor kerak, 25 — zaif. Ya'ni «yog'lilik 30» degani teri
+  JUDA YOG'LI degani, «yog'lilik 85» esa yog' muvozanati yaxshi.
+
+  Aniq raqam ber — 50, 60, 70 kabi dumaloq sonlardan qoch.
+  Hamma ko'rsatkichga bir xil raqam qo'yma: teri hech qachon hamma
+  o'lchovda bir xil bo'lmaydi.
+
+  MUHIM: o'lchov QADAM 3 dagi muammolar bilan ZIDDIYATSIZ bo'lsin.
+  Kuchli akne yozib «tekstura: 90» deb qo'yma. Aksincha ham: o'lchovi
+  past bo'lsa (masalan pora 35), rasmda haqiqatan ko'rinayotgan
+  bo'lsa, uni QADAM 3 da muammo qilib ham yoz.
 
 QADAM 3 — muammolar. ENG MUHIM QOIDA:
   FAQAT rasmda O'Z KO'ZING BILAN KO'RIB TURGAN narsani yoz.
@@ -448,6 +487,10 @@ function tozala(javob, products) {
 
   const u = javob.umumiy || {};
   return {
+    // Yettita o'lchov. Model bermasa null — keyin muammolardan
+    // hisoblanadi (`olchovlarniHisobla`), shuning uchun ekranda
+    // baribir to'liq yettitasi chiqadi.
+    olchovlar: olchovlarniTozala(javob.olchovlar),
     taxminiy_yosh: String(u.taxminiy_yosh || "noma'lum").slice(0, 20),
     jins: ['erkak', 'ayol'].includes(u.jins) ? u.jins : 'nomalum',
     teri_rangi:    String(u.teri_rangi || "aniqlanmadi").slice(0, 60),
@@ -482,7 +525,7 @@ function oflaynTahlil(products) {
     taxminiy_yosh: '—', jins: 'nomalum', teri_rangi: '—', teri_turi: 'normal', ball: 0,
     tavsif: '',
     xulosa: "AI tahlili hozir mavjud emas. Quyida barcha teri turlariga mos bazaviy parvarish ko'rsatilgan.",
-    muammolar: [], prognoz: [], tavsiya,
+    olchovlar: null, muammolar: [], prognoz: [], tavsiya,
     parhez: { foydali: [], cheklang: [], izoh: '' },
   };
 }

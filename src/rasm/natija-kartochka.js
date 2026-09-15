@@ -21,6 +21,7 @@
 import { x, qatorlarga, kes, SHRIFT, rasmOlchami } from './chiz.js';
 import { palitra, TARTIB_RANG } from '../lib/mavzu.js';
 import { kartochkaSozlamasi } from '../lib/kartochka.js';
+import { olchovlarniHisobla } from '../lib/olchov.js';
 
 const ENI = 1080;
 const CHET = 40;
@@ -120,6 +121,8 @@ const KALIT_BELGI = {
   akne: 'tomchi', teshik: 'tozalik', yoglilik: 'tomchi', quruqlik: 'tomchi',
   qizarish: 'yurak', dog: 'quyosh', ajin: 'soat', xiralik: 'quyosh',
   sezgirlik: 'yurak', qora_doira: 'oy', shishish: 'tomchi',
+  // Yettita doimiy o'lchov (`src/lib/olchov.js`)
+  pora: 'tozalik', pigment: 'quyosh', tekstura: 'qalqon', namlik: 'tomchi',
 };
 
 function belgiChiz(kalit, cx, cy, olcham, tus, { toldirilgan = false, qalin = 1.9 } = {}) {
@@ -304,38 +307,78 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     }
 
     const xulosa = S.bloklar.xulosa ? String(t.xulosa || t.summary || '') : '';
+    let yy = y + 462;
     if (xulosa) {
       // Uch qator: teglar qo'shilgach to'rttasi sig'maydi
       // Besh qator: karta rentgen yo'lakchasi hisobiga uzaydi,
       // shuning uchun joy bor — gap yarmida uzilmasin
       const qat = qatorlarga(xulosa, BALL_ENI - 60, 22).slice(0, 5);
-      qat.forEach((str, i) => q.push(matn(str, y + 462 + i * 30,
-        { x: BALL_X + 30, olcham: 22, rang: T.kul })));
+      qat.forEach((str) => { q.push(matn(str, yy, { x: BALL_X + 30, olcham: 22, rang: T.kul })); yy += 30; });
+    }
+
+    // «MEN RASMDA NIMA KO'RDIM» — kartaning pastida qolgan joyga.
+    // Bu bezak emas: odam o'z suratining tafsilotini o'qib, tahlil
+    // AYNAN uning rasmidan chiqqaniga ishonch hosil qiladi. Ilgari
+    // bu matn faqat ilovada bor edi, rasmda esa joy bo'sh turardi.
+    const tavsif = String(t.tavsif || '');
+    const chek = y + HERO_H + RENTGEN_H - 40;     // kartaning pastki cheti
+    if (tavsif && yy + 70 < chek) {
+      yy += 14;
+      q.push(`<line x1="${BALL_X + 30}" y1="${yy}" x2="${ENI - CHET - 30}" y2="${yy}"
+        stroke="${T.chiziq}" stroke-width="1.5"/>`);
+      yy += 30;
+      q.push(matn('RASMDA NIMA KO‘RDIM', yy, { x: BALL_X + 30, olcham: 17,
+        ogirlik: 700, rang: T.och }));
+      yy += 30;
+      // Nechta qator sig'ishini OLDIN hisoblaymiz. Aks holda oxirgi
+      // gap kartaning chetida yarmida uzilib qolardi — «xona» deb
+      // tugab, o'quvchi davomini kutib turardi.
+      const hamma = qatorlarga(tavsif, BALL_ENI - 60, 21);
+      const sigadi = Math.max(0, Math.floor((chek - yy) / 28) + 1);
+      const qatlar = hamma.slice(0, sigadi);
+      if (qatlar.length < hamma.length && qatlar.length) {
+        qatlar[qatlar.length - 1] = `${qatlar[qatlar.length - 1].replace(/[\s,;.]+$/, '')}…`;
+      }
+      qatlar.forEach((str) => {
+        q.push(matn(str, yy, { x: BALL_X + 30, olcham: 21, rang: T.kul }));
+        yy += 28;
+      });
     }
   }
   y += HERO_H + RENTGEN_H + 18;
 
   // ══════════════════════════════════════════════
-  // 3. KO'RSATKICHLAR — BITTA QATOR
+  // 3. TERI KO'RSATKICHLARI — DOIM YETTITA
   // ══════════════════════════════════════════════
-  if (S.bloklar.korsatkichlar && hammaMuammo.length) {
-    const royxat = hammaMuammo.slice(0, 4);
-    const oraliq = 12;
-    const en = Math.floor((TOLA - oraliq * (royxat.length - 1)) / royxat.length);
-    const H = 152;
-    royxat.forEach((m, i) => {
-      const kx = CHET + i * (en + oraliq);
-      const rang = beshRang(100 - m.foiz);
-      q.push(karta(kx, y, en, H, { r: 20 }));
-      q.push(`<rect x="${kx + 18}" y="${y + 18}" width="46" height="46" rx="14" fill="${T.plitka}"/>`);
-      q.push(belgiChiz(KALIT_BELGI[m.kalit] || 'tomchi', kx + 41, y + 41, 24, rang));
-      q.push(matn(String(100 - m.foiz), y + 56, { x: kx + 78, olcham: 38, ogirlik: 700, rang: T.oq }));
-      q.push(matn('/100', y + 56, { x: kx + 78 + String(100 - m.foiz).length * 22 + 6,
-        olcham: 18, rang: T.och }));
-      const nom = qatorlarga(m.nom || '', en - 36, 20).slice(0, 2);
-      nom.forEach((str, k) => q.push(matn(str, y + 94 + k * 24,
-        { x: kx + 18, olcham: 20, rang: T.kul })));
-      q.push(shkala(kx + 18, y + H - 26, en - 36, 100 - m.foiz, rang, { balandlik: 8 }));
+  //
+  // Ilgari bu yerda topilgan muammolardan yasalgan to'rtta katak
+  // turardi: terisi toza odam bitta ham ko'rsatkich ko'rmasdi va
+  // ikki tahlilni solishtirib bo'lmasdi. Endi ro'yxat qat'iy —
+  // salon apparatlari beradigan o'sha yettita o'lchov. Ular bir
+  // ustunda, chunki nom + shkala + raqam bir qatorda o'qilishi
+  // yetti ustunga siqilgan mayda katakdan ancha tushunarli.
+  if (S.bloklar.korsatkichlar) {
+    const royxat = olchovlarniHisobla(hammaMuammo, t.olchovlar || null);
+    const SATR = 58;
+    const H = 96 + royxat.length * SATR;
+    q.push(karta(CHET, y, TOLA, H, { r: 26 }));
+    q.push(matn('Teri ko‘rsatkichlari', y + 52, { x: CHET + 30, olcham: 32,
+      ogirlik: 700, rang: T.oq }));
+    q.push(matn('100 = ideal', y + 52, { x: ENI - CHET - 30, oxiri: true,
+      olcham: 21, rang: T.och }));
+
+    const NOM_X = CHET + 76;         // belgidan keyin
+    const SHK_X = CHET + 330;        // shkala shu yerdan boshlanadi
+    const SHK_EN = TOLA - 330 - 140; // o'ngda raqamga joy qoladi
+    royxat.forEach((o, i) => {
+      const sy = y + 96 + i * SATR;
+      const rang = beshRang(o.ball);
+      q.push(belgiChiz(KALIT_BELGI[o.kalit] || o.ikon || 'tomchi',
+        CHET + 48, sy + 6, 26, rang));
+      q.push(matn(o.nom, sy + 15, { x: NOM_X, olcham: 25, ogirlik: 600, rang: T.oq }));
+      q.push(shkala(SHK_X, sy, SHK_EN, o.ball, rang, { balandlik: 12 }));
+      q.push(matn(String(o.ball), sy + 15, { x: ENI - CHET - 30, oxiri: true,
+        olcham: 30, ogirlik: 700, rang }));
     });
     y += H + 18;
   }
