@@ -3804,8 +3804,14 @@ console.log('\n── NATIJA EKRANI ──');
   test('muammolar ro‘yxati OCHILADIGAN — sahifa qisqa turadi',
     /<details class="n-muammo"/.test(js)
       && /details\.n-muammo>summary\{display:grid/.test(css));
-  test('«Hammasini ochish» tugmasi bor',
-    /id="t-hammasini-och"/.test(js) && /Hammasini yopish/.test(js));
+  test('hammasini birdan ochish tugmasi bor',
+    /id="t-hammasini-och"/.test(js) && /yopiq \? 'Yopish' : 'Hammasi'/.test(js));
+  // Yopiq muammo oddiy qatorga o'xshab turardi va odam uni bosish
+  // mumkinligini bilmasdi — sabab bilan tavsiyani umuman ko'rmasdi
+  test('bosilishini STRELKA bildirib turadi',
+    /<i class="n-ochish"/.test(js) && /\.n-ochish::before\{/.test(css)
+      && /details\.n-muammo\[open\] \.n-ochish::before/.test(css));
+  test('sarlavhada ham aytiladi', /bosing — tafsiloti/.test(js));
   test('ovqat panellari ham yonma-yon',
     /\.n-panellar\{display:grid;gap:8px;grid-template-columns:1fr 1fr;/.test(css));
   test('ertalab va kechqurun ham yonma-yon',
@@ -4372,6 +4378,78 @@ console.log('\n── KARTOCHKA SHABLONI ──');
     tahlil: { ball: 88, muammolar: [] } });
   test('muammosiz odamda ham ko‘rsatkichlar bo‘limi bor',
     tozaSvg.includes('Teri ko‘rsatkichlari'));
+}
+
+// ══════════════ NATIJA RASMINING TARTIBI ══════════════
+//
+// «Umumiy teri holati rasmning ostida bo'lsin, muammolar ustiga
+// bosilsa sabab va tavsiya ko'rinsin.»
+{
+  console.log('\n── NATIJA RASMI: TARTIB VA TAFSILOT ──');
+  const fs5 = await import('node:fs');
+  const { natijaSvg } = await import('../src/rasm/natija-kartochka.js');
+  const { joylarniHisobla } = await import('../src/lib/zona.js');
+  const { svgdanPng } = await import('../src/rasm/chiz.js');
+  const surat = fs5.readFileSync('test/namuna-yuz.b64', 'utf8').trim();
+
+  const svg = natijaSvg({
+    rasmBase64: surat, mime: 'image/jpeg', brend: 'KiOVO',
+    tahlil: {
+      ball: 71, taxminiy_yosh: '22-26', jins: 'erkak', teri_turi: 'aralash',
+      xulosa: 'Teringiz umuman sog‘lom, T-zonada yog‘ ko‘p.',
+      tavsif: 'Ko‘zoynak taqqan yigit, xona yorug‘ligida olingan surat.',
+      muammolar: joylarniHisobla([
+        { kalit: 'teshik', nom: 'Kengaygan teshiklar', foiz: 72, zona: 'burun',
+          sabab: 'Yog‘ bezlari faol ishlaydi va teshiklar tiqilib qoladi.',
+          yechim: 'Haftada ikki marta salitsil kislotali tozalagich ishlating.' },
+        { kalit: 'qizarish', nom: 'Yengil qizarish', foiz: 38, zona: 'yonoq',
+          sabab: 'Teri sezgir.', yechim: 'Tinchlantiruvchi toner.' },
+      ]),
+    },
+  });
+
+  // Umumiy holat RASM OSTIDA: SVG da <image> (surat) oldin, ball
+  // halqasi bilan «UMUMIY TERI HOLATI» keyin chiziladi
+  const suratJoyi = svg.indexOf('clip-path="url(#yuz)"');
+  const holatJoyi = svg.indexOf('UMUMIY TERI HOLATI');
+  test('umumiy holat SURAT OSTIDA', suratJoyi > 0 && holatJoyi > suratJoyi);
+  test('ko‘rsatkichlar esa undan keyin',
+    svg.indexOf('Teri ko‘rsatkichlari') > holatJoyi);
+
+  // Ball kartasi to'liq kenglikda — suratning yonida emas
+  const ballKarta = svg.match(/<rect x="40" y="\d+" width="1000" height="\d+" rx="26"/g) || [];
+  test('ball kartasi TO‘LIQ enda', ballKarta.length >= 1, `${ballKarta.length} ta`);
+
+  // Sabab va tavsiya rasmda ham bor
+  test('muammoda SABABI ko‘rsatiladi', svg.includes('SABABI'));
+  test('muammoda TAVSIYA ham', svg.includes('TAVSIYA'));
+  test('sabab matni to‘liq chiqadi', /Yog. bezlari faol ishlaydi/.test(svg));
+  test('tavsiya matni ham', /salitsil kislotali/.test(svg));
+  test('har muammoning O‘Z balandligi bor — matn qirqilmaydi',
+    /const boy = Math\.max/.test(
+      fs5.readFileSync('src/rasm/natija-kartochka.js', 'utf8')));
+
+  // Sababsiz muammo ham buzilmasin
+  const sababsiz = natijaSvg({ rasmBase64: null, brend: 'KiOVO',
+    tahlil: { ball: 60, muammolar: [{ kalit: 'dog', nom: 'Pigment', foiz: 40 }] } });
+  test('sababi yo‘q muammo ham chiziladi', sababsiz.includes('Pigment'));
+  test('bo‘sh yorliq yozilmaydi', !sababsiz.includes('SABABI'));
+
+  // Qatlamlar ilova bilan bir xil — oltita
+  const ilovaJs = fs5.readFileSync('public/app/app.js', 'utf8');
+  const ilovaQ = [...ilovaJs.slice(ilovaJs.indexOf('const RENTGEN = ['),
+    ilovaJs.indexOf('const KALIT_QISQA')).matchAll(/kalit: '(\w+)'/g)].map((m) => m[1]);
+  const rasmKod = fs5.readFileSync('src/rasm/natija-kartochka.js', 'utf8');
+  const rasmQ = [...rasmKod.slice(rasmKod.indexOf('const RENTGEN = ['),
+    rasmKod.indexOf('const OYLAR')).matchAll(/kalit: '(\w+)'/g)].map((m) => m[1]);
+  test('rasmdagi qatlamlar ILOVA bilan bir xil',
+    rasmQ.join() === ilovaQ.join(), rasmQ.join(', '));
+  test('oltalasi ham chizildi',
+    rasmQ.every((k) => svg.includes(`>${k === 'asl' ? 'Asl' : ''}`) || true)
+      && (svg.match(/clip-path="url\(#rk\d\)"/g) || []).length === 6);
+
+  const bayt = await svgdanPng(svg, 1080);
+  test('PNG haqiqatan chiqadi', bayt.length > 20000, `${(bayt.length / 1024).toFixed(0)} KB`);
 
   // Yordamchi shablon yozganda ham shu ro'yxatdan foydalanadi
   const { namunaMalumot } = await import('../src/rasm/shablon-malumot.js');

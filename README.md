@@ -270,6 +270,13 @@ Google Gemini · Railway.
   muammo ochilsa suratdagi belgisi kattalashadi. «Qayerini
   aytyapti?» degan savol shu bilan yopiladi.
 
+  **Muammo bosilganda sababi va tavsiyasi ochiladi.** Yopiq muammo
+  ilgari oddiy qatorga o'xshab turardi va odam uni bosish
+  mumkinligini bilmasdi — «nega shunday bo'ldi, nima qilay?»
+  degan javobni umuman ko'rmasdi. Endi har qatorda strelka bor
+  (ochilganda urg'u rangida teskari buriladi), sarlavhada esa
+  «bosing — tafsiloti» deb yozilgan.
+
   **Teri «rentgeni» — olti qatlam.** Suratning tagida lenta:
   *Asl*, *UV*, *Qizarish*, *Pigment*, *Tekstura*, *Namlik*.
   Bosilsa asosiy surat ham o'sha ko'rinishga o'tadi va rasm ustida
@@ -1590,8 +1597,19 @@ yig'adi, `chiz.js` uni resvg bilan PNG ga o'giradi (~170 ms). Ranglar
 bo'lmasa matn jimgina yo'qolardi. Rasmda emoji ishlatilmaydi: resvg rangli
 emoji shriftini chizmaydi, o'rnida bo'sh kvadrat qoladi.
 
-Rasmning ustki qismida har bir belgi uchun `Sababi:` va `Yechimi:`
-satrlari chiqadi — foiz o'zi hech narsa tushuntirmaydi. Pastdagi
+**Tartib:** surat eng tepada, kenglik bo'yicha o'rtada (560×700 —
+3:4 selfi bu qutida deyarli kesilmaydi; keng qutida rasmning tepasi
+kesilar va peshonadagi belgi kadrdan chiqib ketardi). Uning ostida
+olti qatlamli «rentgen» yo'lakchasi — **ilovadagi qatlamlar bilan
+aynan bir xil ro'yxat va tartibda**, aks holda odam qaysi biriga
+ishonishni bilmaydi. Keyin **umumiy teri holati to'liq kenglikda**:
+ball halqasi, holat, rangli teglar, xulosa va «rasmda nima
+ko'rdim». Ilgari bu blok suratning YONIDA, tor ustunda turardi.
+
+Har bir belgi uchun `SABABI` va `TAVSIYA` satrlari chiqadi — foiz
+o'zi hech narsa tushuntirmaydi. Har muammoning balandligi o'ziniki:
+matn uzun bo'lsa qator o'sadi, ilgari esa qator qotib turgan 106 px
+edi va faqat nom bilan foiz sig'ardi. Pastdagi
 mahsulot kartalari esa songa qarab kichrayadi: ustunlar soni
 mahsulot soniga TENG, ya'ni oltitagacha hammasi bitta qatorda
 turadi. Ilgari ustun soni to'rtta bilan cheklangan edi va beshinchi

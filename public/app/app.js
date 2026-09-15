@@ -2465,7 +2465,8 @@ function natijaniChiz() {
   <section class="n-bolim">
     <div class="n-bolim-bosh">
       <h3>Aniqlangan muammolar</h3>
-      <button id="t-hammasini-och">Hammasini ochish</button>
+      <span class="n-bolim-izoh">bosing — tafsiloti</span>
+      <button id="t-hammasini-och">Hammasi</button>
     </div>
     ${muammolar.map((m, i) => `
       <details class="n-muammo" id="muammo-${m.tartib}" data-muammo="${m.tartib}"${i === 0 ? ' open' : ''}>
@@ -2474,6 +2475,7 @@ function natijaniChiz() {
           <span class="n-muammo-nom">${esc(KALIT_NOM[m.kalit] || m.nom)}
             ${m.zona ? `<em>${esc(m.zona)}</em>` : ''}</span>
           <span class="n-muammo-foiz ${ballRang(m.ballHolat)}">${m.foiz}%</span>
+          <i class="n-ochish" aria-hidden="true"></i>
         </summary>
         <div class="n-muammo-ich">
           <div class="n-chiziq"><i class="${ballRang(m.ballHolat)}"
@@ -2535,7 +2537,7 @@ function natijaniChiz() {
   if (hammasi) hammasi.onclick = () => {
     const yopiq = $$('details.n-muammo', el).some((d) => !d.open);
     $$('details.n-muammo', el).forEach((d) => { d.open = yopiq; });
-    hammasi.textContent = yopiq ? 'Hammasini yopish' : 'Hammasini ochish';
+    hammasi.textContent = yopiq ? 'Yopish' : 'Hammasi';
     titra();
   };
 

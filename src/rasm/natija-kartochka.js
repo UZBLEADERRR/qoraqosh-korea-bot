@@ -54,20 +54,36 @@ const T = {
  * filtr. Rasmning o'zi o'zgarmaydi: faqat rang kanallari boshqacha
  * aralashtiriladi, xuddi dermatolog lampasi ostida ko'rgandek.
  */
+/* Teri «rentgeni» — ILOVADAGI qatlamlar bilan aynan bir xil
+   ro'yxat va tartib. Rasm bilan ilova boshqa-boshqa narsa
+   ko'rsatsa, odam qaysi biriga ishonishni bilmaydi. */
 const RENTGEN = [
+  { kalit: 'asl', nom: 'Asl', filtr: '' },
+  { kalit: 'uv', nom: 'UV',
+    filtr: '<feColorMatrix type="saturate" values="0"/>'
+         + '<feComponentTransfer><feFuncR type="linear" slope="1.5" intercept="-0.22"/>'
+         + '<feFuncG type="linear" slope="1.5" intercept="-0.22"/>'
+         + '<feFuncB type="linear" slope="1.5" intercept="-0.22"/></feComponentTransfer>' },
   { kalit: 'qizarish', nom: 'Qizarish',
     filtr: '<feColorMatrix type="saturate" values="2.2"/>'
          + '<feColorMatrix type="hueRotate" values="-14"/>' },
-  { kalit: 'yog', nom: 'Yog‘lilik',
-    filtr: '<feColorMatrix type="saturate" values="0"/>'
-         + '<feComponentTransfer><feFuncR type="linear" slope="2.4" intercept="-0.6"/>'
-         + '<feFuncG type="linear" slope="2.4" intercept="-0.6"/>'
-         + '<feFuncB type="linear" slope="2.4" intercept="-0.6"/></feComponentTransfer>' },
   { kalit: 'pigment', nom: 'Pigment',
     filtr: '<feColorMatrix type="matrix" values="'
          + '-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0"/>'
          + '<feColorMatrix type="hueRotate" values="165"/>'
          + '<feColorMatrix type="saturate" values="1.5"/>' },
+  { kalit: 'tekstura', nom: 'Tekstura',
+    filtr: '<feColorMatrix type="saturate" values="0"/>'
+         + '<feComponentTransfer><feFuncR type="linear" slope="2.4" intercept="-0.6"/>'
+         + '<feFuncG type="linear" slope="2.4" intercept="-0.6"/>'
+         + '<feFuncB type="linear" slope="2.4" intercept="-0.6"/></feComponentTransfer>' },
+  { kalit: 'namlik', nom: 'Namlik',
+    // Ko'k tomon MO‘TADIL suriladi. Kuchli koeffitsientda butun
+    // kadr bir tekis ko'k bo'lib qolar va teri ko'rinmay ketardi —
+    // rentgen emas, rangli filtr bo'lib chiqardi.
+    filtr: '<feColorMatrix type="saturate" values="0"/>'
+         + '<feColorMatrix type="matrix" values="'
+         + '0.58 0 0 0 0  0.78 0 0 0 0.03  1 0 0 0 0.10  0 0 0 1 0"/>' },
 ];
 
 const OYLAR = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
@@ -218,27 +234,31 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   y += 62;
 
   // ══════════════════════════════════════════════
-  // 2. SURAT VA BALL
+  // 2. SURAT — YUQORIDA, KENGLIK BO'YLAB O'RTADA
   // ══════════════════════════════════════════════
   // Surat BALAND va TOR: 3:4 selfi shu nisbatda deyarli kesilmaydi.
-  // Ilgari quti keng edi va rasmning tepasi bilan pasti kesilib,
-  // peshonadagi belgi kadrdan chiqib ketardi.
-  const HERO_H = 560;
-  const SURAT_ENI = rasmBase64 ? 424 : 0;
-  const BALL_X = rasmBase64 ? CHET + SURAT_ENI + 20 : CHET;
-  const BALL_ENI = ENI - CHET - BALL_X;
+  // Keng qutida rasmning tepasi bilan pasti kesilar, peshonadagi
+  // belgi esa kadrdan butunlay chiqib ketardi.
+  //
+  // Ilgari ball kartasi suratning YONIDA turardi. Endi u pastda,
+  // to'liq kenglikda: «umumiy teri holati rasmning ostida bo'lsin».
+  // Shu bilan surat ham kattaroq bo'ldi va xulosa uchun ham
+  // tor ustun emas, butun kenglik ochildi.
+  const HERO_H = rasmBase64 ? 700 : 0;
+  const SURAT_ENI = rasmBase64 ? 560 : 0;
+  const SURAT_X = Math.round((ENI - SURAT_ENI) / 2);
 
   if (rasmBase64) {
-    q.push(`<clipPath id="yuz"><rect x="${CHET}" y="${y}" width="${SURAT_ENI}" height="${HERO_H}" rx="26"/></clipPath>
-      <image href="data:${mime};base64,${rasmBase64}" x="${CHET}" y="${y}"
+    q.push(`<clipPath id="yuz"><rect x="${SURAT_X}" y="${y}" width="${SURAT_ENI}" height="${HERO_H}" rx="26"/></clipPath>
+      <image href="data:${mime};base64,${rasmBase64}" x="${SURAT_X}" y="${y}"
         width="${SURAT_ENI}" height="${HERO_H}" clip-path="url(#yuz)" preserveAspectRatio="xMidYMid slice"/>`);
 
     // Raqamli nishonlar — ilovadagi ro'yxat bilan BIR XIL raqam
-    const joyla = qoplash(CHET, y, SURAT_ENI, HERO_H, rasmEni, rasmBoyi);
+    const joyla = qoplash(SURAT_X, y, SURAT_ENI, HERO_H, rasmEni, rasmBoyi);
     for (const m of muammolar) {
       if (!m.joy) continue;
       const p = joyla(m.joy.x, m.joy.y);
-      if (p.x < CHET + 16 || p.x > CHET + SURAT_ENI - 16) continue;
+      if (p.x < SURAT_X + 16 || p.x > SURAT_X + SURAT_ENI - 16) continue;
       if (p.y < y + 16 || p.y > y + HERO_H - 16) continue;
       const rang = m.foiz >= 60 ? T.qizil : m.foiz >= 35 ? T.sariq : T.yashil;
       q.push(`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="30" fill="none"
@@ -247,35 +267,51 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     }
   }
 
-  // ── Teri «rentgeni» — bitta suratning uch ko'rinishi ──
+  // ── Teri «rentgeni» — bitta suratning olti ko'rinishi ──
   // Hech narsa o'ylab topilmaydi: bu o'sha surat, faqat boshqa
   // kanalda. AI muammoni aniq joyga bog'lay olmaganda ham odam
-  // o'z terisini boshqacha ko'radi.
-  const RENTGEN_KEN = Math.floor((SURAT_ENI - 20) / 3);
+  // o'z terisini boshqacha ko'radi. Oltitasi ilovadagi qatlamlar
+  // bilan bir xil — rasm va ilova bir narsani ko'rsatsin.
+  const RENTGEN_ORALIQ = 12;
+  const RENTGEN_KEN = Math.floor((TOLA - RENTGEN_ORALIQ * (RENTGEN.length - 1)) / RENTGEN.length);
   // Balandlik: kvadrat + yozuv + pastki bo'shliq. Ilgari qotib
   // turgan 128 edi va yozuv keyingi bo'lim ustiga tushib ketardi.
-  const RENTGEN_H = rasmBase64 ? RENTGEN_KEN + 42 : 0;
+  const RENTGEN_H = rasmBase64 ? RENTGEN_KEN + 52 : 0;
   if (rasmBase64) {
-    const oraliq = 10;
     const ken = RENTGEN_KEN;
-    const tomon = ken;
-    const ry = y + HERO_H + 10;
+    const ry = y + HERO_H + 16;
     RENTGEN.forEach((r, i) => {
-      const kx = CHET + i * (ken + oraliq);
-      q.push(`<clipPath id="rk${i}"><rect x="${kx}" y="${ry}" width="${ken}" height="${tomon}" rx="16"/></clipPath>
+      const kx = CHET + i * (ken + RENTGEN_ORALIQ);
+      q.push(`<clipPath id="rk${i}"><rect x="${kx}" y="${ry}" width="${ken}" height="${ken}" rx="16"/></clipPath>
         <image href="data:${mime};base64,${rasmBase64}" x="${kx}" y="${ry}"
-          width="${ken}" height="${tomon}" clip-path="url(#rk${i})"
-          preserveAspectRatio="xMidYMid slice" filter="url(#f-${r.kalit})"/>`);
-      q.push(matn(r.nom, ry + tomon + 24, { x: kx + ken / 2, markaz: true,
+          width="${ken}" height="${ken}" clip-path="url(#rk${i})"
+          preserveAspectRatio="xMidYMid slice"${r.filtr ? ` filter="url(#f-${r.kalit})"` : ''}/>`);
+      q.push(matn(r.nom, ry + ken + 28, { x: kx + ken / 2, markaz: true,
         olcham: 19, ogirlik: 700, rang: T.kul }));
     });
   }
+  y += HERO_H + RENTGEN_H + (rasmBase64 ? 18 : 0);
 
-  // Ball kartasi
-  q.push(karta(BALL_X, y, BALL_ENI, HERO_H + RENTGEN_H, { r: 26 }));
-  q.push(matn('Umumiy teri bali', y + 52, { x: BALL_X + 30, olcham: 30, ogirlik: 700, rang: T.oq }));
+  // ══════════════════════════════════════════════
+  // 2b. UMUMIY TERI HOLATI — RASM OSTIDA, TO'LIQ ENDA
+  // ══════════════════════════════════════════════
   {
-    const cx = BALL_X + BALL_ENI / 2, cy = y + 214, r = 92, qal = 18;
+    const MATN_X = CHET + 300;            // halqadan keyin
+    const MATN_EN = TOLA - 300 - 30;
+    const xulosa = S.bloklar.xulosa ? String(t.xulosa || t.summary || '') : '';
+    const tavsif = String(t.tavsif || '');
+    const xulosaQ = xulosa ? qatorlarga(xulosa, MATN_EN, 24).slice(0, 4) : [];
+    const tavsifQ = tavsif ? qatorlarga(tavsif, MATN_EN, 21).slice(0, 3) : [];
+
+    // Balandlikni OLDIN hisoblaymiz: matn kartadan chiqib ketmasin
+    let ich = 62 + 48 + 52;               // sarlavha + holat + teglar
+    if (xulosaQ.length) ich += 12 + xulosaQ.length * 32;
+    if (tavsifQ.length) ich += 30 + tavsifQ.length * 28;
+    const BALL_H = Math.max(268, ich + 34);
+
+    q.push(karta(CHET, y, TOLA, BALL_H, { r: 26 }));
+
+    const cx = CHET + 152, cy = y + BALL_H / 2, r = 92, qal = 18;
     const aylana = 2 * Math.PI * r;
     const to = (aylana * Math.max(0, Math.min(100, ball))) / 100;
     q.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${T.plitka}" stroke-width="${qal}"/>
@@ -285,7 +321,12 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
         transform="rotate(-90 ${cx} ${cy})"/>`);
     q.push(matn(String(ball), cy + 18, { x: cx, markaz: true, olcham: 72, ogirlik: 700, rang: T.oq }));
     q.push(matn('/ 100', cy + 52, { x: cx, markaz: true, olcham: 22, rang: T.och }));
-    q.push(matn(holatSoz, y + 368, { x: cx, markaz: true, olcham: 34, ogirlik: 700, rang: ballRang }));
+
+    let yy = y + 62;
+    q.push(matn('UMUMIY TERI HOLATI', yy, { x: MATN_X, olcham: 19, ogirlik: 700, rang: T.och }));
+    yy += 48;
+    q.push(matn(holatSoz, yy, { x: MATN_X, olcham: 40, ogirlik: 700, rang: ballRang }));
+    yy += 16;
 
     // RANGLI teglar: yosh, jins, teri turi. Ilgari ular pastda,
     // kulrang mayda matnda edi va ko'rinmasdi.
@@ -295,57 +336,41 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
         : jins === 'ayol' ? { matn: 'Ayol', rang: URGU } : null,
       teriTuri && { matn: `${teriTuri} teri`, rang: T.yashil },
     ].filter(Boolean);
-    let tx = BALL_X + 30;
+    let tx = MATN_X;
     for (const g of teglar) {
       const ken = Math.round(g.matn.length * 12.2) + 32;
-      if (tx + ken > BALL_X + BALL_ENI - 26) break;
-      q.push(`<rect x="${tx}" y="${y + 386}" width="${ken}" height="42" rx="21"
+      if (tx + ken > ENI - CHET - 30) break;
+      q.push(`<rect x="${tx}" y="${yy}" width="${ken}" height="42" rx="21"
         fill="${g.rang}22" stroke="${g.rang}66" stroke-width="1.5"/>`);
-      q.push(matn(g.matn, y + 414, { x: tx + ken / 2, markaz: true, olcham: 21,
+      q.push(matn(g.matn, yy + 28, { x: tx + ken / 2, markaz: true, olcham: 21,
         ogirlik: 700, rang: g.rang }));
       tx += ken + 8;
     }
+    yy += 52;
 
-    const xulosa = S.bloklar.xulosa ? String(t.xulosa || t.summary || '') : '';
-    let yy = y + 462;
-    if (xulosa) {
-      // Uch qator: teglar qo'shilgach to'rttasi sig'maydi
-      // Besh qator: karta rentgen yo'lakchasi hisobiga uzaydi,
-      // shuning uchun joy bor — gap yarmida uzilmasin
-      const qat = qatorlarga(xulosa, BALL_ENI - 60, 22).slice(0, 5);
-      qat.forEach((str) => { q.push(matn(str, yy, { x: BALL_X + 30, olcham: 22, rang: T.kul })); yy += 30; });
+    if (xulosaQ.length) {
+      yy += 12;
+      xulosaQ.forEach((str) => {
+        q.push(matn(str, yy, { x: MATN_X, olcham: 24, rang: T.kul }));
+        yy += 32;
+      });
     }
 
-    // «MEN RASMDA NIMA KO'RDIM» — kartaning pastida qolgan joyga.
-    // Bu bezak emas: odam o'z suratining tafsilotini o'qib, tahlil
-    // AYNAN uning rasmidan chiqqaniga ishonch hosil qiladi. Ilgari
-    // bu matn faqat ilovada bor edi, rasmda esa joy bo'sh turardi.
-    const tavsif = String(t.tavsif || '');
-    const chek = y + HERO_H + RENTGEN_H - 40;     // kartaning pastki cheti
-    if (tavsif && yy + 70 < chek) {
-      yy += 14;
-      q.push(`<line x1="${BALL_X + 30}" y1="${yy}" x2="${ENI - CHET - 30}" y2="${yy}"
-        stroke="${T.chiziq}" stroke-width="1.5"/>`);
-      yy += 30;
-      q.push(matn('RASMDA NIMA KO‘RDIM', yy, { x: BALL_X + 30, olcham: 17,
+    // «MEN RASMDA NIMA KO'RDIM» — bezak emas: odam o'z suratining
+    // tafsilotini o'qib, tahlil AYNAN uning rasmidan chiqqaniga
+    // ishonch hosil qiladi.
+    if (tavsifQ.length) {
+      yy += 6;
+      q.push(matn('RASMDA NIMA KO‘RDIM', yy, { x: MATN_X, olcham: 17,
         ogirlik: 700, rang: T.och }));
-      yy += 30;
-      // Nechta qator sig'ishini OLDIN hisoblaymiz. Aks holda oxirgi
-      // gap kartaning chetida yarmida uzilib qolardi — «xona» deb
-      // tugab, o'quvchi davomini kutib turardi.
-      const hamma = qatorlarga(tavsif, BALL_ENI - 60, 21);
-      const sigadi = Math.max(0, Math.floor((chek - yy) / 28) + 1);
-      const qatlar = hamma.slice(0, sigadi);
-      if (qatlar.length < hamma.length && qatlar.length) {
-        qatlar[qatlar.length - 1] = `${qatlar[qatlar.length - 1].replace(/[\s,;.]+$/, '')}…`;
-      }
-      qatlar.forEach((str) => {
-        q.push(matn(str, yy, { x: BALL_X + 30, olcham: 21, rang: T.kul }));
+      yy += 28;
+      tavsifQ.forEach((str) => {
+        q.push(matn(str, yy, { x: MATN_X, olcham: 21, rang: T.och }));
         yy += 28;
       });
     }
+    y += BALL_H + 18;
   }
-  y += HERO_H + RENTGEN_H + 18;
 
   // ══════════════════════════════════════════════
   // 3. TERI KO'RSATKICHLARI — DOIM YETTITA
@@ -387,13 +412,31 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   // 4. NIMA TOPILDI
   // ══════════════════════════════════════════════
   if (muammolar.length) {
-    const SATR = 106;
-    const H = 78 + muammolar.length * SATR;
+    // Har muammoning BALANDLIGI o'ziniki: sabab va tavsiya matni
+    // uzun-qisqa bo'ladi. Ilgari qator qotib turgan 106 px edi va
+    // faqat nom bilan foiz sig'ardi — odam «nega shunday bo'ldi,
+    // nima qilay?» degan savoliga javob ilovadan qidirardi.
+    const KESIM = 76;
+    const olch = muammolar.map((m) => {
+      const nomX = rasmBase64 && m.joy ? CHET + 84 + KESIM + 20 : CHET + 84;
+      const ichEni = CHET + TOLA - 30 - nomX;
+      const sabab = String(m.sabab || m.izoh || '');
+      const yechim = String(m.yechim || '');
+      const sababQ = sabab ? qatorlarga(sabab, ichEni - 96, 21).slice(0, 2) : [];
+      const yechimQ = yechim ? qatorlarga(yechim, ichEni - 96, 21).slice(0, 2) : [];
+      // 96 — chapdagi «SABABI» / «TAVSIYA» yorlig'i uchun ustun
+      const boy = Math.max(KESIM + 24, 100)
+                + (sababQ.length ? sababQ.length * 28 + 10 : 0)
+                + (yechimQ.length ? yechimQ.length * 28 + 10 : 0);
+      return { m, nomX, ichEni, sababQ, yechimQ, boy };
+    });
+    const H = 78 + olch.reduce((sum, o) => sum + o.boy + 18, 0);
     q.push(karta(CHET, y, TOLA, H, { r: 26 }));
     q.push(matn(S.sarlavha.belgilar, y + 52, { x: CHET + 30, olcham: 32, ogirlik: 700, rang: T.oq }));
 
-    muammolar.forEach((m, i) => {
-      const sy = y + 78 + i * SATR;
+    let sy = y + 78;
+    olch.forEach((o, i) => {
+      const { m, nomX, ichEni, sababQ, yechimQ } = o;
       const rang = m.foiz >= 60 ? T.qizil : m.foiz >= 35 ? T.sariq : T.yashil;
       if (i > 0) {
         q.push(`<line x1="${CHET + 30}" y1="${sy}" x2="${CHET + TOLA - 30}" y2="${sy}"
@@ -402,9 +445,8 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
       q.push(raqamNishoni(CHET + 52, sy + 50, 20, m.tartib, rang));
 
       // Yuzning O'SHA joyi — kattalashtirilgan bo'lak
-      let nomX = CHET + 84;
       if (rasmBase64 && m.joy) {
-        const tomon = 76, zoom = 4.2, kx = CHET + 84, ky = sy + 12;
+        const tomon = KESIM, zoom = 4.2, kx = CHET + 84, ky = sy + 12;
         const vEn = tomon * zoom * Math.max(1, rasmEni / rasmBoyi);
         const vBoy = tomon * zoom * Math.max(1, rasmBoyi / rasmEni);
         const ix = kx + tomon / 2 - (m.joy.x / 100) * vEn;
@@ -415,18 +457,33 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
             preserveAspectRatio="none"/></g>
           <rect x="${kx}" y="${ky}" width="${tomon}" height="${tomon}" rx="16"
             fill="none" stroke="${T.chiziq}" stroke-width="1.5"/>`);
-        nomX = kx + tomon + 20;
       }
 
       const foizX = CHET + TOLA - 30;
-      const ichEni = foizX - nomX - 90;
-      q.push(matn(kes(m.nom || '', ichEni, 28, 700), sy + 44,
+      q.push(matn(kes(m.nom || '', ichEni - 90, 28, 700), sy + 44,
         { x: nomX, olcham: 28, ogirlik: 700, rang: T.oq }));
       q.push(matn(`${m.foiz}%`, sy + 44, { x: foizX, oxiri: true, olcham: 28, ogirlik: 700, rang }));
       if (m.zona) {
-        q.push(matn(kes(m.zona, ichEni + 70, 21), sy + 72, { x: nomX, olcham: 21, rang: T.kul }));
+        q.push(matn(kes(m.zona, ichEni - 20, 21), sy + 72, { x: nomX, olcham: 21, rang: T.kul }));
       }
       q.push(shkala(nomX, sy + 84, foizX - nomX, m.foiz, rang, { balandlik: 8 }));
+
+      // SABABI va TAVSIYA — «nega shunday bo'ldi» va «nima qilay».
+      // Yorliq chapda, matn o'ngda: ko'z bir ustundan pastga yuradi.
+      let ty = sy + Math.max(KESIM + 24, 100) + 22;
+      const band = (yorliq, qatlar, tus) => {
+        if (!qatlar.length) return;
+        q.push(matn(yorliq, ty, { x: nomX, olcham: 17, ogirlik: 700, rang: tus }));
+        qatlar.forEach((str) => {
+          q.push(matn(str, ty, { x: nomX + 96, olcham: 21, rang: T.kul }));
+          ty += 28;
+        });
+        ty += 10;
+      };
+      band('SABABI', sababQ, T.och);
+      band('TAVSIYA', yechimQ, T.yashil);
+
+      sy += o.boy + 18;
     });
     y += H + 18;
   }
