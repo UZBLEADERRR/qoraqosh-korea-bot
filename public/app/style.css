@@ -1582,6 +1582,15 @@ html[data-mavzu="tungi"] .skan-belgilar .b-binafsha{background:#1d1729;color:#a9
   color: var(--urgu); margin-bottom: 20px; }
 .kirish-quti h2 { font-size: 23px; font-weight: 800; margin: 0 0 8px; }
 .kirish-quti p { color: var(--kul); line-height: 1.5; margin: 0 0 18px; font-size: 15px; }
+/* Chet el raqami haqidagi eslatma — kiritish maydonining OSTIDA,
+   ya'ni odam yozayotgan paytda ko'radi. Tepada bo'lsa u sarlavha
+   bilan qo'shilib ketardi va o'qilmasdi. */
+.kirish-mayda { font-size: 13px; color: var(--och); margin: -6px 0 16px;
+  line-height: 1.5; }
+.kirish-mayda b { color: var(--kul); }
+.maydon-izoh { font-size: 13px; color: var(--och); line-height: 1.5;
+  margin: -8px 0 14px; }
+.maydon-izoh b { color: var(--kul); font-weight: 700; }
 .kirish-quti input { width: 100%; padding: 15px 16px; font-size: 18px; font-weight: 600;
   text-align: center; letter-spacing: .5px; border: 1.5px solid var(--chiziq);
   border-radius: 14px; background: var(--karta); color: var(--matn); }

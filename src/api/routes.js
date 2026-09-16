@@ -3,6 +3,7 @@ import { qator, qatorlar, sorov, hodisa, sozlama } from '../db.js';
 import { verifyInitData } from '../lib/auth.js';
 import { sorovYarat, sorovHolati, seansdanUser, seansniYop, seanslarSoni }
   from '../services/ilova-kirish.js';
+import { raqamTozala } from '../lib/telefon.js';
 import { ok, xato, tana, json, ipOl } from '../lib/http.js';
 import { faolMahsulotlar, tahlilQil, oxirgiTahlil, limitHolati, rasmLimiti } from '../services/analysis.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
@@ -122,9 +123,13 @@ export async function apiRoutes(req, res, yol) {
 
   if (yol === '/api/register' && req.method === 'POST') {
     const b = await tana(req);
-    const tel = String(b.phone || '').replace(/[\s()-]/g, '');
     // Manzil bu yerda so'ralmaydi — u buyurtma rasmiylashtirishda olinadi.
-    if (!/^\+?998\d{9}$/.test(tel))                  return xato(res, 400, 'Telefon raqami noto‘g‘ri.');
+    // Raqam XALQARO: mijozlarning bir qismi Koreyada va Rossiyada.
+    const tel = raqamTozala(b.phone);
+    if (!tel) {
+      return xato(res, 400, 'Telefon raqami noto‘g‘ri. Chet el raqami bo‘lsa '
+                          + 'mamlakat kodi bilan yozing: +82 10 1234 5678');
+    }
     if (String(b.full_name || '').trim().length < 3) return xato(res, 400, 'Ism to‘liq emas.');
     if (!b.agreed)                                   return xato(res, 400, 'Ofertaga rozilik kerak.');
 
@@ -132,7 +137,7 @@ export async function apiRoutes(req, res, yol) {
       `update users set phone=$1, full_name=$2, age=$3, address=$4,
               agreed_at=now(), agreement_version='1.0', state=null
         where id=$5`,
-      [tel.startsWith('+') ? tel : '+' + tel,
+      [tel,
        String(b.full_name).trim().slice(0, 70),
        Math.min(90, Math.max(12, Number(b.age) || 0)) || null,
        String(b.address || '').trim().slice(0, 300) || null,
@@ -455,8 +460,11 @@ export async function apiRoutes(req, res, yol) {
     // yashirib yubormasligi kerak.
     const manzil = String(b.address ?? user.address ?? '').trim();
     if (manzil.length < 10) return xato(res, 400, 'Yetkazib berish manzilini to‘liq kiriting.');
-    const tel = String(b.phone ?? user.phone ?? '').replace(/[\s()-]/g, '');
-    if (!/^\+?998\d{9}$/.test(tel)) return xato(res, 400, 'Telefon raqamini tekshiring.');
+    const tel = raqamTozala(b.phone ?? user.phone);
+    if (!tel) {
+      return xato(res, 400, 'Telefon raqamini tekshiring. Chet el raqami bo‘lsa '
+                          + 'mamlakat kodi bilan: +82 10 1234 5678');
+    }
     try {
       // Hududni ro'yxatga solishtiramiz. Mos kelmasa buyurtmani RAD ETMAYMIZ —
       // shunchaki noto'g'ri qismini tashlaymiz, aks holda eng yaqin ombor

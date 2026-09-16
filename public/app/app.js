@@ -239,11 +239,56 @@ const seansToken = () => { try { return localStorage.getItem(TOKEN_KALIT) || '';
 const seansSaqla = (t) => { try { localStorage.setItem(TOKEN_KALIT, t); } catch {} };
 const seansOchir = () => { try { localStorage.removeItem(TOKEN_KALIT); } catch {} };
 
-/** Raqamni yozilayotgan paytda formatlaydi: +998 90 123 45 67 */
+/* ── TELEFON RAQAMI — XALQARO ──
+ * Nusxasi `src/lib/telefon.js` da; sinov ikkalasini solishtiradi.
+ * Ilgari bu yerda faqat O'zbekiston raqami tan olinardi va Koreyada
+ * yoki Rossiyada yashovchi mijoz ro'yxatdan umuman o'tolmasdi. */
+const TEL_KOD = '998';          // kodsiz yozilgan raqam shunga tegishli
+const TEL_UZUN = 9;
+const TEL_ENG_KAM = 8, TEL_ENG_KOP = 15;   // E.164
+const TEL_KODLAR = ['998','996','995','994','993','992','971','966','380',
+  '375','374','90','86','82','81','49','44','7','1'];
+
+const telXalqaro = (x) => {
+  const t = String(x ?? '').trim();
+  return t.startsWith('+') || /^00\d/.test(t);
+};
+const telRaqam = (x) => String(x ?? '').replace(/\D/g, '');
+const telKod = (r) => TEL_KODLAR.find((k) => telRaqam(r).startsWith(k)) || null;
+
+/** `+998901234567` yoki null. */
+function raqamTozala(xom) {
+  const s = String(xom ?? '').trim();
+  if (!s) return null;
+  const xalqaro = telXalqaro(s);
+  const r = telRaqam(s.replace(/^00/, ''));
+  if (!r) return null;
+  if (xalqaro) return r.length >= TEL_ENG_KAM && r.length <= TEL_ENG_KOP ? `+${r}` : null;
+  if (r.length === TEL_UZUN) return `+${TEL_KOD}${r}`;
+  if (r.startsWith(TEL_KOD) && r.length === TEL_KOD.length + TEL_UZUN) return `+${r}`;
+  return null;
+}
+
+/* Yozilayotgan paytda bo'laklaydi.
+ * MUHIM: mamlakat kodi faqat `+` bilan yozilganda qidiriladi —
+ * aks holda mahalliy «90 123 45 67» Turkiya kodi (+90) deb tanilib,
+ * eng ko'p uchraydigan kiritish usuli buzilardi. */
 function raqamFormat(xom) {
-  const r = String(xom).replace(/\D/g, '').replace(/^998/, '').slice(0, 9);
-  const b = [r.slice(0, 2), r.slice(2, 5), r.slice(5, 7), r.slice(7, 9)].filter(Boolean);
-  return r ? `+998 ${b.join(' ')}` : '';
+  const xalqaro = telXalqaro(xom);
+  const r = telRaqam(String(xom ?? '').trim().replace(/^00/, '')).slice(0, TEL_ENG_KOP);
+  if (!r) return xalqaro ? '+' : '';
+  if (!xalqaro) {
+    const q = (r.startsWith(TEL_KOD) ? r.slice(TEL_KOD.length) : r).slice(0, TEL_UZUN);
+    const b = [q.slice(0, 2), q.slice(2, 5), q.slice(5, 7), q.slice(7, 9)];
+    return `+${TEL_KOD} ${b.filter(Boolean).join(' ')}`.trim();
+  }
+  const kod = telKod(r);
+  if (!kod) return `+${r}`;
+  const q = r.slice(kod.length);
+  const b = kod === TEL_KOD
+    ? [q.slice(0, 2), q.slice(2, 5), q.slice(5, 7), q.slice(7, 9)]
+    : [q.slice(0, 3), q.slice(3, 7), q.slice(7, 11), q.slice(11)];
+  return `+${kod} ${b.filter(Boolean).join(' ')}`.trim();
 }
 
 let kirishTimer = null;
@@ -262,8 +307,10 @@ function kirishQadam1(xato = '') {
     <div class="kirish-belgi">KiOVO</div>
     <h2>Telefon raqamingiz</h2>
     <p>Botga tasdiqlash so‘rovi keladi. Parol kerak emas.</p>
-    <input id="k-raqam" type="tel" inputmode="numeric" autocomplete="tel"
+    <input id="k-raqam" type="tel" inputmode="tel" autocomplete="tel"
            placeholder="+998 90 123 45 67" value="+998 ">
+    <p class="kirish-mayda">Chet elda bo‘lsangiz mamlakat kodi bilan yozing —
+      masalan <b>+82</b> (Koreya), <b>+7</b> (Rossiya).</p>
     ${xato ? `<div class="kirish-xato">${esc(xato)}</div>` : ''}
     <button class="asosiy" id="k-yubor">Davom etish</button>
     <button class="matnli" id="k-telegram">Telegramda ochish</button>`;
@@ -419,8 +466,12 @@ function royxatEkrani() {
       agreed:    true,           // manzil bu yerda emas — buyurtma paytida so'raladi
     };
     if (tana.full_name.length < 3) return xato.textContent = 'Ismingizni to‘liq yozing.';
-    if (!/^\+?998\d{9}$/.test(tana.phone.replace(/[\s()-]/g, '')))
-      return xato.textContent = 'Telefon: +998901234567 ko‘rinishida.';
+    const telToza = raqamTozala(tana.phone);
+    if (!telToza) {
+      return xato.textContent = 'Telefon raqamini tekshiring. Chet el raqami '
+                              + 'bo‘lsa mamlakat kodi bilan: +82 10 1234 5678';
+    }
+    tana.phone = telToza;
     if (!tana.age || tana.age < 12 || tana.age > 90)
       return xato.textContent = 'Yoshni 12–90 oralig‘ida kiriting.';
 
@@ -3168,7 +3219,8 @@ function checkoutOch() {
       <input id="b-ism" value="${esc(d.name || holat.user?.full_name || '')}">
 
       <label for="b-tel">Telefon</label>
-      <input id="b-tel" type="tel" inputmode="tel" value="${esc(d.phone || holat.user?.phone || '')}">
+      <input id="b-tel" type="tel" inputmode="tel" placeholder="+998 90 123 45 67"
+        value="${esc(d.phone || holat.user?.phone || '')}">
 
       <label>Viloyat</label>
       <button class="tanlov-tugma" id="b-viloyat-tugma">
@@ -3344,8 +3396,12 @@ async function buyurtmaYubor() {
     address: [viloyat, tuman, kocha].filter(Boolean).join(', '),
   };
   if (tana.name.length < 3) return xato.textContent = 'Ismni to‘liq yozing.';
-  if (!/^\+?998\d{9}$/.test(tana.phone.replace(/[\s()-]/g, '')))
-    return xato.textContent = 'Telefon raqamini tekshiring.';
+  const telTozalangan = raqamTozala(tana.phone);
+  if (!telTozalangan) {
+    return xato.textContent = 'Telefon raqamini tekshiring. Chet el raqami '
+                            + 'bo‘lsa mamlakat kodi bilan: +82 10 1234 5678';
+  }
+  tana.phone = telTozalangan;
   if (!viloyat) return xato.textContent = 'Viloyatni tanlang.';
   if (!tuman)   return xato.textContent = 'Tumanni tanlang.';
   if (kocha.length < 5) return xato.textContent = 'Ko‘cha, uy va xonadonni yozing.';

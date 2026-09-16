@@ -174,6 +174,35 @@ Google Gemini · Railway.
   keyin brauzerga 60 kunlik seans beriladi va ilova Chrome'da ham,
   bosh ekrandagi yorliqda ham xuddi oddiy ilovadek ishlaydi.
 
+  **Raqam XALQARO.** Ilgari hamma joyda `/^\+?998\d{9}$/` turardi va
+  boshqa davlat raqami butunlay rad etilardi — Koreyada, Rossiyada
+  yoki Qozog'istonda yashovchi mijoz ro'yxatdan ham o'tolmasdi,
+  kirolmasdi ham. Endi qoida E.164 bo'yicha: `+` va 8-15 raqam
+  (`src/lib/telefon.js`). Mamlakat kodi yozilmasa O'zbekiston deb
+  olinadi, ya'ni mahalliy odat (`90 123 45 67`) ishlayveradi.
+
+  Kodsiz XORIJIY raqam esa qabul qilinmaydi: `01012345678` qaysi
+  davlatniki ekanini bilib bo'lmaydi va taxmin qilish mijozning
+  raqamini buzib yuboradi. Shuning uchun formada «chet elda
+  bo'lsangiz mamlakat kodi bilan» deb yozib qo'yilgan.
+
+  > **Nega kutubxona qo'shilmadi.** `libphonenumber` 500 KB dan
+  > oshadi va Mini App ni og'irlashtiradi. Bizga raqamning to'g'ri
+  > kelishi va bir xil ko'rinishga tushishi yetarli — operator kodini
+  > mamlakat ichida tekshirish do'kon ishi emas.
+
+  > **Tuzoq: mahalliy `90…` Turkiya emas.** Formatlashda mamlakat
+  > kodi faqat `+` (yoki `00`) bilan yozilganda qidiriladi. Aks
+  > holda eng ko'p uchraydigan kiritish usuli — `90 123 45 67` —
+  > Turkiya kodi (+90) deb tanilib, `+90 123 4567` bo'lib buzilardi.
+
+  Bazada qidirish ham o'zgardi: ilgari **oxirgi 9 raqam** bo'yicha
+  `like '%…'` turardi. Xorijiy raqamlar qo'shilgach bu boshqa
+  davlatning butunlay boshqa raqamiga tasodifan mos kelib,
+  **begonaga tasdiqlash so'rovi** yuborishi mumkin edi. Endi to'liq
+  moslik; eski O'zbekiston yozuvlari uchun kodsiz variant ham
+  nomzodlar ro'yxatiga qo'shiladi.
+
   Parol yo'q: u yo'qoladi, o'g'irlanadi va tiklashni talab qiladi.
   Kirish faqat botdan ro'yxatdan o'tgan va telefoni tasdiqlangan
   odam uchun — raqamni bilgan begona kira olmaydi, chunki tasdiqni
@@ -1533,6 +1562,7 @@ src/
     narx.js            sotuv narxi: tannarx + yetkazish + sof foyda
     post-korinish.js   agent posti kanalda qanday chiqishini ko‘rsatuvchi sahifa
     eksport-havola.js  imzolangan, 30 daqiqada o‘ladigan yuklab olish havolasi
+    telefon.js         xalqaro telefon raqami (E.164) — bitta manba
     olchov.js          yettita doimiy teri o‘lchovi (ilova nusxasi bilan sinaladi)
     docx.js            .docx yozuvchi (ZIP + WordprocessingML), kutubxonasiz
     admin.js           kim admin — bot va admin API uchun bitta javob

@@ -15,6 +15,7 @@ import { qator, sorov } from '../db.js';
 import { yubor } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
 import { brendNomi } from '../lib/brend.js';
+import { raqamTozala, raqamYashir, qidiruvNomzodlari } from '../lib/telefon.js';
 
 const SOROV_MS  = 3 * 60_000;              // tasdiqlashga 3 daqiqa
 const SEANS_KUN = 60;                      // brauzer seansi 60 kun
@@ -22,29 +23,9 @@ const TOZALASH_ORALIQ = 6 * 60 * 60_000;   // eskilarni 6 soatda bir tozalaymiz
 
 const xesh = (t) => crypto.createHash('sha256').update(String(t)).digest('hex');
 
-/**
- * O'zbek raqamini bir ko'rinishga keltiradi.
- * Odam «90 123 45 67», «+998901234567», «998901234567» deb yozishi
- * mumkin — hammasi bitta raqam.
- */
-export function raqamTozala(xom) {
-  const r = String(xom || '').replace(/\D/g, '');
-  if (!r) return null;
-  const oxirgi9 = r.slice(-9);
-  return oxirgi9.length === 9 ? `+998${oxirgi9}` : null;
-}
-
-/**
- * Ko'rsatish uchun niqoblangan raqam: +998 90 *** ** 67
- *
- * To'liq ko'rsatmaymiz: ekranni birov ko'rib qolsa raqam qo'lga
- * tushmasin. Operator va oxirgi ikki raqam odamning o'z raqamini
- * tanishi uchun yetarli.
- */
-export const raqamYashir = (r) => {
-  const d = String(r || '').replace(/\D/g, '').slice(-9);
-  return d.length === 9 ? `+998 ${d.slice(0, 2)} *** ** ${d.slice(-2)}` : String(r || '');
-};
+// Raqam bilan ishlash BITTA joyda — `src/lib/telefon.js`. Ilgari bu
+// yerda o'z nusxasi turardi va u faqat O'zbekiston raqamini bilardi.
+export { raqamTozala, raqamYashir } from '../lib/telefon.js';
 
 let oxirgiTozalash = 0;
 async function eskilarniTozala() {
@@ -65,15 +46,23 @@ export async function sorovYarat(xomRaqam, { ip = '', qurilma = '' } = {}) {
   eskilarniTozala().catch(() => {});
 
   const raqam = raqamTozala(xomRaqam);
-  if (!raqam) return { xato: 'Telefon raqamini to‘liq kiriting: +998 90 123 45 67' };
+  if (!raqam) {
+    return { xato: 'Telefon raqamini to‘liq kiriting. Chet el raqami bo‘lsa '
+                 + 'mamlakat kodi bilan: +82 10 1234 5678' };
+  }
 
   // Faqat botdan ro'yxatdan o'tganlar. Aks holda begona odam istalgan
   // raqamni kiritib, birovga xabar yog'dirishi mumkin bo'lardi.
+  // TO'LIQ moslik bo'yicha qidiramiz. Ilgari oxirgi 9 raqam bo'yicha
+  // `like '%…'` turardi: xorijiy raqamlar qo'shilgach bu boshqa
+  // davlatning butunlay boshqa raqamiga tasodifan mos kelib,
+  // begonaga tasdiqlash so'rovi yuborilishi mumkin edi.
+  // `qidiruvNomzodlari` eski yozuvlarni ham hisobga oladi.
   const u = await qator(
     `select id, telegram_id, full_name, is_blocked from users
-      where regexp_replace(coalesce(phone, ''), '\\D', '', 'g') like '%' || $1
+      where regexp_replace(coalesce(phone, ''), '\\D', '', 'g') = any($1)
         and telegram_id is not null
-      order by id limit 1`, [raqam.slice(-9)]);
+      order by id limit 1`, [qidiruvNomzodlari(raqam)]);
 
   if (!u || u.is_blocked) {
     // Qaysi raqam ro'yxatda borligini oshkor qilmaymiz — bu raqamlarni

@@ -1377,6 +1377,93 @@ console.log('\n── O‘ZBEKCHA NOM ──');
 // Bosh ekrandagi yorliq Telegramni ochishga majbur qilardi. Endi odam
 // raqamini kiritadi, botga tasdiqlash keladi, tasdiqlagach brauzerda
 // ham xuddi oddiy ilovadek ishlaydi.
+// ═══════════ XALQARO TELEFON RAQAMI ═══════════
+//
+// «Nega faqat o'zbekcha telefon raqam bor — buni boshqa davlatdagilar
+// ham foydalana olsin.» Ilgari hamma joyda `/^\+?998\d{9}$/` turardi
+// va Koreyada yoki Rossiyada yashovchi mijoz ro'yxatdan umuman
+// o'tolmasdi.
+console.log('\n── XALQARO TELEFON RAQAMI ──');
+{
+  const T = await import('../src/lib/telefon.js');
+
+  // Mahalliy odat buzilmasligi kerak — eng ko'p uchraydigan holat
+  test('mahalliy raqam kodsiz ham ishlaydi',
+    T.raqamTozala('90 123 45 67') === '+998901234567'
+      && T.raqamTozala('998901234567') === '+998901234567'
+      && T.raqamTozala('+998 90 123 45 67') === '+998901234567');
+
+  // Xorijiy raqamlar
+  test('Koreya raqami qabul qilinadi',
+    T.raqamTozala('+82 10 1234 5678') === '+821012345678');
+  test('Rossiya/Qozog‘iston raqami',
+    T.raqamTozala('+7 701 234 56 78') === '+77012345678');
+  test('AQSh raqami', T.raqamTozala('+1 202 555 0147') === '+12025550147');
+  test('Turkiya raqami', T.raqamTozala('+90 532 123 45 67') === '+905321234567');
+  test('«00» xalqaro prefiksi ham tushuniladi',
+    T.raqamTozala('008210 12345678') === '+821012345678');
+
+  // Chegaralar — E.164
+  test('chala raqam rad etiladi', T.raqamTozala('90 123') === null);
+  test('juda qisqa xalqaro raqam rad etiladi', T.raqamTozala('+123') === null);
+  test('15 raqamdan uzuni rad etiladi',
+    T.raqamTozala('+' + '9'.repeat(16)) === null);
+  test('15 raqam esa qabul qilinadi',
+    T.raqamTozala('+' + '9'.repeat(15)) === '+' + '9'.repeat(15));
+
+  // Kodsiz XORIJIY raqam qabul qilinmaydi — qaysi davlatniki ekani
+  // noma'lum va taxmin qilish mijozning raqamini buzib yuboradi
+  test('kodsiz xorijiy raqam TAXMIN qilinmaydi',
+    T.raqamTozala('01012345678') === null);
+
+  // Formatlash. Eng muhim tuzoq: mahalliy «90…» Turkiya kodi (+90)
+  // deb tanilib, «+90 123 4567» bo'lib buzilardi
+  test('mahalliy «90…» Turkiya deb o‘qilmaydi',
+    T.raqamFormat('90 123 45 67') === '+998 90 123 45 67',
+    T.raqamFormat('90 123 45 67'));
+  test('«+90…» esa haqiqatan Turkiya',
+    T.raqamFormat('+90 532 123 45 67').startsWith('+90 '),
+    T.raqamFormat('+90 532 123 45 67'));
+  test('yozilayotganda ham bo‘laklanadi',
+    T.raqamFormat('901') === '+998 90 1');
+
+  // Niqoblash
+  test('mahalliy raqam niqoblanadi',
+    T.raqamYashir('+998901234567') === '+998 90 *** ** 67',
+    T.raqamYashir('+998901234567'));
+  test('xorijiy raqam ham niqoblanadi',
+    T.raqamYashir('+821012345678').startsWith('+82 10 ')
+      && T.raqamYashir('+821012345678').endsWith(' 78'),
+    T.raqamYashir('+821012345678'));
+
+  // Bazada qidirish: XORIJIY raqamda faqat to'liq moslik
+  test('mahalliy raqam eski yozuv bilan ham topiladi',
+    T.qidiruvNomzodlari('+998901234567').join() === '998901234567,901234567');
+  test('xorijiy raqamda FAQAT to‘liq moslik — begonaga xabar ketmaydi',
+    T.qidiruvNomzodlari('+821012345678').join() === '821012345678');
+
+  // Server va ilova nusxasi ajralib ketmasin
+  const fsT = await import('node:fs');
+  const ilovaJs2 = fsT.readFileSync('public/app/app.js', 'utf8');
+  const kodlarIlova = (ilovaJs2.match(/const TEL_KODLAR = \[([^\]]+)\]/) || [])[1] || '';
+  test('ilovadagi mamlakat kodlari server bilan BIR XIL',
+    T.KODLAR.every((k) => kodlarIlova.includes(`'${k}'`))
+      && (kodlarIlova.match(/'/g) || []).length / 2 === T.KODLAR.length,
+    `${T.KODLAR.length} ta`);
+  test('ilovada ham «+» siz mamlakat kodi qidirilmaydi',
+    /if \(!xalqaro\) \{/.test(ilovaJs2));
+
+  // Server tomonidagi tekshiruvlarda eski qat'iy shablon qolmasin
+  const srvFayllar = ['src/api/routes.js', 'src/bot/handlers/register.js',
+                      'src/services/ilova-kirish.js'];
+  test('serverda «faqat 998» tekshiruvi qolmadi',
+    srvFayllar.every((f) => !/\\\+\?998\\d\{9\}/.test(fsT.readFileSync(f, 'utf8'))),
+    srvFayllar.join(', '));
+  test('ilovada ham qolmadi', !/\\\+\?998\\d\{9\}/.test(ilovaJs2));
+  test('ro‘yxat formasida chet el haqida yozilgan',
+    /\+82<\/b> Koreya|<b>\+82<\/b>/.test(fsT.readFileSync('public/app/index.html', 'utf8')));
+}
+
 console.log('\n── TELEGRAMSIZ KIRISH ──');
 {
   const K = await import('../src/services/ilova-kirish.js');

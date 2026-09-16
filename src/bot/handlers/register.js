@@ -9,6 +9,7 @@ import { asosiyMenyu, telefonSora, shartnomaTugmalari } from '../keyboards.js';
 import { brendNomi } from '../../lib/brend.js';
 import { adminmi } from '../../lib/admin.js';
 import { xabar } from '../shablon.js';
+import { raqamTozala } from '../../lib/telefon.js';
 
 export const HOLAT = {
   TELEFON:   'reg_telefon',
@@ -42,14 +43,17 @@ export async function qadam(msg, user) {
         await yubor(chatId, '⚠️ <b>O‘zingizning</b> raqamingizni ulashing.', { reply_markup: telefonSora() });
         return true;
       }
-      if (!tel && /^\+?998\d{9}$/.test(matn.replace(/[\s()-]/g, ''))) tel = matn.replace(/[\s()-]/g, '');
+      // Qo'lda yozilgan raqam ham qabul qilinadi — XALQARO ham.
+      // Telegram ulashgan kontakt har doim to'liq kodli bo'ladi.
+      tel = raqamTozala(tel || matn);
       if (!tel) {
         await yubor(chatId,
-          '📱 Pastdagi tugmani bosing yoki raqamni <code>+998901234567</code> ko‘rinishida yozing.',
+          '📱 Pastdagi tugmani bosing yoki raqamni yozing:\n'
+          + '<code>+998 90 123 45 67</code>\n'
+          + 'Chet el raqami bo‘lsa mamlakat kodi bilan: <code>+82 10 1234 5678</code>',
           { reply_markup: telefonSora() });
         return true;
       }
-      if (!tel.startsWith('+')) tel = '+' + tel;
       await sorov('update users set phone=$1, state=$2 where id=$3', [tel, HOLAT.ISM, user.id]);
       await yubor(chatId, `✅ <b>2/3</b> · Ismingizni yozing.`,
         { reply_markup: { remove_keyboard: true } });
