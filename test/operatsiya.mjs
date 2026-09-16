@@ -2355,14 +2355,20 @@ console.log('\n── BOSH SAHIFA / kiovo.shop ──');
   const ilovaManifest = JSON.parse(fs.readFileSync('public/app/manifest.json', 'utf8'));
 
   test('bosh sahifada MANIFEST ulangan', /rel="manifest" href="\/uy\/manifest\.json"/.test(bosh));
-  // Saytning manifesti O'ZINIKI: `/app/manifest.json` ni ulasak
-  // yorliq Telegram ilovasini ochardi, brauzerdan o'rnatgan odam
-  // esa aynan shu saytni kutadi
-  test('saytning yorlig‘i SAYTNI ochadi', manifest.start_url === '/', manifest.start_url);
-  test('ilova manifesti esa mini ilovani', ilovaManifest.start_url === '/app/');
+  // «Saytda ilovani o'rnatsam sayt ochilyapti, ilova emas.»
+  // Yorliq `/app/ochish` ga tushadi va server uni Telegram
+  // ilovasiga yo'naltiradi — odam «ilova» deganda ILOVANI kutadi.
+  test('yorliq ILOVANI ochadi, saytni emas',
+    manifest.start_url === '/app/ochish', manifest.start_url);
+  test('ilova manifesti ham o‘zgarmadi', ilovaManifest.start_url === '/app/');
   test('qamrov butun domen', manifest.scope === '/');
   test('start_url qamrov ichida', manifest.start_url.startsWith(manifest.scope));
-  test('tez havolalar bor — skaner va do‘kon',
+  test('`id` o‘zgarmadi — o‘rnatgan odamda yangisi paydo bo‘lmaydi',
+    manifest.id === '/');
+  const srvKod0 = fs.readFileSync('src/server.js', 'utf8');
+  test('server `/app/ochish` ni Telegramga yo‘naltiradi',
+    /yol === '\/app\/ochish'/.test(srvKod0) && /ilovaHavolasi\(\)/.test(srvKod0));
+  test('tez havolalar bor — skaner va sayt',
     (manifest.shortcuts || []).length === 2,
     (manifest.shortcuts || []).map((x) => x.url).join(', '));
 
@@ -2412,14 +2418,48 @@ console.log('\n── BOSH SAHIFA / kiovo.shop ──');
   test('bosh sahifa `uy` papkasidan beriladi',
     /if \(yol === '\/' \)\s+return sahifa\(res, 'uy'\)/.test(srvKod2));
 
-  // Dizayn brendga mos: plakatdan olingan ranglar
+  // Dizayn brendga mos: FAQAT qizil va och yashil
   test('plakat ranglari ishlatilgan',
-    /--lime:#c6ec93/.test(uyCss) && /--qizil-tim:#6e0f12/.test(uyCss));
+    /--lime:#c6ec93/.test(uyCss) && /--qizil-tim:#5e0b0e/.test(uyCss));
   test('brend qizili ilova bilan bir xil', /--qizil:#b3161c/.test(uyCss));
   // Rasm chetdan chiqib turardi va sahifa yon tomonga suriladigan
   // bo'lib qolgandi — telefonda bu darrov bilinadi
   test('qahramon yorug‘ligi rasm ICHIDA',
     /\.qahramon-rasm::after\{content:'';position:absolute;inset:auto 0 0 0/.test(uyCss));
+  test('skaner nuri ham qirqiladi',
+    /\.skan-bolim\{background:var\(--qora\);overflow:hidden/.test(uyCss));
+
+  // «Sayt rasmni yuqoriga joylab» — plakat sahifaning eng tepasida
+  test('plakat matndan OLDIN turadi',
+    bosh.indexOf('qahramon-rasm') < bosh.indexOf('qahramon-matn'));
+  test('keng ekranda esa matn chapga o‘tadi',
+    /\.qahramon-matn\{order:-1\}/.test(uyCss));
+
+  // Skaner bo'limida natija ekranining rasmi
+  test('skaner natijasi rasmi joylandi', /<img src="\/uy\/skaner\.jpg"/.test(bosh));
+  test('skaner rasmi bor va yengil',
+    fs.existsSync('public/uy/skaner.jpg')
+      && fs.statSync('public/uy/skaner.jpg').size < 400 * 1024,
+    `${(fs.statSync('public/uy/skaner.jpg').size / 1024).toFixed(0)} KB`);
+
+  // ── Animatsiya ──
+  test('bir xil harakat — pastdan ko‘tarilish', /@keyframes kotaril/.test(uyCss));
+  test('qahramon JS ni KUTMAYDI — birinchi ekran darrov jonlanadi',
+    /\.qahramon \.jon\{animation:kotaril/.test(uyCss));
+  test('qolgani ekranga kirganda', /IntersectionObserver/.test(uyJs));
+  // Kuzatuvchi hodisani o'tkazib yuborsa blok BUTUNLAY ko'rinmay
+  // qolardi — reklama sahifasi uchun bu falokat
+  test('kuzatuvchi o‘tkazib yuborsa ham ochiladi',
+    /function surilganda/.test(uyJs) && /engPast/.test(uyJs));
+  test('o‘tib ketilgan blok tepaga qaytganda ham ochiq qoladi',
+    /const chegara = engPast \+ window\.innerHeight/.test(uyJs));
+  test('rasm yuklangach qayta tekshiriladi',
+    /addEventListener\('load', surilganda/.test(uyJs));
+  test('hammasi ochilgach tinglovchi o‘chadi',
+    /removeEventListener\('scroll', surilganda\)/.test(uyJs));
+  test('harakatni xohlamaganlarga animatsiya YO‘Q',
+    /prefers-reduced-motion:reduce/.test(uyCss)
+      && /\.jon,\.qahramon \.jon\{opacity:1!important/.test(uyCss));
 
   // Kirish oqimi bot bilan BIR XIL foydalanuvchiga bog'lanadi —
   // ya'ni ma'lumot avtomatik sinxron

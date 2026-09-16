@@ -1069,9 +1069,9 @@ tizimlari uni indekslay oladi.
 
 | Bo'lim | Nima qiladi |
 |---|---|
-| Qahramon | Brend plakati, «Yuzni bepul skanerlash» va «Do'konni ochish» |
+| Qahramon | Brend plakati ENG TEPADA, ostida sarlavha va ikki tugma |
 | Uch qadam | Skaner qanday ishlashi |
-| Yuz skaneri | `/skan/` ga olib boradi — o'sha ochiq skaner |
+| Yuz skaneri | Natija ekranining rasmi va `/skan/` ga tugma |
 | Do'kondan | Sotuvda turgan 8 ta mahsulot, `/api/ochiq/sayt` dan |
 | Bog'laning | Telefon, konsultant, Instagram, bot — sozlamadan |
 | Ekranga o'rnatish | PWA: Android'da tugma, iPhone'da qo'lda yo'l |
@@ -1089,11 +1089,21 @@ qoldig'i, mijoz ma'lumoti, karta raqami — hech biri tushmaydi.
 Mahsulotlar `stock > 0` va rasmi bor bo'lgani, eng ko'p sotilgani
 birinchi: saytda ko'ringan narsa do'konda ham bo'lishi kerak.
 
-**Ikkita manifest, ikki xil yorliq.** `/uy/manifest.json` ning
-`start_url` i `/` — brauzerdan «ekranga qo'shgan» odam aynan shu
-saytni ochadi. `/app/manifest.json` niki esa `/app/` va u Telegram
-ilovasini ochadi. Bittasi bilan cheklansak, saytdan o'rnatgan odam
-kutilmaganda Telegramga tushib qolardi.
+**O'rnatilgan yorliq ILOVANI ochadi.** `/uy/manifest.json` ning
+`start_url` i `/app/ochish` — server uni Telegram ilovasiga
+yo'naltiradi. Ilgari u `/` edi va yorliq bosilganda yana o'sha
+sayt ochilardi: odam «ilovani o'rnatdim» deganda ilovani kutadi,
+saytni emas. `id` esa `/` bo'lib qoladi — aks holda allaqachon
+o'rnatgan odamda ikkinchi yorliq paydo bo'lardi.
+
+**Animatsiya bitta tilda:** hamma narsa pastdan ko'tarilib
+paydo bo'ladi. Qahramon JS ni kutmaydi (CSS bilan, navbat bilan),
+qolgani ekranga kirganda. Kuzatuvchi (`IntersectionObserver`)
+hodisani o'tkazib yuborsa blok BUTUNLAY ko'rinmay qolardi —
+reklama sahifasi uchun bu falokat, shuning uchun sirilishda yengil
+tekshiruv ham yuradi. U eng pastki nuqtaga nisbatan hisoblaydi:
+bir marta o'tib ketilgan blok tepaga qaytilganda ham ochiq qoladi.
+`prefers-reduced-motion` yoqilgan bo'lsa animatsiya umuman yo'q.
 
 **Qidiruv uchun:** `/robots.txt` va `/sitemap.xml` server tomonidan
 `PUBLIC_URL` dan yasaladi; `/admin`, `/api/`, `/media/`, `/eksport/`
@@ -1544,6 +1554,7 @@ src/
 public/
   uy/                  kiovo.shop bosh sahifasi (index.html, app.js, style.css)
     hero.jpg           qahramon plakat
+    skaner.jpg         skaner natijasi qanday ko'rinishi
     manifest.json      PWA: saytni telefon ekraniga o'rnatish
   skan/                Instagram uchun ochiq yuz skaneri
   app/                 Mini App

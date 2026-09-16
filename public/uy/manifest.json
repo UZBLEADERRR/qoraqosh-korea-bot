@@ -2,12 +2,12 @@
   "name": "KiOVO — Koreya kosmetikasi",
   "short_name": "KiOVO",
   "description": "AI yuz skaneri va aynan sizga mos Koreya parvarishi",
-  "start_url": "/",
+  "start_url": "/app/ochish",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#140708",
-  "theme_color": "#6e0f12",
+  "background_color": "#2a0709",
+  "theme_color": "#5e0b0e",
   "lang": "uz",
   "dir": "ltr",
   "categories": ["shopping", "beauty", "health"],
@@ -19,7 +19,7 @@
   ],
   "shortcuts": [
     { "name": "Yuz skaneri", "url": "/skan/" },
-    { "name": "Do‘kon", "url": "/app/ochish" }
+    { "name": "Sayt", "url": "/" }
   ],
   "id": "/"
 }

@@ -37,8 +37,9 @@
         </span>
       </a>`).join('');
     el.hidden = false;
-    const izoh = $('#mahsulot-izoh');
-    if (izoh) izoh.hidden = false;
+    // Serverdan kelgan kartalar ham boshqalar kabi ko'tarilib
+    // chiqadi — ular sahifaga «yopishtirilgandek» tushib qolmasin
+    kuzat(el.querySelectorAll('.mahsulot'));
   }
 
   /** Aloqa: telefon va Telegram. Sozlanmagani umuman chiqmaydi —
@@ -64,6 +65,82 @@
     // Bot kartasi HTML da allaqachon bor — u har doim turadi
     if (qism.length) el.insertAdjacentHTML('afterbegin', qism.join(''));
   }
+
+  /* ── Ekranga kirganda jonlanish ──
+   *
+   * `IntersectionObserver` asosiy yo'l: brauzer elementni o'zi
+   * kuzatadi va biz har sirilishda hisob-kitob qilmaymiz.
+   *
+   * Lekin u YETARLI EMAS. Tez sirilganda yoki sahifa fonda
+   * turganda hodisa yetib kelmay qolishi mumkin va element
+   * BUTUNLAY ko'rinmay qoladi — sahifada bo'sh joy qoladi.
+   * Reklama sahifasi uchun bu falokat: odam mahsulotni umuman
+   * ko'rmaydi. Shuning uchun sirilishda ham yengil tekshiruv
+   * yuradi va qolib ketganini ochadi. Hammasi ochilgach tinglovchi
+   * o'chadi, ya'ni doimiy yuk yo'q.
+   */
+  const kutayotgan = new Set();
+
+  const koching = (el) => {
+    el.classList.add('kordi');
+    kutayotgan.delete(el);
+    if (KUZATUVCHI) KUZATUVCHI.unobserve(el);
+    if (!kutayotgan.size) window.removeEventListener('scroll', surilganda);
+  };
+
+  const KUZATUVCHI = 'IntersectionObserver' in window
+    ? new IntersectionObserver((yozuvlar) => {
+        yozuvlar.forEach((y) => { if (y.isIntersecting) koching(y.target); });
+      }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' })
+    : null;
+
+  /* Tekshiruv ENG PASTKI nuqtaga nisbatan yuritiladi, hozirgi
+   * joyga emas. Sahifa tepasiga qaytilsa ham bir marta o'tib
+   * ketilgan element ochiq qoladi — aks holda «yuqoriga» tugmasi
+   * yoki langar havola sakrab o'tganda blok butunlay ko'rinmay
+   * qolardi: brauzer bitta kadr ichida bo'lgan o'tishni umuman
+   * sezmaydi. */
+  let engPast = 0;
+  let rejalashtirilgan = false;
+  function surilganda() {
+    engPast = Math.max(engPast, window.scrollY || 0);
+    if (rejalashtirilgan) return;
+    rejalashtirilgan = true;
+    requestAnimationFrame(() => {
+      rejalashtirilgan = false;
+      engPast = Math.max(engPast, window.scrollY || 0);
+      const chegara = engPast + window.innerHeight * 0.94;
+      [...kutayotgan].forEach((el) => {
+        const tepa = el.getBoundingClientRect().top + (window.scrollY || 0);
+        if (tepa < chegara) koching(el);
+      });
+    });
+  }
+
+  function kuzat(elementlar) {
+    [...elementlar].forEach((el) => {
+      el.classList.add('jon');
+      kutayotgan.add(el);
+      if (KUZATUVCHI) KUZATUVCHI.observe(el);
+    });
+    if (kutayotgan.size) {
+      window.addEventListener('scroll', surilganda, { passive: true });
+      window.addEventListener('resize', surilganda, { passive: true });
+      surilganda();                 // birinchi ekrandagilar darrov
+      // Rasmlar yuklangach balandliklar o'zgaradi va birinchi
+      // hisob eskirib qoladi — yana bir marta tekshiramiz
+      window.addEventListener('load', surilganda, { once: true });
+      setTimeout(surilganda, 1200);
+    }
+  }
+
+  // Qahramon CSS bilan o'zi jonlanadi (JS ni kutmaydi), qolgani
+  // ekranga kirganda
+  // `:not(.qahramon .jon)` ni ishlatmaymiz — murakkab `:not()` eski
+  // brauzerlarda butun selektorni yaroqsiz qiladi va U PAYT hech
+  // narsa ochilmasdi
+  kuzat([...document.querySelectorAll('.jon')]
+    .filter((el) => !el.closest('.qahramon')));
 
   /* Bot havolasi.
    *

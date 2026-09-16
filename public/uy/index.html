@@ -8,12 +8,11 @@
 <link rel="canonical" href="__ASOS__/">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 
-<!-- Saytning O'Z manifesti. `/app/manifest.json` ni ulab bo'lmaydi:
-     uning start_url i `/app/` va yorliq Telegram ilovasini ochadi.
-     Brauzerdan «ekranga qo'shgan» odam esa aynan SHU sahifani
-     kutadi — bu yerdan u skanerga ham, botga ham o'tadi. -->
+<!-- Saytning O'Z manifesti. Yorliq bosilganda `/app/ochish` ochiladi
+     va server uni Telegram ilovasiga yo'naltiradi: odam «ilovani
+     o'rnatdim» deganda aynan ILOVANI kutadi, saytni emas. -->
 <link rel="manifest" href="/uy/manifest.json">
-<meta name="theme-color" content="#6e0f12">
+<meta name="theme-color" content="#5e0b0e">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -26,13 +25,13 @@
 <meta property="og:url" content="__ASOS__/">
 <meta name="twitter:card" content="summary_large_image">
 
-<link rel="preload" as="image" href="/uy/hero.jpg">
+<link rel="preload" as="image" href="/uy/hero.jpg" fetchpriority="high">
 <link rel="stylesheet" href="/uy/style.css">
 </head>
 <body>
 
 <!-- ══ Yuqori panel ══ -->
-<header class="bosh" id="bosh">
+<header class="bosh">
   <a class="logo" href="/" aria-label="KiOVO bosh sahifa">
     <svg viewBox="0 0 34 20" aria-hidden="true"><path d="M3 3a14 14 0 0 0 28 0"
       fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
@@ -43,112 +42,100 @@
     <a href="#mahsulot">Mahsulotlar</a>
     <a href="#aloqa">Aloqa</a>
   </nav>
-  <a class="tug tug-kichik" href="/app/ochish" data-bot>Telegramda ochish</a>
+  <a class="tug tug-lime tug-kichik" href="/app/ochish" data-bot>Do‘konni ochish</a>
 </header>
 
 <main>
 
-<!-- ══ 1. QAHRAMON ══ -->
+<!-- ══ 1. QAHRAMON — RASM ENG TEPADA ══ -->
 <section class="qahramon">
-  <div class="qahramon-matn">
-    <p class="uz-teg">오늘도 예쁜 너의 무드</p>
-    <h1>Bugun teringiz<br><em>qanday kayfiyatda?</em></h1>
-    <p class="qahramon-izoh">Yuzingizni sun’iy intellekt skaner qiladi —
-      yetti ko‘rsatkich bo‘yicha baho, topilgan muammolarning sababi va
-      aynan sizga mos Koreya parvarishi.</p>
-
-    <div class="tugmalar">
-      <a class="tug tug-lime" href="/skan/">Yuzni bepul skanerlash</a>
-      <a class="tug tug-shaffof" href="/app/ochish" data-bot>Do‘konni ochish</a>
-    </div>
-
-    <ul class="belgilar">
-      <li><b>30 soniya</b><span>skaner natijasi</span></li>
-      <li><b>7 o‘lchov</b><span>teri diagnostikasi</span></li>
-      <li><b>100%</b><span>Koreya mahsuloti</span></li>
-    </ul>
-  </div>
-
-  <figure class="qahramon-rasm">
+  <figure class="qahramon-rasm jon" data-jon="1">
     <img src="/uy/hero.jpg" width="1000" height="1500" fetchpriority="high"
       alt="KiOVO do‘koni: skincare javonlari va FACE SCAN kioskasi">
   </figure>
+
+  <div class="qahramon-matn">
+    <p class="uz-teg jon" data-jon="2">오늘도 예쁜 너의 무드</p>
+    <h1 class="jon" data-jon="3">Teringiz<br><em>o‘zi gapirsin</em></h1>
+    <p class="qahramon-izoh jon" data-jon="4">Sun’iy intellekt yuzingizni
+      skaner qiladi va aynan sizga mos Koreya parvarishini tuzib beradi.</p>
+
+    <div class="tugmalar jon" data-jon="5">
+      <a class="tug tug-lime tug-katta" href="/skan/">Yuzni bepul skanerlash</a>
+      <a class="tug tug-shaffof tug-katta" href="/app/ochish" data-bot>Do‘konni ochish</a>
+    </div>
+
+    <ul class="belgilar jon" data-jon="6">
+      <li><b>30 soniya</b><span>natija</span></li>
+      <li><b>7 o‘lchov</b><span>diagnostika</span></li>
+      <li><b>100%</b><span>Koreya</span></li>
+    </ul>
+  </div>
 </section>
 
-<!-- ══ 2. QANDAY ISHLAYDI ══ -->
+<!-- ══ 2. UCH QADAM ══ -->
 <section class="bolim" id="qanday">
-  <h2>Uch qadam, tamom</h2>
+  <h2 class="jon">Uch qadam, tamom</h2>
   <div class="qadamlar">
-    <article><span class="n">1</span><h3>Suratga oling</h3>
-      <p>Telefon kamerasi yetarli. Skaner yuzni o‘zi topadi va qulay
-        payt kelganda rasmni avtomatik oladi.</p></article>
-    <article><span class="n">2</span><h3>Natijani ko‘ring</h3>
-      <p>Teshiklar, ajinlar, pigment, qizarish, tekstura, namlik,
-        yog‘lilik — har biriga 0–100 baho va tushuntirish.</p></article>
-    <article><span class="n">3</span><h3>Parvarishni oling</h3>
-      <p>Tozalash → toner → davolash → namlash → himoya. Qaysi
-        mahsulot va nima uchun — bosqichma-bosqich.</p></article>
+    <article class="jon"><span class="n">1</span><h3>Suratga oling</h3>
+      <p>Skaner yuzni o‘zi topadi va qulay payt kelganda rasmni oladi.</p></article>
+    <article class="jon"><span class="n">2</span><h3>Natijani ko‘ring</h3>
+      <p>Yetti ko‘rsatkich, topilgan muammolar va ularning sababi.</p></article>
+    <article class="jon"><span class="n">3</span><h3>Parvarishni oling</h3>
+      <p>Tozalashdan himoyagacha — qaysi mahsulot va nima uchun.</p></article>
   </div>
 </section>
 
 <!-- ══ 3. SKANER ══ -->
-<section class="bolim skan-bolim" id="skan">
+<section class="skan-bolim" id="skan">
   <div class="skan-ich">
-    <div>
-      <p class="yorliq">FACE SCAN</p>
-      <h2>Teringizni raqamlarda ko‘ring</h2>
-      <p class="katta-izoh">Salon apparatlari o‘lchaydigan o‘sha yetti
-        ko‘rsatkich. Natijada suratingiz ustida muammolar raqamlanadi,
-        har birining sababi va tavsiyasi yoziladi.</p>
-      <a class="tug tug-lime" href="/skan/">Hoziroq skanerlash</a>
-      <p class="mayda">Ro‘yxatdan o‘tmasdan, bepul. To‘liq natija botda.</p>
+    <div class="skan-matn">
+      <p class="yorliq jon">FACE SCAN</p>
+      <h2 class="jon">Teringizni <em>raqamlarda</em> ko‘ring</h2>
+      <p class="katta-izoh jon">Salon apparatlari o‘lchaydigan o‘sha yetti
+        ko‘rsatkich. Muammolar suratingiz ustida belgilanadi, har birining
+        sababi va tavsiyasi yoziladi.</p>
+      <a class="tug tug-lime tug-katta jon" href="/skan/">Hoziroq skanerlash</a>
     </div>
-    <ul class="olchovlar" aria-label="O‘lchanadigan ko‘rsatkichlar">
-      <li><b>Teshiklar</b><i style="--p:72%"></i></li>
-      <li><b>Ajinlar</b><i style="--p:86%"></i></li>
-      <li><b>Pigment</b><i style="--p:64%"></i></li>
-      <li><b>Qizarish</b><i style="--p:58%"></i></li>
-      <li><b>Tekstura</b><i style="--p:79%"></i></li>
-      <li><b>Namlik</b><i style="--p:88%"></i></li>
-      <li><b>Yog‘lilik</b><i style="--p:52%"></i></li>
-    </ul>
+
+    <figure class="skan-rasm jon">
+      <img src="/uy/skaner.jpg" width="940" height="1000" loading="lazy"
+        alt="Skaner natijasi: umumiy ball, ko‘rsatkichlar va aniqlangan muammolar">
+    </figure>
   </div>
 </section>
 
 <!-- ══ 4. MAHSULOTLAR ══ -->
 <section class="bolim" id="mahsulot">
   <div class="bolim-bosh">
-    <h2>Do‘kondan</h2>
-    <a class="havola" href="/app/ochish" data-bot>Hammasini ko‘rish →</a>
+    <h2 class="jon">Do‘kondan</h2>
+    <a class="havola jon" href="/app/ochish" data-bot>Hammasini ko‘rish →</a>
   </div>
   <!-- Ro'yxat serverdan keladi. Kelmasa bu joy butunlay yashiriladi:
        bo'sh javon «do'kon ishlamayapti» degan taassurot qoldiradi. -->
   <div class="mahsulotlar" id="mahsulotlar" hidden></div>
-  <p class="mayda markaz" id="mahsulot-izoh" hidden>
-    Narxlar so‘mda. To‘liq katalog va buyurtma — Telegram ilovasida.</p>
 </section>
 
 <!-- ══ 5. ALOQA VA ILOVA ══ -->
-<section class="bolim aloqa-bolim" id="aloqa">
+<section class="aloqa-bolim" id="aloqa">
   <div class="aloqa-ich">
-    <div>
+    <div class="jon">
       <h2>Bog‘laning</h2>
-      <p class="katta-izoh">Savolingiz bormi yoki mahsulot tanlashda
-        yordam kerakmi — yozing, javob beramiz.</p>
+      <p class="katta-izoh">Mahsulot tanlashda yordam kerakmi — yozing,
+        javob beramiz.</p>
       <div class="aloqa-royxat" id="aloqa-royxat">
         <a class="aloqa-karta" href="/app/ochish" data-bot>
           <b>Telegram bot</b><span>Buyurtma, skaner va maslahat</span></a>
       </div>
     </div>
 
-    <div class="ornat" id="ornat-karta">
+    <div class="ornat jon" id="ornat-karta">
       <h3>Ilovani telefonga o‘rnating</h3>
-      <p>Brauzersiz, alohida yorliq bilan ochiladi. Joy egallamaydi —
-        bu o‘sha sayt, faqat to‘liq ekranda.</p>
-      <button class="tug tug-lime" id="ornat" hidden>Ekranga o‘rnatish</button>
+      <p>Bosh ekranda o‘z yorlig‘i bo‘ladi va bir bosishda ochiladi.</p>
+      <button class="tug tug-lime tug-katta" id="ornat" hidden>Ekranga o‘rnatish</button>
       <p class="mayda" id="ornat-izoh">
-        <b>iPhone:</b> pastdagi «Ulashish» → «Bosh ekranga qo‘shish».<br>
-        <b>Android:</b> brauzer menyusi → «Ilovani o‘rnatish».</p>
+        <b>iPhone:</b> «Ulashish» → «Bosh ekranga qo‘shish»<br>
+        <b>Android:</b> menyu → «Ilovani o‘rnatish»</p>
     </div>
   </div>
 </section>
@@ -169,8 +156,7 @@
       <a href="/oferta">Ommaviy oferta</a>
     </nav>
   </div>
-  <p class="oyoq-mayda">AI tahlili tibbiy tashxis emas — kosmetologik tavsiya.
-    Jiddiy teri muammolarida dermatologga murojaat qiling.</p>
+  <p class="oyoq-mayda">AI tahlili tibbiy tashxis emas — kosmetologik tavsiya.</p>
 </footer>
 
 <script src="/uy/app.js"></script>
