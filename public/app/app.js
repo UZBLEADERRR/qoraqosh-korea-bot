@@ -344,6 +344,11 @@ function telegramdanTashqarida() {
 }
 
 async function boshla() {
+  // Service worker KIRISH EKRANIDA ham ro'yxatdan o'tadi. Brauzerdan
+  // o'rnatilgan yorliq to'g'ri shu yerga tushadi: qobiq keshlanmasa
+  // ilova har safar noldan yuklanadi va tarmoq sekin bo'lganda oq
+  // ekran ko'rinadi.
+  navigator.serviceWorker?.register('/app/sw.js').catch(() => { /* HTTPS yo'q */ });
   if (telegramdanTashqarida()) return;
   // Statik razmetkadagi <i data-ik> larni chizma ikonga to'ldiramiz
   ikonlarniChiz();

@@ -2355,22 +2355,37 @@ console.log('\n── BOSH SAHIFA / kiovo.shop ──');
   const ilovaManifest = JSON.parse(fs.readFileSync('public/app/manifest.json', 'utf8'));
 
   test('bosh sahifada MANIFEST ulangan', /rel="manifest" href="\/uy\/manifest\.json"/.test(bosh));
-  // «Saytda ilovani o'rnatsam sayt ochilyapti, ilova emas.»
-  // Yorliq `/app/ochish` ga tushadi va server uni Telegram
-  // ilovasiga yo'naltiradi — odam «ilova» deganda ILOVANI kutadi.
-  test('yorliq ILOVANI ochadi, saytni emas',
-    manifest.start_url === '/app/ochish', manifest.start_url);
-  test('ilova manifesti ham o‘zgarmadi', ilovaManifest.start_url === '/app/');
+  // «Ilova mini app ochilishi kerak edi, telegram bot emas.»
+  //
+  // Yorliq MINI ILOVANING O'ZIGA (`/app/`) tushadi. `/app/ochish`
+  // TO'G'RI EMAS edi: u Telegramga sakraydi va `mini_app_nom`
+  // sozlanmagan bo'lsa bot suhbatini ochib qo'yadi. `/app/` esa
+  // Telegramdan tashqarida ham ishlaydi — telefon bilan kirish
+  // ekranini ko'rsatadi.
+  test('yorliq MINI ILOVANI ochadi', manifest.start_url === '/app/',
+    manifest.start_url);
+  test('ilova manifesti bilan bir xil manzil',
+    manifest.start_url === ilovaManifest.start_url);
+  test('bot suhbatiga olib bormaydi', !/ochish|t\.me/.test(manifest.start_url));
   test('qamrov butun domen', manifest.scope === '/');
   test('start_url qamrov ichida', manifest.start_url.startsWith(manifest.scope));
   test('`id` o‘zgarmadi — o‘rnatgan odamda yangisi paydo bo‘lmaydi',
     manifest.id === '/');
-  const srvKod0 = fs.readFileSync('src/server.js', 'utf8');
-  test('server `/app/ochish` ni Telegramga yo‘naltiradi',
-    /yol === '\/app\/ochish'/.test(srvKod0) && /ilovaHavolasi\(\)/.test(srvKod0));
   test('tez havolalar bor — skaner va sayt',
     (manifest.shortcuts || []).length === 2,
     (manifest.shortcuts || []).map((x) => x.url).join(', '));
+
+  // Butun zanjir shunga bog'liq: `/app/` brauzerda KIRISH EKRANINI
+  // ko'rsatishi kerak, oq sahifa emas
+  const ilovaKod = fs.readFileSync('public/app/app.js', 'utf8');
+  test('Telegramsiz ochilganda kirish ekrani chiqadi',
+    /function telegramdanTashqarida/.test(ilovaKod)
+      && /if \(seansToken\(\)\) return false;\s*\n\s*kirishEkrani\(\);/.test(ilovaKod));
+  test('seans bo‘lsa ilova to‘liq ishlaydi',
+    /if \(seansToken\(\)\) return false/.test(ilovaKod));
+  test('kirish ekranida ham service worker ulanadi — oq ekran bo‘lmaydi',
+    /serviceWorker\?\.register\('\/app\/sw\.js'\)[\s\S]{0,120}if \(telegramdanTashqarida\(\)\) return/
+      .test(ilovaKod));
 
   // Qahramon: plakat rasmi va ikkita asosiy amal
   test('qahramon rasmi joylandi', /<img src="\/uy\/hero\.jpg"/.test(bosh));

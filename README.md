@@ -1089,12 +1089,24 @@ qoldig'i, mijoz ma'lumoti, karta raqami — hech biri tushmaydi.
 Mahsulotlar `stock > 0` va rasmi bor bo'lgani, eng ko'p sotilgani
 birinchi: saytda ko'ringan narsa do'konda ham bo'lishi kerak.
 
-**O'rnatilgan yorliq ILOVANI ochadi.** `/uy/manifest.json` ning
-`start_url` i `/app/ochish` — server uni Telegram ilovasiga
-yo'naltiradi. Ilgari u `/` edi va yorliq bosilganda yana o'sha
-sayt ochilardi: odam «ilovani o'rnatdim» deganda ilovani kutadi,
-saytni emas. `id` esa `/` bo'lib qoladi — aks holda allaqachon
+**O'rnatilgan yorliq MINI ILOVANI ochadi.** `/uy/manifest.json`
+ning `start_url` i `/app/` — mini ilovaning o'zi. U Telegramdan
+tashqarida ham ishlaydi: telefon raqami bilan kirish ekranini
+ko'rsatadi (botga tasdiqlash so'rovi keladi) va seans ochilgach
+xuddi Telegram ichidagidek yuradi.
+
+Ikki xato yo'l sinab ko'rilgan va ikkalasi ham noto'g'ri edi:
+`/` — yorliq yana o'sha saytni ochardi; `/app/ochish` — Telegramga
+sakraydi va `mini_app_nom` sozlanmagan bo'lsa **bot suhbatini**
+ochib qo'yadi. `id` esa `/` bo'lib qoladi — aks holda allaqachon
 o'rnatgan odamda ikkinchi yorliq paydo bo'lardi.
+
+> **`mini_app_nom` ni sozlang.** Saytdagi «Do'konni ochish»
+> tugmalari `/app/ochish` orqali Telegramga boradi. Qisqa nom
+> sozlanmagan bo'lsa u to'g'ridan-to'g'ri mini ilovani emas, bot
+> suhbatini ochadi. BotFather → /mybots → bot → Bot Settings →
+> Configure Mini App, keyin admin panel → Sozlamalar → Mini App
+> qisqa nomi.
 
 **Animatsiya bitta tilda:** hamma narsa pastdan ko'tarilib
 paydo bo'ladi. Qahramon JS ni kutmaydi (CSS bilan, navbat bilan),
