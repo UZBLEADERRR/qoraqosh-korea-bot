@@ -35,7 +35,8 @@ const kerakliFayllar = [
   'test/soxta-server.mjs', 'test/bot-oqimi.mjs', 'migrations/006_limit_aloqa.sql',
   'migrations/004_tolov_chegirma.sql', 'migrations/005_xabar_shablonlari.sql',
   'migrations/007_ombor_admin.sql', 'migrations/008_omborda_holati.sql',
-  'public/index.html', 'public/app/index.html', 'public/app/app.js', 'public/app/style.css',
+  'public/uy/index.html', 'public/uy/app.js', 'public/uy/style.css',
+  'public/app/index.html', 'public/app/app.js', 'public/app/style.css',
   'public/admin/index.html', 'public/admin/admin.js', 'public/admin/style.css',
 ];
 

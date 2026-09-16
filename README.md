@@ -1061,6 +1061,47 @@ mahsulot qayta qo'shilmaydi. Ya'ni «1000 ta rasm yuborib, do'konda
 yo'qlarini qo'sh» degan ish shundoq ishlaydi — hisobotda
 «Katalogda bor: N ta» bo'lib ko'rinadi.
 
+### kiovo.shop — brend sayti
+
+Domen bosh sahifaga tushadi (`public/uy/`). Bu Mini App emas, oddiy
+sayt: Telegramsiz, ro'yxatdan o'tmasdan ochiladi va qidiruv
+tizimlari uni indekslay oladi.
+
+| Bo'lim | Nima qiladi |
+|---|---|
+| Qahramon | Brend plakati, «Yuzni bepul skanerlash» va «Do'konni ochish» |
+| Uch qadam | Skaner qanday ishlashi |
+| Yuz skaneri | `/skan/` ga olib boradi — o'sha ochiq skaner |
+| Do'kondan | Sotuvda turgan 8 ta mahsulot, `/api/ochiq/sayt` dan |
+| Bog'laning | Telefon, konsultant, Instagram, bot — sozlamadan |
+| Ekranga o'rnatish | PWA: Android'da tugma, iPhone'da qo'lda yo'l |
+
+**Sahifa ma'lumotsiz ham to'liq ishlaydi.** Hamma matn HTML da
+turadi, tugmalar esa server yo'llariga (`/skan/`, `/app/ochish`)
+qaraydi. JS faqat jonli qismlarni qo'shadi — vitrina, aloqa va
+o'rnatish tugmasi. So'rov yiqilsa o'sha bloklar ko'rinmaydi, sahifa
+buzilmaydi. Bo'sh vitrina ham chiqmaydi: bo'sh javon «do'kon
+ishlamayapti» degan taassurot qoldiradi.
+
+**`/api/ochiq/sayt`** — autentifikatsiyasiz yo'l, shuning uchun
+javobda faqat vitrinaga chiqadigan narsa bor. Tannarx, ombor
+qoldig'i, mijoz ma'lumoti, karta raqami — hech biri tushmaydi.
+Mahsulotlar `stock > 0` va rasmi bor bo'lgani, eng ko'p sotilgani
+birinchi: saytda ko'ringan narsa do'konda ham bo'lishi kerak.
+
+**Ikkita manifest, ikki xil yorliq.** `/uy/manifest.json` ning
+`start_url` i `/` — brauzerdan «ekranga qo'shgan» odam aynan shu
+saytni ochadi. `/app/manifest.json` niki esa `/app/` va u Telegram
+ilovasini ochadi. Bittasi bilan cheklansak, saytdan o'rnatgan odam
+kutilmaganda Telegramga tushib qolardi.
+
+**Qidiruv uchun:** `/robots.txt` va `/sitemap.xml` server tomonidan
+`PUBLIC_URL` dan yasaladi; `/admin`, `/api/`, `/media/`, `/eksport/`
+va `/kartochka/` indekslanmaydi. Sahifadagi kanonik havola va
+`og:image` ham mutlaq manzilga aylantiriladi (`__ASOS__` o'rniga
+`PUBLIC_URL` qo'yiladi) — nisbiy manzilni na Telegram, na qidiruv
+tizimi ochib ko'rsata oladi.
+
 ### Ma'lumotni faylga saqlash
 
 Admin panel → Tizim holati → **💾 Ma'lumotni yuklab olish**.
@@ -1501,7 +1542,10 @@ src/
     admin-sql.js       bazaga to'g'ridan-to'g'ri kirish (read-only tranzaksiya)
     eksport.js         ma'lumotni JSON yoki CSV qilib yuklash
 public/
-  index.html           qo'nish sahifasi
+  uy/                  kiovo.shop bosh sahifasi (index.html, app.js, style.css)
+    hero.jpg           qahramon plakat
+    manifest.json      PWA: saytni telefon ekraniga o'rnatish
+  skan/                Instagram uchun ochiq yuz skaneri
   app/                 Mini App
     sifat.js           kadr sifatini o'lchash (tiniqlik, yorug'lik, yuz)
     manifest.json      PWA: telefon ekraniga o'rnatish

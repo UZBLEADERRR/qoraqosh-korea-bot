@@ -49,6 +49,9 @@ const SAHIFA_FAYL = {
            fayllar: ['index.html', 'admin.js', 'style.css'] },
   skan:  { yol: 'skan/index.html',  papka: 'skan',
            fayllar: ['index.html', 'app.js', 'style.css'] },
+  // kiovo.shop bosh sahifasi
+  uy:    { yol: 'uy/index.html',    papka: 'uy',
+           fayllar: ['index.html', 'app.js', 'style.css'] },
 };
 
 function sahifa(res, nom) {
@@ -56,7 +59,12 @@ function sahifa(res, nom) {
   const fayl = path.join(PUBLIC, s.yol);
   if (!fs.existsSync(fayl)) return notFound(res);
   const v = versiyaOl(PUBLIC, s.papka, s.fayllar);
-  const html = versiyalaHtml(fs.readFileSync(fayl, 'utf8'), v);
+  // `__ASOS__` — saytning to'liq manzili. Kanonik havola va og:image
+  // MUTLAQ bo'lishi kerak: nisbiy manzilni Telegram ham, qidiruv
+  // tizimi ham ochib ko'rsatolmaydi. Manzil sozlamadan keladi,
+  // shuning uchun sinov va ishlab chiqarishda o'zi to'g'ri bo'ladi.
+  const html = versiyalaHtml(fs.readFileSync(fayl, 'utf8'), v)
+    .replaceAll('__ASOS__', (config.publicUrl || '').replace(/\/+$/, ''));
   res.writeHead(200, {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-cache',
@@ -261,7 +269,33 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ---------- Statik ----------
-    if (yol === '/' )        return statik(res, PUBLIC, 'index.html') || notFound(res);
+    // Bosh sahifa (kiovo.shop). `sahifa()` orqali: css/js havolalariga
+    // versiya qo'shiladi, aks holda brauzer eski uslubni saqlab qoladi.
+    if (yol === '/' )        return sahifa(res, 'uy');
+
+    // ---------- Qidiruv tizimlari uchun ----------
+    // Admin panel va API indekslanmaydi: ular odamga emas, ishga
+    // mo'ljallangan va qidiruv natijasida chiqishi mumkin emas.
+    if (yol === '/robots.txt') {
+      const asos = (config.publicUrl || '').replace(/\/+$/, '');
+      res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600' });
+      return res.end(['User-agent: *', 'Allow: /', 'Disallow: /admin',
+        'Disallow: /api/', 'Disallow: /media/', 'Disallow: /eksport/',
+        'Disallow: /kartochka/', '',
+        asos ? `Sitemap: ${asos}/sitemap.xml` : '', ''].join('\n'));
+    }
+    if (yol === '/sitemap.xml') {
+      const asos = (config.publicUrl || '').replace(/\/+$/, '');
+      const sahifalar = [['/', '1.0'], ['/skan/', '0.8'], ['/oferta', '0.3']];
+      res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8',
+        'Cache-Control': 'public, max-age=3600' });
+      return res.end('<?xml version="1.0" encoding="UTF-8"?>\n'
+        + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + sahifalar.map(([u, p]) =>
+            `  <url><loc>${asos}${u}</loc><priority>${p}</priority></url>`).join('\n')
+        + '\n</urlset>\n');
+    }
     if (yol === '/app' )     return redirect(res, '/app/');
     if (yol === '/admin')    return redirect(res, '/admin/');
     // Mini App va admin panel HTML i: ichidagi css/js havolalariga

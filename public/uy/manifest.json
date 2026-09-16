@@ -1,0 +1,25 @@
+{
+  "name": "KiOVO — Koreya kosmetikasi",
+  "short_name": "KiOVO",
+  "description": "AI yuz skaneri va aynan sizga mos Koreya parvarishi",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#140708",
+  "theme_color": "#6e0f12",
+  "lang": "uz",
+  "dir": "ltr",
+  "categories": ["shopping", "beauty", "health"],
+  "icons": [
+    { "src": "/app/ikon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/app/ikon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/app/ikon-maska.png", "sizes": "512x512", "type": "image/png",
+      "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Yuz skaneri", "url": "/skan/" },
+    { "name": "Do‘kon", "url": "/app/ochish" }
+  ],
+  "id": "/"
+}

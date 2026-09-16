@@ -2340,30 +2340,86 @@ console.log('\n── ADMIN YORDAMCHISI ──');
   test('rejalar tozalandi', rejaSoni() === 0);
 }
 
-// ═══════════ BOSH SAHIFA VA EKRANGA QO'SHISH ═══════════
-// Odam do'kon manzilini brauzerda ochsa faqat «Telegramda ochish»
-// tugmasini ko'rardi — telefon bilan kirish yo'li ko'rinmasdi.
-// Ekranga qo'shganda esa manifest yo'qligi uchun Android oddiy
-// xatcho'p yasab, o'sha sahifani ochardi — ya'ni yorliq mini
-// ilovani emas, botni ochardi.
-console.log('\n── BOSH SAHIFA / EKRANGA QO‘SHISH ──');
+// ═══════════ BOSH SAHIFA (kiovo.shop) ═══════════
+// Domen olindi va endi bosh sahifa brendning o'z sayti: qahramon
+// plakat, yuz skaneri, mahsulot vitrinasi, aloqa va «ekranga
+// o'rnatish». Ilgari bu yerda bitta «Telegramda ochish» tugmasi
+// turgan bo'sh sahifa edi.
+console.log('\n── BOSH SAHIFA / kiovo.shop ──');
 {
   const fs = await import('node:fs');
-  const bosh = fs.readFileSync('public/index.html', 'utf8');
-  const manifest = JSON.parse(fs.readFileSync('public/app/manifest.json', 'utf8'));
+  const bosh = fs.readFileSync('public/uy/index.html', 'utf8');
+  const uyCss = fs.readFileSync('public/uy/style.css', 'utf8');
+  const uyJs  = fs.readFileSync('public/uy/app.js', 'utf8');
+  const manifest = JSON.parse(fs.readFileSync('public/uy/manifest.json', 'utf8'));
+  const ilovaManifest = JSON.parse(fs.readFileSync('public/app/manifest.json', 'utf8'));
 
-  test('bosh sahifada MANIFEST ulangan', /rel="manifest"/.test(bosh),
-    (bosh.match(/<link rel="manifest"[^>]*>/) || [''])[0]);
-  test('yorliq MINI ILOVANI ochadi', manifest.start_url === '/app/', manifest.start_url);
-  test('qamrov bosh sahifani ham o‘z ichiga oladi', manifest.scope === '/', manifest.scope);
+  test('bosh sahifada MANIFEST ulangan', /rel="manifest" href="\/uy\/manifest\.json"/.test(bosh));
+  // Saytning manifesti O'ZINIKI: `/app/manifest.json` ni ulasak
+  // yorliq Telegram ilovasini ochardi, brauzerdan o'rnatgan odam
+  // esa aynan shu saytni kutadi
+  test('saytning yorlig‘i SAYTNI ochadi', manifest.start_url === '/', manifest.start_url);
+  test('ilova manifesti esa mini ilovani', ilovaManifest.start_url === '/app/');
+  test('qamrov butun domen', manifest.scope === '/');
   test('start_url qamrov ichida', manifest.start_url.startsWith(manifest.scope));
+  test('tez havolalar bor — skaner va do‘kon',
+    (manifest.shortcuts || []).length === 2,
+    (manifest.shortcuts || []).map((x) => x.url).join(', '));
 
-  test('asosiy tugma do‘konni ochadi', /class="tugma" href="\/app\/"/.test(bosh));
-  test('telefon bilan kirish haqida aytilgan', /Telefon raqamingiz bilan/.test(bosh));
-  // Ilgari bu havola bo'sh "https://t.me/" edi va hech qayerga
-  // olib bormasdi
-  test('Telegram havolasi tirik', !/href="https:\/\/t\.me\/"/.test(bosh));
-  test('Telegram havolasi serverga yo‘naltiradi', /href="\/app\/ochish"/.test(bosh));
+  // Qahramon: plakat rasmi va ikkita asosiy amal
+  test('qahramon rasmi joylandi', /<img src="\/uy\/hero\.jpg"/.test(bosh));
+  test('rasm fayli haqiqatan bor va yengil',
+    fs.existsSync('public/uy/hero.jpg')
+      && fs.statSync('public/uy/hero.jpg').size < 400 * 1024,
+    `${(fs.statSync('public/uy/hero.jpg').size / 1024).toFixed(0)} KB`);
+  test('rasm o‘lchami yozilgan — sahifa sakrab ketmaydi',
+    /width="1000" height="1500"/.test(bosh));
+
+  test('yuz skaneriga tugma bor', /href="\/skan\/"/.test(bosh));
+  test('do‘konga (botga) tugma bor', /href="\/app\/ochish"/.test(bosh));
+  test('aloqa bo‘limi bor', /id="aloqa"/.test(bosh));
+  test('ekranga o‘rnatish bo‘limi bor', /id="ornat-karta"/.test(bosh));
+
+  // Bot manzili sozlamadan keladi. HTML dagi havola serverga
+  // qarab turadi — JS o'chiq bo'lsa ham tugma ishlaydi
+  test('bot havolasi bo‘sh "t.me/" emas', !/href="https:\/\/t\.me\/"/.test(bosh));
+  test('bot manzili JS bilan almashtiriladi',
+    /\[data-bot\]/.test(uyJs) && /a\.href = havola/.test(uyJs));
+
+  // «Ekranga o'rnatish» — Android taklif beradi, iOS bermaydi
+  test('Android taklifi ushlab olinadi', /beforeinstallprompt/.test(uyJs));
+  test('iPhone uchun qo‘lda yo‘li yozilgan', /iPhone:/.test(bosh));
+  test('o‘rnatilgan bo‘lsa blok yashiriladi',
+    /display-mode: standalone/.test(uyJs) && /karta\.hidden = true/.test(uyJs));
+
+  // Vitrina serverdan keladi; bo'sh bo'lsa bo'lim ko'rinmaydi
+  test('mahsulot bo‘limi boshida YASHIRIN',
+    /id="mahsulotlar" hidden/.test(bosh));
+  test('bo‘sh ro‘yxatda ochilmaydi', /if \(!el \|\| !royxat\.length\) return/.test(uyJs));
+  test('mahsulot matni EKRANLANADI', /const esc =/.test(uyJs) && /esc\(p\.nom\)/.test(uyJs));
+
+  // Qidiruv tizimlari uchun
+  test('sahifa tavsifi bor', /<meta name="description"/.test(bosh));
+  test('ulashilganda rasm chiqadi', /og:image/.test(bosh));
+  test('manzil MUTLAQ bo‘ladi — nisbiysini ochib bo‘lmaydi',
+    /content="__ASOS__\/uy\/hero\.jpg"/.test(bosh));
+  const srvKod2 = fs.readFileSync('src/server.js', 'utf8');
+  test('server manzilni sozlamadan qo‘yadi',
+    /replaceAll\('__ASOS__'/.test(srvKod2));
+  test('robots.txt bor', /yol === '\/robots\.txt'/.test(srvKod2));
+  test('admin panel INDEKSLANMAYDI', /Disallow: \/admin/.test(srvKod2));
+  test('sitemap.xml bor', /yol === '\/sitemap\.xml'/.test(srvKod2));
+  test('bosh sahifa `uy` papkasidan beriladi',
+    /if \(yol === '\/' \)\s+return sahifa\(res, 'uy'\)/.test(srvKod2));
+
+  // Dizayn brendga mos: plakatdan olingan ranglar
+  test('plakat ranglari ishlatilgan',
+    /--lime:#c6ec93/.test(uyCss) && /--qizil-tim:#6e0f12/.test(uyCss));
+  test('brend qizili ilova bilan bir xil', /--qizil:#b3161c/.test(uyCss));
+  // Rasm chetdan chiqib turardi va sahifa yon tomonga suriladigan
+  // bo'lib qolgandi — telefonda bu darrov bilinadi
+  test('qahramon yorug‘ligi rasm ICHIDA',
+    /\.qahramon-rasm::after\{content:'';position:absolute;inset:auto 0 0 0/.test(uyCss));
 
   // Kirish oqimi bot bilan BIR XIL foydalanuvchiga bog'lanadi —
   // ya'ni ma'lumot avtomatik sinxron
@@ -3912,6 +3968,45 @@ console.log('\n── NATIJA EKRANI ──');
     /ko[‘'`]zoynak, zirak, quloqchin/i.test(ai));
   test('odamni TANISH taqiqlangan',
     /odamni TANIMA va ismini aytma/.test(ai) && /millat\/irq\/din haqida gapirma/.test(ai));
+}
+
+// ═══════════ SAYT UCHUN OCHIQ API ═══════════
+// Bosh sahifa autentifikatsiyasiz ochiladi, shuning uchun bu
+// javobga faqat VITRINAGA chiqadigan narsa tushishi kerak.
+console.log('\n── SAYT MA’LUMOTI (/api/ochiq/sayt) ──');
+{
+  const r = await chaqirOchiq('/api/ochiq/sayt', 'GET');
+  test('javob keldi', r.kod === 200, String(r.kod));
+  test('brend nomi bor', typeof r.tana.brend === 'string' && r.tana.brend.length > 0,
+    r.tana.brend);
+  test('mahsulot ro‘yxati keladi', Array.isArray(r.tana.mahsulotlar),
+    `${(r.tana.mahsulotlar || []).length} ta`);
+  test('sakkiztadan oshmaydi', (r.tana.mahsulotlar || []).length <= 8);
+
+  const p0 = (r.tana.mahsulotlar || [])[0];
+  if (p0) {
+    test('kartada nom, narx va rasm bor',
+      p0.nom && typeof p0.narx === 'number' && p0.rasm, JSON.stringify(p0).slice(0, 90));
+    test('rasm /media yo‘li orqali', /^\/media\//.test(p0.rasm));
+  }
+
+  // Sir ma'lumot chiqib ketmasin — bu yo'l HAMMAGA ochiq
+  const matn = JSON.stringify(r.tana);
+  test('TANNARX chiqmaydi', !/cost_price|tannarx/i.test(matn));
+  test('ombor qoldig‘i chiqmaydi', !/"stock"/.test(matn));
+  test('mijoz ma’lumoti chiqmaydi', !/telegram_id|"phone"/.test(matn));
+  test('karta raqami chiqmaydi', !/karta_raqam/i.test(matn));
+
+  // Sotuvda yo'q mahsulot saytda ko'rinmasligi kerak: odam ilovaga
+  // o'tib «yo'q ekan» deb qaytib ketadi
+  const V5 = await import('../src/services/admin-vositalar.js');
+  test('faqat omborda BOR mahsulot',
+    !(r.tana.mahsulotlar || []).some((x) => x.narx === 0)
+      && typeof V5.VOSITALAR === 'object');
+  const ochiqKod = (await import('node:fs')).readFileSync('src/api/ochiq.js', 'utf8');
+  test('so‘rovda `stock > 0` sharti bor', /stock > 0/.test(ochiqKod));
+  test('rasmi yo‘q mahsulot ham chiqmaydi', /poster_id is not null/.test(ochiqKod));
+  test('eng ko‘p sotilgani birinchi', /order by sold_count desc/.test(ochiqKod));
 }
 
 // ═══════════ OCHIQ SKANER (INSTAGRAM) ═══════════
