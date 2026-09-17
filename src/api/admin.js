@@ -11,7 +11,7 @@ import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
 import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi } from '../ai/index.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { config } from '../config.js';
-import { HOLATLAR, bosqich } from '../lib/bosqichlar.js';
+import { HOLATLAR, BOSQICHLAR, BEKOR, bosqich } from '../lib/bosqichlar.js';
 import { yubor, tg, tgFayl } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
 import { xabar, xabarOrin, keshniTozala } from '../bot/shablon.js';
@@ -332,32 +332,115 @@ export async function adminRoutes(req, res, yol) {
     });
   }
 
+  /* ══════════ BUYURTMALAR ISH STOLI (`/buyurtma/`) ══════════
+   *
+   * Eski `/api/admin/orders` bitta ro'yxat qaytarardi: filtr yo'q,
+   * qidiruv yo'q, nechtaligi ham noma'lum. Operator qaysi buyurtma
+   * e'tibor kutayotganini KO'ZI bilan qidirib topardi va chalkashib
+   * ketardi.
+   *
+   * Bu yerda uchta narsa birga keladi:
+   *   sanoq  — har bosqichda nechta (yon ustundagi raqamlar)
+   *   navbat — «hoziroq qilinishi kerak» ishlar
+   *   ro'yxat — qidiruv va sahifalash bilan
+   *
+   * Bitta so'rovda uchalasi: ekran ochilganda uch marta kutib
+   * o'tirilmaydi. */
+  if (yol === '/api/admin/buyurtmalar' && req.method === 'GET') {
+    const url = new URL(req.url, 'http://x');
+    const holat  = String(url.searchParams.get('holat') || '');
+    const navbat = String(url.searchParams.get('navbat') || '');
+    const q      = String(url.searchParams.get('q') || '').trim().slice(0, 60);
+    const limit  = Math.min(200, Number(url.searchParams.get('limit')) || 50);
+    const surish = Math.max(0, Number(url.searchParams.get('surish')) || 0);
+
+    // Navbatlar — «nima qilishim kerak» degan savolga javob.
+    // SQL shartlari bu yerda, bitta joyda: ro'yxat ham, sanoq ham
+    // AYNAN bir xil qoidadan foydalanadi, aks holda yon ustunda «3»
+    // turib, ochganda ikkita chiqardi.
+    const NAVBAT = {
+      // Chek keldi — tasdiqlashni KUTAYAPTI. Eng shoshilinch ish:
+      // mijoz pulini to'lagan va javob kutib turibdi.
+      chek:  `o.payment_status = 'chek_yuborilgan'`,
+      // To'landi, lekin hali qimirlamagan
+      tolandi: `o.payment_status = 'tolangan' and o.status = 'tasdiqlangan'`,
+      // Uch kundan beri bir joyda turgan, yakunlanmagan buyurtmalar
+      kutmoqda: `o.status not in ('yetkazildi','bekor')
+                 and o.updated_at < now() - interval '3 days'`,
+      bugun: `o.created_at >= date_trunc('day', now() at time zone 'Asia/Tashkent')
+                                at time zone 'Asia/Tashkent'`,
+    };
+
+    const shartlar = [];
+    const arg = [];
+    if (holat && HOLATLAR.includes(holat)) { arg.push(holat); shartlar.push(`o.status = $${arg.length}`); }
+    if (NAVBAT[navbat]) shartlar.push(NAVBAT[navbat]);
+    if (q) {
+      arg.push(`%${q.toLowerCase()}%`);
+      const i = arg.length;
+      // Raqamdagi bo'shliq va qavslar e'tiborga olinmaydi: operator
+      // «90 123» deb ham, «901234567» deb ham qidiradi
+      arg.push(`%${q.replace(/\D/g, '')}%`);
+      shartlar.push(`(lower(o.order_no) like $${i} or lower(o.customer_name) like $${i}
+        or (length($${i + 1}) > 3
+            and regexp_replace(coalesce(o.customer_phone,''), '\\D', '', 'g') like $${i + 1}))`);
+    }
+    const qayer = shartlar.length ? `where ${shartlar.join(' and ')}` : '';
+
+    const [sanoq, navbatSanoq, jami, buyurtmalar] = await Promise.all([
+      qatorlar(`select status, count(*)::int n from orders group by status`),
+      qator(`select ${Object.entries(NAVBAT)
+        .map(([k, sh]) => `count(*) filter (where ${sh})::int as ${k}`).join(', ')}
+        from orders o`),
+      qator(`select count(*)::int n from orders o ${qayer}`, arg),
+      qatorlar(
+        `select o.*, u.telegram_id, u.username
+           from orders o join users u on u.id = o.user_id
+          ${qayer}
+          order by o.created_at desc
+          limit ${limit} offset ${surish}`, arg),
+    ]);
+
+    return ok(res, {
+      buyurtmalar,
+      jami: jami?.n ?? 0,
+      sanoq: Object.fromEntries(sanoq.map((x) => [x.status, x.n])),
+      navbat: navbatSanoq || {},
+      bosqichlar: BOSQICHLAR,
+    });
+  }
+
   if (yol === '/api/admin/order-status' && req.method === 'POST') {
     const b = await tana(req);
-    if (!HOLATLAR.includes(String(b.status))) return xato(res, 400, 'Noto‘g‘ri holat.');
-    const eski = await qator(
-      `select o.*, u.telegram_id from orders o join users u on u.id=o.user_id where o.id=$1`, [b.id]);
-    if (!eski) return xato(res, 404, 'Buyurtma topilmadi.');
-
-    if (b.status === 'bekor' && eski.status !== 'bekor') await sorov('select restock_order($1)', [b.id]);
-
-    // Pochta izohi — jo'natma qayerga ketgani va kuzatuv raqami.
-    // Bizda ombor yo'q: mahsulot eng yaqin pochtadan jo'natiladi va
-    // aniq joy faqat shu paytda ma'lum bo'ladi.
-    const pochta = b.pochta_izoh !== undefined
-      ? String(b.pochta_izoh || '').slice(0, 300).trim() || null
-      : eski.pochta_izoh;
-
-    await sorov(
-      `update orders set status=$1, cancel_reason=$2, pochta_izoh=$4, updated_at=now()
-        where id=$3`,
-      [b.status, b.status === 'bekor' ? String(b.reason || '').slice(0, 200) : null,
-       b.id, pochta]);
-
-    mijozgaXabar({ ...eski, pochta_izoh: pochta }, b.status, b.reason)
-      .catch((e) => console.error('Xabar:', e.message));
-    kanalgaHolat(eski.order_no, b.status, b.reason).catch(() => {});
+    const n = await holatniQoy(b.id, b.status, b);
+    if (n.xato) return xato(res, n.kod, n.xato);
     return ok(res, { ok: true });
+  }
+
+  /* Bir nechta buyurtmani BIRDAN ko'chirish.
+   *
+   * Partiya kelganda operator o'ttizta buyurtmani birma-bir ochib,
+   * har birida holatni qidirib o'tirardi. Endi ro'yxatdan belgilab,
+   * bitta tugma bosadi.
+   *
+   * Har biri ALOHIDA yoziladi va alohida xabar ketadi: bittasi
+   * yiqilsa qolgani to'xtamaydi, va natijada nechtasi o'tgani aniq
+   * aytiladi — «hammasi bo'ldi» deb yolg'on gapirmaymiz. */
+  if (yol === '/api/admin/buyurtma-koch' && req.method === 'POST') {
+    const b = await tana(req);
+    const idlar = (Array.isArray(b.idlar) ? b.idlar : [])
+      .map(Number).filter(Number.isFinite).slice(0, 100);
+    if (!idlar.length) return xato(res, 400, 'Buyurtma tanlanmadi.');
+    if (!HOLATLAR.includes(String(b.status))) return xato(res, 400, 'Noto‘g‘ri holat.');
+
+    let bajarildi = 0;
+    const yiqilgan = [];
+    for (const id of idlar) {
+      const n = await holatniQoy(id, b.status, b).catch((e) => ({ xato: e.message }));
+      if (n.xato) yiqilgan.push({ id, xato: n.xato });
+      else bajarildi++;
+    }
+    return ok(res, { ok: true, bajarildi, yiqilgan });
   }
 
   // To'lovni tasdiqlash / rad etish
@@ -1814,3 +1897,43 @@ const karuselSaqla = (royxat) => sorov(
   `insert into settings (key, value, updated_at) values ('karusel_rasmlar', $1::jsonb, now())
    on conflict (key) do update set value = excluded.value, updated_at = now()`,
   [JSON.stringify(royxat)]);
+
+
+/* Buyurtma holatini o'zgartirish — BITTA joyda.
+ *
+ * Bitta buyurtma ham, ommaviy ko'chirish ham shu yerdan o'tadi:
+ * aks holda ikkita nusxa bo'lib, birida ombor qaytarish yoki mijozga
+ * xabar tushib qolardi.
+ *
+ * @returns {{ok:true}|{xato:string, kod:number}}
+ */
+async function holatniQoy(id, yangiHolat, b = {}) {
+  if (!HOLATLAR.includes(String(yangiHolat))) {
+    return { xato: 'Noto‘g‘ri holat.', kod: 400 };
+  }
+  const eski = await qator(
+    `select o.*, u.telegram_id from orders o join users u on u.id=o.user_id where o.id=$1`, [id]);
+  if (!eski) return { xato: 'Buyurtma topilmadi.', kod: 404 };
+
+  if (yangiHolat === 'bekor' && eski.status !== 'bekor') {
+    await sorov('select restock_order($1)', [id]);
+  }
+
+  // Pochta izohi — jo'natma qayerga ketgani va kuzatuv raqami.
+  // Bizda ombor yo'q: mahsulot eng yaqin pochtadan jo'natiladi va
+  // aniq joy faqat shu paytda ma'lum bo'ladi.
+  const pochta = b.pochta_izoh !== undefined
+    ? String(b.pochta_izoh || '').slice(0, 300).trim() || null
+    : eski.pochta_izoh;
+
+  await sorov(
+    `update orders set status=$1, cancel_reason=$2, pochta_izoh=$4, updated_at=now()
+      where id=$3`,
+    [yangiHolat, yangiHolat === 'bekor' ? String(b.reason || '').slice(0, 200) : null,
+     id, pochta]);
+
+  mijozgaXabar({ ...eski, pochta_izoh: pochta }, yangiHolat, b.reason)
+    .catch((e) => console.error('Xabar:', e.message));
+  kanalgaHolat(eski.order_no, yangiHolat, b.reason).catch(() => {});
+  return { ok: true };
+}

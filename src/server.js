@@ -52,6 +52,9 @@ const SAHIFA_FAYL = {
   // kiovo.shop bosh sahifasi
   uy:    { yol: 'uy/index.html',    papka: 'uy',
            fayllar: ['index.html', 'app.js', 'style.css'] },
+  // Buyurtmalar ish stoli — kompyuterdan ham, telefondan ham
+  buyurtma: { yol: 'buyurtma/index.html', papka: 'buyurtma',
+              fayllar: ['index.html', 'app.js', 'style.css'] },
 };
 
 function sahifa(res, nom) {
@@ -281,8 +284,8 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'public, max-age=3600' });
       return res.end(['User-agent: *', 'Allow: /', 'Disallow: /admin',
-        'Disallow: /api/', 'Disallow: /media/', 'Disallow: /eksport/',
-        'Disallow: /kartochka/', '',
+        'Disallow: /buyurtma', 'Disallow: /api/', 'Disallow: /media/',
+        'Disallow: /eksport/', 'Disallow: /kartochka/', '',
         asos ? `Sitemap: ${asos}/sitemap.xml` : '', ''].join('\n'));
     }
     if (yol === '/sitemap.xml') {
@@ -298,6 +301,12 @@ const server = http.createServer(async (req, res) => {
     }
     if (yol === '/app' )     return redirect(res, '/app/');
     if (yol === '/admin')    return redirect(res, '/admin/');
+    // Buyurtmalar ish stoli. `/buyurtmalar` ham shu yerga olib
+    // keladi: odam ikkalasini ham yozib ko'radi.
+    if (yol === '/buyurtma' || yol === '/buyurtmalar' || yol === '/buyurtmalar/') {
+      return redirect(res, '/buyurtma/');
+    }
+    if (yol === '/buyurtma/') return sahifa(res, 'buyurtma');
     // Mini App va admin panel HTML i: ichidagi css/js havolalariga
     // versiya qo'shiladi. Aks holda Telegram brauzeri eski app.js ni
     // saqlab qoladi va yangi kod umuman ishlamaydi.

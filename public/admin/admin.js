@@ -308,163 +308,21 @@ const voronkaQator = (nom, son, asos) => `
 // ═══════════ 2. BUYURTMALAR ═══════════
 // Koreyadan mijozgacha bo'lgan yo'l. Tartib SHU YERDA — Postgres enum'idagi
 // tartib tarixiy sabablarga ko'ra boshqacha (src/lib/bosqichlar.js ga qarang).
-const HOLATLAR = {
-  yangi:            ['🆕 Yangi',                  'kok'],
-  tasdiqlangan:     ['✅ To‘lov tasdiqlandi',     'urgu'],
-  qadoqlanmoqda:    ['📦 Koreyada qadoqlanmoqda', 'sariq'],
-  korea_jonatildi:  ['✈️ Koreyadan jo‘natildi',   'sariq'],
-  yolda:            ['🌍 Yo‘lda',                 'sariq'],
-  // Ombor YO'Q — mahsulot O'zbekistonga kelib, bojxonadan o'tdi.
-  omborda:          ['🏢 O‘zbekistonga yetdi',     'kok'],
-  pochta_jonatildi: ['📮 Pochtadan jo‘natildi',   'kok'],
-  yetkazildi:       ['🎉 Yetib keldi',            'yashil'],
-  bekor:            ['❌ Bekor',                  'qizil'],
-};
-const TOLOV = {
-  kutilmoqda:      ['⏳ To‘lov kutilmoqda', 'sariq'],
-  chek_yuborilgan: ['📄 Chek keldi',        'kok'],
-  tolangan:        ['✅ To‘langan',         'yashil'],
-  naqd:            ['💵 Naqd',              'kul'],
-};
-
-async function buyurtmalar(filtr = '') {
-  try {
-    const j = await api('/api/admin/orders' + (filtr ? `?status=${filtr}` : ''));
-    holat.kesh.buyurtmalar = j.buyurtmalar;
-
-    $('#tan').innerHTML = `
-      <div class="bosh"><h1>Buyurtmalar</h1>
-        <span class="ozgina">${j.buyurtmalar.length} ta</span></div>
-      <div style="padding:0 16px 12px;display:flex;gap:7px;overflow-x:auto">
-        <button class="tug kichik ${!filtr ? 'asos' : ''}" data-f="">Barchasi</button>
-        ${Object.entries(HOLATLAR).map(([k, [n]]) =>
-          `<button class="tug kichik ${filtr === k ? 'asos' : ''}" data-f="${k}"
-            style="white-space:nowrap">${n}</button>`).join('')}
-      </div>
-      ${j.buyurtmalar.length ? j.buyurtmalar.map(buyurtmaKarta).join('')
-        : boshHolat('📭', 'Bu holatda buyurtma yo‘q')}`;
-
-    $$('[data-f]').forEach((b) => b.onclick = () => { yuklanmoqda(); buyurtmalar(b.dataset.f); });
-    $$('[data-buyurtma]').forEach((b) => b.onclick = () =>
-      buyurtmaOyna(holat.kesh.buyurtmalar.find((o) => o.id === Number(b.dataset.buyurtma))));
-  } catch (e) { xatoChiz(e); }
-}
-
-function buyurtmaKarta(o) {
-  const [hn, hs] = HOLATLAR[o.status] || [o.status, 'kul'];
-  const [tn, ts] = TOLOV[o.payment_status] || ['—', 'kul'];
-  const foyda = o.total - o.delivery_fee + o.discount - o.cost_total;
-  return `
-  <div class="qator-karta" data-buyurtma="${o.id}" style="cursor:pointer">
-    <div class="qator-bosh">
-      <div><div class="nom">${esc(o.order_no)}</div>
-        <div class="ozgina">${vaqt(o.created_at)}</div></div>
-      <span class="yor ${hs}">${hn}</span>
-    </div>
-    <div style="margin-top:9px">
-      <div class="qator-satr"><span class="k">👤 ${esc(o.customer_name || '—')}</span>
-        <span class="v">${esc(o.customer_phone || '')}</span></div>
-      <div class="qator-satr"><span class="k">📍 ${esc([o.viloyat, o.tuman].filter(Boolean).join(', ') || '—')}</span>
-        <span class="v"><span class="yor ${ts}">${tn}</span></span></div>
-      <div class="qator-satr"><span class="k">🧾 ${o.items.length} ta mahsulot</span>
-        <span class="v">${narx(o.total)}</span></div>
-      <div class="qator-satr"><span class="k">💵 Foyda</span>
-        <span class="v" style="color:var(--yashil)">${som(foyda)}</span></div>
-    </div>
-  </div>`;
-}
-
-function buyurtmaOyna(o) {
-  if (!o) return;
-  const [hn] = HOLATLAR[o.status] || [o.status];
-  modal(o.order_no, `
-    <div class="qator-satr"><span class="k">Holat</span><span class="v">${hn}</span></div>
-    <div class="qator-satr"><span class="k">Mijoz</span><span class="v">${esc(o.customer_name || '—')}</span></div>
-    <div class="qator-satr"><span class="k">Telefon</span>
-      <span class="v"><a href="tel:${esc(String(o.customer_phone || '').replace(/[^+\d]/g, ''))}">${esc(o.customer_phone || '—')}</a></span></div>
-    <div class="qator-satr"><span class="k">Manzil</span>
-      <span class="v" style="max-width:60%">${esc(o.customer_address || '—')}</span></div>
-    ${o.note ? `<div class="qator-satr"><span class="k">Izoh</span><span class="v">${esc(o.note)}</span></div>` : ''}
-    ${o.pochta_izoh ? `<div class="qator-satr"><span class="k">📮 Pochta</span>
-      <span class="v" style="max-width:60%">${esc(o.pochta_izoh)}</span></div>` : ''}
-
-    <h3 style="margin:18px 0 6px">Mahsulotlar</h3>
-    ${o.items.map((i) => `<div class="qator-satr">
-      <span class="k">${esc(i.name)} × ${i.qty}</span>
-      <span class="v">${som(i.price * i.qty)}</span></div>`).join('')}
-    ${o.discount ? `<div class="qator-satr"><span class="k">Chegirma</span>
-      <span class="v" style="color:var(--yashil)">−${som(o.discount)}</span></div>` : ''}
-    <div class="qator-satr"><span class="k">Yetkazish</span><span class="v">${som(o.delivery_fee)}</span></div>
-    <div class="qator-satr"><span class="k"><b>Jami</b></span>
-      <span class="v" style="font-size:18px">${narx(o.total)}</span></div>
-
-    ${o.receipt_id ? `<h3 style="margin:18px 0 8px">To‘lov cheki</h3>
-      <img src="/media/${esc(o.receipt_id)}?t=${encodeURIComponent(holat.token)}"
-           alt="Chek" style="width:100%;border-radius:12px;background:var(--fon)">
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="tug asos" id="t-tolov-ok" style="flex:1">✅ To‘lov tasdiqlandi</button>
-        <button class="tug" id="t-tolov-yoq">↩︎ Qayta so‘rash</button>
-      </div>`
-    : `<div class="xabar-quti ogoh" style="margin:16px 0 0">Chek hali yuborilmagan</div>`}
-
-    <h3 style="margin:20px 0 8px">Holatni o‘zgartirish</h3>
-    <div style="display:grid;gap:8px">
-      ${Object.entries(HOLATLAR).filter(([k]) => k !== o.status).map(([k, [n]]) =>
-        `<button class="tug keng" data-holat="${k}" style="justify-content:flex-start">${n}</button>`).join('')}
-    </div>`, { keng: true });
-
-  $$('[data-holat]').forEach((b) => b.onclick = () => holatOzgartir(o, b.dataset.holat));
-  const ok = $('#t-tolov-ok'), yoq = $('#t-tolov-yoq');
-  if (ok) ok.onclick = () => tolovHolati(o.id, 'tolangan');
-  if (yoq) yoq.onclick = () => tolovHolati(o.id, 'kutilmoqda');
-}
-
-async function holatOzgartir(o, yangi) {
-  const amal = async (qosh = {}) => {
-    try {
-      await api('/api/admin/order-status', { method: 'POST',
-        body: JSON.stringify({ id: o.id, status: yangi, reason: null, ...qosh }) });
-      modalYop(); tost('Holat o‘zgartirildi'); yuklanmoqda(); buyurtmalar();
-    } catch (e) { tost(e.message, 'xato'); }
-  };
-  if (yangi === 'bekor') {
-    modal('Bekor qilish sababi', `
-      <p class="mayda">Sabab mijozga xabar bo‘lib boradi. Mahsulotlar omborga qaytadi.</p>
-      <input id="bekor-sabab" placeholder="Masalan: mahsulot tugadi" style="margin-top:12px">
-      <button class="tug xavf keng" id="t-bekor" style="margin-top:16px">Bekor qilish</button>`);
-    $('#t-bekor').onclick = () => amal({ reason: $('#bekor-sabab').value.trim() });
-    return;
-  }
-  // Jo'natish paytida QAYERGA ketgani ma'lum bo'ladi — mijoz aynan
-  // shuni kutadi. Izohsiz o'tkazsa xabar quruq chiqadi, shuning uchun
-  // maydon shu yerda so'raladi (majburiy emas: ba'zan keyin aniqlanadi).
-  if (yangi === 'pochta_jonatildi') {
-    const joy = o.yetkazish_turi === 'uy' ? 'uy manziliga' : 'eng yaqin filialga';
-    modal('Qayerga jo‘natildi?', `
-      <p class="mayda">Mijozga xabar bo‘lib boradi: filial manzili yoki
-        kuzatuv raqami. Bo‘sh qoldirsangiz faqat ${esc(joy)} deb ketadi.</p>
-      <input id="pochta-izoh" maxlength="300" value="${esc(o.pochta_izoh || '')}"
-        placeholder="Masalan: Chilonzor 12-filial · kuzatuv AB123456789UZ"
-        style="margin-top:12px">
-      <button class="tug asos keng" id="t-pochta" style="margin-top:16px">📮 Jo‘natildi</button>`);
-    $('#t-pochta').onclick = () => amal({ pochta_izoh: $('#pochta-izoh').value.trim() });
-    return;
-  }
-  if (yangi === 'omborda') {
-    return tasdiqla('O‘zbekistonga yetdimi?',
-      'Mijozga «bojxonadan o‘tdi, jo‘natishga tayyorlanmoqda» deb xabar boradi. '
-      + 'Manzil va’da qilinmaydi — u keyingi bosqichda aytiladi.', () => amal());
-  }
-  amal();
-}
-
-async function tolovHolati(id, holatNomi) {
-  try {
-    await api('/api/admin/payment-status', { method: 'POST',
-      body: JSON.stringify({ id, payment_status: holatNomi }) });
-    modalYop(); tost(holatNomi === 'tolangan' ? 'To‘lov tasdiqlandi' : 'Qayta so‘raldi');
-    yuklanmoqda(); buyurtmalar();
-  } catch (e) { tost(e.message, 'xato'); }
+/* ═══════════ 2. BUYURTMALAR ═══════════
+ *
+ * Buyurtmalar endi ALOHIDA ish stolida — `/buyurtma/`.
+ *
+ * Ilgari ular shu yerda edi va chalkashlik tug'dirardi: filtr faqat
+ * bosqich bo'yicha, qidiruv yo'q, holatni o'zgartirish esa
+ * to'qqizta tugmadan iborat ro'yxat — operator qaysi biri
+ * keyingisi ekanini o'zi eslab qolishi kerak edi.
+ *
+ * Ikkita joyda ikkita ro'yxat saqlash undan ham yomon bo'lardi,
+ * shuning uchun bu bo'lim o'sha ekranga OLIB BORADI. Kirish tokeni
+ * bitta (`qq_admin`), ya'ni qayta parol so'ralmaydi.
+ */
+function buyurtmalar() {
+  location.href = '/buyurtma/';
 }
 
 // ═══════════ 3. MAHSULOTLAR ═══════════

@@ -36,6 +36,7 @@ const kerakliFayllar = [
   'migrations/004_tolov_chegirma.sql', 'migrations/005_xabar_shablonlari.sql',
   'migrations/007_ombor_admin.sql', 'migrations/008_omborda_holati.sql',
   'public/uy/index.html', 'public/uy/app.js', 'public/uy/style.css',
+  'public/buyurtma/index.html', 'public/buyurtma/app.js', 'public/buyurtma/style.css',
   'public/app/index.html', 'public/app/app.js', 'public/app/style.css',
   'public/admin/index.html', 'public/admin/admin.js', 'public/admin/style.css',
 ];

@@ -1,0 +1,277 @@
+/* KiOVO — buyurtmalar ish stoli (kiovo.shop/buyurtma).
+ *
+ * Bu REKLAMA emas, ISH quroli. Shuning uchun ko'rinishi saytnikidan
+ * butunlay boshqacha: oq fon, zich jadval, kam rang. Rang faqat
+ * MA'NO tashiganda ishlatiladi — e'tibor kutayotgan buyurtma,
+ * bekor qilingani, foyda. Qolgani kulrang.
+ *
+ * Ikkita o'lcham bitta kod bilan:
+ *   kompyuter — yon ustun + jadval + o'ng panel
+ *   telefon   — chiplar + kartalar + to'liq ekran panel
+ * Ikkalasida ham AYNAN bir xil amallar bor; telefonda «qisqartirilgan
+ * versiya» yo'q, chunki do'kon egasi ko'pincha telefonda ishlaydi.
+ */
+:root{
+  --oq:#fff;
+  --fon:#f6f7f9;
+  --chiziq:#e3e6ea;
+  --chiziq-och:#eef0f3;
+  --matn:#111418;
+  --kul:#5b6472;
+  --och:#8b95a3;
+  --urgu:#b3161c;          /* brend qizili — ilova bilan bir xil */
+  --urgu-och:#fdeced;
+  --kok:#1f6feb;   --kok-och:#eaf1fe;
+  --yashil:#1a7f45; --yashil-och:#e8f6ee;
+  --sariq:#9a6700; --sariq-och:#fff5e0;
+  --r:10px;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --tepa-h:56px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fon);color:var(--matn);
+  font:14px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+[hidden]{display:none!important}
+a{color:inherit}
+
+/* ── Tugmalar ── */
+.tug{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:9px 15px;border-radius:8px;border:1px solid var(--chiziq);
+  background:var(--oq);font-weight:600;font-size:13.5px;cursor:pointer;
+  white-space:nowrap;transition:background .12s,border-color .12s}
+.tug:hover{background:var(--fon)}
+.tug:active{transform:translateY(1px)}
+.tug:disabled{opacity:.5;cursor:default}
+.tug.asos{background:var(--urgu);border-color:var(--urgu);color:#fff}
+.tug.asos:hover{background:#c8191f}
+.tug.xavf{color:var(--urgu);border-color:#f0c2c4}
+.tug.xavf:hover{background:var(--urgu-och)}
+.tug.keng{width:100%}
+.tug.katta{padding:13px 18px;font-size:15px}
+.ikon-tug{display:grid;place-items:center;width:36px;height:36px;flex:0 0 auto;
+  border:0;background:none;border-radius:8px;color:var(--kul);cursor:pointer}
+.ikon-tug:hover{background:var(--chiziq-och);color:var(--matn)}
+.ikon-tug svg{width:20px;height:20px}
+
+/* ── Kirish ── */
+.kirish{min-height:100dvh;display:grid;place-items:center;padding:24px}
+.kirish-quti{width:100%;max-width:360px;background:var(--oq);
+  border:1px solid var(--chiziq);border-radius:14px;padding:28px 26px 26px}
+.kirish-belgi{font-weight:800;letter-spacing:.14em;font-size:12px;color:var(--urgu)}
+.kirish-quti h1{margin:6px 0 22px;font-size:22px;letter-spacing:-.02em}
+.kirish-quti label{display:block;font-size:12.5px;font-weight:600;color:var(--kul);
+  margin:0 0 6px}
+.kirish-quti input{width:100%;padding:11px 13px;margin:0 0 16px;
+  border:1px solid var(--chiziq);border-radius:8px;background:var(--oq)}
+.kirish-quti input:focus{outline:2px solid var(--urgu);outline-offset:-1px;border-color:transparent}
+.kirish-xato{background:var(--urgu-och);color:var(--urgu);padding:10px 12px;
+  border-radius:8px;font-size:13px;margin:0 0 14px}
+
+/* ── Karkas ── */
+.ish{min-height:100dvh;display:flex;flex-direction:column}
+.tepa{position:sticky;top:0;z-index:30;height:var(--tepa-h);flex:0 0 auto;
+  display:flex;align-items:center;gap:10px;padding:0 12px;
+  background:var(--oq);border-bottom:1px solid var(--chiziq)}
+.belgi{font-weight:800;font-size:15px;letter-spacing:-.02em;text-decoration:none;
+  white-space:nowrap}
+.belgi span{display:block;font-size:11px;font-weight:600;color:var(--och);
+  letter-spacing:0}
+.qidiruv{flex:1;min-width:0;position:relative;max-width:420px;margin:0 auto}
+.qidiruv svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  width:17px;height:17px;color:var(--och);pointer-events:none}
+.qidiruv input{width:100%;padding:8px 12px 8px 33px;border-radius:8px;
+  border:1px solid var(--chiziq);background:var(--fon);
+  -webkit-appearance:none;appearance:none}
+.qidiruv input:focus{outline:2px solid var(--urgu);outline-offset:-1px;
+  background:var(--oq);border-color:transparent}
+
+.tan{flex:1;display:flex;min-height:0}
+
+/* ── Yon ustun ── */
+.yon{flex:0 0 232px;background:var(--oq);border-right:1px solid var(--chiziq);
+  padding:14px 10px;overflow-y:auto}
+.yon-guruh + .yon-guruh{margin-top:20px}
+.yon-sarlavha{margin:0 0 6px;padding:0 8px;font-size:11px;font-weight:700;
+  letter-spacing:.07em;text-transform:uppercase;color:var(--och)}
+.yon nav{display:flex;flex-direction:column;gap:1px}
+.yon button{display:flex;align-items:center;gap:9px;width:100%;padding:8px 9px;
+  border:0;background:none;border-radius:7px;cursor:pointer;text-align:left;
+  font-size:13.5px;font-weight:500;color:var(--kul)}
+.yon button:hover{background:var(--chiziq-och);color:var(--matn)}
+.yon button.faol{background:var(--urgu-och);color:var(--urgu);font-weight:700}
+.yon button i{flex:0 0 8px;width:8px;height:8px;border-radius:50%;
+  background:var(--chiziq);font-style:normal}
+.yon button.faol i{background:var(--urgu)}
+.yon button b{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--och);
+  font-variant-numeric:tabular-nums}
+.yon button.faol b{color:var(--urgu)}
+.yon button.shoshilinch b{background:var(--urgu);color:#fff;border-radius:99px;
+  padding:1px 7px;min-width:20px;text-align:center}
+
+/* ── Ro'yxat ── */
+.royxat{flex:1;min-width:0;overflow-y:auto;padding:14px}
+.royxat-bosh{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin:0 0 12px}
+.royxat-bosh h1{margin:0;font-size:19px;letter-spacing:-.02em}
+.royxat-bosh .soni{font-size:13px;color:var(--och);font-weight:600}
+.royxat-bosh .tug{margin-left:auto}
+
+/* Jadval — keng ekranda */
+.jadval{width:100%;border-collapse:collapse;background:var(--oq);
+  border:1px solid var(--chiziq);border-radius:var(--r);overflow:hidden}
+.jadval th{text-align:left;font-size:11.5px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--och);padding:9px 12px;
+  border-bottom:1px solid var(--chiziq);background:var(--oq);
+  position:sticky;top:0;z-index:1}
+.jadval td{padding:11px 12px;border-bottom:1px solid var(--chiziq-och);
+  vertical-align:middle}
+.jadval tr:last-child td{border-bottom:0}
+.jadval tbody tr{cursor:pointer}
+.jadval tbody tr:hover{background:var(--fon)}
+.jadval tbody tr.tanlangan{background:var(--kok-och)}
+.jadval tbody tr.ochiq{background:var(--urgu-och)}
+.j-belgi{width:36px;padding-right:0!important}
+.j-raqam{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.j-vaqt{font-size:12px;color:var(--och);white-space:nowrap}
+.j-mijoz b{display:block;font-weight:600}
+.j-mijoz span{font-size:12.5px;color:var(--och)}
+.j-summa{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;
+  white-space:nowrap}
+.j-summa small{display:block;font-size:11.5px;font-weight:600;color:var(--yashil)}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--urgu);cursor:pointer}
+
+/* Yorliqlar */
+.yor{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;
+  border-radius:99px;font-size:12px;font-weight:700;white-space:nowrap;
+  background:var(--chiziq-och);color:var(--kul)}
+.yor.kok{background:var(--kok-och);color:var(--kok)}
+.yor.yashil{background:var(--yashil-och);color:var(--yashil)}
+.yor.sariq{background:var(--sariq-och);color:var(--sariq)}
+.yor.qizil{background:var(--urgu-och);color:var(--urgu)}
+
+/* Kartalar — tor ekranda */
+.kartalar{display:none;flex-direction:column;gap:9px}
+.karta{background:var(--oq);border:1px solid var(--chiziq);border-radius:var(--r);
+  padding:12px 13px;cursor:pointer}
+.karta.tanlangan{border-color:var(--kok);background:var(--kok-och)}
+.karta-bosh{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.karta-bosh .j-raqam{font-size:14.5px}
+.karta-bosh .yor{margin-left:auto}
+.karta-satr{display:flex;gap:10px;font-size:13px;color:var(--kul)}
+.karta-satr + .karta-satr{margin-top:3px}
+.karta-satr b{margin-left:auto;color:var(--matn);font-variant-numeric:tabular-nums}
+
+.bosh-holat{text-align:center;padding:56px 20px;color:var(--och)}
+.bosh-holat b{display:block;font-size:15px;color:var(--kul);margin-bottom:4px}
+.yuklanmoqda{display:grid;place-items:center;padding:60px}
+.aylana{width:26px;height:26px;border:2.5px solid var(--chiziq);
+  border-top-color:var(--urgu);border-radius:50%;animation:aylan .7s linear infinite}
+@keyframes aylan{to{transform:rotate(360deg)}}
+
+/* «Yana yuklash» */
+.yana{margin:12px auto 0;display:block}
+
+/* ── Tanlov paneli ── */
+.tanlov-panel{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+  z-index:40;display:flex;align-items:center;gap:10px;
+  background:var(--matn);color:#fff;padding:9px 10px 9px 16px;border-radius:99px;
+  box-shadow:0 8px 28px rgba(0,0,0,.25);font-size:13.5px;font-weight:600}
+.tanlov-panel .tug{background:rgba(255,255,255,.14);border-color:transparent;color:#fff}
+.tanlov-panel .tug:hover{background:rgba(255,255,255,.24)}
+.tanlov-panel .tug.asos{background:#fff;color:var(--matn)}
+
+/* ── Tafsilot paneli ── */
+.panel{position:fixed;z-index:50;background:var(--oq);display:flex;
+  flex-direction:column;overflow:hidden}
+.panel-parda{position:fixed;inset:0;z-index:45;background:rgba(17,20,24,.4)}
+.panel-bosh{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:14px 16px;border-bottom:1px solid var(--chiziq)}
+.panel-bosh h2{margin:0;font-size:17px;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums}
+.panel-bosh .ikon-tug{margin-left:auto}
+.panel-ich{flex:1;overflow-y:auto;padding:16px}
+.panel-oyoq{flex:0 0 auto;padding:12px 16px;border-top:1px solid var(--chiziq);
+  display:flex;flex-direction:column;gap:8px;background:var(--oq)}
+
+.blok{margin:0 0 20px}
+.blok h3{margin:0 0 8px;font-size:11.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--och)}
+.satr{display:flex;gap:12px;padding:6px 0;font-size:13.5px}
+.satr .k{color:var(--kul);flex:0 0 96px}
+.satr .v{flex:1;min-width:0;text-align:right;font-weight:600;overflow-wrap:anywhere}
+.satr .v a{color:var(--kok);text-decoration:none}
+.jami{border-top:1px solid var(--chiziq);margin-top:8px;padding-top:10px}
+.jami .v{font-size:16px}
+.chek{width:100%;border-radius:var(--r);border:1px solid var(--chiziq);
+  background:var(--fon);display:block}
+
+/* Yo'l — qaysi bosqichda ekani BIR QARASHDA ko'rinadi */
+.yol{display:flex;flex-direction:column;gap:0}
+.yol-qadam{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:13px;
+  color:var(--och)}
+.yol-qadam i{position:relative;flex:0 0 16px;width:16px;height:16px;border-radius:50%;
+  border:2px solid var(--chiziq);background:var(--oq);font-style:normal}
+.yol-qadam:not(:last-child) i::after{content:'';position:absolute;left:50%;top:14px;
+  width:2px;height:16px;transform:translateX(-50%);background:var(--chiziq)}
+.yol-qadam.otgan{color:var(--kul)}
+.yol-qadam.otgan i{border-color:var(--yashil);background:var(--yashil)}
+.yol-qadam.otgan i::after{background:var(--yashil)}
+.yol-qadam.joriy{color:var(--matn);font-weight:700}
+.yol-qadam.joriy i{border-color:var(--urgu);box-shadow:0 0 0 3px var(--urgu-och)}
+
+/* ── Oyna (dialog) ── */
+.oyna-parda{position:fixed;inset:0;z-index:60;background:rgba(17,20,24,.45)}
+.oyna{position:fixed;z-index:61;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(420px,calc(100vw - 32px));background:var(--oq);border-radius:14px;
+  padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.oyna h3{margin:0 0 6px;font-size:17px}
+.oyna p{margin:0 0 14px;font-size:13.5px;color:var(--kul);line-height:1.55}
+.oyna input{width:100%;padding:11px 13px;border:1px solid var(--chiziq);
+  border-radius:8px;margin:0 0 14px}
+.oyna input:focus{outline:2px solid var(--urgu);outline-offset:-1px;border-color:transparent}
+.oyna-tugmalar{display:flex;gap:8px}
+.oyna-tugmalar .tug{flex:1}
+.holat-royxat{display:flex;flex-direction:column;gap:4px;max-height:52vh;
+  overflow-y:auto;margin:0 0 14px}
+.holat-royxat button{justify-content:flex-start;width:100%}
+
+/* ── Tost ── */
+.tost{position:fixed;left:50%;bottom:78px;transform:translateX(-50%);z-index:80;
+  background:var(--matn);color:#fff;padding:11px 18px;border-radius:99px;
+  font-size:13.5px;font-weight:600;box-shadow:0 8px 28px rgba(0,0,0,.28);
+  max-width:calc(100vw - 32px);text-align:center}
+.tost.xato{background:var(--urgu)}
+
+/* ══════════ KENG EKRAN ══════════ */
+@media (min-width:900px){
+  .faqat-tor{display:none}
+  .royxat{padding:18px 20px}
+  .kartalar{display:none!important}
+  /* O'ng panel — ro'yxatni yopmaydi, yonida turadi */
+  .panel{right:0;top:var(--tepa-h);bottom:0;width:min(440px,42vw);
+    border-left:1px solid var(--chiziq);box-shadow:-8px 0 28px rgba(17,20,24,.07)}
+  .panel-parda{display:none!important}
+}
+
+/* ══════════ TOR EKRAN ══════════ */
+@media (max-width:899px){
+  .jadval{display:none}
+  .kartalar{display:flex}
+  .belgi span{display:none}
+  .qidiruv{max-width:none;margin:0}
+  /* Yon ustun — chapdan chiqadigan taxta */
+  .yon{position:fixed;z-index:46;left:0;top:0;bottom:0;width:250px;
+    transform:translateX(-100%);transition:transform .22s ease;
+    box-shadow:4px 0 24px rgba(17,20,24,.12)}
+  .yon.ochiq{transform:none}
+  .yon-parda{position:fixed;inset:0;z-index:45;background:rgba(17,20,24,.4)}
+  /* Tafsilot — to'liq ekran: telefonda yarim panel o'qilmaydi */
+  .panel{inset:0;border-radius:0}
+  .tanlov-panel{left:12px;right:12px;bottom:12px;transform:none;
+    justify-content:space-between}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation-duration:.01ms!important}
+}

@@ -1090,6 +1090,53 @@ mahsulot qayta qo'shilmaydi. Ya'ni «1000 ta rasm yuborib, do'konda
 yo'qlarini qo'sh» degan ish shundoq ishlaydi — hisobotda
 «Katalogda bor: N ta» bo'lib ko'rinadi.
 
+### kiovo.shop/buyurtma — buyurtmalar ish stoli
+
+Buyurtmalar admin panelidan **chiqarildi** va o'z ekraniga o'tdi.
+Sabab: u yerda filtr faqat bosqich bo'yicha edi, qidiruv yo'q,
+nechtaligi noma'lum, holatni o'zgartirish esa to'qqizta tugmadan
+iborat ro'yxat — operator qaysi biri keyingisi ekanini o'zi eslab
+qolishi kerak edi. Admin panelning «Buyurtmalar» bo'limi endi shu
+ekranga olib boradi: ikkita joyda ikkita ro'yxat bo'lmaydi.
+
+Uchta qoida:
+
+1. **«Nima qilishim kerak» birinchi o'rinda.** Yon ustunning
+   tepasida ish navbatlari: *Chek tekshirish* (mijoz pulini
+   to'lagan va javob kutyapti), *Xaridga tayyor*, *3 kundan beri
+   turibdi*, *Bugun tushgan*. Shoshilinchlari qizil raqam bilan.
+   Bosqichlar ro'yxati ostida — har birida nechtaligi bilan.
+2. **Bitta ASOSIY amal.** Tafsilot panelida katta bitta tugma:
+   «<keyingi bosqich> ga o'tkazish». Qolgan bosqichlar «Boshqa
+   bosqich» menyusida. Pastda buyurtmaning butun yo'li ko'rinib
+   turadi — qaysi nuqtada ekani bir qarashda bilinadi.
+3. **Bir nechtasini birdan.** Partiya kelganda o'ttizta buyurtmani
+   birma-bir ochib o'tirmaslik uchun: ro'yxatdan belgilaysiz va
+   bitta tugma bilan ko'chirasiz. Hammasi bir bosqichda bo'lsa
+   keyingisi oldindan taklif qilinadi. Har biri alohida yoziladi:
+   bittasi yiqilsa qolgani to'xtamaydi va nechtasi o'tgani aniq
+   aytiladi.
+
+**Qidiruv FILTRDAN ustun.** Raqam, ism yoki telefon bo'yicha
+izlaganda faol filtr e'tiborga olinmaydi. Ilgari operator buyurtma
+raqamini yozib «0 ta» degan javob olardi — chunki o'zi unutgan
+«Yangi» filtri yoqiq turgan, buyurtma esa allaqachon keyingi
+bosqichga o'tgan edi. Aynan shunday narsalar «tizim yo'qotib
+qo'ydi» degan taassurot tug'diradi.
+
+Kompyuterda jadval + o'ng panel, telefonda kartalar + to'liq ekran.
+**Telefonda qisqartirilgan versiya yo'q** — do'kon egasi ko'pincha
+telefonda ishlaydi, shuning uchun ikkalasida ham aynan o'sha
+amallar bor. Kirish admin paneli bilan bitta token (`qq_admin`):
+bir joyda kirsangiz ikkinchisi ham ochiq.
+
+| Nima | Qayerda |
+|---|---|
+| Ekran | `public/buyurtma/` → `/buyurtma/` |
+| Ma'lumot | `GET /api/admin/buyurtmalar` — ro'yxat, sanoq va navbatlar BITTA so'rovda |
+| Ommaviy ko'chirish | `POST /api/admin/buyurtma-koch` |
+| Holat o'zgartirish | `POST /api/admin/order-status` (bitta joyda — `holatniQoy`) |
+
 ### kiovo.shop — brend sayti
 
 Domen bosh sahifaga tushadi (`public/uy/`). Bu Mini App emas, oddiy
@@ -1594,6 +1641,7 @@ src/
     admin-sql.js       bazaga to'g'ridan-to'g'ri kirish (read-only tranzaksiya)
     eksport.js         ma'lumotni JSON yoki CSV qilib yuklash
 public/
+  buyurtma/            buyurtmalar ish stoli (index.html, app.js, style.css)
   uy/                  kiovo.shop bosh sahifasi (index.html, app.js, style.css)
     hero.jpg           qahramon plakat
     skaner.jpg         skaner natijasi qanday ko'rinishi

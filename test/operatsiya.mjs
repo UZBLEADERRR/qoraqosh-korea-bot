@@ -4703,5 +4703,136 @@ console.log('\n── KARTOCHKA SHABLONI ──');
       .some((r) => /olchovlar/.test(r)));
 }
 
+
+// ══════════════ BUYURTMALAR ISH STOLI ══════════════
+//
+// «Buyurtmalarni boshqarish katta chalkashlik tug'diryapti» —
+// endi alohida ekran: kiovo.shop/buyurtma, kompyuterdan ham,
+// telefondan ham.
+{
+  console.log('\n── BUYURTMALAR ISH STOLI ──');
+  const fsB = await import('node:fs');
+  const html = fsB.readFileSync('public/buyurtma/index.html', 'utf8');
+  const js   = fsB.readFileSync('public/buyurtma/app.js', 'utf8');
+  const css  = fsB.readFileSync('public/buyurtma/style.css', 'utf8');
+  const srv  = fsB.readFileSync('src/server.js', 'utf8');
+
+  // ── Manzil ──
+  test('sayt `/buyurtma/` da ochiladi',
+    /if \(yol === '\/buyurtma\/'\) return sahifa\(res, 'buyurtma'\)/.test(srv));
+  test('`/buyurtmalar` ham shu yerga olib keladi',
+    /yol === '\/buyurtmalar'/.test(srv));
+  test('qidiruv tizimlaridan yopiq',
+    /Disallow: \/buyurtma/.test(srv) && /noindex/.test(html));
+
+  // ── Kirish ──
+  test('admin bilan BIR XIL token — qayta parol so‘ralmaydi',
+    /const TOKEN_KALIT = 'qq_admin'/.test(js));
+  test('login maydoni server kutgan nom bilan ketadi',
+    /password: \$\('#k-parol'\)\.value/.test(js));
+  test('sessiya tugasa kirish ekraniga qaytaradi',
+    /if \(r\.status === 401\) \{ chiqish\(\)/.test(js));
+
+  // ── API: sanoq, navbat va ro'yxat BITTA so'rovda ──
+  const r = await chaqirAdmin('/api/admin/buyurtmalar?limit=5', 'GET');
+  test('javob keldi', r.kod === 200, String(r.kod));
+  test('ro‘yxat keladi', Array.isArray(r.tana.buyurtmalar));
+  test('nechtaligi ham aytiladi', typeof r.tana.jami === 'number', `jami ${r.tana.jami}`);
+  test('har bosqichda nechtaligi — yon ustundagi raqamlar',
+    r.tana.sanoq && typeof r.tana.sanoq === 'object',
+    JSON.stringify(r.tana.sanoq));
+  test('ish navbatlari ham shu javobda',
+    r.tana.navbat && ['chek', 'tolandi', 'kutmoqda', 'bugun']
+      .every((k) => typeof r.tana.navbat[k] === 'number'),
+    JSON.stringify(r.tana.navbat));
+  test('bosqichlar ro‘yxati serverdan keladi — ikki nusxa yo‘q',
+    Array.isArray(r.tana.bosqichlar) && r.tana.bosqichlar.length === 8);
+  test('limit hurmat qilinadi', (r.tana.buyurtmalar || []).length <= 5);
+
+  // ── Filtr va qidiruv ──
+  const yangi = await chaqirAdmin('/api/admin/buyurtmalar?holat=yangi', 'GET');
+  test('bosqich bo‘yicha filtr',
+    (yangi.tana.buyurtmalar || []).every((o) => o.status === 'yangi'),
+    `${yangi.tana.jami} ta`);
+
+  const birinchi = (r.tana.buyurtmalar || [])[0];
+  if (birinchi) {
+    const q = await chaqirAdmin(
+      `/api/admin/buyurtmalar?q=${encodeURIComponent(birinchi.order_no)}`, 'GET');
+    test('raqam bo‘yicha qidiruv',
+      (q.tana.buyurtmalar || []).some((o) => o.id === birinchi.id),
+      birinchi.order_no);
+    // Telefondagi bo'shliq va qavslar e'tiborga olinmaydi
+    const tel = String(birinchi.customer_phone || '').replace(/\D/g, '').slice(-7);
+    if (tel.length >= 7) {
+      const qt = await chaqirAdmin(`/api/admin/buyurtmalar?q=${tel}`, 'GET');
+      test('telefon bo‘yicha ham topiladi',
+        (qt.tana.buyurtmalar || []).some((o) => o.id === birinchi.id), tel);
+    }
+  }
+  const yoq = await chaqirAdmin('/api/admin/buyurtmalar?q=zzz-topilmaydi', 'GET');
+  test('topilmasa bo‘sh ro‘yxat, xato emas',
+    yoq.kod === 200 && (yoq.tana.buyurtmalar || []).length === 0);
+
+  // Qidiruv FILTRDAN ustun: operator raqamni yozib «0 ta» degan
+  // javob olardi, chunki o'zi unutgan filtr yoqiq turardi
+  test('qidiruv barcha buyurtma orasidan izlaydi',
+    /if \(!holat\.q\) \{[\s\S]{0,200}holat\.bosqich[\s\S]{0,120}\} else \{[\s\S]{0,80}'q'/
+      .test(js));
+  test('qidiruv paytida yon ustunda «faol» tanlov ko‘rsatilmaydi',
+    /const qidiryapti = Boolean\(holat\.q\)/.test(js));
+
+  // ── Bitta ASOSIY amal ──
+  test('keyingi bosqich hisoblanadi', /function keyingiBosqich/.test(js));
+  test('asosiy tugma — keyingi bosqich',
+    /id="t-keyingi"[\s\S]{0,60}ga o‘tkazish/.test(js));
+  test('qolgan bosqichlar menyu ichida', /id="t-boshqa"/.test(js));
+  test('bekor qilish sabab so‘raydi',
+    /function bekorQil/.test(js) && /omborga qaytadi/.test(js));
+  test('pochtaga berishda qayerga ketgani so‘raladi',
+    /yangi === 'pochta_jonatildi'/.test(js));
+  test('buyurtma yo‘li ko‘rinib turadi — qaysi bosqichda ekani',
+    /function yolniChiz/.test(js) && /\.yol-qadam\.joriy/.test(css));
+
+  // ── Ommaviy ko'chirish ──
+  const ikki = (r.tana.buyurtmalar || []).slice(0, 2).map((o) => o.id);
+  if (ikki.length === 2) {
+    const k = await chaqirAdmin('/api/admin/buyurtma-koch', 'POST',
+      { idlar: ikki, status: 'qadoqlanmoqda' });
+    test('ikkita buyurtma birdan ko‘chdi',
+      k.kod === 200 && k.tana.bajarildi === 2, JSON.stringify(k.tana));
+    const tekshir = await chaqirAdmin('/api/admin/buyurtmalar?holat=qadoqlanmoqda', 'GET');
+    test('ikkalasi ham yangi bosqichda',
+      ikki.every((id) => (tekshir.tana.buyurtmalar || []).some((o) => o.id === id)));
+  }
+  const bosh2 = await chaqirAdmin('/api/admin/buyurtma-koch', 'POST', { idlar: [], status: 'yolda' });
+  test('bo‘sh tanlov rad etiladi', bosh2.kod === 400);
+  const xatoHolat = await chaqirAdmin('/api/admin/buyurtma-koch', 'POST',
+    { idlar: [1], status: 'yoq-holat' });
+  test('noto‘g‘ri bosqich rad etiladi', xatoHolat.kod === 400);
+  // Bittasi yiqilsa qolgani to'xtamaydi
+  const aralash = await chaqirAdmin('/api/admin/buyurtma-koch', 'POST',
+    { idlar: [...ikki, 99999999], status: 'yolda' });
+  test('yo‘q buyurtma qolganini TO‘XTATMAYDI',
+    aralash.tana.bajarildi === ikki.length && aralash.tana.yiqilgan?.length === 1,
+    JSON.stringify(aralash.tana).slice(0, 90));
+
+  // ── Kompyuter va telefon ──
+  test('keng ekranda jadval, torda kartalar',
+    /@media \(max-width:899px\)\{[\s\S]{0,200}\.jadval\{display:none\}/.test(css)
+      && /\.kartalar\{display:flex\}/.test(css));
+  test('tafsilot torda TO‘LIQ ekran — yarim panel o‘qilmaydi',
+    /@media \(max-width:899px\)[\s\S]{0,900}\.panel\{inset:0/.test(css));
+  test('telefonda ham AYNAN o‘sha amallar bor — qisqartirilgan versiya yo‘q',
+    !/faqat-keng/.test(css));
+
+  // ── Admin panelidan o'sha yerga ──
+  const adminJs2 = fsB.readFileSync('public/admin/admin.js', 'utf8');
+  test('admin panelning «Buyurtmalar» bo‘limi shu ekranga olib boradi',
+    /function buyurtmalar\(\) \{\s*location\.href = '\/buyurtma\/';/.test(adminJs2));
+  test('eski ikkinchi ro‘yxat olib tashlandi — bitta joy qoldi',
+    !/function buyurtmaKarta/.test(adminJs2) && !/function buyurtmaOyna/.test(adminJs2));
+}
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);
