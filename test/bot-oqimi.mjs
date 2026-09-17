@@ -531,14 +531,27 @@ test('rasm bazaga bog‘landi', Boolean(saqlangan?.natija_rasm_id));
 
 // ═══════════ KANALLAR ═══════════
 console.log('\n── KANALLAR ──');
-await sorov(`update settings set value = '"-100555"'::jsonb where key = 'kanal_tahlil'`);
-await sorov(`update settings set value = 'false'::jsonb where key = 'kanal_tahlil_yoqilgan'`);
+// Sozlama SQL bilan to'g'ridan-to'g'ri o'zgartirilyapti, admin paneli
+// orqali emas — shuning uchun keshni O'ZIMIZ tozalaymiz. Ilgari bu
+// yo'q edi va `sozlama()` eski qiymatni qaytarib turardi: kanal
+// yoqilganiga qaramay test «kanalga hech narsa tushmadi» derdi.
+const { sozlamalarniUnut } = await import('../src/db.js');
+// `update` EMAS, `insert ... on conflict`: bu ikki kalit migratsiyada
+// urug'lantirilmaydi (kanalga YUZ SURATI ketadi, shuning uchun ular
+// ataylab yo'q). `update` qatorni topmay jimgina o'tib ketar va test
+// kanalni umuman yoqmagan holda «tekshirib» turardi.
+await sorov(`insert into settings (key, value) values
+    ('kanal_tahlil', '"-100555"'::jsonb), ('kanal_tahlil_yoqilgan', 'false'::jsonb)
+    on conflict (key) do update set value = excluded.value`);
+sozlamalarniUnut();
 await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
 yuborilgan.length = 0; await rasmYubor();
+await new Promise((r) => setTimeout(r, 400));
 test('o‘chiq bo‘lsa tahlil kanalga YUBORILMAYDI',
   !yuborilgan.some((x) => String(x.chat_id) === '-100555'));
 
 await sorov(`update settings set value = 'true'::jsonb where key = 'kanal_tahlil_yoqilgan'`);
+sozlamalarniUnut();
 await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
 yuborilgan.length = 0; await rasmYubor();
 await new Promise((r) => setTimeout(r, 400));
@@ -546,6 +559,13 @@ const kanalga = yuborilgan.find((x) => String(x.chat_id) === '-100555');
 test('yoqilganda tahlil kanalga rasm bilan tushadi', Boolean(kanalga?.rasm));
 test('kanal izohida ball va muammo bor',
   /Ball/.test(kanalga?.text || '') && /Muammolar/.test(kanalga?.text || ''));
+// Kanalda tahlil QAYSI YO'LDAN kelgani ham yozilishi kerak: botdan,
+// Mini App dan yoki saytdagi skanerdan
+test('kanalda manba — «Telegram bot» deb yozilgan',
+  /Telegram bot/.test(kanalga?.text || ''), kanalga?.text?.slice(0, 80));
+// Kanal keyingi bo'limlarga o'tib ketmasin
+await sorov(`delete from settings where key in ('kanal_tahlil','kanal_tahlil_yoqilgan')`);
+sozlamalarniUnut();
 
 
 // ═══════════ /ochir — surat ham o'chsin ═══════════

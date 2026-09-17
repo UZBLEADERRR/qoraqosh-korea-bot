@@ -2267,14 +2267,29 @@ function zonaJoyi(matn, tartib, yuz) {
 /** Ko'rsatkich rangi: MA'NO anglatadi, bezak emas. */
 const ballRang = (b) => (b >= 70 ? 'yaxshi' : b >= 45 ? 'orta' : 'yomon');
 
-/* BESH bosqichli shkala — ko'rsatkichlar uchun.
+/* BAHO DARAJALARI — BITTA JADVAL, BITTA CHEGARA.
+ * `src/lib/olchov.js` dagi DARAJALAR bilan AYNAN bir xil.
  *
- * Uch rang bilan to'rtta katakning uchtasi bir xil chiqib qolardi:
- * «ranglar takrorlanib ketyapti». Besh bosqichda 62 va 71 ball
- * boshqa-boshqa ko'rinadi, lekin ma'no saqlanadi: yashil tomon —
- * yaxshi, qizil tomon — yomon. */
-const BESH = ['zaif', 'past', 'orta', 'yaxshi', 'alo'];
-const beshRang = (b) => BESH[Math.max(0, Math.min(4, Math.floor(b / 20)))];
+ * Ilgari rang `ball/20` bo'yicha, yozuv esa 35/50/65/80 bo'yicha
+ * bo'linardi va ikkalasi zid chiqardi: 60 ball «O'rtacha» deb
+ * yozilib, chizig'i «yaxshi» rangida turardi. Endi ikkalasi ham
+ * shu jadvaldan oladi. */
+const DARAJALAR = [
+  { kalit: 'zaif',   nom: 'Zaif',          dan: 0 },
+  { kalit: 'past',   nom: 'E’tibor kerak', dan: 35 },
+  { kalit: 'orta',   nom: 'O‘rtacha',      dan: 50 },
+  { kalit: 'yaxshi', nom: 'Yaxshi',        dan: 65 },
+  { kalit: 'alo',    nom: 'A’lo',          dan: 80 },
+];
+const BESH = DARAJALAR.map((d) => d.kalit);
+function olchovDaraja(ball) {
+  const b = Math.min(100, Math.max(0, Math.round(Number(ball) || 0)));
+  let i = 0;
+  while (i + 1 < DARAJALAR.length && b >= DARAJALAR[i + 1].dan) i += 1;
+  return i;
+}
+const beshRang = (b) => DARAJALAR[olchovDaraja(b)].kalit;
+const olchovBahosi = (b) => DARAJALAR[olchovDaraja(b)].nom;
 
 /** Ball halqasi — SVG, har qanday ekranga cho'ziladi. */
 function ballHalqa(ball, olcham = 132) {
@@ -2371,8 +2386,6 @@ const MUAMMO_OLCHOVI = {
 // 100 EMAS: hech kimning terisi ideal emas va «100/100» yozuv
 // ishonchni yo'qotadi — odam «demak o'lchamagan» deb o'ylaydi.
 const MUAMMOSIZ = 82;
-const olchovBahosi = (b) => (b >= 80 ? 'A’lo' : b >= 65 ? 'Yaxshi'
-  : b >= 50 ? 'O‘rtacha' : b >= 35 ? 'E’tibor kerak' : 'Zaif');
 
 function olchovlarniHisobla(muammolar, xom) {
   const eng = {};

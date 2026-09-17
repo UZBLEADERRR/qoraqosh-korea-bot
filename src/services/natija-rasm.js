@@ -192,12 +192,29 @@ export const rasmniMijozgaYubor = (telegramId, bayt, izoh, extra) =>
 
 // ══════════════════ KANALLAR ══════════════════
 
+/** Tahlil qaysi yo'ldan kelgani — kanal xabarida yoziladi. */
+export const MANBA_NOMI = {
+  bot:    'Telegram bot',
+  ilova:  'Mini App',
+  sayt:   'Sayt — yuz skaneri',
+};
+
 /**
  * Tahlil natijasini tahlillar kanaliga yuboradi.
  * Kanalga yuz surati ketadi, shuning uchun ATAYLAB o'chiq turadi —
  * admin `kanal_tahlil_yoqilgan` ni ochmaguncha hech narsa yuborilmaydi.
+ *
+ * `manba` — tahlil QAYERDAN kelgani: bot, Mini App yoki ochiq sayt
+ * skaneri. Ilgari bu yozilmasdi va kanalga faqat botdagi tahlillar
+ * tushardi, saytdagilar esa umuman kelmasdi — do'kon egasi
+ * reklamadan nechta odam kelganini kanaldan ko'ra olmasdi.
+ *
+ * @param {Buffer} bayt    natija rasmi (PNG)
+ * @param {object} user    foydalanuvchi (saytda — mehmon)
+ * @param {object} tahlil
+ * @param {'bot'|'ilova'|'sayt'} [manba]
  */
-export async function kanalgaTahlil(bayt, user, tahlil) {
+export async function kanalgaTahlil(bayt, user, tahlil, manba = 'bot') {
   const [kanal, yoqilgan] = await Promise.all([
     sozlama('kanal_tahlil', ''),
     sozlama('kanal_tahlil_yoqilgan', false),
@@ -207,10 +224,18 @@ export async function kanalgaTahlil(bayt, user, tahlil) {
   const muammolar = (tahlil?.muammolar || []).slice(0, 3)
     .map((m) => `• ${m.nom} — ${m.foiz}%`).join('\n');
 
+  // Saytdagi skanerni MEHMON ishlatadi: uning ismi ham, Telegram
+  // nomi ham yo'q. «Mijoz» deb yozish chalg'itardi — u hali mijoz
+  // emas, Instagramdan kelgan notanish odam.
+  const kim = manba === 'sayt'
+    ? 'Mehmon (ro‘yxatdan o‘tmagan)'
+    : esc(user?.full_name || 'Mijoz') + (user?.username ? ` (@${esc(user.username)})` : '');
+
   const izoh = [
     `🔬 <b>Yangi tahlil</b>`,
     ``,
-    `👤 ${esc(user?.full_name || 'Mijoz')}${user?.username ? ` (@${esc(user.username)})` : ''}`,
+    `📍 ${esc(MANBA_NOMI[manba] || MANBA_NOMI.bot)}`,
+    `👤 ${kim}`,
     `📊 Ball: <b>${tahlil?.ball ?? '-'}/100</b> · ${esc(tahlil?.teri_turi || '')} teri`,
     tahlil?.taxminiy_yosh ? `🎂 Taxminiy yosh: ${esc(tahlil.taxminiy_yosh)}` : '',
     muammolar ? `\n<b>Muammolar:</b>\n${esc(muammolar)}` : '',

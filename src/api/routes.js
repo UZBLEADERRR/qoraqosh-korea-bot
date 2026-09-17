@@ -173,7 +173,7 @@ export async function apiRoutes(req, res, yol) {
         natija.yuz_rasm_id = await yuzniSaqla({
           analysisId: natija.analysisId, rasmBase64: base64, mime });
         if (rasm) {
-          kanalgaTahlil(rasm.bayt, user, natija.tahlil).catch(() => {});
+          kanalgaTahlil(rasm.bayt, user, natija.tahlil, 'ilova').catch(() => {});
           // Natija rasmi BOTGA ham o'zi keladi. Ilgari odam «Saqlash»
           // tugmasini bosishi kerak edi va ko'pchilik bosmasdi — natija
           // ilova yopilishi bilan yo'qolardi. Endi u Telegram

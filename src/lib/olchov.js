@@ -62,17 +62,48 @@ const chegara = (n, zaxira) => {
   return Number.isFinite(x) ? Math.min(100, Math.max(0, Math.round(x))) : zaxira;
 };
 
-/** Besh bosqichli rang — ilovadagi `beshRang` bilan bir xil. */
-export const BESH = ['zaif', 'past', 'orta', 'yaxshi', 'alo'];
-export const olchovRangi = (ball) =>
-  BESH[Math.max(0, Math.min(4, Math.floor(chegara(ball, 0) / 20)))];
+/* BAHO DARAJALARI — BITTA JADVAL, BITTA CHEGARA.
+ *
+ * Ilgari ikkita alohida qoida bor edi va ular BIR-BIRIGA ZID edi:
+ * rang `ball/20` bo'yicha (0,20,40,60,80), yozuv esa 35/50/65/80
+ * bo'yicha bo'linardi. 60 ball ekranda «O'rtacha» deb yozilib,
+ * chizig'i «yaxshi» rangida chiqardi — odam qaysi biriga
+ * ishonishni bilmasdi. Endi ikkalasi ham SHU jadvaldan oladi.
+ *
+ * Ranglar qizildan yashilgacha BIR TOMONGA yuradi. Ko'k rang
+ * olib tashlandi: u shkalada «yaxshi» degan ma'no bermaydi va
+ * yettita qatordan beshtasi bir xil ko'k bo'lib qolardi. */
+export const DARAJALAR = [
+  { kalit: 'zaif',   nom: 'Zaif',          qisqa: 'Zaif',   rang: '#FF5A5A', dan: 0 },
+  { kalit: 'past',   nom: 'E’tibor kerak', qisqa: 'Past',   rang: '#FF8A3D', dan: 35 },
+  { kalit: 'orta',   nom: 'O‘rtacha',      qisqa: 'O‘rta',  rang: '#F0B429', dan: 50 },
+  { kalit: 'yaxshi', nom: 'Yaxshi',        qisqa: 'Yaxshi', rang: '#A8D84B', dan: 65 },
+  { kalit: 'alo',    nom: 'A’lo',          qisqa: 'A’lo',   rang: '#3DD68C', dan: 80 },
+];
+
+/** Daraja chegaralari — shkalada belgi qo'yish uchun ham kerak. */
+export const CHEGARALAR = DARAJALAR.slice(1).map((d) => d.dan);
+
+/** Ball qaysi darajaga tushadi (0-4). */
+export function olchovDaraja(ball) {
+  const b = chegara(ball, 0);
+  let i = 0;
+  while (i + 1 < DARAJALAR.length && b >= DARAJALAR[i + 1].dan) i += 1;
+  return i;
+}
+
+/** Eski nomlar — ilovadagi CSS sinflari shu kalitlar bilan yozilgan. */
+export const BESH = DARAJALAR.map((d) => d.kalit);
+export const olchovRangi = (ball) => DARAJALAR[olchovDaraja(ball)].kalit;
+
+/** Shkalaning hex rangi — natija RASMI shuni ishlatadi. */
+export const olchovRangHex = (ball) => DARAJALAR[olchovDaraja(ball)].rang;
 
 /** O'zbekcha baho — raqamni odam tilida takrorlaydi. */
-export const olchovBahosi = (ball) => {
-  const b = chegara(ball, 0);
-  return b >= 80 ? 'A’lo' : b >= 65 ? 'Yaxshi' : b >= 50 ? 'O‘rtacha'
-       : b >= 35 ? 'E’tibor kerak' : 'Zaif';
-};
+export const olchovBahosi = (ball) => DARAJALAR[olchovDaraja(ball)].nom;
+
+/** Tor ustunga sig'adigan qisqa baho (natija rasmida). */
+export const olchovBahosiQisqa = (ball) => DARAJALAR[olchovDaraja(ball)].qisqa;
 
 /**
  * Yettita o'lchovni to'liq qaytaradi.

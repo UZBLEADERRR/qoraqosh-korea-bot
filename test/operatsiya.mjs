@@ -3215,19 +3215,20 @@ console.log('\n── NATIJA KARTOCHKASI ──');
     test('hammasi rasm kengligiga sig‘adi', en(6) * 6 + 10 * 5 <= 1000, String(en(6)));
   }
 
-  // ── PARHEZ bo'limi ──
+  // ── OVQATLANISH kartochkada YO'Q ──
+  // «Iloji bo'lsa ovqatlanish maslahatini olib tashla» — u rasmni
+  // uzaytirardi, lekin terini ko'rsatishga hech narsa qo'shmasdi.
+  // Ilovada qoldi, u yerda joy bor.
   const svg = chiz(5);
-  test('ovqatlanish bo‘limi chiziladi', svg.includes('Ovqatlanish tavsiyasi'));
-  test('foydali va cheklang panellari bor',
-    svg.includes('Yeng') && svg.includes('Kamaytiring'));
-  test('bandlar rasmga tushadi', svg.includes('Yog‘li baliq') && svg.includes('Shirin ichimlik'));
-  // Qavs ichidagi izoh kartochkada YOZILMAYDI — u mayda matn bo'lib
-  // ekranni to'ldirar va hech kim o'qimasdi
-  test('bandning qavs ichidagi izohi tushirib qoldiriladi',
-    !svg.includes('omega-3, yallig'), 'faqat nomi qoladi');
-  const parhezsiz = natijaSvg({ rasmBase64: null, tahlil: namunaTahlil({ parhez: null }),
-    tavsiyalar: tav(3), brend: 'KiOVO' });
-  test('parhez yo‘q bo‘lsa bo‘lim ham yo‘q', !parhezsiz.includes('Ovqatlanish tavsiyasi'));
+  test('ovqatlanish bo‘limi RASMDA yo‘q', !svg.includes('Ovqatlanish tavsiyasi'));
+  test('«Yeng / Kamaytiring» panellari ham yo‘q',
+    !svg.includes('Kamaytiring') && !svg.includes('Yog‘li baliq'));
+  const ilovaJs = (await import('node:fs')).readFileSync('public/app/app.js', 'utf8');
+  test('lekin ILOVADA parhez qoldi', /function natijaOvqat\(parhez\)/.test(ilovaJs)
+    && /\$\{natijaOvqat\(parhez\)\}/.test(ilovaJs));
+  test('sozlamada ham parhez bloki qolmadi — «yoqilgan, lekin yo‘q» bo‘lmasin',
+    !kartochkaSozlamasi({}).bloklar.parhez
+      && !Object.keys(KARTOCHKA_STANDART.sarlavha).includes('parhez'));
 
   // ── SOZLAMA: bloklar, sonlar, jins ──
   const st = kartochkaSozlamasi({});
@@ -3235,27 +3236,26 @@ console.log('\n── NATIJA KARTOCHKASI ──');
     Object.values(st.bloklar).every(Boolean), JSON.stringify(st.bloklar));
   test('standart sonlar', st.belgi_soni === 5 && st.mahsulot_soni === 8);
 
-  const erkak = kartochkaSozlamasi(
-    { bloklar: { parhez: true }, mahsulot_soni: 8, erkak: { bloklar: { parhez: false }, mahsulot_soni: 4 } },
-    'erkak');
-  const ayol = kartochkaSozlamasi(
-    { bloklar: { parhez: true }, mahsulot_soni: 8, erkak: { bloklar: { parhez: false }, mahsulot_soni: 4 } },
-    'ayol');
+  const jinsXom = { bloklar: { belgilar: true }, mahsulot_soni: 8,
+    erkak: { bloklar: { belgilar: false }, mahsulot_soni: 4 } };
+  const erkak = kartochkaSozlamasi(jinsXom, 'erkak');
+  const ayol = kartochkaSozlamasi(jinsXom, 'ayol');
   test('ERKAK uchun alohida sozlama ishlaydi',
-    erkak.bloklar.parhez === false && erkak.mahsulot_soni === 4, JSON.stringify(erkak.bloklar));
-  test('AYOLga tegmaydi', ayol.bloklar.parhez === true && ayol.mahsulot_soni === 8);
+    erkak.bloklar.belgilar === false && erkak.mahsulot_soni === 4, JSON.stringify(erkak.bloklar));
+  test('AYOLga tegmaydi', ayol.bloklar.belgilar === true && ayol.mahsulot_soni === 8);
   test('jins bo‘limida faqat FARQ yoziladi',
-    erkak.bloklar.belgilar === true && erkak.sarlavha.parhez === KARTOCHKA_STANDART.sarlavha.parhez);
+    erkak.bloklar.xulosa === true
+      && erkak.sarlavha.belgilar === KARTOCHKA_STANDART.sarlavha.belgilar);
 
   const erkakSvg = natijaSvg({ rasmBase64: null, tahlil: namunaTahlil(), tavsiyalar: tav(5),
     brend: 'KiOVO', sozlama: erkak });
-  test('erkak kartochkasida parhez CHIZILMAYDI', !erkakSvg.includes('Ovqatlanish tavsiyasi'));
+  test('erkak kartochkasida belgilar CHIZILMAYDI', !erkakSvg.includes('Akne izlari'));
   test('mahsulot soni cheklandi va qolgani aytiladi',
     erkakSvg.includes('va yana 1 ta mahsulot'), 'chegara 4');
 
   // Bloklarni o'chirish
   const yalang = kartochkaSozlamasi({ bloklar: {
-    korsatkichlar: false, xulosa: false, belgilar: false, parhez: false } });
+    korsatkichlar: false, xulosa: false, belgilar: false } });
   const yalangSvg = natijaSvg({ rasmBase64: null, tahlil: namunaTahlil(), tavsiyalar: tav(3),
     brend: 'KiOVO', sozlama: yalang });
   test('xulosa o‘chirilsa chizilmaydi', !yalangSvg.includes('Teri holati yaxshi'));
@@ -3265,7 +3265,7 @@ console.log('\n── NATIJA KARTOCHKASI ──');
 
   // Sarlavha va izohni almashtirish
   const boshqa = kartochkaSozlamasi({
-    sarlavha: { belgilar: 'Nimalar topildi', parhez: 'Ovqat' }, izoh: '', teg: 'KiOVO skaner' });
+    sarlavha: { belgilar: 'Nimalar topildi' }, izoh: '', teg: 'KiOVO skaner' });
   const boshqaSvg = natijaSvg({ rasmBase64: null, tahlil: namunaTahlil(), tavsiyalar: tav(3),
     brend: 'KiOVO', sozlama: boshqa });
   test('sarlavha almashadi', boshqaSvg.includes('Nimalar topildi')
@@ -3285,16 +3285,16 @@ console.log('\n── NATIJA KARTOCHKASI ──');
   test('agent kartochkani O‘QIY oladi',
     Boolean(kor.hozirgi?.umumiy && kor.hozirgi.erkak && kor.hozirgi.ayol),
     Object.keys(kor.hozirgi || {}).join(', '));
-  test('qanday bloklar borligi ham aytiladi', Boolean(kor.bloklar?.parhez));
+  test('qanday bloklar borligi ham aytiladi', Boolean(kor.bloklar?.belgilar));
 
   const oz = await V.vositaniBajar('kartochka_ozgartir',
-    { kim: 'erkak', yashirilsin: ['parhez'], mahsulot_soni: 6 });
+    { kim: 'erkak', yashirilsin: ['belgilar'], mahsulot_soni: 6 });
   test('agent ERKAK uchun o‘zgartira oladi', oz.ozgardi >= 2 && oz.kim === 'erkak',
     JSON.stringify(oz.ozgargan));
   test('o‘zgarish bazaga yozildi',
-    (await V.vositaniBajar('kartochka', {})).hozirgi.erkak.bloklar.parhez === false);
+    (await V.vositaniBajar('kartochka', {})).hozirgi.erkak.bloklar.belgilar === false);
   test('AYOL sozlamasiga tegmadi',
-    (await V.vositaniBajar('kartochka', {})).hozirgi.ayol.bloklar.parhez === true);
+    (await V.vositaniBajar('kartochka', {})).hozirgi.ayol.bloklar.belgilar !== false);
 
   const yoq = await V.vositaniBajar('kartochka_ozgartir', { yashirilsin: ['bunday_blok_yoq'] });
   test('yo‘q blok rad etiladi', yoq.ozgardi === 0 && /Bunday blok yo‘q/.test(yoq.xabar || ''),
@@ -3959,14 +3959,27 @@ console.log('\n── NATIJA EKRANI ──');
 
   // ── Ranglar TAKRORLANMAYDI: besh bosqich ──
   {
-    const kodB = js.slice(js.indexOf('const BESH ='), js.indexOf('function ballHalqa'));
-    const beshRang = new Function(`${kodB}; return beshRang;`)();
-    const ranglar = [15, 35, 55, 72, 92].map(beshRang);
+    const O = await import('../src/lib/olchov.js');
+    const kodB = js.slice(js.indexOf('const DARAJALAR ='), js.indexOf('function ballHalqa'));
+    const { beshRang, olchovBahosi } = new Function(
+      `${kodB}; return { beshRang, olchovBahosi };`)();
+    const ranglar = [15, 40, 55, 72, 92].map(beshRang);
     test('besh xil ball — besh xil rang', new Set(ranglar).size === 5, ranglar.join(','));
     test('yuqori ball yashil tomonda', beshRang(92) === 'alo' && beshRang(15) === 'zaif');
+    // Ilgari rang `ball/20` bo'yicha, yozuv esa 35/50/65/80 bo'yicha
+    // bo'linardi: 60 ball «O'rtacha» deb yozilib, chizig'i «yaxshi»
+    // rangida chiqardi. Endi ikkalasi ham BITTA jadvaldan oladi.
+    const zid = [0, 20, 34, 35, 49, 50, 60, 64, 65, 79, 80, 100]
+      .filter((b) => beshRang(b) !== O.olchovRangi(b) || olchovBahosi(b) !== O.olchovBahosi(b));
+    test('rang bilan yozuv ZID emas — ikkalasi bir chegaradan',
+      zid.length === 0, zid.join(','));
+    // Beshta sinf beshta BOSHQA rangdan oladi: ilgari `alo` bilan
+    // `yaxshi` ikkalasi --yashil, `past` bilan `zaif` ikkalasi
+    // --qizil edi va yettita qatordan uchtasi bir xil ko'rinardi
+    const sinfRangi = ['zaif', 'past', 'orta', 'yaxshi', 'alo'].map((k) =>
+      (new RegExp(`\\.n-chiziq i\\.${k}\\{background:var\\((--[\\w-]+)\\)`).exec(css) || [])[1]);
     test('har bosqichning o‘z rangi bor',
-      ['alo', 'yaxshi', 'orta', 'past', 'zaif'].every((k) =>
-        new RegExp(`\\.n-chiziq i\\.${k}\\{background:var\\(`).test(css)));
+      sinfRangi.every(Boolean) && new Set(sinfRangi).size === 5, sinfRangi.join(','));
   }
 
   // ── Teri «rentgeni» ──
@@ -4095,8 +4108,13 @@ console.log('\n── NATIJA EKRANI ──');
     test('kartochkada ham yuzning bo‘lagi kattalashtiriladi', /zoom = 4\.2/.test(kart));
     test('kartochkada ham ko‘rsatkichlar bitta qatorda',
       /BITTA QATOR/.test(kart) && /const en = Math\.floor\(\(TOLA - oraliq/.test(kart));
-    test('kartochkada ham besh bosqichli rang', /const SHKALA = \[/.test(kart)
-      && /const beshRang = \(b\) => SHKALA/.test(kart));
+    test('kartochkada ham besh bosqichli rang — o‘z nusxasi EMAS, olchov.js dan',
+      /const beshRang = \(b\) => olchovRangHex\(b\)/.test(kart)
+        && !/const SHKALA = \[/.test(kart));
+    test('rasmda raqam yonida o‘zbekcha baho ham bor',
+      /olchovBahosiQisqa\(o\.ball\)/.test(kart));
+    test('shkalada daraja chegaralari belgilangan — chiziq uzunligi ma’no bersin',
+      /CHEGARALAR\.forEach/.test(kart));
     test('kartochkada ham rentgen yo‘lakchasi', /const RENTGEN = \[/.test(kart)
       && /feColorMatrix/.test(kart));
     test('yosh va jins RANGLI teglarda', /const teglar = \[/.test(kart)
@@ -4248,6 +4266,64 @@ console.log('\n── OCHIQ SKANER ──');
   test('boshqa odam o‘sha tokenni OLOLMAYDI',
     /allaqachon olingan/i.test(yuborilgan.map((x) => x.text || '').join('\n')));
   await sorov('delete from users where telegram_id in ($1,$2)', ['811001', '811002']);
+  // ── SAYTDAGI skaner ham TAHLIL KANALIGA tushadi ──
+  // «Ilovada botdan ishlatmasa ham, saytda ishlatsa rasm tahlil
+  // kanaliga kelishi kerak. Hozir faqat botdagisi kelyapti.»
+  // Ilgari `ochiq-skan.js` da `kanalgaTahlil` umuman chaqirilmasdi:
+  // reklamadan kelgan odam skanerlab ketsa, do'kon egasi undan
+  // xabar ham topmasdi.
+  {
+    const { sozlamalarniUnut } = await import('../src/db.js');
+    await sorov(`insert into settings (key, value) values
+        ('kanal_tahlil', '"-1009999"'::jsonb), ('kanal_tahlil_yoqilgan', 'true'::jsonb)
+        on conflict (key) do update set value = excluded.value`);
+    sozlamalarniUnut();
+    await sorov('delete from ochiq_skan');
+    await sorov(`delete from users where telegram_id like 'mehmon:%'`);
+
+    yuborilgan.length = 0;
+    const k = await chaqirOchiq('/api/ochiq/skan', 'POST',
+      { image: rasm, mime: 'image/jpeg' }, '198.51.100.90');
+    test('saytdagi skaner ishladi', k.kod === 200 && k.tana.yaroqli === true);
+    // Kanalga yuborish ATAYLAB kutilmaydi (skanerni sekinlashtirmasin)
+    await new Promise((f) => setTimeout(f, 400));
+    const kanalga = yuborilgan.filter((m) => m.rasm && String(m.chat_id) === '-1009999');
+    test('natija rasmi TAHLIL KANALIGA ham ketdi', kanalga.length === 1,
+      `${kanalga.length} ta`);
+    test('kanalda qaysi yo‘ldan kelgani yozilgan',
+      /Sayt — yuz skaneri/.test(kanalga[0]?.text || ''), kanalga[0]?.text || '');
+    test('mehmonni «mijoz» deb atamaydi — u hali ro‘yxatdan o‘tmagan',
+      /Mehmon/.test(kanalga[0]?.text || ''));
+
+    // Kanal o'chiq bo'lsa hech narsa ketmaydi: kanalga YUZ SURATI
+    // boradi, shuning uchun u ataylab yopiq turadi
+    await sorov(`update settings set value = 'false'::jsonb where key = 'kanal_tahlil_yoqilgan'`);
+    sozlamalarniUnut();
+    yuborilgan.length = 0;
+    await chaqirOchiq('/api/ochiq/skan', 'POST', { image: rasm, mime: 'image/jpeg' },
+      '198.51.100.91');
+    await new Promise((f) => setTimeout(f, 400));
+    test('kanal o‘chiq bo‘lsa yuz surati CHIQMAYDI',
+      yuborilgan.filter((m) => String(m.chat_id) === '-1009999').length === 0);
+    await sorov(`delete from settings where key in ('kanal_tahlil','kanal_tahlil_yoqilgan')`);
+    sozlamalarniUnut();
+    await sorov('delete from ochiq_skan');
+    await sorov(`delete from users where telegram_id like 'mehmon:%'`);
+  }
+
+  // Uchala yo'l ham kanalga MANBASI bilan yuboradi
+  {
+    const fsK = await import('node:fs');
+    const yol = {
+      bot: fsK.readFileSync('src/bot/handlers/scanner.js', 'utf8'),
+      ilova: fsK.readFileSync('src/api/routes.js', 'utf8'),
+      sayt: fsK.readFileSync('src/services/ochiq-skan.js', 'utf8'),
+    };
+    test('bot, ilova va sayt — uchalasi ham kanalga yuboradi',
+      Object.entries(yol).every(([manba, kod]) =>
+        new RegExp(`kanalgaTahlil\\([^)]*'${manba}'\\)`).test(kod)),
+      Object.keys(yol).join(', '));
+  }
 }
 
 // ═══════════ BOTDA «NATIJANI OLISH» ═══════════
@@ -4684,6 +4760,44 @@ console.log('\n── KARTOCHKA SHABLONI ──');
   test('oltalasi ham chizildi',
     rasmQ.every((k) => svg.includes(`>${k === 'asl' ? 'Asl' : ''}`) || true)
       && (svg.match(/clip-path="url\(#rk\d\)"/g) || []).length === 6);
+
+  // ── Eskizlar suratning YONIDA: uchtasi chapda, uchtasi o'ngda ──
+  // «UV rasmlarni asosiy rasmning yon taraflariga 3 tadan joylasa
+  // bo'ladimi, chunki rasm juda uzun bo'lib ketgan.»
+  {
+    const quti = (id, rx) => {
+      const m = new RegExp(
+        `<clipPath id="${id}"><rect x="(\\d+)" y="(\\d+)" width="(\\d+)" height="(\\d+)" rx="${rx}"`)
+        .exec(svg);
+      return m && { x: +m[1], y: +m[2], en: +m[3], boy: +m[4] };
+    };
+    const surat = quti('yuz', 26);
+    const eskiz = [0, 1, 2, 3, 4, 5].map((i) => quti(`rk${i}`, 18));
+    test('oltala eskizning ham o‘rni bor', eskiz.every(Boolean));
+
+    const chap = eskiz.filter((e) => e.x < surat.x);
+    const ong  = eskiz.filter((e) => e.x > surat.x + surat.en - 1);
+    test('uchtasi CHAPDA, uchtasi O‘NGDA', chap.length === 3 && ong.length === 3,
+      `chap ${chap.length}, o‘ng ${ong.length}`);
+    test('har ustunda uchtasi ustma-ust',
+      new Set(chap.map((e) => e.x)).size === 1 && new Set(ong.map((e) => e.x)).size === 1);
+    test('eskizlar surat ostiga tushmaydi — rasm shu bilan qisqardi',
+      eskiz.every((e) => e.y + e.boy <= surat.y + surat.boy),
+      `surat pasti ${surat.y + surat.boy}`);
+    test('ular kvadrat va oldingisidan KATTA (156 → 210)',
+      eskiz.every((e) => e.en === e.boy && e.en >= 200), String(eskiz[0].en));
+    // Yozuv eskizning ICHIGA tushadi. Ostiga yozilsa har eskiz ~30
+    // piksel balandroq bo'lar va yon tomonga ko'chirishdan yutilgan
+    // joy qaytib ketardi.
+    // «Pigment» va «Namlik» pastda, ko'rsatkichlar ro'yxatida ham
+    // uchraydi — shuning uchun faqat surat sohasidagisini olamiz
+    const yozuvY = [...svg.matchAll(/<text [^>]*?y="(\d+)"[^>]*>(Asl|UV|Pigment|Namlik)</g)]
+      .map((m) => ({ nom: m[2], y: +m[1] }))
+      .filter((t) => t.y <= surat.y + surat.boy);
+    test('oltala yozuvdan to‘rttasi topildi', yozuvY.length === 4, JSON.stringify(yozuvY));
+    test('yozuv eskizning ICHIDA — ostiga yozilsa joy yutug‘i yo‘qolardi',
+      yozuvY.every((t) => eskiz.some((e) => t.y > e.y && t.y <= e.y + e.boy)));
+  }
 
   const bayt = await svgdanPng(svg, 1080);
   test('PNG haqiqatan chiqadi', bayt.length > 20000, `${(bayt.length / 1024).toFixed(0)} KB`);

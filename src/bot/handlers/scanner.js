@@ -106,7 +106,7 @@ export async function rasmniQabulQil(msg, user) {
       await rasmYubor(chatId, rasm.bayt,
         await qisqaIzoh(natija.tahlil, tavsiyalar.length),
         { reply_markup: natijaTugmalari() });
-      kanalgaTahlil(rasm.bayt, user, natija.tahlil).catch(() => {});
+      kanalgaTahlil(rasm.bayt, user, natija.tahlil, 'bot').catch(() => {});
     } else {
       // Rasm chizilmadi (motor yoki shrift yo'q) — natija yo'qolmasin,
       // to'liq matnni yuboramiz

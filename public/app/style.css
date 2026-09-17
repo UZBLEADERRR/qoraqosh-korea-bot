@@ -11,6 +11,12 @@
   --yashil:#2e7d55; --yashil-och:#e7f5ee; --qizil:#e0242b; --qizil-och:#fdecec;
   --sariq:#b07d16; --sariq-och:#fdf4e3;
   --kok:#2563c9; --kok-och:#e8f0fd;
+  /* Baho shkalasi — qizildan yashilgacha BESHTA boshqa-boshqa rang.
+     Ilgari `alo` bilan `yaxshi` ikkalasi --yashil, `past` bilan
+     `zaif` ikkalasi --qizil edi: yettita qatordan uchtasi bir xil
+     bo'lib chiqar va shkala hech narsa ko'rsatmasdi. */
+  --baho-zaif:#d81f26; --baho-past:#e8720f; --baho-orta:#b07d16;
+  --baho-yaxshi:#6f9c1f; --baho-alo:#2e7d55;
   --r:16px; --r-katta:18px; --r-kichik:11px;
   --sh:0 1px 2px rgba(22,18,14,.03);
   --past:76px;
@@ -24,6 +30,8 @@
   --yashil:#5cbb8b; --yashil-och:#132420; --qizil:#ef5057; --qizil-och:#2a1618;
   --sariq:#d9ab4a; --sariq-och:#251f12;
   --kok:#6b9df0; --kok-och:#141d2b;
+  --baho-zaif:#ef5057; --baho-past:#ff8a3d; --baho-orta:#d9ab4a;
+  --baho-yaxshi:#a8d84b; --baho-alo:#5cbb8b;
   --sh:0 1px 2px rgba(0,0,0,.25);
 }}
 :root[data-mavzu="tungi"]{
@@ -33,6 +41,8 @@
   --yashil:#5cbb8b; --yashil-och:#132420; --qizil:#ef5057; --qizil-och:#2a1618;
   --sariq:#d9ab4a; --sariq-och:#251f12;
   --kok:#6b9df0; --kok-och:#141d2b;
+  --baho-zaif:#ef5057; --baho-past:#ff8a3d; --baho-orta:#d9ab4a;
+  --baho-yaxshi:#a8d84b; --baho-alo:#5cbb8b;
   --sh:0 1px 2px rgba(0,0,0,.25);
 }
 
@@ -959,9 +969,9 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 /* Raqamning tagida O'ZBEKCHA baho: «72» ni hamma ham darrov
    tushunmaydi, «Yaxshi» esa tushuntirishsiz o'qiladi. */
 .n-olch>em{font-style:normal;font-size:11.5px;font-weight:700;letter-spacing:.01em}
-.n-olch>em.alo{color:var(--yashil)} .n-olch>em.yaxshi{color:var(--kok)}
-.n-olch>em.orta{color:var(--sariq)} .n-olch>em.past{color:var(--urgu)}
-.n-olch>em.zaif{color:var(--qizil)}
+.n-olch>em.zaif{color:var(--baho-zaif)} .n-olch>em.past{color:var(--baho-past)}
+.n-olch>em.orta{color:var(--baho-orta)} .n-olch>em.yaxshi{color:var(--baho-yaxshi)}
+.n-olch>em.alo{color:var(--baho-alo)}
 
 /* ── Muammolar: ochiladigan qatorlar ──
    <details> ishlatiladi — JS o'chib qolsa ham ochiladi, va ekran
@@ -1012,13 +1022,14 @@ details.n-muammo[open] .n-muammo-nom{color:var(--urgu)}
 .n-chiziq{height:6px;border-radius:3px;overflow:hidden;display:block;
   background:color-mix(in srgb,var(--matn) 12%,transparent)}
 .n-chiziq i{display:block;height:100%;border-radius:3px;transition:width .4s ease}
-.n-chiziq i.yaxshi{background:var(--yashil)}.n-chiziq i.orta{background:var(--sariq)}
 .n-chiziq i.yomon{background:var(--qizil)}
-/* BESH bosqichli shkala: uch rang bilan to'rtta katakning uchtasi
-   bir xil chiqib qolardi — «ranglar takrorlanib ketyapti». */
-.n-chiziq i.alo{background:var(--yashil)}
-.n-chiziq i.past{background:var(--urgu)}
-.n-chiziq i.zaif{background:var(--qizil)}
+/* BESH bosqich — beshtasi ham BOSHQA rang. Chegaralar `olchov.js`
+   dagi DARAJALAR bilan bir xil: 35 / 50 / 65 / 80. */
+.n-chiziq i.zaif{background:var(--baho-zaif)}
+.n-chiziq i.past{background:var(--baho-past)}
+.n-chiziq i.orta{background:var(--baho-orta)}
+.n-chiziq i.yaxshi{background:var(--baho-yaxshi)}
+.n-chiziq i.alo{background:var(--baho-alo)}
 
 .n-toza{display:flex;align-items:center;gap:10px;flex-wrap:wrap;color:var(--yashil)}
 .n-toza b{font-size:16px}

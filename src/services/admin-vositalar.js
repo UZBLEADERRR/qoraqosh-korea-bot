@@ -631,7 +631,7 @@ async function narxlarniOzgartir(a) {
 
 // ─────────────────── NATIJA KARTOCHKASI ───────────────────
 // Mijoz qo'liga boradigan yagona hujjat — uni do'kon egasi oddiy so'z
-// bilan o'zgartira olishi kerak: «erkaklar kartochkasida parhezni
+// bilan o'zgartira olishi kerak: «erkaklar kartochkasida belgilarni
 // olib tashla», «mahsulotni 6 ta qil», «sarlavhani o'zgartir».
 
 async function kartochka() {
@@ -656,7 +656,7 @@ async function kartochkaOzgartir(a) {
   const eski = await sozlama('natija_kartochka', {});
 
   // Model bloklarni ro'yxat ko'rinishida ham berishi mumkin:
-  // {"korsatilsin":["parhez"],"yashirilsin":["xulosa"]}
+  // {"korsatilsin":["belgilar"],"yashirilsin":["xulosa"]}
   const bloklar = { ...(a.bloklar && typeof a.bloklar === 'object' ? a.bloklar : {}) };
   for (const b of (Array.isArray(a.korsatilsin) ? a.korsatilsin : [])) bloklar[b] = true;
   for (const b of (Array.isArray(a.yashirilsin) ? a.yashirilsin : [])) bloklar[b] = false;
@@ -1018,14 +1018,14 @@ export const VOSITALAR = {
   kartochka_ozgartir: {
     oqish: false, ishla: kartochkaOzgartir,
     tavsif: 'Natija kartochkasi ko‘rinishini o‘zgartiradi. Bloklarni '
-          + 'yoqadi/o‘chiradi (korsatkichlar, xulosa, belgilar, parhez, '
+          + 'yoqadi/o‘chiradi (korsatkichlar, xulosa, belgilar, '
           + 'mahsulotlar), belgi va mahsulot sonini (0-8), sarlavhalarni, '
           + 'pastdagi ogohlantirishni. «kim» ERKAK yoki AYOL bo‘lsa faqat '
           + 'o‘sha jins uchun. ai_qoshimcha — tahlil AI siga qo‘shimcha '
           + 'ko‘rsatma (jinsga bo‘linmaydi).',
     parametrlar: 'kim (umumiy|erkak|ayol), bloklar {nom: true/false} yoki '
                + 'korsatilsin/yashirilsin (ro‘yxat), belgi_soni, mahsulot_soni, '
-               + 'sarlavha {belgilar, parhez, mahsulotlar}, izoh, teg, ai_qoshimcha',
+               + 'sarlavha {belgilar, mahsulotlar}, izoh, teg, ai_qoshimcha',
   },
   sql_yoz: {
     oqish: false,

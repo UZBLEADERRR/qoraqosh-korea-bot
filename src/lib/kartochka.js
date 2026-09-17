@@ -7,19 +7,21 @@
 //
 // Sozlama `settings.natija_kartochka` da turadi va admin yordamchisi
 // (agent) uni oddiy so'z bilan o'zgartira oladi: «erkaklar
-// kartochkasida parhezni olib tashla», «mahsulotni 6 ta qil».
+// kartochkasida belgilarni olib tashla», «mahsulotni 6 ta qil».
+//
+// OVQATLANISH bloki yo'q: u rasmdan olib tashlandi va faqat
+// ilovada qoldi, shuning uchun sozlanadigan joyi ham qolmadi.
 //
 // ERKAK va AYOL uchun alohida. Ustma-ust qo'yiladi: avval umumiy
 // sozlama, ustiga jinsga tegishli farqlar. Ya'ni «erkak» bo'limida
 // faqat FARQ yoziladi, hamma narsani qayta yozish shart emas.
 
-export const BLOKLAR = ['korsatkichlar', 'xulosa', 'belgilar', 'parhez', 'mahsulotlar'];
+export const BLOKLAR = ['korsatkichlar', 'xulosa', 'belgilar', 'mahsulotlar'];
 
 export const BLOK_NOMI = {
   korsatkichlar: 'Sarlavha ostidagi uchta ko‘rsatkich',
   xulosa:        'Umumiy xulosa (bir-ikki jumla)',
   belgilar:      'Suratda topilgan belgilar ro‘yxati',
-  parhez:        'Ovqatlanish tavsiyasi (nima foydali, nimani cheklash)',
   mahsulotlar:   'Tavsiya etilgan mahsulotlar',
 };
 
@@ -28,7 +30,6 @@ export const KARTOCHKA_STANDART = {
     korsatkichlar: true,
     xulosa: true,
     belgilar: true,
-    parhez: true,
     mahsulotlar: true,
   },
   // Nechta belgi va mahsulot ko'rsatiladi
@@ -36,7 +37,6 @@ export const KARTOCHKA_STANDART = {
   mahsulot_soni: 8,
   sarlavha: {
     belgilar:    'Suratda topilgan belgilar',
-    parhez:      'Ovqatlanish tavsiyasi',
     mahsulotlar: 'Sizga mos parvarish',
   },
   // Pastdagi ogohlantirish. Bo'sh bo'lsa chizilmaydi.

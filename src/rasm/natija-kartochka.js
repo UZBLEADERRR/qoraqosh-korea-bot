@@ -21,19 +21,21 @@
 import { x, qatorlarga, kes, SHRIFT, rasmOlchami } from './chiz.js';
 import { palitra, TARTIB_RANG } from '../lib/mavzu.js';
 import { kartochkaSozlamasi } from '../lib/kartochka.js';
-import { olchovlarniHisobla } from '../lib/olchov.js';
+import { olchovlarniHisobla, olchovRangHex, olchovBahosiQisqa,
+         CHEGARALAR } from '../lib/olchov.js';
 
 const ENI = 1080;
 const CHET = 40;
 
 // Qora varaq palitrasi. Urg'u rangi mavzudan keladi (admin tanlaydi),
 // qolgani qotib turadi: qora fon uchun kontrast hisoblab tanlangan.
-/* BESH bosqichli shkala. Uch rang bilan to'rtta ko'rsatkichning
- * uchtasi bir xil chiqib qolardi — «ranglar takrorlanib ketyapti».
- * Endi 62 va 71 ball boshqa-boshqa ko'rinadi, lekin ma'no
- * saqlanadi: yashil tomon yaxshi, qizil tomon yomon. */
-const SHKALA = ['#FF6B5A', '#FF9A5A', '#F0B429', '#4AA3FF', '#3DD68C'];
-const beshRang = (b) => SHKALA[Math.max(0, Math.min(4, Math.floor(b / 20)))];
+/* BESH bosqichli shkala — ranglar ham, chegaralar ham `olchov.js`
+ * dagi DARAJALAR jadvalidan. Ilgari bu yerda o'z nusxasi turardi:
+ * rang `ball/20` bo'yicha bo'linar, yozuvdagi baho esa 35/50/65/80
+ * bo'yicha. Natijada 72 va 78 ball bir xil KO'K chiziq bo'lib
+ * chiqar, 60 ball esa «O'rtacha» deb yozilib «yaxshi» rangida
+ * turardi — yettita qatordan beshtasi bir xil ko'rinardi. */
+const beshRang = (b) => olchovRangHex(b);
 
 const T = {
   fon:     '#08080A',
@@ -234,19 +236,22 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   y += 62;
 
   // ══════════════════════════════════════════════
-  // 2. SURAT — YUQORIDA, KENGLIK BO'YLAB O'RTADA
+  // 2. SURAT — O'RTADA, RENTGEN YONLARIDA (3 + 3)
   // ══════════════════════════════════════════════
-  // Surat BALAND va TOR: 3:4 selfi shu nisbatda deyarli kesilmaydi.
-  // Keng qutida rasmning tepasi bilan pasti kesilar, peshonadagi
-  // belgi esa kadrdan butunlay chiqib ketardi.
+  // Ilgari surat butun kenglikni egallar, oltita rentgen eskizi esa
+  // uning OSTIDA bitta qatorda turardi. Kartochka shu sababli juda
+  // uzun bo'lib ketgandi. Endi eskizlar suratning YONIDA: uchtasi
+  // chapda, uchtasi o'ngda. Suratning yonidagi bo'sh joy ishga
+  // tushdi, kartochka ~250 piksel qisqardi va eskizlar KATTALASHDI
+  // (156 → 210 px) — ular endi haqiqatan ko'rinadi.
   //
-  // Ilgari ball kartasi suratning YONIDA turardi. Endi u pastda,
-  // to'liq kenglikda: «umumiy teri holati rasmning ostida bo'lsin».
-  // Shu bilan surat ham kattaroq bo'ldi va xulosa uchun ham
-  // tor ustun emas, butun kenglik ochildi.
-  const HERO_H = rasmBase64 ? 700 : 0;
-  const SURAT_ENI = rasmBase64 ? 560 : 0;
-  const SURAT_X = Math.round((ENI - SURAT_ENI) / 2);
+  // Yozuv eskizning ICHIGA, pastki chekkasiga qo'yiladi: ostiga
+  // yozilsa har eskiz ~30 piksel baland bo'lib, yutuq yo'qolardi.
+  const ESKIZ = 210;                   // rentgen eskizining tomoni
+  const ESKIZ_ORALIQ = 14;
+  const HERO_H = rasmBase64 ? ESKIZ * 3 + ESKIZ_ORALIQ * 2 : 0;
+  const SURAT_ENI = rasmBase64 ? TOLA - (ESKIZ + ESKIZ_ORALIQ) * 2 : 0;
+  const SURAT_X = CHET + ESKIZ + ESKIZ_ORALIQ;
 
   if (rasmBase64) {
     q.push(`<clipPath id="yuz"><rect x="${SURAT_X}" y="${y}" width="${SURAT_ENI}" height="${HERO_H}" rx="26"/></clipPath>
@@ -265,32 +270,28 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
         stroke="${rang}" stroke-width="2" stroke-dasharray="5 5" opacity="0.75"/>`);
       q.push(raqamNishoni(p.x, p.y, 18, m.tartib, rang));
     }
-  }
 
-  // ── Teri «rentgeni» — bitta suratning olti ko'rinishi ──
-  // Hech narsa o'ylab topilmaydi: bu o'sha surat, faqat boshqa
-  // kanalda. AI muammoni aniq joyga bog'lay olmaganda ham odam
-  // o'z terisini boshqacha ko'radi. Oltitasi ilovadagi qatlamlar
-  // bilan bir xil — rasm va ilova bir narsani ko'rsatsin.
-  const RENTGEN_ORALIQ = 12;
-  const RENTGEN_KEN = Math.floor((TOLA - RENTGEN_ORALIQ * (RENTGEN.length - 1)) / RENTGEN.length);
-  // Balandlik: kvadrat + yozuv + pastki bo'shliq. Ilgari qotib
-  // turgan 128 edi va yozuv keyingi bo'lim ustiga tushib ketardi.
-  const RENTGEN_H = rasmBase64 ? RENTGEN_KEN + 52 : 0;
-  if (rasmBase64) {
-    const ken = RENTGEN_KEN;
-    const ry = y + HERO_H + 16;
+    // ── Teri «rentgeni» — suratning ikki yonida ──
+    // Hech narsa o'ylab topilmaydi: bu o'sha surat, faqat boshqa
+    // kanalda. AI muammoni aniq joyga bog'lay olmaganda ham odam
+    // o'z terisini boshqacha ko'radi. Oltitasi ilovadagi qatlamlar
+    // bilan bir xil — rasm va ilova bir narsani ko'rsatsin.
     RENTGEN.forEach((r, i) => {
-      const kx = CHET + i * (ken + RENTGEN_ORALIQ);
-      q.push(`<clipPath id="rk${i}"><rect x="${kx}" y="${ry}" width="${ken}" height="${ken}" rx="16"/></clipPath>
-        <image href="data:${mime};base64,${rasmBase64}" x="${kx}" y="${ry}"
-          width="${ken}" height="${ken}" clip-path="url(#rk${i})"
-          preserveAspectRatio="xMidYMid slice"${r.filtr ? ` filter="url(#f-${r.kalit})"` : ''}/>`);
-      q.push(matn(r.nom, ry + ken + 28, { x: kx + ken / 2, markaz: true,
-        olcham: 19, ogirlik: 700, rang: T.kul }));
+      const chapda = i < 3;
+      const kx = chapda ? CHET : CHET + TOLA - ESKIZ;
+      const ky = y + (i % 3) * (ESKIZ + ESKIZ_ORALIQ);
+      q.push(`<clipPath id="rk${i}"><rect x="${kx}" y="${ky}" width="${ESKIZ}" height="${ESKIZ}" rx="18"/></clipPath>
+        <g clip-path="url(#rk${i})">
+          <image href="data:${mime};base64,${rasmBase64}" x="${kx}" y="${ky}"
+            width="${ESKIZ}" height="${ESKIZ}"
+            preserveAspectRatio="xMidYMid slice"${r.filtr ? ` filter="url(#f-${r.kalit})"` : ''}/>
+          <rect x="${kx}" y="${ky + ESKIZ - 46}" width="${ESKIZ}" height="46" fill="${T.fon}" opacity="0.72"/>
+        </g>`);
+      q.push(matn(r.nom, ky + ESKIZ - 16, { x: kx + ESKIZ / 2, markaz: true,
+        olcham: 20, ogirlik: 700, rang: T.oq }));
     });
   }
-  y += HERO_H + RENTGEN_H + (rasmBase64 ? 18 : 0);
+  y += HERO_H + (rasmBase64 ? 18 : 0);
 
   // ══════════════════════════════════════════════
   // 2b. UMUMIY TERI HOLATI — RASM OSTIDA, TO'LIQ ENDA
@@ -384,8 +385,8 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   // yetti ustunga siqilgan mayda katakdan ancha tushunarli.
   if (S.bloklar.korsatkichlar) {
     const royxat = olchovlarniHisobla(hammaMuammo, t.olchovlar || null);
-    const SATR = 58;
-    const H = 96 + royxat.length * SATR;
+    const SATR = 62;
+    const H = 118 + royxat.length * SATR;
     q.push(karta(CHET, y, TOLA, H, { r: 26 }));
     q.push(matn('Teri ko‘rsatkichlari', y + 52, { x: CHET + 30, olcham: 32,
       ogirlik: 700, rang: T.oq }));
@@ -393,16 +394,44 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
       olcham: 21, rang: T.och }));
 
     const NOM_X = CHET + 76;         // belgidan keyin
-    const SHK_X = CHET + 330;        // shkala shu yerdan boshlanadi
-    const SHK_EN = TOLA - 330 - 140; // o'ngda raqamga joy qoladi
+    const SHK_X = CHET + 300;        // shkala shu yerdan boshlanadi
+    // Ustunlar o'ngdan chapga taxlanadi: eng o'ngda raqam, undan
+    // chapda qisqa baho, qolgani shkalaga. «Yaxshi» eng uzun so'z —
+    // ustun shunga qarab o'lchangan, aks holda u raqamga yopishardi.
+    const RAQAM_X = ENI - CHET - 30;      // o'ng chekka (o'ngga tekislangan)
+    const BAHO_X = RAQAM_X - 80;          // baho ham o'ngga tekislanadi
+    const SHK_EN = BAHO_X - 86 - SHK_X;   // 86 — «Yaxshi» so'zining eni
+
+    // Shkala ustida DARAJA CHEGARALARI. Ularsiz chiziqning uzunligi
+    // hech narsa demaydi: 65 bilan 78 ko'zga deyarli bir xil ko'rinadi.
+    // Chegara belgisi qo'yilgach, chiziq qayerda tugagani — «o'rtacha»
+    // dami yoki «yaxshi» gami — bir qarashda o'qiladi.
+    CHEGARALAR.forEach((c) => {
+      const cxx = SHK_X + (SHK_EN * c) / 100;
+      q.push(`<line x1="${cxx.toFixed(1)}" y1="${y + 88}" x2="${cxx.toFixed(1)}" y2="${y + 100}"
+        stroke="${T.chiziq}" stroke-width="2"/>`);
+      q.push(matn(String(c), y + 84, { x: cxx, markaz: true, olcham: 15, rang: T.och }));
+    });
+
     royxat.forEach((o, i) => {
-      const sy = y + 96 + i * SATR;
+      const sy = y + 118 + i * SATR;
       const rang = beshRang(o.ball);
       q.push(belgiChiz(KALIT_BELGI[o.kalit] || o.ikon || 'tomchi',
         CHET + 48, sy + 6, 26, rang));
       q.push(matn(o.nom, sy + 15, { x: NOM_X, olcham: 25, ogirlik: 600, rang: T.oq }));
       q.push(shkala(SHK_X, sy, SHK_EN, o.ball, rang, { balandlik: 12 }));
-      q.push(matn(String(o.ball), sy + 15, { x: ENI - CHET - 30, oxiri: true,
+      // Chegara belgilari chiziq USTIDA ham davom etadi — to'lgan
+      // qismda ular oqish, bo'sh qismda to'q bo'lib ko'rinadi
+      CHEGARALAR.forEach((c) => {
+        const cxx = SHK_X + (SHK_EN * c) / 100;
+        q.push(`<line x1="${cxx.toFixed(1)}" y1="${sy}" x2="${cxx.toFixed(1)}" y2="${sy + 12}"
+          stroke="${T.fon}" stroke-width="2" opacity="0.55"/>`);
+      });
+      // O'ZBEKCHA baho: «68» ni hamma ham darrov tushunmaydi,
+      // «Yaxshi» esa tushuntirishsiz o'qiladi
+      q.push(matn(olchovBahosiQisqa(o.ball), sy + 15, { x: BAHO_X, oxiri: true,
+        olcham: 21, ogirlik: 700, rang }));
+      q.push(matn(String(o.ball), sy + 15, { x: RAQAM_X, oxiri: true,
         olcham: 30, ogirlik: 700, rang }));
     });
     y += H + 18;
@@ -488,48 +517,13 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
     y += H + 18;
   }
 
-  // ══════════════════════════════════════════════
-  // 5. OVQAT — IKKI PANEL
-  // ══════════════════════════════════════════════
-  const parhez = t.parhez || {};
-  const foydali  = (parhez.foydali  || []).slice(0, 5);
-  const cheklang = (parhez.cheklang || []).slice(0, 5);
-  if (S.bloklar.parhez && (foydali.length || cheklang.length)) {
-    const en = Math.floor((TOLA - 16) / 2);
-    const bandEni = en - 92;
-    const qatorlarni = (royxat) => royxat.map((b) => {
-      // Qavs ichidagi izoh tashlanadi — kartochkada faqat NOM kerak
-      const nom = String(b).replace(/\s*[（(].*?[)）]\s*$/, '').trim();
-      return qatorlarga(nom, bandEni, 23).slice(0, 2);
-    });
-    const chapQ = qatorlarni(foydali), ongQ = qatorlarni(cheklang);
-    const bal = (qq) => qq.reduce((sum, a) => sum + a.length * 28 + 14, 0);
-    const H = Math.max(bal(chapQ), bal(ongQ), 70) + 92;
-
-    q.push(matn(S.sarlavha.parhez, y + 34, { olcham: 32, ogirlik: 700, rang: T.oq }));
-    y += 58;
-
-    const panellar = [
-      { x: CHET, nom: 'Yeng', rang: T.yashil, belgi: 'tasdiq', qat: chapQ, sarlavhaBelgi: 'barg' },
-      { x: CHET + en + 16, nom: 'Kamaytiring', rang: T.qizil, belgi: 'chiziqcha',
-        qat: ongQ, sarlavhaBelgi: 'ogoh' },
-    ];
-    for (const u of panellar) {
-      q.push(karta(u.x, y, en, H, { r: 24, fon: T.karta, chiziq: u.rang + '55' }));
-      q.push(belgiChiz(u.sarlavhaBelgi, u.x + 44, y + 44, 28, u.rang));
-      q.push(matn(u.nom, y + 54, { x: u.x + 70, olcham: 30, ogirlik: 700, rang: u.rang }));
-      let py = y + 104;
-      u.qat.forEach((satrlar) => {
-        q.push(`<circle cx="${u.x + 42}" cy="${py - 8}" r="15" fill="${u.rang}"/>`);
-        q.push(belgiChiz(u.belgi, u.x + 42, py - 8, 16, T.fon, { qalin: 2.6 }));
-        satrlar.forEach((str, i) => q.push(matn(str, py + i * 28,
-          { x: u.x + 70, olcham: 23, rang: T.oq })));
-        py += satrlar.length * 28 + 14;
-      });
-      if (!u.qat.length) q.push(matn('—', y + 108, { x: u.x + 34, olcham: 23, rang: T.och }));
-    }
-    y += H + 18;
-  }
+  // OVQATLANISH TAVSIYASI BU YERDA YO'Q.
+  //
+  // Ilgari kartochkada «Yeng» va «Kamaytiring» degan ikkita panel
+  // turardi. U rasmni uzaytirardi, lekin asosiy vazifasiga —
+  // TERINI ko'rsatishga — hech narsa qo'shmasdi: ovqat ro'yxati
+  // suratsiz, o'lchovsiz va do'stga yuboriladigan narsa emas.
+  // Parhez ILOVADA qoldi: u yerda joy bor va odam uni o'qiy oladi.
 
   // ══════════════════════════════════════════════
   // 6. MAHSULOTLAR — BITTA QATOR

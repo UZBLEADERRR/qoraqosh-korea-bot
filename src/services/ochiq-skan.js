@@ -20,7 +20,7 @@
 import crypto from 'node:crypto';
 import { qator, qatorlar, sorov, hodisa } from '../db.js';
 import { tahlilQil } from './analysis.js';
-import { natijaRasminiYarat, yuzniSaqla } from './natija-rasm.js';
+import { natijaRasminiYarat, yuzniSaqla, kanalgaTahlil } from './natija-rasm.js';
 
 /** Bir IP kuniga shuncha marta skanerlay oladi. */
 export const IP_KUNLIK = 3;
@@ -90,6 +90,12 @@ export async function ochiqSkan({ base64, mime, ip }) {
     rasmBase64: base64, mime, tahlil: natija.tahlil, mahsulotlar: natija.mahsulotlar,
   }).catch(() => null);
   await yuzniSaqla({ analysisId: natija.analysisId, rasmBase64: base64, mime }).catch(() => {});
+
+  // Tahlillar kanaliga SAYTDAGI skaner ham tushadi. Ilgari bu yerda
+  // chaqiruv yo'q edi va kanalga faqat botdagi tahlillar kelardi:
+  // reklamadan kelgan odam skanerlab ketsa, do'kon egasi undan
+  // umuman xabar topmasdi. Yiqilsa — skaner ishlayveradi.
+  if (rasm?.bayt) kanalgaTahlil(rasm.bayt, mehmon, natija.tahlil, 'sayt').catch(() => {});
 
   await sorov(
     `insert into ochiq_skan (token, analysis_id, mehmon_id, ip_xesh)

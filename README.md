@@ -279,6 +279,17 @@ Google Gemini · Railway.
   yaxshi**, va yoniga o'zbekcha baho yoziladi («Yaxshi», «E'tibor
   kerak»). Bu bo'lim hech qachon bo'sh qolmaydi.
 
+  **Rang va yozuv BITTA chegaradan oladi** (`DARAJALAR`, 35/50/65/80).
+  Ilgari ikkita alohida qoida bor edi va ular bir-biriga zid edi: rang
+  `ball/20` bo'yicha bo'linardi, yozuv esa 35/50/65/80 bo'yicha. 60 ball
+  ekranda «O'rtacha» deb yozilib, chizig'i «yaxshi» rangida chiqardi.
+  Shkalada ko'k rang ham bor edi — «yaxshi» degani ko'k bo'lib, yettita
+  qatordan beshtasi (60, 65, 68, 74, 78) bir xil ko'rinardi. Endi
+  ranglar qizildan yashilgacha bir tomonga yuradi, beshtasi ham
+  boshqa-boshqa. Natija rasmida shkalaning ustida **daraja chegaralari**
+  belgilanadi: chiziq qayerda tugagani — «o'rtacha» dami yoki «yaxshi»
+  gami — bir qarashda o'qiladi.
+
   Modeldan ular alohida so'raladi (`olchovlar` — sxemada MAJBURIY
   maydon) va muammolar bilan **ziddiyatsiz** bo'lishi talab
   qilinadi: kuchli akne yozib «tekstura: 90» deb qo'yib bo'lmaydi.
@@ -534,11 +545,13 @@ Google Gemini · Railway.
   topilsa 6-8, og'ir holatda 10 tagacha. Mahsulot ko'p bo'lsa kartalar
   KICHRAYADI va hammasi **bitta qatorga** sig'adi (6 tagacha); 7-8 ta
   bo'lsa teng ikki qatorga bo'linadi, ya'ni yolg'iz karta qolmaydi.
-- **Ovqatlanish tavsiyasi** ham rasmda: ikki ustun — nima *foydali*,
-  nimani *cheklash* kerak, har biri qavs ichida sababi bilan. AI uni
-  aynan shu odamning topilgan muammolariga bog'lab yozadi. Dori,
-  vitamin dozasi va ochlik tavsiyasi filtrda tashlanadi — biz
-  shifokor emasmiz.
+- **Ovqatlanish tavsiyasi RASMDA yo'q — faqat ilovada.** Ikki ustun
+  (nima *foydali*, nimani *cheklash*) rasmni uzaytirardi, lekin uning
+  asosiy vazifasiga — terini ko'rsatishga — hech narsa qo'shmasdi:
+  ovqat ro'yxati suratsiz, o'lchovsiz va do'stga yuboriladigan narsa
+  emas. Ilovada esa joy bor va odam uni o'qiy oladi. AI uni aynan shu
+  odamning topilgan muammolariga bog'lab yozadi; dori, vitamin dozasi
+  va ochlik tavsiyasi filtrda tashlanadi — biz shifokor emasmiz.
   **Ism yozilmaydi:** bitta telefondan bir necha odam surat yuklashi mumkin.
   **Suratga doira chizilmaydi:** belgi qayerdaligi ro'yxatdagi «📍 zona»
   matnida turadi, doira esa suratni bulg'ab, raqamlarni ko'zdan qochirardi.
@@ -748,6 +761,14 @@ bosishda qayta chizdiradi.
   **tahlillar kanali** — tahlil natijasi rasmi va xulosasi.
   Tahlillar kanaliga mijozlarning yuz suratlari tushgani uchun u sukut
   bo'yicha **o'chiq** — admin ataylab yoqishi kerak, kanal esa yopiq bo'lsin.
+  Kanalga **uchala yo'ldan ham** tushadi va har xabarda qaysi yo'ldan
+  kelgani yozib qo'yiladi: *Telegram bot*, *Mini App* yoki *Sayt — yuz
+  skaneri*. Ilgari `src/services/ochiq-skan.js` da kanalga yuborish
+  umuman chaqirilmasdi va kanalga **faqat botdagi** tahlillar kelardi:
+  reklamadan kelib `kiovo.shop/skan/` da skanerlagan odam ko'rinmasdi,
+  ya'ni reklama ishlayaptimi-yo'qmi kanaldan bilib bo'lmasdi. Saytdagi
+  odam hali ro'yxatdan o'tmagani uchun u kanalda «Mijoz» emas,
+  **«Mehmon»** deb yoziladi.
   «Kanallarni sinash» tugmasi bot kanalga yoza olishini darhol tekshiradi.
 - **Brend nomi va logotipi** — Sozlamalardan o'zgartiriladi va bot, Mini App
   hamda rasmlarda birdaniga qo'llanadi. Nomni botdan ham o'zgartirasiz:
@@ -1610,7 +1631,7 @@ src/
     post-korinish.js   agent posti kanalda qanday chiqishini ko‘rsatuvchi sahifa
     eksport-havola.js  imzolangan, 30 daqiqada o‘ladigan yuklab olish havolasi
     telefon.js         xalqaro telefon raqami (E.164) — bitta manba
-    olchov.js          yettita doimiy teri o‘lchovi (ilova nusxasi bilan sinaladi)
+    olchov.js          yettita doimiy teri o‘lchovi va baho shkalasi (ilova nusxasi bilan sinaladi)
     docx.js            .docx yozuvchi (ZIP + WordprocessingML), kutubxonasiz
     admin.js           kim admin — bot va admin API uchun bitta javob
     hududlar.js        14 viloyat, 210 tuman — manzil tekshiruvi uchun
@@ -1742,14 +1763,18 @@ yig'adi, `chiz.js` uni resvg bilan PNG ga o'giradi (~170 ms). Ranglar
 bo'lmasa matn jimgina yo'qolardi. Rasmda emoji ishlatilmaydi: resvg rangli
 emoji shriftini chizmaydi, o'rnida bo'sh kvadrat qoladi.
 
-**Tartib:** surat eng tepada, kenglik bo'yicha o'rtada (560×700 —
-3:4 selfi bu qutida deyarli kesilmaydi; keng qutida rasmning tepasi
-kesilar va peshonadagi belgi kadrdan chiqib ketardi). Uning ostida
-olti qatlamli «rentgen» yo'lakchasi — **ilovadagi qatlamlar bilan
-aynan bir xil ro'yxat va tartibda**, aks holda odam qaysi biriga
-ishonishni bilmaydi. Keyin **umumiy teri holati to'liq kenglikda**:
-ball halqasi, holat, rangli teglar, xulosa va «rasmda nima
-ko'rdim». Ilgari bu blok suratning YONIDA, tor ustunda turardi.
+**Tartib:** surat eng tepada, o'rtada, **ikki yonida uchtadan
+«rentgen» eskizi** — jami oltita, **ilovadagi qatlamlar bilan aynan
+bir xil ro'yxat va tartibda**, aks holda odam qaysi biriga ishonishni
+bilmaydi. Ilgari eskizlar suratning OSTIDA bitta qatorda turardi va
+kartochka shu sababli juda uzun bo'lib ketgandi. Yon tomonga
+ko'chirilgach rasm ~500 piksel qisqardi (3258 → 2764), eskizlar esa
+**kattalashdi**: 156 → 210 px, ya'ni ular endi haqiqatan ko'rinadi.
+Eskizning nomi uning ICHIGA, pastki chekkasiga yoziladi — ostiga
+yozilsa har biri ~30 piksel baland bo'lar va yutuq qaytib ketardi.
+Keyin **umumiy teri holati to'liq kenglikda**: ball halqasi, holat,
+rangli teglar, xulosa va «rasmda nima ko'rdim». Ilgari bu blok
+suratning YONIDA, tor ustunda turardi.
 
 Har bir belgi uchun `SABABI` va `TAVSIYA` satrlari chiqadi — foiz
 o'zi hech narsa tushuntirmaydi. Har muammoning balandligi o'ziniki:
@@ -1767,7 +1792,7 @@ qiladi, do'stiga yuboradi, saqlab qo'yadi. Ilgari uning ko'rinishi
 faqat koddan o'zgarardi. Endi do'kon egasi **admin yordamchisiga
 oddiy so'z bilan aytadi**:
 
-> «Erkaklar kartochkasida ovqatlanish bo'limini olib tashla»
+> «Erkaklar kartochkasida belgilar ro'yxatini olib tashla»
 > «Mahsulotni oltita qil»
 > «Sarlavhani "Nimalar topildi" deb o'zgartir»
 
@@ -1778,14 +1803,14 @@ O'zgartirsa bo'ladigan narsalar:
 
 | Nima | Qiymat |
 |---|---|
-| `bloklar` | korsatkichlar, xulosa, belgilar, parhez, mahsulotlar — har biri yoq/bor |
+| `bloklar` | korsatkichlar, xulosa, belgilar, mahsulotlar — har biri yoq/bor |
 | `belgi_soni`, `mahsulot_soni` | 0-8 |
 | `sarlavha` | bo'lim sarlavhalari |
 | `izoh`, `teg` | pastdagi ogohlantirish va o'ng yuqoridagi yozuv |
 | `ai_qoshimcha` | tahlil AI siga qo'shimcha ko'rsatma |
 
 **Erkak va ayol uchun alohida.** Jins bo'limida faqat FARQ yoziladi,
-qolgani umumiydan olinadi — ya'ni «erkaklarda parhez ko'rinmasin»
+qolgani umumiydan olinadi — ya'ni «erkaklarda belgilar ko'rinmasin»
 degani boshqa hamma narsani qayta yozishni talab qilmaydi. Ranglar
 ham allaqachon jinsga qarab o'zgarardi (`mavzu_erkak`), endi
 TARKIB ham shunday.
