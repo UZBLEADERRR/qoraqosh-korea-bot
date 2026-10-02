@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Ilova o'z oynasini chizmaydi — Chrome ochilguncha qizil fon
+         ko'rinadi, shuning uchun oq «yalt» etish bo'lmaydi -->
+    <style name="Theme.KiOVO" parent="android:Theme.Translucent.NoTitleBar">
+        <item name="android:windowBackground">@color/qizil</item>
+        <item name="android:statusBarColor">@color/qizil</item>
+        <item name="android:navigationBarColor">@color/qizil</item>
+    </style>
+</resources>

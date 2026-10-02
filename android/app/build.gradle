@@ -1,0 +1,58 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Versiya CI dan keladi: har yig'ishda raqam oshadi — Play bir xil
+// versionCode ni ikkinchi marta qabul qilmaydi.
+def versiyaKodi = (System.getenv('VERSIYA_KODI') ?: '1') as int
+def versiyaNomi = System.getenv('VERSIYA_NOMI') ?: '1.0.0'
+
+// Imzo kaliti CI dagi maxfiy o'zgaruvchilardan. Kalit fayli repozitoriyga
+// HECH QACHON qo'yilmaydi.
+def kalitFayli = System.getenv('KIOVO_KEYSTORE')
+
+android {
+    namespace 'shop.kiovo.app'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'shop.kiovo.app'
+        minSdk 21
+        targetSdk 36
+        versionCode versiyaKodi
+        versionName versiyaNomi
+    }
+
+    signingConfigs {
+        release {
+            if (kalitFayli) {
+                storeFile file(kalitFayli)
+                storePassword System.getenv('KIOVO_KEYSTORE_PAROL')
+                keyAlias System.getenv('KIOVO_KALIT_NOMI') ?: 'kiovo'
+                keyPassword System.getenv('KIOVO_KALIT_PAROL') ?: System.getenv('KIOVO_KEYSTORE_PAROL')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (kalitFayli) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        // Ilovada o'z kodi yo'q — kutubxona lint ogohlantirishlari yig'ishni to'xtatmasin
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}

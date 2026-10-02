@@ -1,0 +1,21 @@
+// KiOVO — Android ilova (Trusted Web Activity).
+// Ilova kiovo.shop/app/ ni Chrome dvigatelida, brauzer manzil satrisiz
+// ochadi. Kod yo'q: hamma ish Google'ning androidbrowserhelper
+// kutubxonasida. Sayt yangilansa ilova ham darrov yangilanadi —
+// Play'ga qayta yuklash faqat ikonka, nom yoki versiya o'zgarganda.
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+rootProject.name = 'KiOVO'
+include ':app'

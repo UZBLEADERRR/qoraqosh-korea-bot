@@ -8,3 +8,11 @@ dist/
 
 # Dizayn kanvasining tayyor fayli (qayta yig'iladi)
 design/*.html
+
+# Android yig'ish natijalari va IMZO KALITLARI — hech qachon repozitoriyga emas
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.jks
+*.keystore

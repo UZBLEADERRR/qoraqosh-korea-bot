@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 8+: fon (qizil) va oldingi qatlam (och yashil logotip) alohida.
+     Telefon ularni o'z shakliga (doira, kvadrat, tomchi) kesadi.
+     monochrome — Android 13 ning «mavzuli ikonkalari» uchun. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/qizil" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

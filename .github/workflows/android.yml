@@ -1,0 +1,105 @@
+# KiOVO Android ilovasini yig'adi: Play Store uchun AAB va telefonga
+# to'g'ridan-to'g'ri o'rnatish uchun APK.
+#
+# Natija: Actions → shu ish → «Artifacts» → kiovo-android.
+#
+# IMZO KALITI (GitHub → Settings → Secrets and variables → Actions):
+#   KIOVO_KEYSTORE_B64   — kalit fayli, base64 ko'rinishida
+#   KIOVO_KEYSTORE_PAROL — kalit fayli paroli
+#   KIOVO_KALIT_NOMI     — kalit nomi (alias), odatda «kiovo»
+#   KIOVO_KALIT_PAROL    — kalit paroli (odatda fayl paroli bilan bir xil)
+# Kalit qo'yilmagan bo'lsa VAQTINCHALIK kalit yasaladi — APK telefonda
+# sinash uchun yaraydi, lekin Play'ga yuklab bo'lmaydi (har safar boshqa
+# kalit bo'ladi). Play'ga faqat doimiy kalit bilan imzolangan AAB.
+name: Android ilova
+
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+    inputs:
+      versiya:
+        description: 'Versiya nomi (masalan 1.0.3)'
+        required: false
+
+jobs:
+  yigish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Android SDK paketlari
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Imzo kaliti
+        env:
+          KEYSTORE_B64: ${{ secrets.KIOVO_KEYSTORE_B64 }}
+          KEYSTORE_PAROL: ${{ secrets.KIOVO_KEYSTORE_PAROL }}
+          KALIT_NOMI: ${{ secrets.KIOVO_KALIT_NOMI }}
+          KALIT_PAROL: ${{ secrets.KIOVO_KALIT_PAROL }}
+        run: |
+          KS="$RUNNER_TEMP/kiovo.jks"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$KS"
+            echo "KIOVO_KEYSTORE_PAROL=$KEYSTORE_PAROL" >> "$GITHUB_ENV"
+            echo "KIOVO_KALIT_NOMI=${KALIT_NOMI:-kiovo}" >> "$GITHUB_ENV"
+            echo "KIOVO_KALIT_PAROL=${KALIT_PAROL:-$KEYSTORE_PAROL}" >> "$GITHUB_ENV"
+            echo "KALIT_TURI=doimiy" >> "$GITHUB_ENV"
+          else
+            P="vaqtinchalik-$(openssl rand -hex 8)"
+            keytool -genkeypair -keystore "$KS" -storepass "$P" -keypass "$P" -alias kiovo \
+              -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=KiOVO sinov" > /dev/null 2>&1
+            echo "KIOVO_KEYSTORE_PAROL=$P" >> "$GITHUB_ENV"
+            echo "KIOVO_KALIT_NOMI=kiovo" >> "$GITHUB_ENV"
+            echo "KIOVO_KALIT_PAROL=$P" >> "$GITHUB_ENV"
+            echo "KALIT_TURI=vaqtinchalik" >> "$GITHUB_ENV"
+            echo "::warning::Imzo kaliti sozlanmagan — vaqtinchalik kalit ishlatildi. APK sinash uchun yaraydi, Play'ga yuklab bo'lmaydi."
+          fi
+          echo "KIOVO_KEYSTORE=$KS" >> "$GITHUB_ENV"
+
+      - name: Yig'ish (AAB + APK)
+        working-directory: android
+        env:
+          VERSIYA_KODI: ${{ github.run_number }}
+          VERSIYA_NOMI: ${{ github.event.inputs.versiya || format('1.0.{0}', github.run_number) }}
+        run: gradle --no-daemon --stacktrace bundleRelease assembleRelease
+
+      - name: Imzo barmoq izi (assetlinks uchun)
+        run: |
+          IZ=$(keytool -list -v -keystore "$KIOVO_KEYSTORE" -storepass "$KIOVO_KEYSTORE_PAROL" \
+               -alias "$KIOVO_KALIT_NOMI" | grep -m1 'SHA256:' | sed 's/.*SHA256: //')
+          {
+            echo "## KiOVO Android — ${KALIT_TURI} kalit"
+            echo ""
+            echo "SHA-256 barmoq izi (admin panel → Sozlamalar → Android ilova):"
+            echo ""
+            echo "\`$IZ\`"
+            echo ""
+            echo "Play App Signing yoqilgach Play Console → App integrity dagi izni ham qo'shing."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$IZ" > android/app/build/sha256.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kiovo-android
+          path: |
+            android/app/build/outputs/bundle/release/*.aab
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/sha256.txt
+          if-no-files-found: error

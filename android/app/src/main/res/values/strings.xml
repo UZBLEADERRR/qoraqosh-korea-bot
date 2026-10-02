@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="appName">KiOVO</string>
+    <!-- Ilova shu saytga egalik qilishini e'lon qiladi. Sayt tomoni:
+         https://kiovo.shop/.well-known/assetlinks.json -->
+    <string name="assetStatements" translatable="false">[{\"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://kiovo.shop\"}}]</string>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Brend ranglari — src/lib/logo.js dagi bilan bir xil -->
+<resources>
+    <color name="qizil">#AB0A0C</color>
+    <color name="qizilTungi">#5A0607</color>
+    <color name="lime">#BDDB7D</color>
+    <color name="oq">#FFFFFF</color>
+    <color name="tungiFon">#120B0B</color>
+    <color name="shaffof">#00000000</color>
+</resources>
