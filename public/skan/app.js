@@ -360,7 +360,8 @@
 
   // ── Sahifa ochilganda: brend nomi va qolgan urinishlar ──
   fetch('/api/ochiq/holat').then((r) => r.json()).then((j) => {
-    if (j.brend) { $('#brend').textContent = j.brend; document.title = `${j.brend} — bepul yuz tahlili`; }
+    // Logotip o'zgarmaydi (SVG); brend nomi faqat sarlavhaga
+    if (j.brend) { $('#brend').setAttribute('aria-label', j.brend); document.title = `${j.brend} — bepul yuz tahlili`; }
     if (typeof j.qolgan === 'number') {
       $('#chegara-izoh').textContent = j.qolgan > 0
         ? `Bugun yana ${j.qolgan} marta tekshirishingiz mumkin`

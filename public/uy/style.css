@@ -1,29 +1,28 @@
 /* KiOVO — kiovo.shop bosh sahifasi.
  *
- * IKKI RANG, boshqasi yo'q: to'q qizil va och yashil. Ranglar
- * plakatning o'zidan o'lchab olingan, brend qizili esa ilovadagi
- * bilan aynan bir xil (#b3161c) — sayt va ilova bitta narsa bo'lib
- * ko'rinishi kerak.
+ * IKKI RANG, boshqasi yo'q: qizil va och yashil — logotipning o'zidan
+ * (src/lib/logo.js, /umumiy/brend.css). Ilova, Android ilova va natija
+ * rasmi bilan aynan bir xil: sayt va ilova bitta narsa bo'lib ko'rinadi.
  *
  * Sahifa BOSHIDAN OXIRIGACHA qizil. Ilgari o'rtasi krem edi va
  * sayt ikkiga bo'linib ketgandek tuyulardi. Endi fon bir xil,
  * kartalar esa uning ustida biroz yorug'roq qatlam bo'lib turadi.
  */
 :root{
-  --qora:#2a0709;           /* eng to'q — oyoq va skaner bo'limi */
-  --qizil-tim:#5e0b0e;      /* asosiy fon */
-  --qizil:#b3161c;          /* brend */
-  --qizil-yorqin:#e0242b;
-  --lime:#c6ec93;           /* logotip va urg'u */
-  --lime-yorqin:#d8f7a8;
-  --lime-tim:#9cc766;
+  --qora:var(--k-qizil-qora);   /* eng to'q — oyoq va skaner bo'limi */
+  --qizil-tim:#5e0b0e;          /* asosiy fon */
+  --qizil:var(--k-qizil);       /* brend (logotip foni) */
+  --qizil-yorqin:#d4161b;
+  --lime:var(--k-lime);         /* logotip va urg'u */
+  --lime-yorqin:var(--k-lime-yorqin);
+  --lime-tim:#a9cc62;
   --krem:#faf6f0;
   --oq-kul:rgba(250,246,240,.74);
   --oq-och:rgba(250,246,240,.5);
   --qatlam:rgba(250,246,240,.06);
   --chiziq:rgba(250,246,240,.14);
   --r:20px;
-  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  --sans:var(--k-shrift);
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -83,7 +82,12 @@ em{font-style:normal;color:var(--lime)}
   backdrop-filter:blur(16px);border-bottom:1px solid var(--chiziq)}
 .logo{display:flex;align-items:center;gap:9px;text-decoration:none;
   font:800 21px/1 var(--sans);letter-spacing:-.02em;color:var(--krem)}
-.logo svg{width:28px;height:17px;color:var(--lime);flex:0 0 auto}
+.logo{color:var(--lime);line-height:0}
+.logo .logo-svg{height:30px;width:auto;display:block}
+/* Tabassum ochilganda chizilib chiqadi — ilovadagi bilan bir xil */
+.logo .logo-svg path[stroke]{stroke-dasharray:700;animation:k-tabassum .9s var(--k-egri) .2s both}
+.logo .logo-svg circle:nth-of-type(-n+2){transform-box:fill-box;transform-origin:center;
+  animation:k-kipriq 5s ease-in-out 2.4s infinite}
 .menyu{display:none;gap:26px;margin-left:14px;flex:1}
 .menyu a{position:relative;text-decoration:none;font-size:14.5px;font-weight:600;
   color:var(--oq-kul);transition:color .18s ease}
@@ -229,11 +233,22 @@ h2{font-size:clamp(28px,5vw,44px);font-weight:800}
   align-items:center;justify-content:space-between;
   padding-bottom:24px;border-bottom:1px solid var(--chiziq)}
 .logo-oyoq{flex-wrap:wrap}
-.logo-oyoq em{font-size:11.5px;font-weight:700;letter-spacing:.18em;
-  color:var(--lime);width:100%;padding-left:37px}
+.logo-oyoq{flex-direction:column;align-items:flex-start;gap:10px}
+.logo-oyoq .logo-svg{height:40px}
+.logo-oyoq em{font-size:12px;font-weight:700;letter-spacing:.18em;color:var(--lime)}
 .oyoq nav{display:flex;flex-wrap:wrap;gap:8px 24px}
 .oyoq nav a{font-size:14.5px;font-weight:600;color:var(--oq-kul);
   text-decoration:none;transition:color .18s ease}
 .oyoq nav a:hover{color:var(--lime)}
 .oyoq-mayda{max-width:1180px;margin:22px auto 0;font-size:12.5px;
   color:var(--oq-och);line-height:1.7}
+
+/* ── Google Play nishoni ── Play'da chiqqach saytda paydo bo'ladi */
+.play-nishon{display:inline-flex;align-items:center;gap:12px;min-height:56px;padding:8px 20px 8px 16px;
+  border-radius:16px;background:#000;color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.22);
+  transition:transform .18s var(--k-egri)}
+.play-nishon:hover{transform:translateY(-2px)}
+.play-nishon svg{width:26px;height:28px;flex:0 0 auto}
+.play-nishon span{display:flex;flex-direction:column;line-height:1.15;text-align:left}
+.play-nishon small{font-size:11.5px;font-weight:600;opacity:.8;letter-spacing:.02em}
+.play-nishon b{font-size:18px;font-weight:700;letter-spacing:-.01em}

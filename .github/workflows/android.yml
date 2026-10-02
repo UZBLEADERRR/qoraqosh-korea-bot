@@ -56,6 +56,8 @@ jobs:
         run: |
           KS="$RUNNER_TEMP/kiovo.jks"
           if [ -n "$KEYSTORE_B64" ]; then
+            echo "::add-mask::$KEYSTORE_PAROL"
+            echo "::add-mask::$KALIT_PAROL"
             echo "$KEYSTORE_B64" | base64 -d > "$KS"
             echo "KIOVO_KEYSTORE_PAROL=$KEYSTORE_PAROL" >> "$GITHUB_ENV"
             echo "KIOVO_KALIT_NOMI=${KALIT_NOMI:-kiovo}" >> "$GITHUB_ENV"
@@ -63,6 +65,7 @@ jobs:
             echo "KALIT_TURI=doimiy" >> "$GITHUB_ENV"
           else
             P="vaqtinchalik-$(openssl rand -hex 8)"
+            echo "::add-mask::$P"
             keytool -genkeypair -keystore "$KS" -storepass "$P" -keypass "$P" -alias kiovo \
               -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=KiOVO sinov" > /dev/null 2>&1
             echo "KIOVO_KEYSTORE_PAROL=$P" >> "$GITHUB_ENV"

@@ -1,14 +1,16 @@
 /* KiOVO — ochiq yuz skaneri (Instagram reklamasi uchun).
-   Qora fon, bitta urg'u rangi, bitta amal. Do'kon uslubidan
-   ATAYLAB farq qiladi: bu yerda sotish yo'q, faqat qiziqish. */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+   To'q fon, bitta urg'u — logotipdagi och yashil, bitta amal. Sotish
+   yo'q, faqat qiziqish; lekin brend AYNAN shu: qizil va och yashil,
+   o'sha logotip va shrift (/umumiy/brend.css). Ilgari bu sahifa qora
+   va marjon rangda edi va reklamadan kelgan odam keyin ilovani
+   boshqa do'kon deb o'ylardi. */
 
 :root{
-  --fon:#08080A; --panel:#141417; --chiziq:#26262C; --plitka:#1C1C21;
-  --matn:#FFFFFF; --kul:#9A9AA6; --och:#6C6C78;
-  --urgu:#FF6B5A; --yashil:#3DD68C; --sariq:#F0B429; --kok:#4AA3FF;
+  --fon:#140808; --panel:#221212; --chiziq:#3a2525; --plitka:#2b1717;
+  --matn:#FFFFFF; --kul:#c9b8b5; --och:#a08e8b;
+  --urgu:var(--k-lime); --yashil:#3DD68C; --sariq:#F0B429; --kok:#4AA3FF;
   --r:18px;
-  --sans:Manrope,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --sans:var(--k-shrift);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -22,16 +24,23 @@ body{background:var(--fon);color:var(--matn);font:15.5px/1.55 var(--sans);
 
 /* ---------- Kirish ---------- */
 .shapka{padding:26px 0 6px;text-align:center}
-.brend{font-size:26px;font-weight:800;letter-spacing:-.03em}
+.brend{color:var(--k-lime);line-height:0;display:flex;justify-content:center}
+.brend .logo-svg{height:44px;width:auto}
+.brend .logo-svg path[stroke]{stroke-dasharray:700;animation:k-tabassum 1s var(--k-egri) .2s both}
 .shior{margin:4px 0 0;font-size:13px;color:var(--kul)}
 
 .qahramon{position:relative;display:grid;place-items:center;margin:18px 0 6px;
   height:190px}
 .halqa-fon{position:absolute;width:210px;height:210px;border-radius:50%;
-  background:radial-gradient(circle,rgba(255,107,90,.22),transparent 68%);
+  background:radial-gradient(circle,rgba(171,10,12,.55),transparent 68%);
   animation:nafas 3.4s ease-in-out infinite}
 @keyframes nafas{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.1);opacity:1}}
 .yuz-belgi{position:relative;width:120px;height:140px;color:var(--urgu)}
+/* Yuz ichida brend tabassumi — logotipning o'zi */
+.yuz-tabassum{position:absolute;width:62px;color:var(--k-lime);line-height:0}
+.yuz-tabassum svg{width:100%;height:auto;overflow:visible}
+.yuz-tabassum path{stroke-dasharray:700;animation:k-tabassum 1.2s var(--k-egri) .4s both}
+.yuz-tabassum circle{transform-box:fill-box;transform-origin:center;animation:k-kipriq 4.5s ease-in-out 2s infinite}
 
 h1{margin:6px 0 8px;font-size:clamp(25px,7.4vw,32px);line-height:1.12;
   letter-spacing:-.03em;text-align:center}
@@ -41,9 +50,9 @@ h1{margin:6px 0 8px;font-size:clamp(25px,7.4vw,32px);line-height:1.12;
 
 .tugmalar{display:flex;flex-direction:column;gap:9px;margin:0 0 18px}
 .asosiy,.ikkilamchi{display:flex;align-items:center;justify-content:center;gap:8px;
-  width:100%;padding:16px;border-radius:14px;font:700 16px/1 var(--sans);
+  width:100%;padding:16px;border-radius:16px;font:800 16px/1 var(--sans);min-height:56px;
   cursor:pointer;border:0;text-decoration:none}
-.asosiy{background:var(--urgu);color:#0b0b0d}
+.asosiy{background:var(--urgu);color:#3b0304;box-shadow:0 10px 26px -14px rgba(189,219,125,.8)}
 .asosiy:disabled{opacity:.45}
 .asosiy:active{transform:scale(.985)}
 .ikkilamchi{background:transparent;color:var(--matn);border:1px solid var(--chiziq)}
@@ -122,7 +131,7 @@ body.yorug .kam-quti{box-shadow:0 0 0 12px #fff,0 0 72px 26px rgba(255,255,255,.
 .n-teglar span{display:inline-flex;align-items:center;gap:6px;border-radius:99px;
   padding:8px 13px;font-size:13px;font-weight:700;line-height:1}
 .n-teglar .t-yosh{background:rgba(74,163,255,.16);color:var(--kok)}
-.n-teglar .t-jins{background:rgba(255,107,90,.16);color:var(--urgu)}
+.n-teglar .t-jins{background:rgba(189,219,125,.16);color:var(--urgu)}
 .n-teglar .t-teri{background:rgba(61,214,140,.16);color:var(--yashil)}
 .n-teglar .t-rang{background:rgba(240,180,41,.16);color:var(--sariq)}
 
@@ -145,5 +154,5 @@ body.yorug .kam-quti{box-shadow:0 0 0 12px #fff,0 0 72px 26px rgba(255,255,255,.
 
 .xato{position:fixed;left:16px;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));
   max-width:488px;margin:0 auto;padding:13px 15px;border-radius:14px;
-  background:rgba(255,107,90,.16);border:1px solid rgba(255,107,90,.45);
+  background:rgba(189,219,125,.16);border:1px solid rgba(189,219,125,.45);
   color:#ffb9b0;font-size:13.5px;line-height:1.5;z-index:40}

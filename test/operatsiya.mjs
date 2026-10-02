@@ -639,10 +639,26 @@ console.log('\n── MAVZU ──');
   const svgKok = natijaSvg({ rasmBase64: null, brend: 'KiOVO',
     tahlil: { ball: 65, muammolar: [{ nom: 'Sinov', foiz: 70, zona: 'T-zona' }] },
     tavsiyalar: [], mavzu: { asosiy: '#123A63', fon: '#E7F0F7', urgu: '#1D6FA5' } });
+  // KiOVO uchun pastda logotip turadi (brend rangida), shuning uchun
+  // urg'u rangi boshqa nomli do'konda tekshiriladi
+  const boshqaDokon = (mavzu) => natijaSvg({ rasmBase64: null, brend: 'Sinov do‘kon',
+    tahlil: { ball: 65, muammolar: [{ nom: 'Sinov', foiz: 70, zona: 'T-zona' }] },
+    tavsiyalar: [], mavzu });
+  const svgQizil2 = boshqaDokon({ asosiy: '#B3161C', fon: '#EAF3D9', urgu: '#E0242B' });
+  const svgKok2 = boshqaDokon({ asosiy: '#123A63', fon: '#E7F0F7', urgu: '#1D6FA5' });
   const urguChiq = (svg) => (svg.match(/fill="(#[0-9a-f]{6})"/gi) || []).join(' ');
-  test('urg‘u rangi mavzudan keladi', urguChiq(svgQizil) !== urguChiq(svgKok));
+  test('urg‘u rangi mavzudan keladi', urguChiq(svgQizil2) !== urguChiq(svgKok2));
   test('urg‘u qora fon uchun YORITILADI',
-    svgKok.includes(tungiUrgu('#1D6FA5')), tungiUrgu('#1D6FA5'));
+    svgKok2.includes(tungiUrgu('#1D6FA5')), tungiUrgu('#1D6FA5'));
+  test('boshqa nomli do‘kon — nomi matn bo‘lib yoziladi', />Sinov do‘kon</.test(svgKok2));
+
+  // KiOVO — matn emas, HAQIQIY logotip (tepada va pastda)
+  const logolar = (svgQizil.match(/<g transform="translate\([^)]+\) scale\([0-9.]+\)"><circle[^>]+fill="#BDDB7D"/g) || []).length;
+  test('KiOVO kartochkasida logotip — tepada va pastda', logolar === 2, String(logolar));
+  test('KiOVO nomi oddiy shriftda YOZILMAYDI', !/>KiOVO</.test(svgQizil));
+  test('do‘kon o‘z logotipini yuklagan bo‘lsa — o‘shanisi',
+    /data:image\/png;base64,QUJD/.test(natijaSvg({ rasmBase64: null, brend: 'KiOVO', logoBase64: 'QUJD',
+      tahlil: { ball: 65, muammolar: [] }, tavsiyalar: [] })));
 
   // Muammo ranglari MAVZUGA BOG'LIQ EMAS — qizil «yomon» degani hamma joyda bir xil
   test('muammo rangi mavzudan qat’i nazar bir xil',
@@ -2534,9 +2550,9 @@ console.log('\n── BOSH SAHIFA / kiovo.shop ──');
     /if \(yol === '\/' \)\s+return sahifa\(res, 'uy'\)/.test(srvKod2));
 
   // Dizayn brendga mos: FAQAT qizil va och yashil
-  test('plakat ranglari ishlatilgan',
-    /--lime:#c6ec93/.test(uyCss) && /--qizil-tim:#5e0b0e/.test(uyCss));
-  test('brend qizili ilova bilan bir xil', /--qizil:#b3161c/.test(uyCss));
+  test('brend ranglari umumiy fayldan',
+    /--lime:var\(--k-lime\)/.test(uyCss) && /--qizil-tim:#5e0b0e/.test(uyCss));
+  test('brend qizili ilova bilan bir xil', /--qizil:var\(--k-qizil\)/.test(uyCss));
   // Rasm chetdan chiqib turardi va sahifa yon tomonga suriladigan
   // bo'lib qolgandi — telefonda bu darrov bilinadi
   test('qahramon yorug‘ligi rasm ICHIDA',

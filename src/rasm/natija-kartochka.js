@@ -23,6 +23,7 @@ import { palitra, TARTIB_RANG } from '../lib/mavzu.js';
 import { kartochkaSozlamasi } from '../lib/kartochka.js';
 import { olchovlarniHisobla, olchovRangHex, olchovBahosiQisqa,
          CHEGARALAR } from '../lib/olchov.js';
+import { BREND, LOGO_QUTI, logoQismlari } from '../lib/logo.js';
 
 const ENI = 1080;
 const CHET = 40;
@@ -36,6 +37,19 @@ const CHET = 40;
  * chiqar, 60 ball esa «O'rtacha» deb yozilib «yaxshi» rangida
  * turardi — yettita qatordan beshtasi bir xil ko'rinardi. */
 const beshRang = (b) => olchovRangHex(b);
+
+/* Do'kon nomi KiOVO bo'lsa — matn emas, HAQIQIY logotip (o'sha
+ * geometriya, `lib/logo.js`). Kanalda va Instagramda tarqaladigan
+ * rasm brendni tanitishi kerak: oddiy shriftdagi «KiOVO» yozuvi
+ * logotipga o'xshamaydi. Boshqa nom yozilgan bo'lsa — eskicha matn. */
+const brendLogomi = (brend) => /^\s*kiovo\s*$/i.test(String(brend || ''));
+
+/** Logotipni (x, yuqori) nuqtadan, berilgan balandlikda chizadi. Kengligini qaytaradi. */
+function logoChiz(q, x0, yuqori, boy, rang) {
+  const k = boy / LOGO_QUTI.boy;
+  q.push(`<g transform="translate(${(x0 - LOGO_QUTI.x * k).toFixed(2)} ${(yuqori - LOGO_QUTI.y * k).toFixed(2)}) scale(${k.toFixed(5)})">${logoQismlari(rang)}</g>`);
+  return LOGO_QUTI.en * k;
+}
 
 const T = {
   fon:     '#08080A',
@@ -224,14 +238,19 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   // 1. SARLAVHA
   // ══════════════════════════════════════════════
   let y = 62;
-  if (logoBase64) {
+  if (!logoBase64 && brendLogomi(brend)) {
+    const en = logoChiz(q, CHET, y - 38, 62, BREND.lime);
+    q.push(matn(S.teg, y + 8, { x: CHET + en + 22, olcham: 23, rang: T.kul }));
+  } else if (logoBase64) {
     q.push(`<clipPath id="logo"><rect x="${CHET}" y="${y - 40}" width="52" height="52" rx="15"/></clipPath>
       <image href="data:${logoMime};base64,${logoBase64}" x="${CHET}" y="${y - 40}"
         width="52" height="52" clip-path="url(#logo)" preserveAspectRatio="xMidYMid slice"/>`);
   }
-  const brendX = logoBase64 ? CHET + 68 : CHET;
-  q.push(matn(brend, y, { x: brendX, olcham: 44, ogirlik: 700, rang: T.oq }));
-  q.push(matn(S.teg, y + 32, { x: brendX, olcham: 23, rang: T.kul }));
+  if (logoBase64 || !brendLogomi(brend)) {
+    const brendX = logoBase64 ? CHET + 68 : CHET;
+    q.push(matn(brend, y, { x: brendX, olcham: 44, ogirlik: 700, rang: T.oq }));
+    q.push(matn(S.teg, y + 32, { x: brendX, olcham: 23, rang: T.kul }));
+  }
   q.push(matn(sana(), y - 6, { x: ENI - CHET, oxiri: true, olcham: 23, rang: T.och }));
   y += 62;
 
@@ -582,9 +601,10 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
   y += 48;
   // Yosh va jins TEPADA, rangli teglarda yozilgan — bu yerda
   // takrorlanmaydi
-  q.push(matn(brend, y, { olcham: 25, ogirlik: 700, rang: URGU }));
+  if (brendLogomi(brend)) logoChiz(q, CHET, y - 30, 36, BREND.lime);
+  else q.push(matn(brend, y, { olcham: 25, ogirlik: 700, rang: URGU }));
   q.push(matn(sana(), y, { x: ENI - CHET, oxiri: true, olcham: 21, rang: T.och }));
-  y += 30;
+  y += brendLogomi(brend) ? 42 : 30;
   if (S.izoh) {
     q.push(matn(S.izoh, y, { olcham: 21, rang: T.och }));
     y += 34;

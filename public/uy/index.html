@@ -15,7 +15,7 @@
      yo'naltirish TO'G'RI EMAS edi — u Telegramga sakraydi va qisqa
      nom sozlanmagan bo'lsa bot suhbatini ochib qo'yadi. -->
 <link rel="manifest" href="/uy/manifest.json">
-<meta name="theme-color" content="#5e0b0e">
+<meta name="theme-color" content="#ab0a0c">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -29,17 +29,15 @@
 <meta name="twitter:card" content="summary_large_image">
 
 <link rel="preload" as="image" href="/uy/hero.jpg" fetchpriority="high">
+<link rel="preload" href="/umumiy/shrift/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/umumiy/brend.css">
 <link rel="stylesheet" href="/uy/style.css">
 </head>
 <body>
 
 <!-- ══ Yuqori panel ══ -->
 <header class="bosh">
-  <a class="logo" href="/" aria-label="KiOVO bosh sahifa">
-    <svg viewBox="0 0 34 20" aria-hidden="true"><path d="M3 3a14 14 0 0 0 28 0"
-      fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
-    <span>KiOVO</span>
-  </a>
+  <a class="logo" href="/" aria-label="KiOVO bosh sahifa">__LOGO__</a>
   <nav class="menyu">
     <a href="#skan">Yuz skaneri</a>
     <a href="#mahsulot">Mahsulotlar</a>
@@ -135,6 +133,13 @@
     <div class="ornat jon" id="ornat-karta">
       <h3>Ilovani telefonga o‘rnating</h3>
       <p>Bosh ekranda o‘z yorlig‘i bo‘ladi va bir bosishda ochiladi.</p>
+      <!-- Play Store havolasi admin panelda kiritilgach paydo bo'ladi -->
+      <a class="play-nishon" id="play" href="#" hidden target="_blank" rel="noopener">
+        <svg viewBox="0 0 26 28" aria-hidden="true"><path fill="#00d4ff" d="M1 1.2 14.3 14 1 26.8c-.4-.3-.6-.8-.6-1.4V2.6c0-.6.2-1.1.6-1.4z"/>
+          <path fill="#00f076" d="M18.8 9.6 14.3 14 1 1.2c.5-.4 1.2-.4 1.9 0z"/>
+          <path fill="#ff3a44" d="M18.8 18.4 2.9 26.8c-.7.4-1.4.4-1.9 0L14.3 14z"/>
+          <path fill="#ffd500" d="m24.2 12.4-5.4-2.8L14.3 14l4.5 4.4 5.4-2.8c1.2-.7 1.2-2.5 0-3.2z"/></svg>
+        <span><small>YUKLAB OLING</small><b>Google Play</b></span></a>
       <button class="tug tug-lime tug-katta" id="ornat" hidden>Ekranga o‘rnatish</button>
       <p class="mayda" id="ornat-izoh">
         <b>iPhone:</b> «Ulashish» → «Bosh ekranga qo‘shish»<br>
@@ -147,16 +152,13 @@
 
 <footer class="oyoq">
   <div class="oyoq-ich">
-    <div class="logo logo-oyoq">
-      <svg viewBox="0 0 34 20" aria-hidden="true"><path d="M3 3a14 14 0 0 0 28 0"
-        fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
-      <span>KiOVO</span>
-      <em>Wear Your Mood</em>
-    </div>
+    <div class="logo logo-oyoq">__LOGO__<em>WEAR YOUR MOOD</em></div>
     <nav>
       <a href="/skan/">Yuz skaneri</a>
       <a href="/app/ochish" data-bot>Do‘kon</a>
       <a href="/oferta">Ommaviy oferta</a>
+      <a href="/maxfiylik">Maxfiylik</a>
+      <a href="/hisobni-ochirish">Hisobni o‘chirish</a>
     </nav>
   </div>
   <p class="oyoq-mayda">AI tahlili tibbiy tashxis emas — kosmetologik tavsiya.</p>

@@ -33,7 +33,7 @@ export async function ochiqRoutes(req, res, yol) {
   // turgan mahsulotlarning ko'rinadigan qismi. Ombor qoldig'i,
   // tannarx, mijoz ma'lumoti — hech biri bu javobga tushmaydi.
   if (yol === '/api/ochiq/sayt' && req.method === 'GET') {
-    const [brend, telefon, ishVaqti, konsultant, instagram, bot, mahsulotlar] =
+    const [brend, telefon, ishVaqti, konsultant, instagram, bot, mahsulotlar, play] =
       await Promise.all([
         brendNomi().catch(() => 'KiOVO'),
         sozlama('menejer_telefon', '').catch(() => ''),
@@ -42,11 +42,13 @@ export async function ochiqRoutes(req, res, yol) {
         sozlama('sayt_instagram', '').catch(() => ''),
         ilovaHavolasi().catch(() => null),
         vitrina().catch(() => []),
+        sozlama('play_havola', '').catch(() => ''),
       ]);
     return ok(res, { brend, telefon, ish_vaqti: ishVaqti,
       konsultant: String(konsultant || '').replace(/^@/, ''),
       instagram: String(instagram || '').replace(/^@/, ''),
-      bot: bot || null, mahsulotlar });
+      bot: bot || null, mahsulotlar,
+      play: /^https:\/\/play\.google\.com\//.test(String(play || '')) ? String(play) : null });
   }
 
   // ── Skaner ──

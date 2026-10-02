@@ -1,8 +1,10 @@
-/* QoraQosh admin — mobil uchun mo'ljallangan.
-   Telefonda pastki menyu, kengroq ekranda yon panel. */
+/* KiOVO admin — mobil uchun mo'ljallangan.
+   Telefonda pastki menyu, kengroq ekranda yon panel.
+   Brend: qizil + och yashil (/umumiy/brend.css). Ilgari admin panel
+   jigarrang va 🌸 emoji bilan eski brendda qolib ketgan edi. */
 :root{
   --fon:#f6f5f3; --panel:#fff; --panel2:#fbfaf9; --matn:#17150f; --kul:#5f5a55; --och:#918a84;
-  --chiziq:#e5e0da; --urgu:#8a5a3d; --urgu-och:#f4ece5; --urgu-tim:#6f4830;
+  --chiziq:#e9e2da; --urgu:#ab0a0c; --urgu-och:#fbe9e9; --urgu-tim:#860709;
   --yashil:#2c7a51; --yashil-och:#e2f0e8; --qizil:#b0423a; --qizil-och:#f9e6e4;
   --sariq:#8c6a0d; --sariq-och:#f9f0d6; --kok:#35618c; --kok-och:#e5eef7;
   --r:14px; --r2:11px; --past:64px;
@@ -10,7 +12,7 @@
 }
 @media (prefers-color-scheme:dark){:root{
   --fon:#121110; --panel:#1c1a18; --panel2:#211e1c; --matn:#f1efec; --kul:#a8a19a; --och:#7d766f;
-  --chiziq:#2e2a26; --urgu:#d3a077; --urgu-och:#2b2320; --urgu-tim:#e8bd97;
+  --chiziq:#2f2423; --urgu:#f0575a; --urgu-och:#2c1516; --urgu-tim:#f58a8c;
   --yashil:#5cbd8a; --yashil-och:#16301f; --qizil:#e58d83; --qizil-och:#2f1b19;
   --sariq:#d4ae4a; --sariq-och:#2e2718; --kok:#7fb0e0; --kok-och:#182634; --sh:0 1px 2px rgba(0,0,0,.35);
 }}
@@ -18,7 +20,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
 body{background:var(--fon);color:var(--matn);
-  font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+  font:16px/1.5 var(--k-shrift);
   -webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
 h1{font-size:24px;font-weight:700;margin:0;letter-spacing:-.02em}
 h2{font-size:18px;font-weight:650;margin:0;letter-spacing:-.01em}
@@ -33,7 +35,14 @@ code{background:var(--chiziq);padding:1px 6px;border-radius:5px;font-size:13px}
 .kirish{min-height:100dvh;display:grid;place-items:center;padding:22px}
 .kirish .quti{background:var(--panel);border:1px solid var(--chiziq);border-radius:18px;
   padding:30px 26px;width:100%;max-width:380px;box-shadow:var(--sh)}
-.kirish .logo{font-size:34px;text-align:center}
+.kirish .logo{color:var(--urgu);line-height:0;display:flex;justify-content:center}
+.kirish .logo .logo-svg{width:150px;height:auto}
+.kirish .logo path[stroke]{stroke-dasharray:700;animation:k-tabassum 1s var(--k-egri) .1s both}
+.yon .brend{color:var(--urgu);line-height:0}
+.yon .brend .logo-svg{height:34px;width:auto}
+.tepa .brend{display:inline-flex;align-items:center;gap:8px}
+.tepa-belgi{color:var(--urgu);line-height:0;display:inline-flex}
+.tepa-belgi .belgi-svg{width:28px;height:auto}
 .kirish h1{text-align:center;margin:10px 0 4px}
 .kirish .izoh{text-align:center;color:var(--kul);font-size:15px;margin-bottom:22px}
 .ajratgich{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--och);font-size:13px}

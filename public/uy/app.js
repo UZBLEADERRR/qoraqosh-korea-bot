@@ -18,8 +18,15 @@
   // ── Ma'lumot ──
   fetch('/api/ochiq/sayt')
     .then((r) => (r.ok ? r.json() : null))
-    .then((j) => { if (j) { vitrinaChiz(j.mahsulotlar || []); aloqaChiz(j); botniUla(j.bot); } })
+    .then((j) => { if (j) { vitrinaChiz(j.mahsulotlar || []); aloqaChiz(j); botniUla(j.bot); playniUla(j.play); } })
     .catch(() => {});
+
+  /** Google Play'dagi ilova — havola admin panelda kiritilgach ko'rinadi. */
+  function playniUla(havola) {
+    const el = $('#play');
+    if (!el || !/^https:\/\/play\.google\.com\//.test(String(havola || ''))) return;
+    el.href = havola; el.hidden = false;
+  }
 
   /** Mahsulot vitrinasi. Bo'sh bo'lsa bo'lim butunlay yashirin qoladi. */
   function vitrinaChiz(royxat) {
