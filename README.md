@@ -1,7 +1,13 @@
-# 🌸 KiOVO — Koreya kosmetikasi
+# KiOVO — Koreya kosmetikasi
 
-Telegram bot + Mini App + admin panel. AI yuz tahlili asosida mahsulot tavsiya
-qiladi va buyurtmani boshidan oxirigacha olib boradi.
+Telegram bot + Mini App + Android ilova (Google Play) + admin panel. AI yuz
+tahlili asosida mahsulot tavsiya qiladi va buyurtmani boshidan oxirigacha
+olib boradi.
+
+**Brend:** qizil `#AB0A0C` va och yashil `#BDDB7D`, shrift Manrope.
+Logotip geometriyasi bitta joyda — `src/lib/logo.js`; ikonkalar va SVG
+fayllar undan yasaladi (`node scripts/brend.js`). Ranglar, shrift va
+animatsiyalar hamma sahifa uchun umumiy: `public/umumiy/brend.css`.
 
 **Stek:** Node.js 20 (bitta bog'liqlik — `pg`) · Supabase Postgres (session pooler) ·
 Google Gemini · Railway.
@@ -1408,13 +1414,36 @@ yasab qo'yilmaydi. Haqiqiy ilova kerak bo'lsa havoladan nusxa olinadi,
 Chrome yoki Safari da ochiladi va o'sha yerdan «Ekranga qo'shish»
 qilinadi.
 
-### Brauzerdan kirish va ekranga qo'shish
+### Brauzerdan va Android ilovadan kirish
 
-Do'kon manzilini brauzerda ochsangiz **«Do'konni ochish»** tugmasi
-`/app/` ga olib boradi va u yerda telefon raqami bilan kirasiz —
-botga tasdiqlash so'rovi keladi, parol kerak emas. Kirish botdagi
-**o'sha foydalanuvchiga** bog'lanadi, ya'ni savat, buyurtmalar va
-tahlillar avtomatik sinxron.
+Telegramdan tashqarida (brauzer, Android ilova) uchta yo'l bor, parol
+hech birida yo'q:
+
+| Usul | Qanday | Yoqish |
+|---|---|---|
+| **Telegram** | Botga o'tadi, «Start» bosiladi — ilovaga qaytganda kirgan bo'lasiz | Doim yoqiq |
+| **Google** | Google hisobini tanlash (qayta yo'naltirish, server tokenni tekshiradi) | `GOOGLE_CLIENT_ID` |
+| **Telefon** | 6 xonali SMS kod (Eskiz.uz). SMS yoqilmagan bo'lsa — botdagi tasdiq | `ESKIZ_EMAIL`, `ESKIZ_PAROL` |
+
+Telefon raqami botdagi foydalanuvchiga mos kelsa, kirish **o'sha
+hisobga** bog'lanadi — savat, buyurtmalar va tahlillar umumiy. Google
+emaili tasdiqlangan bo'lsa, shu emailli mavjud hisobga ulanadi.
+
+Telegrami yo'q foydalanuvchilar bazada `google:…` yoki `tel:…` bilan
+saqlanadi; bot ularga xabar yubormaydi (`src/bot/tg.js`).
+
+**Qurilmadagi nusxa.** Kirgandan keyin profil, so'nggi tahlil va
+sevimlilar telefonda JSON bo'lib saqlanadi (`localStorage`,
+`kiovo_meniki`), katalog va mahsulot rasmlari esa service worker
+keshida. Internet
+yo'qolsa ilova shu nusxadan ochiladi va tepada «oflayn» yozuvi chiqadi.
+Asosiy ma'lumot baribir serverda: telefon yo'qolsa yoki almashsa hech
+narsa yo'qolmaydi, admin buyurtmalarni ko'radi.
+
+**Hisob va ma'lumotlar** (Google Play talabi): Profil → «Hisob va
+ma'lumotlarim» — hamma ma'lumotni JSON faylga yuklab olish va hisobni
+butunlay o'chirish. Faol (to'langan, yo'ldagi) buyurtma bo'lsa o'chirish
+kutadi. Veb-sahifa: `/hisobni-ochirish`.
 
 Bosh sahifada ham manifest ulangan va uning `scope` i `/`, `start_url`
 i `/app/`. Shuning uchun «Ekranga qo'shish» qilinganda yorliq **mini
@@ -1549,6 +1578,12 @@ Ixtiyoriy o'zgaruvchilar:
 | `DB_POOL_MAX` | Baza ulanish hovuzi hajmi. Oshirishdan oldin Supabase limitini tekshiring | `12` |
 | `DB_QUERY_TIMEOUT_MS` | Bitta so'rovning eng uzun vaqti — osilgan so'rov hovuzni band qilmasin | `15000` |
 | `SLOW_QUERY_MS` | Shundan sekin so'rovlar logga yoziladi | `1000` |
+| `GOOGLE_CLIENT_ID` | «Google bilan kirish». Yo'riqnoma: `store/PLAY-STORE.md` | — |
+| `ESKIZ_EMAIL` / `ESKIZ_PAROL` | SMS kod bilan kirish (Eskiz.uz, shablon tasdiqlangan bo'lishi shart) | — |
+| `ESKIZ_FROM` | SMS jo'natuvchi nomi | `4546` |
+| `DEMO_TELEFON` / `DEMO_KOD` | Google Play tekshiruvchisi uchun: shu raqamga SMS ketmaydi, kod qotib turadi | — |
+| `ANDROID_PAKET` | Android paket nomi (`assetlinks.json` uchun) | `shop.kiovo.app` |
+| `ANDROID_SHA256` | Imzo barmoq izlari. Admin panel → Sozlamalar → Android ilova dan qo'yish qulayroq | — |
 
 **AI provayderi qanday tanlanadi.** `OPENROUTER_API_KEY` bo'lsa matn tahlili
 OpenRouter orqali ketadi, xato bo'lsa avtomatik Google'ga o'tadi.
@@ -1576,7 +1611,21 @@ ID'ingizni yozing (ID'ni [@userinfobot](https://t.me/userinfobot) aytadi),
 so'ng `https://<domen>/admin/` ni Telegram ichida oching — parol so'ralmaydi.
 Keyingi adminlarni panelning **Sozlamalar → Adminlar** bo'limidan qo'shasiz.
 
-### 5. Mahalliy ishlab chiqish
+### 5. Android ilova va Google Play
+
+`android/` — Trusted Web Activity: ilova `https://kiovo.shop/app/` ni
+manzil satrisiz, to'liq ekranda ochadi. Ilova ichidagi hamma narsa
+saytdan keladi, shuning uchun dizayn yoki funksiya o'zgarsa Play'ga
+yangi versiya yuklash shart emas.
+
+AAB va APK GitHub Actions'da yig'iladi (`.github/workflows/android.yml`):
+**Actions → Android ilova → Run workflow → Artifacts**. Imzo kaliti
+GitHub Secrets'da turadi, repoga hech qachon qo'yilmaydi.
+
+Play'ga chiqarishning to'liq tartibi, do'kon matnlari (uz/ru/en),
+Data safety javoblari va tayyor rasmlar: **`store/PLAY-STORE.md`**.
+
+### 6. Mahalliy ishlab chiqish
 
 ```bash
 npm install
@@ -2007,9 +2056,10 @@ solishtirishlari jimgina buziladi.
 
 ## Ishga tushirishdan oldin ⚠️
 
-1. **`src/lib/oferta.js`** — ommaviy oferta shabloni. `[KVADRAT QAVSDAGI]`
-   joylarni (nom, STIR, manzil, telefon) to'ldiring va **yuristga
-   ko'rsating**. Hozirgi holida bu huquqiy hujjat emas, shablon.
+1. **Admin → Sozlamalar → Sotuvchi** — ism-familiya, maqom, email,
+   manzil. Oferta (`/oferta`) va maxfiylik siyosati (`/maxfiylik`) shu
+   ma'lumot bilan avtomatik to'ldiriladi. Matnni **yuristga
+   ko'rsating** — bu shablon, huquqiy maslahat emas.
 2. **Sertifikat.** Kosmetika importi uchun muvofiqlik hujjatlari kerak.
 3. **Shaxsiy ma'lumotlar.** Yuz surati biometrik ma'lumot hisoblanadi va
    Gemini'ga uzatiladi. Oferta bunga alohida rozilik oladi, lekin
