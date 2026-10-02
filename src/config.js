@@ -89,6 +89,10 @@ export const config = {
   // aynan shu raqam va kod yoziladi. Bo'sh bo'lsa o'chiq.
   demoTelefon: opt('DEMO_TELEFON'),
   demoKod:     opt('DEMO_KOD'),
+  // Android ilova paketi (Play Store'dagi identifikator). TWA imzo
+  // barmoq izlari admin panelda yoki ANDROID_SHA256 da (vergul bilan).
+  androidPaket:  opt('ANDROID_PAKET', 'shop.kiovo.app'),
+  androidSha256: opt('ANDROID_SHA256'),
 };
 
 if (need.length) {

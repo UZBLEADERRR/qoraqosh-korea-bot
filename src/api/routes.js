@@ -20,6 +20,7 @@ import { kanalgaBuyurtma, kanalgaChek } from '../services/kanal.js';
 import { variantlar, TURLAR, turTozala, bepulChegara } from '../services/yetkazish.js';
 import { natijaRasminiYarat, saqlanganRasm, kanalgaTahlil, yuzniSaqla } from '../services/natija-rasm.js';
 import { rasmYubor } from '../bot/tg.js';
+import { hisobniOchir, meningMalumotlarim } from '../services/hisob.js';
 
 // Kuniga minglab foydalanuvchi bo'lganda katalog eng ko'p so'raladigan yo'l.
 // 30 soniyalik kesh bazaga ketadigan bir xil so'rovlarni yig'ib bitta qiladi.
@@ -137,6 +138,23 @@ export async function apiRoutes(req, res, yol) {
   // lekin buzilgan klient yoki skript tizimni bosib qo'yolmaydi.
   const umumiy = cheklov('api:' + user.id, 180, 60_000);
   if (!umumiy.ruxsat) return json(res, 429, { error: 'Juda ko‘p so‘rov. Biroz kuting.' });
+
+  // --- Hisob: ma'lumotlarni yuklab olish va o'chirish (Google Play talabi) ---
+  if (yol === '/api/hisob/eksport' && req.method === 'GET') {
+    const c = cheklov('eksport:' + user.id, 10, 60 * 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: 'Juda ko‘p so‘rov. Bir soatdan keyin urining.' });
+    return ok(res, await meningMalumotlarim(user.id));
+  }
+  if (yol === '/api/hisob/ochir' && req.method === 'POST') {
+    const b = await tana(req);
+    if (b.tasdiq !== true) return xato(res, 400, 'O‘chirish tasdiqlanmadi.');
+    const r = await hisobniOchir(user.id);
+    if (!r.ok) {
+      return xato(res, 409, `Sizda faol buyurtma bor (${r.buyurtmalar.join(', ')}). `
+        + 'U yetkazilgach hisobni o‘chirishingiz mumkin — yoki biz bilan bog‘laning.');
+    }
+    return ok(res, { ok: true });
+  }
 
   if (yol === '/api/limit' && req.method === 'GET') {
     return ok(res, { limit: await limitHolati(user.id) });

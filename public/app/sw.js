@@ -5,8 +5,9 @@
 //  2) qobiq (HTML, CSS, JS, ikonka) keshdan ochilsin — tarmoq sekin
 //     bo'lsa ham ilova darrov ko'rinadi.
 //
-// MA'LUMOT keshlanmaydi: katalog, savat, buyurtma — hammasi tarmoqdan.
-// Eski narxni ko'rsatish eng yomon xato bo'lardi.
+// Katalog faqat OFLAYN zaxira sifatida keshlanadi (pastga qarang);
+// savat va buyurtma — hamisha tarmoqdan. Shaxsiy ma'lumotning qurilmadagi
+// nusxasini app.js o'zi saqlaydi (`kiovo_meniki`).
 // Versiyani SERVER qo'yadi (src/server.js). Har deployda o'zgaradi,
 // shuning uchun brauzer yangi service worker ni o'rnatadi va eski
 // keshni tashlaydi. Ilgari bu nom qotib turgani uchun eski qobiq
@@ -25,14 +26,50 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys()
-    .then((nomlar) => Promise.all(nomlar.filter((n) => n !== KESH).map((n) => caches.delete(n))))
+    .then((nomlar) => Promise.all(nomlar.filter((n) => n !== KESH && n !== RASM_KESH)
+      .map((n) => caches.delete(n))))
     .then(() => self.clients.claim()));
 });
+
+// Mahsulot rasmlari alohida keshda — versiya almashganda o'chmaydi
+// (rasm hech qachon o'zgarmaydi: yangisi yangi id oladi). Hajmi cheklangan.
+const RASM_KESH = 'kiovo-rasm';
+const RASM_MAKS = 160;
+
+async function rasmniKeshla(so, javob) {
+  const k = await caches.open(RASM_KESH);
+  await k.put(so, javob);
+  const kalitlar = await k.keys();
+  for (const eski of kalitlar.slice(0, Math.max(0, kalitlar.length - RASM_MAKS))) await k.delete(eski);
+}
 
 self.addEventListener('fetch', (e) => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;
-  // API va rasm — faqat tarmoqdan, eskisi ko'rsatilmasin
+
+  // KATALOG — avval tarmoq, internet yo'q bo'lsa oxirgi nusxa. Eski
+  // narxni TARMOQ bor paytda ko'rsatish eng yomon xato bo'lardi, shuning
+  // uchun kesh faqat oflaynda ishlaydi va ilova buni ochiq aytadi.
+  if (u.pathname === '/api/catalog') {
+    e.respondWith(fetch(e.request)
+      .then((r) => {
+        if (r.ok) { const n = r.clone(); caches.open(KESH).then((k) => k.put('/api/catalog', n)); }
+        return r;
+      })
+      .catch(() => caches.match('/api/catalog').then((r) => r || Response.error())));
+    return;
+  }
+  // Mahsulot rasmlari (kichraytirilgan, ochiq) — keshdan, bo'lmasa tarmoqdan.
+  // Chek va tahlil rasmlari bu yerga TUSHMAYDI: ular `?w=` siz va tokenli.
+  if (u.pathname.startsWith('/media/') && u.searchParams.has('w') && !u.searchParams.has('t')) {
+    e.respondWith(caches.match(e.request, { cacheName: RASM_KESH }).then((bor) => bor
+      || fetch(e.request).then((r) => {
+        if (r.ok) rasmniKeshla(e.request, r.clone()).catch(() => {});
+        return r;
+      })));
+    return;
+  }
+  // Boshqa API va shaxsiy rasm — faqat tarmoqdan
   if (u.pathname.startsWith('/api/') || u.pathname.startsWith('/media/')) return;
 
   e.respondWith(
@@ -41,6 +78,7 @@ self.addEventListener('fetch', (e) => {
         if (r.ok) { const n = r.clone(); caches.open(KESH).then((k) => k.put(e.request, n)); }
         return r;
       })
-      .catch(() => caches.match(e.request).then((r) => r || caches.match('/app/index.html'))),
+      // Qobiq '/app/' kaliti bilan keshlangan ('/app/index.html' emas)
+      .catch(() => caches.match(e.request).then((r) => r || caches.match('/app/'))),
   );
 });

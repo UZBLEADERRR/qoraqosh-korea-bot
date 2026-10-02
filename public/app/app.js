@@ -37,20 +37,61 @@ const holat = {
 // ---------------- API ----------------
 async function api(yol, opt = {}) {
   const token = seansToken();
-  const res = await fetch(yol, {
+  let res;
+  try { res = await fetch(yol, {
     ...opt,
     headers: { 'Content-Type': 'application/json',
                'X-Init-Data': tg?.initData || '',
                // Telegramdan tashqarida: botdan tasdiqlangan seans
                ...(token && !tg?.initData ? { Authorization: `Bearer ${token}` } : {}),
                ...(opt.headers || {}) },
-  });
+  }); } catch {
+    // Server javob bermadi — internet yo'q. Buni server xatosidan
+    // ajratamiz: oflaynda ilova qurilmadagi nusxa bilan ochiladi.
+    throw Object.assign(new Error('Internet aloqasi yo‘q. Ulanishni tekshiring.'), { tarmoq: true });
+  }
   const data = await res.json().catch(() => ({}));
   // Seans tugagan yoki bekor qilingan — qaytadan kirish so'raymiz
   if (res.status === 401 && token && !tg?.initData) { seansOchir(); kirishEkrani();
     throw new Error(data.error || 'Sessiya tugadi'); }
   if (!res.ok) throw new Error(data.error || 'Xatolik yuz berdi');
   return data;
+}
+
+// ================= QURILMADAGI NUSXA (JSON) =================
+// Asosiy manba — server: buyurtma, to'lov va admin ishi shunga
+// bog'liq. Lekin profil, oxirgi tahlil va limitning JSON nusxasi
+// telefonda ham turadi: internet yo'q yoki sekin bo'lsa ilova bo'sh
+// ekran o'rniga oxirgi ma'lumot bilan ochiladi. Katalogning oflayn
+// nusxasini service worker saqlaydi. Chiqish va hisobni o'chirishda
+// nusxa ham o'chadi.
+const MENIKI = 'kiovo_meniki';
+function menikiSaqla() {
+  try {
+    localStorage.setItem(MENIKI, JSON.stringify({ v: 1, vaqt: Date.now(),
+      user: holat.user, stat: holat.stat, tahlil: holat.tahlil, limit: holat.limit,
+      sevimlilar: [...(holat.sevimlilar || [])] }));
+  } catch { /* xotira to'la — nusxasiz ishlayveradi */ }
+}
+function menikiOl() {
+  try {
+    const j = JSON.parse(localStorage.getItem(MENIKI) || 'null');
+    return j?.v === 1 && j.user ? j : null;
+  } catch { return null; }
+}
+const menikiOchir = () => { try { localStorage.removeItem(MENIKI); } catch {} };
+
+/** Oflayn banner — internet qaytsa o'zi yangilanadi. */
+function oflaynBanner(vaqt) {
+  if ($('#oflayn')) return;
+  const el = document.createElement('div');
+  el.id = 'oflayn'; el.className = 'oflayn-banner'; el.setAttribute('role', 'status');
+  const qachon = vaqt ? new Date(vaqt).toLocaleString('uz-UZ', { day: 'numeric',
+    month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+  el.innerHTML = `${ik('ogoh', 16)}<span>Internet yo‘q — ${qachon
+    ? `${esc(qachon)} dagi` : 'oxirgi'} saqlangan ma’lumot</span>`;
+  document.body.appendChild(el);
+  addEventListener('online', () => location.reload(), { once: true });
 }
 
 // ================= QIDIRUV LUG'ATI =================
@@ -581,10 +622,23 @@ async function boshla() {
     holat.limit = me.limit;
     holat.stat = me.stat || {};
     if (!me.user.royxatdan_otgan) return royxatEkrani();
-  } catch {
+    menikiSaqla();
+  } catch (e) {
+    const nusxa = e.tarmoq ? menikiOl() : null;
+    if (nusxa) {
+      // Oflayn: oxirgi saqlangan profil va tahlil bilan ochiladi
+      Object.assign(holat, { user: nusxa.user, stat: nusxa.stat || {},
+        tahlil: nusxa.tahlil, limit: nusxa.limit, sevimlilar: new Set(nusxa.sevimlilar || []) });
+      kor($('#ilova'), true);
+      karuselniChiz(); namunaniChiz();
+      toifalarniChiz(); filtrlarniChiz(); katalogniChiz();
+      oflaynBanner(nusxa.vaqt);
+      return tabOch('katalog');
+    }
     kor($('#ilova'), true);              // Telegram tashqarisida — faqat katalog
     karuselniChiz();
     toifalarniChiz(); filtrlarniChiz(); katalogniChiz();
+    if (e.tarmoq) oflaynBanner();
     return;
   }
 
@@ -597,6 +651,8 @@ async function boshla() {
 
   const p = new URLSearchParams(location.search);
   if (p.get('tavsiya') === '1') await tavsiyaniSavatgaSol();
+  // kiovo.shop/hisobni-ochirish sahifasidagi havola: profil va o'chirish oynasi
+  if (p.get('ochir') === '1') { tabOch('profil'); return hisobniOchirOyna(); }
   const xom = p.get('tab') || sessionStorage.getItem('qq_tab') || 'katalog';
   const boshlangich = TAB_TAQMOQ[xom] || xom;
   if (boshlangich === 'natija' && holat.tahlil) natijaniChiz();
@@ -2280,6 +2336,7 @@ async function tahlilQil() {
       yuz_rasm_id: j.yuz_rasm_id || null,
     };
     holat.limit = j.limit || holat.limit;
+    menikiSaqla();                        // yangi tahlil qurilmada ham tursin
     kor($('#skaner-boshlash'), true);
     tanlanganRasm = null; $('#fayl').value = '';
     holat.natijaKesh = null;
@@ -3795,13 +3852,22 @@ function profilniChiz() {
         <span>Tez-tez so‘raladigan savollar</span><span class="oq">${ik('keyingi', 17)}</span></button>
       <a class="tanlov-tugma" href="/oferta" target="_blank">
         <span>Ommaviy oferta</span><span class="oq">${ik('keyingi', 17)}</span></a>
-      <button class="tanlov-tugma" id="t-profil-ochir">
-        <span style="color:var(--qizil)">Ma’lumotlarimni o‘chirish</span>
-        <span class="oq">${ik('keyingi', 17)}</span></button>
+      <a class="tanlov-tugma" href="/maxfiylik" target="_blank">
+        <span>Maxfiylik siyosati</span><span class="oq">${ik('keyingi', 17)}</span></a>`)}
+
+    ${yigma('y-hisob', 'qulf', 'Hisob va ma’lumotlarim', '', `
+      <p class="mayda" style="margin:0 0 10px">Ma’lumotlaringiz sizniki: istalgan
+        payt yuklab olasiz yoki butunlay o‘chirasiz.</p>
+      <button class="tanlov-tugma" id="t-eksport">
+        <span>Ma’lumotlarimni yuklab olish <span class="ozgina">(JSON)</span></span>
+        <span class="oq">${ik('yuklab', 17)}</span></button>
       ${seansToken() && !tg?.initData ? `
         <button class="tanlov-tugma" id="t-chiqish">
-          <span style="color:var(--qizil)">Bu qurilmadan chiqish</span>
-          <span class="oq">${ik('keyingi', 17)}</span></button>` : ''}`)}`;
+          <span>Bu qurilmadan chiqish</span>
+          <span class="oq">${ik('chiqish', 17)}</span></button>` : ''}
+      <button class="tanlov-tugma xavfli" id="t-profil-ochir">
+        <span>Hisobni o‘chirish</span>
+        <span class="oq">${ik('ochirish', 17)}</span></button>`)}`;
 
   // --- Ulanishlar ---
   $$('#p-korinish [data-mavzu]').forEach((b) => b.onclick = () => {
@@ -3816,7 +3882,7 @@ function profilniChiz() {
   $('#t-ornat') && ($('#t-ornat').onclick = ilovaniOrnat);
   $('#t-chiqish') && ($('#t-chiqish').onclick = async () => {
     try { await api('/api/chiqish', { method: 'POST' }); } catch {}
-    seansOchir();
+    seansOchir(); menikiOchir();
     location.reload();
   });
 
@@ -3824,6 +3890,7 @@ function profilniChiz() {
     try {
       const j = await api('/api/profil', { method: 'POST', body: JSON.stringify(tan) });
       holat.user = { ...holat.user, ...j.user };
+      menikiSaqla();
       titra('medium'); profilniChiz();
       // Ochiq turgan bo'limni yopib qo'ymaymiz
       if (tan.full_name !== undefined) $('#y-shaxsiy').open = true;
@@ -3890,18 +3957,79 @@ function profilniChiz() {
   if (yb.open) buyurtmalarniChiz();
 
   $('#t-profil-yordam').onclick = yordamOyna;
-  $('#t-profil-ochir').onclick = () => {
-    $('#modal-tan').innerHTML = `
-      <div style="padding:18px 18px 0">
-        <h2 style="margin-bottom:10px">Ma’lumotlarni o‘chirish</h2>
-        <p>Tahlillaringiz va savatingiz o‘chiriladi. Buni botda tasdiqlaysiz:
-          botga <b>/ochir</b> buyrug‘ini yuboring.</p>
-        <p class="ozgina">Buyurtmalar hisobi qonun talabi bilan saqlanadi,
-          lekin shaxsiy ma’lumotlarsiz.</p>
-        <button class="ikkilamchi" id="t-ochir-yop" style="margin-top:14px">Tushunarli</button>
-      </div>`;
-    modalOch();
-    $('#t-ochir-yop').onclick = modalYop;
+  $('#t-profil-ochir').onclick = hisobniOchirOyna;
+  $('#t-eksport').onclick = malumotlarimniYukla;
+}
+
+/**
+ * Ma'lumotlarni JSON qilib yuklab olish. Fayl QURILMAGA saqlanadi —
+ * odam o'z ma'lumotini ko'radi, boshqa joyga ko'chira oladi.
+ */
+async function malumotlarimniYukla() {
+  const t = $('#t-eksport');
+  t.disabled = true;
+  try {
+    const j = await api('/api/hisob/eksport');
+    const blob = new Blob([JSON.stringify(j, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `kiovo-malumotlarim-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    titra('medium');
+  } catch (e) { ogohlantir(e.message); }
+  t.disabled = false;
+}
+
+/**
+ * Hisobni o'chirish — Google Play talabi: ilovaning O'ZIDA bo'lishi shart.
+ * Ikki qadam: nima o'chishini o'qiydi, «tushundim» ni belgilaydi.
+ */
+function hisobniOchirOyna() {
+  $('#modal-tan').innerHTML = `
+    <div class="ochir-oyna">
+      <div class="ochir-belgi">${ik('ochirish', 30)}</div>
+      <h2>Hisobni o‘chirasizmi?</h2>
+      <ul class="ochir-royxat">
+        <li><b>O‘chadi:</b> yuz suratlaringiz, tahlil natijalari, savat,
+          sevimlilar, sharhlar, ism, telefon, email va manzil.</li>
+        <li><b>Saqlanadi:</b> buyurtmalar hisobi (qonun talabi) —
+          lekin ism, telefon va manzilsiz.</li>
+        <li>Buni <b>qaytarib bo‘lmaydi</b>. Kerak bo‘lsa avval
+          ma’lumotlaringizni yuklab oling.</li>
+      </ul>
+      <label class="ochir-tasdiq"><input type="checkbox" id="ochir-tushundim">
+        Tushundim, hisobim butunlay o‘chsin</label>
+      <div class="kirish-xato" id="ochir-xato" hidden></div>
+      <button class="asosiy xavfli" id="t-ochir-ha" disabled>Hisobni o‘chirish</button>
+      <button class="ikkilamchi" id="t-ochir-yoq" style="margin-top:9px">Bekor qilish</button>
+    </div>`;
+  modalOch();
+  const ha = $('#t-ochir-ha');
+  $('#ochir-tushundim').onchange = (e) => { ha.disabled = !e.target.checked; };
+  $('#t-ochir-yoq').onclick = modalYop;
+  ha.onclick = async () => {
+    ha.disabled = true; ha.textContent = 'O‘chirilmoqda…';
+    try {
+      await api('/api/hisob/ochir', { method: 'POST', body: JSON.stringify({ tasdiq: true }) });
+      // Qurilmadagi nusxalar ham: seans, qoralamalar, keshlangan ma'lumot
+      try {
+        Object.keys(localStorage).filter((k) => /^(kiovo_|qq_)/.test(k))
+          .forEach((k) => localStorage.removeItem(k));
+        sessionStorage.clear();
+      } catch {}
+      document.body.innerHTML = `
+        <div class="kirish-fon"><main class="kirish-quti" style="margin-top:auto">
+          <div class="kirish-belgi-katta">${ik('tasdiq', 34)}</div>
+          <h1>Hisobingiz o‘chirildi</h1>
+          <p class="kirish-izoh">Ma’lumotlaringiz o‘chirildi. KiOVO’dan foydalanganingiz
+            uchun rahmat — istalgan payt qaytishingiz mumkin.</p>
+          <a class="asosiy tugma-havola" href="/app/">Bosh sahifa</a>
+        </main></div>`;
+    } catch (e) {
+      const x = $('#ochir-xato'); x.hidden = false; x.textContent = e.message;
+      ha.disabled = false; ha.textContent = 'Hisobni o‘chirish';
+    }
   };
 }
 

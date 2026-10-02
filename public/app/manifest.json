@@ -6,25 +6,27 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#fbf8f3",
-  "theme_color": "#b3161c",
+  "background_color": "#ab0a0c",
+  "theme_color": "#ab0a0c",
   "lang": "uz",
   "dir": "ltr",
   "categories": [
     "shopping",
     "beauty",
-    "health"
+    "lifestyle"
   ],
   "icons": [
     {
       "src": "/app/ikon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/app/ikon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/app/ikon-maska.png",
@@ -33,5 +35,6 @@
       "purpose": "maskable"
     }
   ],
-  "id": "/app/"
+  "id": "/app/",
+  "prefer_related_applications": false
 }

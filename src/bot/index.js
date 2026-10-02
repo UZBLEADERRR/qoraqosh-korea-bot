@@ -12,6 +12,7 @@ import * as dokon from './handlers/shop.js';
 import { esc } from './format.js';
 import { sorovJavobi, telegramKirishniTasdiqla } from '../services/ilova-kirish.js';
 import * as ochiq from '../services/ochiq-skan.js';
+import { hisobniOchir } from '../services/hisob.js';
 
 async function foydalanuvchi(from) {
   const telegramId = String(from.id);
@@ -197,29 +198,26 @@ async function callback(cq) {
   await javobBer(cq.id);
 }
 
+/**
+ * Botdagi /ochir — ilovadagi «Hisobni o'chirish» bilan BIR XIL ish
+ * (src/services/hisob.js). Ilgari bu yerda o'z nusxasi turardi va
+ * buyurtmalardagi ism, telefon, manzil o'chmay qolardi.
+ */
 async function malumotniOchir(chatId, user) {
-  await sorov(
-    `update users set full_name=null, phone=null, address=null, age=null,
-            agreed_at=null, state=null, state_data='{}'::jsonb, checkout_draft='{}'::jsonb
-      where id=$1`, [user.id]);
-  // Tahlil rasmlarini ham o'chiramiz. media ga havola `on delete set null`
-  // bilan turibdi — tahlilni o'chirsak rasm bazada YETIM bo'lib qolardi,
-  // ya'ni «suratingizni o'chirasiz» va'dasi bajarilmasdi.
-  await sorov(
-    `delete from media where id in (
-       select yuz_rasm_id from analyses where user_id = $1 and yuz_rasm_id is not null
-       union all
-       select natija_rasm_id from analyses where user_id = $1 and natija_rasm_id is not null)`,
-    [user.id]);
-  await sorov('delete from analyses where user_id = $1', [user.id]);
-  await sorov('delete from cart_items where user_id = $1', [user.id]);
-  await hodisa(user.id, 'delete_data');
-
+  const r = await hisobniOchir(user.id);
+  if (!r.ok) {
+    return yubor(chatId, [
+      `⏳ <b>Hozir o‘chirib bo‘lmaydi</b>`,
+      ``,
+      `Sizda faol buyurtma bor: <b>${esc(r.buyurtmalar.join(', '))}</b>.`,
+      `U yetkazilgach /ochir ni qayta yuboring — yoki biz bilan bog‘laning.`,
+    ].join('\n'));
+  }
   await yubor(chatId, [
-    `🗑 <b>Ma’lumotlaringiz o‘chirildi</b>`,
+    `🗑 <b>Hisobingiz o‘chirildi</b>`,
     ``,
-    `Tahlillar va savat tozalandi.`,
-    `<i>Buyurtmalar hisobi qonun talabi bilan saqlanadi, lekin shaxsiy ma’lumotlarsiz.</i>`,
+    `Yuz suratlari, tahlillar, savat, sevimlilar va shaxsiy ma’lumotlar o‘chirildi.`,
+    `<i>Buyurtmalar hisobi qonun talabi bilan saqlanadi, lekin ism, telefon va manzilsiz.</i>`,
     ``,
     `Qaytadan boshlash: /start`,
   ].join('\n'), { reply_markup: { remove_keyboard: true } });

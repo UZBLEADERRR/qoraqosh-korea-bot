@@ -2305,6 +2305,8 @@ async function sozlamalar() {
       ? { ...st.mavzu_erkak } : null;
     holat.kesh.mavzuToplamlar = j.mavzu_toplamlar || [];
     const matn = (k, z = '') => String(st[k] ?? z).replace(/^"|"$/g, '');
+    // Sotuvchi — obyekt (oferta, maxfiylik va hisobni o‘chirish sahifalari uchun)
+    const sv = (st.sotuvchi && typeof st.sotuvchi === 'object') ? st.sotuvchi : {};
     holat.kesh.pogonalar = Array.isArray(st.chegirma_pogonalari) ? [...st.chegirma_pogonalari] : [];
 
     $('#tan').innerHTML = `
@@ -2376,6 +2378,44 @@ async function sozlamalar() {
         <input id="s-tel" inputmode="tel" value="${esc(matn('menejer_telefon'))}" placeholder="+998 90 123 45 67">
         <label>Ish vaqti</label>
         <input id="s-vaqt" value="${esc(matn('menejer_ish_vaqti'))}" placeholder="Har kuni 9:00 – 21:00">
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>⚖️ Sotuvchi (oferta va maxfiylik)</h2></div>
+        <p class="mayda" style="margin:0 0 12px">Bu ma’lumot <b>/oferta</b>,
+          <b>/maxfiylik</b> va <b>/hisobni-ochirish</b> sahifalarida yoziladi.
+          Google Play bu sahifalarni talab qiladi va ularda sotuvchi kimligi
+          ko‘rinishi kerak. Jismoniy shaxs bo‘lsangiz — F.I.Sh. yetarli.</p>
+        <label>F.I.Sh. yoki tashkilot nomi</label>
+        <input id="s-sot-ism" value="${esc(sv.ism || '')}" placeholder="Aliyev Aziz Akmalovich">
+        <div class="forma-tor">
+          <div><label>Maqomi</label>
+            <select id="s-sot-maqom">
+              ${[['jismoniy', 'Jismoniy shaxs'], ['ozini_band', 'O‘zini o‘zi band qilgan'],
+                 ['yatt', 'YaTT'], ['mchj', 'MChJ']].map(([k, n]) =>
+                `<option value="${k}" ${(sv.maqom || 'jismoniy') === k ? 'selected' : ''}>${n}</option>`).join('')}
+            </select></div>
+          <div><label>STIR / JShShIR <span class="yordam">ixtiyoriy</span></label>
+            <input id="s-sot-stir" inputmode="numeric" value="${esc(sv.stir || '')}"></div>
+        </div>
+        <label>Aloqa emaili <span class="yordam">Play Console’ga ham shu yoziladi</span></label>
+        <input id="s-sot-email" type="email" value="${esc(sv.email || '')}" placeholder="kiovo.shop@gmail.com">
+        <label>Manzil <span class="yordam">ixtiyoriy</span></label>
+        <input id="s-sot-manzil" value="${esc(sv.manzil || '')}" placeholder="Toshkent sh., Yunusobod t.">
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>🤖 Android ilova (Google Play)</h2></div>
+        <p class="mayda" style="margin:0 0 12px">Ilova saytni brauzer manzil
+          satrisiz ochishi uchun Android imzo barmoq izi kerak (<code>/.well-known/assetlinks.json</code>).
+          Uni <b>Play Console → Test and release → App integrity → App signing</b>
+          bo‘limidagi <b>SHA-256 certificate fingerprint</b> dan ko‘chiring. Bir nechta
+          bo‘lsa (yuklash kaliti va Play kaliti) — har birini yangi qatorga.</p>
+        <label>SHA-256 barmoq izlari</label>
+        <textarea id="s-android-sha" rows="3" placeholder="AB:CD:12:…">${esc(matn('android_sha256'))}</textarea>
+        <label>Play Store havolasi <span class="yordam">chiqqandan keyin — saytda tugma paydo bo‘ladi</span></label>
+        <input id="s-play" value="${esc(matn('play_havola'))}"
+               placeholder="https://play.google.com/store/apps/details?id=shop.kiovo.app">
       </div>
 
       <div class="karta tor">
@@ -2958,6 +2998,15 @@ async function sozlamalarniSaqla() {
       menejer_ish_vaqti:  $('#s-vaqt').value.trim(),
       mini_app_nom:       $('#s-miniapp').value.trim().replace(/^@/, '')
                             .replace(/[^A-Za-z0-9_]/g, ''),
+      sotuvchi: {
+        ism:    $('#s-sot-ism').value.trim(),
+        maqom:  $('#s-sot-maqom').value,
+        stir:   $('#s-sot-stir').value.replace(/\D/g, ''),
+        email:  $('#s-sot-email').value.trim(),
+        manzil: $('#s-sot-manzil').value.trim(),
+      },
+      android_sha256: $('#s-android-sha').value.trim(),
+      play_havola:    $('#s-play').value.trim(),
       limit_yoqilgan:     $('#s-limit-yoq').checked,
       limit_bepul:        Math.max(0, Number($('#s-limit-bepul').value) || 0),
       limit_mijoz:        Math.max(0, Number($('#s-limit-mijoz').value) || 0),

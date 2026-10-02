@@ -24,6 +24,7 @@ import { keshdanOl, keshgaQoy } from './lib/media-kesh.js';
 import { jpegQil } from './rasm/olcham.js';
 import { tg } from './bot/tg.js';
 import { ofertaSahifasi } from './lib/oferta.js';
+import { sotuvchiMalumoti, maxfiylikSahifasi, hisobniOchirishSahifasi } from './lib/huquqiy.js';
 import { postSahifasi, imzoTogrimi } from './lib/post-korinish.js';
 import { shablonSahifasi, shablonImzoTogrimi } from './lib/kartochka-korinish.js';
 import { eksportOchib } from './lib/eksport-havola.js';
@@ -96,10 +97,45 @@ function sahifa(res, nom) {
 const WEBHOOK_YOL = '/tg/' + crypto.createHash('sha256')
   .update(config.botToken + (config.webhookSecret || '')).digest('hex').slice(0, 32);
 
+/* XAVFSIZLIK SARLAVHALARI — har javobga.
+ *
+ * CSP: skript faqat o'zimizdan, Telegram va Google kirish tugmasidan.
+ * Biror joyga begona kod kiritib qo'yilsa ham brauzer uni boshqa
+ * domendan yuklamaydi. `unsafe-inline` qoladi: sahifalarda kichik
+ * ichki skriptlar bor (Telegram yuklovchisi, Google qaytish sahifasi).
+ * frame-ancestors — ilova Telegram Web ichida (iframe) ochiladi,
+ * boshqa saytlar esa uni o'z sahifasiga joylay olmaydi (clickjacking).
+ * Kamera — faqat o'zimizga (yuz skaneri), mikrofon va joylashuv — hech kimga. */
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' https://telegram.org https://accounts.google.com",
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com",
+  "font-src 'self'",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' blob:",
+  "connect-src 'self' https://accounts.google.com",
+  "frame-src https://accounts.google.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self' https://accounts.google.com",
+  "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org",
+].join('; ');
+
+function xavfsizlikSarlavhalari(res) {
+  res.setHeader('Content-Security-Policy', CSP);
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(self), microphone=(), geolocation=(), payment=(), usb=()');
+  // Google kirish tugmasi popup ochsa ham ishlashi uchun
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const yol = decodeURIComponent(url.pathname);
   sorovniEsla(req);        // javob siqilishi uchun Accept-Encoding kerak
+  xavfsizlikSarlavhalari(res);
 
   try {
     // ---------- Telegram webhook ----------
@@ -115,6 +151,24 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (yol === '/healthz') return ok(res, { ok: true, vaqt: new Date().toISOString() });
+
+    // ---------- Android ilova ↔ sayt bog'lanishi (Digital Asset Links) ----------
+    // Play'dagi ilova (TWA) saytni brauzer manzil satrisiz ochishi uchun
+    // sayt «bu ilova meniki» deb tasdiqlashi kerak. Barmoq izi Play
+    // Console → App integrity dan olinadi va admin panelga yoziladi.
+    if (yol === '/.well-known/assetlinks.json') {
+      const xom = `${String(await sozlama('android_sha256', '').catch(() => '') || '')},${config.androidSha256}`;
+      const izlar = [...new Set(xom.split(/[\s,;]+/).map((x) => x.trim().toUpperCase())
+        .filter((x) => /^([0-9A-F]{2}:){31}[0-9A-F]{2}$/.test(x)))];
+      const tana_ = izlar.length ? [{
+        relation: ['delegate_permission/common.handle_all_urls'],
+        target: { namespace: 'android_app', package_name: config.androidPaket,
+                  sha256_cert_fingerprints: izlar },
+      }] : [];
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600',
+        'Access-Control-Allow-Origin': '*' });
+      return res.end(JSON.stringify(tana_, null, 2));
+    }
 
     // ---------- Rasm ----------
     // Posterlar va logotip ochiq. CHEK va TAHLIL NATIJASI faqat admin
@@ -195,13 +249,19 @@ const server = http.createServer(async (req, res) => {
       return sahifaQayt(googleJavobSahifasi(r.token || null, r.xato || ''));
     }
 
-    // ---------- Ommaviy oferta ----------
-    if (yol === '/oferta') {
-      // Matn admin paneldan olinadi; bo'sh bo'lsa koddagi shablon.
-      const [xom, brend] = await Promise.all([
-        sozlama('oferta_matni', ''), brendNomi(),
-      ]).catch(() => ['', 'KiOVO']);
-      const html = ofertaSahifasi(String(xom || '').replace(/^"|"$/g, ''), brend);
+    // ---------- Huquqiy sahifalar: oferta, maxfiylik, hisobni o'chirish ----------
+    // Uchalasi ham Google Play Console'ga yoziladigan OCHIQ manzillar.
+    if (yol === '/oferta' || yol === '/maxfiylik' || yol === '/hisobni-ochirish'
+        || yol === '/privacy' || yol === '/delete-account') {
+      const [xom, brend, sv, tel, tgNom] = await Promise.all([
+        sozlama('oferta_matni', ''), brendNomi(), sozlama('sotuvchi', {}),
+        sozlama('menejer_telefon', ''), sozlama('konsultatsiya_user', ''),
+      ]).catch(() => ['', 'KiOVO', {}, '', '']);
+      const s = sotuvchiMalumoti(sv, { brend, telefon: tel, telegram: tgNom });
+      const html = yol === '/oferta'
+        ? ofertaSahifasi(String(xom || '').replace(/^"|"$/g, ''), s)
+        : (yol === '/maxfiylik' || yol === '/privacy')
+          ? maxfiylikSahifasi(s) : hisobniOchirishSahifasi(s);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
       return res.end(html);
     }
@@ -326,7 +386,8 @@ const server = http.createServer(async (req, res) => {
     }
     if (yol === '/sitemap.xml') {
       const asos = (config.publicUrl || '').replace(/\/+$/, '');
-      const sahifalar = [['/', '1.0'], ['/skan/', '0.8'], ['/oferta', '0.3']];
+      const sahifalar = [['/', '1.0'], ['/skan/', '0.8'], ['/oferta', '0.3'],
+        ['/maxfiylik', '0.3'], ['/hisobni-ochirish', '0.2']];
       res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8',
         'Cache-Control': 'public, max-age=3600' });
       return res.end('<?xml version="1.0" encoding="UTF-8"?>\n'

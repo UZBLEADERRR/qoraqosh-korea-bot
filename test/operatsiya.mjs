@@ -5133,5 +5133,86 @@ console.log('\n── ILOVAGA KIRISH ──');
   await sorov(`delete from users where telegram_id in ('900777','900888','815001','815002','815003') or telegram_id like 'google:%' or telegram_id like 'tel:%'`);
 }
 
+// ═══════════════ HISOBNI O'CHIRISH VA MA'LUMOTNI YUKLAB OLISH ═══════════════
+// Google Play talabi: hisob ochiladigan ilovada uni o'chirish ham ILOVANING
+// O'ZIDA bo'lishi shart. Ilgari faqat botdagi /ochir bor edi va u
+// buyurtmalardagi ism, telefon, manzilni qoldirib ketardi.
+console.log('\n── HISOB: O‘CHIRISH VA YUKLAB OLISH ──');
+{
+  const H = await import('../src/services/hisob.js');
+  await sorov(`delete from users where telegram_id in ('816001','816002')`);
+  const u = await qator(`insert into users (telegram_id, full_name, phone, email, age, address, agreed_at, teri_turi)
+    values ('816001', 'O‘chiriladigan Mijoz', '+998935550001', 'och@gmail.com', 30, 'Chilonzor 5', now(), 'quruq')
+    returning *`);
+  const media = await qator(`insert into media (mime, bayt, tur, hajm) values ('image/jpeg', '\\x00'::bytea, 'yuz', 1) returning id`);
+  await sorov(`insert into analyses (user_id, score, skin_type, problems, yuz_rasm_id)
+    values ($1, 70, 'quruq', '[]'::jsonb, $2)`, [u.id, media.id]);
+  const p = await qator('select id from products order by id limit 1');
+  await sorov('insert into cart_items (user_id, product_id, quantity) values ($1,$2,1)', [u.id, p.id]);
+  await sorov('insert into sevimlilar (user_id, product_id) values ($1,$2)', [u.id, p.id]);
+  const buy = await qator(`insert into orders (order_no, user_id, customer_name, customer_phone, customer_address,
+      items, subtotal, delivery_fee, total, status)
+    values ('KV-SINOV-1', $1, 'O‘chiriladigan Mijoz', '+998935550001', 'Chilonzor 5', '[]'::jsonb,
+            100000, 0, 100000, 'yolda') returning id`, [u.id]);
+
+  // Eksport
+  const e = await H.meningMalumotlarim(u.id);
+  test('JSON eksportda profil, tahlil va buyurtma bor',
+    e.profil.full_name === 'O‘chiriladigan Mijoz' && e.tahlillar.length === 1
+      && e.buyurtmalar.length === 1 && e.sevimlilar.length === 1, JSON.stringify(Object.keys(e)));
+  test('eksportda do‘konning ichki maydonlari (tannarx) YO‘Q', !JSON.stringify(e).includes('cost_total'));
+  test('eksportda qaysi yo‘l bilan kirgani yozilgan', e.profil.kirish === 'telegram');
+
+  // Faol buyurtma — o'chirilmaydi
+  const r1 = await H.hisobniOchir(u.id);
+  test('yo‘ldagi buyurtma bor — hisob o‘chirilMAYDI (yetkazish buzilmasin)',
+    !r1.ok && r1.buyurtmalar.includes('KV-SINOV-1'));
+  test('rad etilganda hech narsa o‘chmagan',
+    Boolean(await qator('select 1 from analyses where user_id = $1', [u.id])));
+
+  await sorov(`update orders set status = 'yetkazildi' where id = $1`, [buy.id]);
+  await sorov(`insert into orders (order_no, user_id, customer_name, customer_phone, customer_address,
+      items, subtotal, delivery_fee, total, status)
+    values ('KV-SINOV-2', $1, 'X', '+998935550001', 'Y', '[]'::jsonb, 5000, 0, 5000, 'yangi')`, [u.id]);
+  const r2 = await H.hisobniOchir(u.id);
+  test('buyurtma yetkazilgach — hisob o‘chadi', r2.ok);
+  const uu = await qator('select * from users where id = $1', [u.id]);
+  test('profilda shaxsiy ma’lumot qolmadi',
+    !uu.full_name && !uu.phone && !uu.email && !uu.address && !uu.age && !uu.teri_turi && !uu.agreed_at);
+  test('Telegram id ham almashtirildi — botga qaytsa YANGI hisob bo‘ladi',
+    /^ochirilgan:/.test(uu.telegram_id));
+  test('yuz surati bazadan O‘CHDI (yetim qolmadi)',
+    !(await qator('select 1 from media where id = $1', [media.id])));
+  test('tahlil, savat, sevimlilar o‘chdi',
+    !(await qator('select 1 from analyses where user_id = $1', [u.id]))
+      && !(await qator('select 1 from cart_items where user_id = $1', [u.id]))
+      && !(await qator('select 1 from sevimlilar where user_id = $1', [u.id])));
+  const b1 = await qator(`select * from orders where order_no = 'KV-SINOV-1'`);
+  test('buyurtma hisobi QOLDI, lekin ism-telefon-manzilsiz',
+    Number(b1.total) === 100000 && b1.customer_phone === '' && b1.customer_address === ''
+      && /O‘chirilgan/.test(b1.customer_name));
+  test('to‘lanmagan yangi buyurtma bekor qilindi',
+    (await qator(`select status from orders where order_no = 'KV-SINOV-2'`)).status === 'bekor');
+
+  // Ilova tomoni
+  const fsH = await import('node:fs');
+  const ilova = fsH.readFileSync('public/app/app.js', 'utf8');
+  test('ilovada «Hisobni o‘chirish» bor (Play talabi)', /function hisobniOchirOyna/.test(ilova)
+    && /\/api\/hisob\/ochir/.test(ilova));
+  test('o‘chirish ikki qadamli — «tushundim» belgilanmasa tugma ishlamaydi',
+    /ochir-tushundim/.test(ilova) && /ha\.disabled = !e\.target\.checked/.test(ilova));
+  test('o‘chirilgach qurilmadagi nusxalar ham tozalanadi', /\^\(kiovo_\|qq_\)/.test(ilova));
+  test('ma’lumot JSON fayl bo‘lib qurilmaga saqlanadi', /kiovo-malumotlarim-/.test(ilova)
+    && /application\/json/.test(ilova));
+  test('veb-sahifadagi havola (?ochir=1) o‘chirish oynasini ochadi', /p\.get\('ochir'\) === '1'/.test(ilova));
+  test('oflaynda qurilmadagi nusxa bilan ochiladi', /const nusxa = e\.tarmoq \? menikiOl\(\) : null/.test(ilova));
+  test('chiqishda qurilmadagi nusxa o‘chadi', /seansOchir\(\); menikiOchir\(\);/.test(ilova));
+
+  // Bot /ochir ham o'sha xizmatdan
+  const bot = fsH.readFileSync('src/bot/index.js', 'utf8');
+  test('botdagi /ochir ilova bilan BIR XIL ish qiladi', /await hisobniOchir\(user\.id\)/.test(bot));
+  await sorov(`delete from orders where order_no in ('KV-SINOV-1','KV-SINOV-2')`);
+}
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

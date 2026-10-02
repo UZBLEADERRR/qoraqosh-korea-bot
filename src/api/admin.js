@@ -1680,6 +1680,19 @@ async function tizimTekshir() {
     return 'hammasi to‘ldirilgan';
   });
 
+  // Google Play uchun: oferta va maxfiylik sahifasida sotuvchi kimligi
+  // yozilishi, ilova esa saytga ishonchli bog'lanishi kerak
+  await qadam('Google Play', 'Sotuvchi va ilova', async () => {
+    const sv = (await sozlama('sotuvchi', {})) || {};
+    const sha = String(await sozlama('android_sha256', '') || '');
+    const yoq = [];
+    if (!String(sv.ism || '').trim()) yoq.push('sotuvchi ismi (oferta va maxfiylik uchun)');
+    if (!String(sv.email || '').trim()) yoq.push('aloqa emaili (Play talab qiladi)');
+    if (!sha.trim()) yoq.push('Android SHA-256 (assetlinks)');
+    if (yoq.length) throw new Error(`To‘ldirilmagan: ${yoq.join(', ')}`);
+    return 'tayyor';
+  });
+
   return natija;
 }
 
