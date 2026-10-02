@@ -81,7 +81,7 @@ function sahifa(res, nom) {
   // rangi CSS dan (currentColor) keladi va alohida so'rov ketmaydi.
   // Manba bitta — src/lib/logo.js.
   const html = versiyalaHtml(fs.readFileSync(fayl, 'utf8'), v)
-    .replaceAll('__ASOS__', (config.publicUrl || '').replace(/\/+$/, ''))
+    .replaceAll('__ASOS__', config.saytUrl)
     .replaceAll('__LOGO__', LOGO_INLINE)
     .replaceAll('__BELGI__', BELGI_INLINE);
   res.writeHead(200, {
@@ -132,8 +132,13 @@ function xavfsizlikSarlavhalari(res) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  const yol = decodeURIComponent(url.pathname);
+  // Asos QOTIB turadi: Host sarlavhasi mijozdan keladi va buzuq bo'lishi
+  // mumkin («www.127.0.0.1» kabi) — u holda `new URL` xato tashlardi va
+  // so'rov javobsiz osilib qolardi. Bu yerda faqat yo'l va so'rov kerak.
+  let url;
+  try { url = new URL(req.url, 'http://ichki'); } catch { return xato(res, 400, 'Noto‘g‘ri so‘rov'); }
+  let yol;
+  try { yol = decodeURIComponent(url.pathname); } catch { return xato(res, 400, 'Noto‘g‘ri manzil'); }
   sorovniEsla(req);        // javob siqilishi uchun Accept-Encoding kerak
   xavfsizlikSarlavhalari(res);
 
@@ -151,6 +156,19 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (yol === '/healthz') return ok(res, { ok: true, vaqt: new Date().toISOString() });
+
+    // ---------- www.kiovo.shop → kiovo.shop ----------
+    // Bitta domen: Play'dagi ilova, Google kirish va qidiruv tizimlari
+    // ikki xil manzilni ikki xil sayt deb hisoblaydi. Faqat GET/HEAD
+    // yo'naltiriladi (POST — masalan, Telegram webhook — yo'naltirishga
+    // ergashmaydi), `/.well-known/` esa yo'naltirilMAYDI: Android
+    // assetlinks.json ni tekshirganda yo'naltirishni qabul qilmaydi.
+    if (config.asosiyXost && (req.method === 'GET' || req.method === 'HEAD')
+        && String(req.headers.host || '').toLowerCase().split(':')[0] === `www.${config.asosiyXost.split(':')[0]}`
+        && !yol.startsWith('/.well-known/')) {
+      res.writeHead(301, { Location: `${config.saytUrl}${req.url}`, 'Cache-Control': 'public, max-age=86400' });
+      return res.end();
+    }
 
     // ---------- Android ilova ↔ sayt bog'lanishi (Digital Asset Links) ----------
     // Play'dagi ilova (TWA) saytni brauzer manzil satrisiz ochishi uchun
@@ -376,7 +394,7 @@ const server = http.createServer(async (req, res) => {
     // Admin panel va API indekslanmaydi: ular odamga emas, ishga
     // mo'ljallangan va qidiruv natijasida chiqishi mumkin emas.
     if (yol === '/robots.txt') {
-      const asos = (config.publicUrl || '').replace(/\/+$/, '');
+      const asos = config.saytUrl;
       res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8',
         'Cache-Control': 'public, max-age=3600' });
       return res.end(['User-agent: *', 'Allow: /', 'Disallow: /admin',
@@ -385,7 +403,7 @@ const server = http.createServer(async (req, res) => {
         asos ? `Sitemap: ${asos}/sitemap.xml` : '', ''].join('\n'));
     }
     if (yol === '/sitemap.xml') {
-      const asos = (config.publicUrl || '').replace(/\/+$/, '');
+      const asos = config.saytUrl;
       const sahifalar = [['/', '1.0'], ['/skan/', '0.8'], ['/oferta', '0.3'],
         ['/maxfiylik', '0.3'], ['/hisobni-ochirish', '0.2']];
       res.writeHead(200, { 'Content-Type': 'application/xml; charset=utf-8',

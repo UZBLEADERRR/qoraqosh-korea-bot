@@ -9,6 +9,11 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Android 13+: buyurtma holati haqidagi bildirishnoma uchun ruxsat.
+         So'rov ilova ichida, odam «Bildirishnomalarni yoqish» ni bosganda
+         chiqadi — ochilishi bilan emas. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Android 11+ da Chrome'ni topish uchun shart -->
     <queries>
         <intent>
@@ -69,6 +74,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Ikonkani bosib turganda: Skaner, Savat, Buyurtmalarim -->
+            <meta-data android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
             <!-- kiovo.shop/app/... havolalari ilovada ochiladi -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -80,6 +89,9 @@
         </activity>
 
         <activity android:name="com.google.androidbrowserhelper.trusted.FocusActivity" />
+
+        <!-- Sayt bildirishnomaga ruxsat so'raganda Android'ning o'z oynasi -->
+        <activity android:name="com.google.androidbrowserhelper.trusted.NotificationPermissionRequestActivity" />
 
         <activity
             android:name="com.google.androidbrowserhelper.trusted.WebViewFallbackActivity"
@@ -100,6 +112,11 @@
             android:name="com.google.androidbrowserhelper.trusted.DelegationService"
             android:enabled="true"
             android:exported="true">
+            <!-- Bildirishnomalar Chrome nomidan emas, KiOVO nomidan chiqadi
+                 (Notification delegation). Kichik belgi — oq tabassum. -->
+            <meta-data
+                android:name="android.support.customtabs.trusted.SMALL_ICON"
+                android:resource="@drawable/ic_bildirishnoma" />
             <intent-filter>
                 <action android:name="android.support.customtabs.trusted.TRUSTED_WEB_ACTIVITY_SERVICE" />
                 <category android:name="android.intent.category.DEFAULT" />

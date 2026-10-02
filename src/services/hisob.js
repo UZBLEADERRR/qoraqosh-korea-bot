@@ -7,7 +7,8 @@
 //
 // O'chirish nimani qiladi:
 //   · yuz suratlari va tahlil natijalari — BUTUNLAY o'chadi;
-//   · savat, sevimlilar, sharhlar, seanslar, kirish so'rovlari — o'chadi;
+//   · savat, sevimlilar, sharhlar, seanslar, kirish so'rovlari,
+//     bildirishnoma obunalari — o'chadi;
 //   · profil: ism, telefon, email, manzil, yosh, teri ma'lumoti — o'chadi;
 //   · buyurtmalar — SAQLANADI (buxgalteriya hisobi), lekin ism, telefon
 //     va manzil o'rniga «o'chirilgan»;
@@ -63,7 +64,7 @@ export async function hisobniOchir(userId) {
        select natija_rasm_id from analyses where user_id = $1 and natija_rasm_id is not null)`,
     [userId]);
   for (const jadval of ['analyses', 'cart_items', 'sevimlilar', 'sharhlar',
-                        'kirish_sorovlari', 'ilova_seanslar']) {
+                        'kirish_sorovlari', 'ilova_seanslar', 'push_obunalar']) {
     await sorov(`delete from ${jadval} where user_id = $1`, [userId]);
   }
 

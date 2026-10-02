@@ -4,4 +4,10 @@
     <!-- Ilova shu saytga egalik qilishini e'lon qiladi. Sayt tomoni:
          https://kiovo.shop/.well-known/assetlinks.json -->
     <string name="assetStatements" translatable="false">[{\"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://kiovo.shop\"}}]</string>
+    <!-- Ikonkani bosib turganda chiqadigan yorliqlar (shortcutShortLabel ≤ 10 belgi) -->
+    <string name="yorliqSkaner">Skaner</string>
+    <string name="yorliqSkanerUzun">Yuzni tahlil qilish</string>
+    <string name="yorliqSavat">Savat</string>
+    <string name="yorliqBuyurtma">Buyurtma</string>
+    <string name="yorliqBuyurtmaUzun">Buyurtmalarim</string>
 </resources>

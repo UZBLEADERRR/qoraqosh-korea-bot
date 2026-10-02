@@ -1622,6 +1622,23 @@ AAB va APK GitHub Actions'da yig'iladi (`.github/workflows/android.yml`):
 **Actions → Android ilova → Run workflow → Artifacts**. Imzo kaliti
 GitHub Secrets'da turadi, repoga hech qachon qo'yilmaydi.
 
+Ilova saytdan farqli o'laroq telefonning o'z imkoniyatlarini ishlatadi:
+
+- **Bildirishnomalar** (Web Push, `src/services/push.js`). Buyurtma holati
+  o'zgarsa mijozning telefoniga keladi — Google/telefon bilan kirganlar
+  uchun yagona yo'l, chunki ularning Telegrami yo'q. Profil →
+  Bildirishnomalar, yoki buyurtmadan keyingi taklif. Kalit
+  `ADMIN_JWT_SECRET` dan hisoblanadi — sozlash shart emas. Faqat ma'lum
+  push xizmatlari (FCM, Mozilla, Apple, Windows) qabul qilinadi.
+- **«Orqaga» tugmasi** ilova ichida ishlaydi: avval oyna yopiladi, keyin
+  do'konga qaytadi, do'kondan esa ilovadan chiqadi.
+- **Yorliqlar** — ikonkani bosib turganda Skaner, Savat, Buyurtmalarim.
+- **Oflayn** — katalog va profil telefonda saqlanadi.
+
+**Domen.** Asosiy manzil `kiovo.shop`; `www.kiovo.shop` unga 301 bilan
+yo'naltiriladi (faqat GET, `/.well-known/` dan tashqari — Android
+`assetlinks.json` ni yo'naltirishsiz o'qishi kerak).
+
 Play'ga chiqarishning to'liq tartibi, do'kon matnlari (uz/ru/en),
 Data safety javoblari va tayyor rasmlar: **`store/PLAY-STORE.md`**.
 

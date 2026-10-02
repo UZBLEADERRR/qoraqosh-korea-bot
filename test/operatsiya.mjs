@@ -1,4 +1,4 @@
-import { soxtaServer, yuborilgan, aiHisobi, smslar, urinishlar } from './soxta-server.mjs';
+import { soxtaServer, yuborilgan, aiHisobi, smslar, urinishlar, pushlar } from './soxta-server.mjs';
 const PORT=4479; const srv=await soxtaServer(PORT);
 process.env.BOT_TOKEN='111111:TEST';
 process.env.ADMIN_LOGIN='a'; process.env.ADMIN_PASSWORD='parol12345';
@@ -12,6 +12,8 @@ process.env.GOOGLE_CLIENT_ID='sinov-mijoz.apps.googleusercontent.com';
 process.env.ESKIZ_EMAIL='do\u2018kon@sinov.uz'; process.env.ESKIZ_PAROL='eskiz-parol';
 process.env.ESKIZ_API=`http://127.0.0.1:${PORT}/eskiz`;
 process.env.DEMO_TELEFON='+998 90 000 00 77'; process.env.DEMO_KOD='135790';
+// Push: soxta xizmat shu xostda (haqiqiyda faqat FCM, Mozilla, Apple…)
+process.env.PUSH_SINOV_XOST=`127.0.0.1:${PORT}`;
 
 const { migratsiyalarniQoll } = await import('../src/db/migrate.js');
 await migratsiyalarniQoll();
@@ -5228,6 +5230,166 @@ console.log('\n── HISOB: O‘CHIRISH VA YUKLAB OLISH ──');
   const bot = fsH.readFileSync('src/bot/index.js', 'utf8');
   test('botdagi /ochir ilova bilan BIR XIL ish qiladi', /await hisobniOchir\(user\.id\)/.test(bot));
   await sorov(`delete from orders where order_no in ('KV-SINOV-1','KV-SINOV-2')`);
+}
+
+
+console.log('\n── PUSH BILDIRISHNOMALAR ──');
+{
+  const crypto = await import('node:crypto');
+  const P = await import('../src/services/push.js');
+  const { seansOch } = await import('../src/services/ilova-kirish.js');
+  const b64u = (b) => Buffer.from(b).toString('base64url');
+
+  // Brauzer tomoni: o'z kalitlari bilan obuna, kelganini O'ZI ochadi
+  const brauzer = () => {
+    const e = crypto.createECDH('prime256v1'); e.generateKeys();
+    return { e, sir: crypto.randomBytes(16) };
+  };
+  const och = (tana, { e, sir }) => {                 // RFC 8291 — qabul qiluvchi
+    const tuz = tana.subarray(0, 16), idlen = tana[20];
+    const asOchiq = tana.subarray(21, 21 + idlen), shifr = tana.subarray(21 + idlen);
+    const umumiy = e.computeSecret(asOchiq);
+    const info = Buffer.concat([Buffer.from('WebPush: info\0'), e.getPublicKey(), asOchiq]);
+    const ikm = Buffer.from(crypto.hkdfSync('sha256', umumiy, sir, info, 32));
+    const cek = Buffer.from(crypto.hkdfSync('sha256', ikm, tuz, Buffer.from('Content-Encoding: aes128gcm\0'), 16));
+    const nonce = Buffer.from(crypto.hkdfSync('sha256', ikm, tuz, Buffer.from('Content-Encoding: nonce\0'), 12));
+    const d = crypto.createDecipheriv('aes-128-gcm', cek, nonce);
+    d.setAuthTag(shifr.subarray(shifr.length - 16));
+    const m = Buffer.concat([d.update(shifr.subarray(0, shifr.length - 16)), d.final()]);
+    return JSON.parse(m.subarray(0, m.lastIndexOf(2)).toString());
+  };
+  const obuna = (id, k) => ({ endpoint: `http://127.0.0.1:${PORT}/push/${id}`,
+    keys: { p256dh: b64u(k.e.getPublicKey()), auth: b64u(k.sir) } });
+
+  await sorov(`delete from users where telegram_id in ('google:push-sinov')`);
+  const u = await qator(`insert into users (telegram_id, full_name, phone, agreed_at)
+    values ('google:push-sinov', 'Push Mijoz', '+998935550777', now()) returning *`);
+  const { token } = await seansOch(u.id, 'sinov');
+
+  const kalit = await chaqirIlova('/api/push/kalit', 'GET', null, token);
+  test('ochiq kalit beriladi (65 bayt, P-256)', Buffer.from(kalit.tana.kalit || '', 'base64url').length === 65);
+  test('kalit ADMIN_JWT_SECRET dan — har ishga tushishda bir xil',
+    (P.kalitniUnut(), P.ochiqKalit()) === kalit.tana.kalit);
+
+  // Begona manzil — rad (server ichki tarmoqqa so'rov yubormasin)
+  for (const yomon of ['http://169.254.169.254/latest', 'https://evil.example/push', 'https://fcm.googleapis.com:8443/x']) {
+    const r = await chaqirIlova('/api/push/obuna', 'POST',
+      { obuna: { endpoint: yomon, keys: obuna('x', brauzer()).keys } }, token);
+    test(`begona push manzili rad etiladi — ${yomon}`, r.kod === 400);
+  }
+  test('FCM manzili qabul qilinadi', P.manzilYaroqlimi('https://fcm.googleapis.com/fcm/send/abc'));
+  test('Apple va Mozilla ham', P.manzilYaroqlimi('https://web.push.apple.com/QX')
+    && P.manzilYaroqlimi('https://updates.push.services.mozilla.com/wpush/v2/x'));
+  const buzuq = await chaqirIlova('/api/push/obuna', 'POST',
+    { obuna: { endpoint: 'https://fcm.googleapis.com/fcm/send/a', keys: { p256dh: 'AAAA', auth: 'BB' } } }, token);
+  test('noto‘g‘ri kalitli obuna rad etiladi', buzuq.kod === 400);
+
+  // Ikki qurilma
+  const tel = brauzer(), komp = brauzer();
+  pushlar.length = 0;
+  const r1 = await chaqirIlova('/api/push/obuna', 'POST', { obuna: obuna('tel', tel), sinov: true }, token);
+  await chaqirIlova('/api/push/obuna', 'POST', { obuna: obuna('komp', komp) }, token);
+  test('obuna saqlandi', r1.kod === 200
+    && (await qatorlar('select 1 from push_obunalar where user_id = $1', [u.id])).length === 2);
+  await new Promise((r) => setTimeout(r, 300));
+  test('yoqilganda sinov bildirishnomasi darrov keladi',
+    pushlar.some((x) => x.id === 'tel' && /yoqildi/.test(och(x.tana, tel).matn)));
+
+  // Buyurtma holati → ikkala qurilmaga
+  const buy = await qator(`insert into orders (order_no, user_id, customer_name, customer_phone, customer_address,
+      items, subtotal, delivery_fee, total, status)
+    values ('KV-PUSH-1', $1, 'Push Mijoz', '+998935550777', 'Toshkent', '[]'::jsonb, 90000, 0, 90000, 'tasdiqlangan') returning id`, [u.id]);
+  pushlar.length = 0; yuborilgan.length = 0;
+  const hs = await chaqirAdmin('/api/admin/order-status', 'POST', { id: buy.id, status: 'yolda' });
+  await new Promise((r) => setTimeout(r, 500));
+  const telga = pushlar.find((x) => x.id === 'tel'), kompga = pushlar.find((x) => x.id === 'komp');
+  test('holat o‘zgardi', hs.kod === 200, JSON.stringify(hs.tana));
+  test('Telegrami yo‘q mijozga bildirishnoma KELDI — ikkala qurilmaga', Boolean(telga && kompga));
+  const yuk = telga ? och(telga.tana, tel) : {};
+  test('shifr ochildi, sarlavhada buyurtma raqami', /KV-PUSH-1/.test(yuk.sarlavha || ''), yuk.sarlavha);
+  test('matn HTML’siz (bildirishnoma teg ko‘rsatmaydi)', yuk.matn && !/<\/?b>/.test(yuk.matn), yuk.matn);
+  test('bosilganda buyurtmalar bo‘limi ochiladi', yuk.havola === '/app/?tab=profil&bolim=buyurtma');
+  test('bitta buyurtmaning xabarlari bir-birini almashtiradi (teg)', yuk.teg === 'buyurtma-KV-PUSH-1');
+  test('boshqa qurilma o‘z kaliti bilan ochadi', kompga && /KV-PUSH-1/.test(och(kompga.tana, komp).sarlavha));
+  test('Telegram’ga sun’iy id bilan so‘rov KETMADI',
+    !yuborilgan.some((x) => String(x.chat_id) === 'google:push-sinov'));
+  const s = telga?.sarlavhalar || {};
+  test('to‘g‘ri sarlavhalar: aes128gcm, TTL, VAPID',
+    s['content-encoding'] === 'aes128gcm' && Number(s.ttl) > 0 && /^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]+$/.test(s.authorization || ''));
+  const [, jwt] = /t=([^,]+)/.exec(s.authorization || '') || [];
+  const [h64, b64, imzo] = String(jwt).split('.');
+  const pub = Buffer.from(kalit.tana.kalit, 'base64url');
+  const pk = crypto.createPublicKey({ format: 'jwk', key: { kty: 'EC', crv: 'P-256',
+    x: b64u(pub.subarray(1, 33)), y: b64u(pub.subarray(33)) } });
+  test('VAPID imzosi ochiq kalit bilan tekshiriladi',
+    crypto.verify('sha256', Buffer.from(`${h64}.${b64}`), { key: pk, dsaEncoding: 'ieee-p1363' }, Buffer.from(imzo || '', 'base64url')));
+  test('VAPID aud — push xizmatining manzili',
+    JSON.parse(Buffer.from(b64, 'base64url')).aud === `http://127.0.0.1:${PORT}`);
+
+  // Bekor qilingan obuna (410) — o'chiriladi
+  globalThis.PUSH_KOD = { komp: 410 };
+  await P.foydalanuvchigaPush(u.id, { sarlavha: 'x', matn: 'y' });
+  globalThis.PUSH_KOD = {};
+  test('brauzer bekor qilgan obuna (410) bazadan o‘chdi',
+    !(await qator(`select 1 from push_obunalar where endpoint like '%/push/komp'`)));
+
+  const chiq = await chaqirIlova('/api/push/bekor', 'POST', { endpoint: obuna('tel', tel).endpoint }, token);
+  test('ilovadan o‘chirish — obuna yo‘qoladi', chiq.kod === 200
+    && !(await qator('select 1 from push_obunalar where user_id = $1', [u.id])));
+
+  // Hisob o'chirilsa — obunalar ham
+  await chaqirIlova('/api/push/obuna', 'POST', { obuna: obuna('tel', tel) }, token);
+  await sorov(`update orders set status = 'yetkazildi' where id = $1`, [buy.id]);
+  const H = await import('../src/services/hisob.js');
+  await H.hisobniOchir(u.id);
+  test('hisob o‘chirilganda bildirishnoma obunalari ham o‘chadi',
+    !(await qator('select 1 from push_obunalar where user_id = $1', [u.id])));
+  await sorov(`delete from orders where order_no = 'KV-PUSH-1'`);
+
+  // Ilova va service worker
+  const fsP = await import('node:fs');
+  const ilova = fsP.readFileSync('public/app/app.js', 'utf8');
+  const sw = fsP.readFileSync('public/app/sw.js', 'utf8');
+  test('service worker bildirishnomani ko‘rsatadi va bosilganda ochadi',
+    /addEventListener\('push'/.test(sw) && /addEventListener\('notificationclick'/.test(sw));
+  test('Telegram ichida push taklif qilinmaydi (u yerda bot yozadi)', /const pushBormi = \(\) => !tg\?\.initData/.test(ilova));
+  test('chiqishda bu qurilmaning obunasi bekor qilinadi', /await pushniOchir\(\)\.catch/.test(ilova));
+  test('kalit almashsa obuna yangilanadi', /applicationServerKey/.test(ilova) && /ob\.unsubscribe\(\)/.test(ilova));
+}
+
+console.log('\n── REKLAMA: FAQAT TELEGRAMI BORLARGA ──');
+{
+  const fsR = await import('node:fs');
+  const br = fsR.readFileSync('src/services/broadcast.js', 'utf8');
+  const ad = fsR.readFileSync('src/bot/handlers/admin.js', 'utf8');
+  test('reklama faqat raqamli Telegram id larga ketadi', /telegram_id ~ '\^\[0-9\]\+\$'/.test(br));
+  test('oldindan ko‘rsatilgan son yuborish bilan bir xil shartda',
+    /count\(\*\)::int as n from users where not is_blocked and telegram_id ~ '\^\[0-9\]\+\$'/.test(ad));
+  const { telegramiBormi } = await import('../src/bot/tg.js');
+  test('o‘chirilgan hisobga Telegram so‘rovi yuborilmaydi', !telegramiBormi('ochirilgan:ab12') && telegramiBormi('700001'));
+}
+
+console.log('\n── ANDROID ILOVA: ORQAGA TUGMASI, YORLIQLAR ──');
+{
+  const fsA = await import('node:fs');
+  const ilova = fsA.readFileSync('public/app/app.js', 'utf8');
+  const man = fsA.readFileSync('android/app/src/main/AndroidManifest.xml', 'utf8');
+  const yor = fsA.readFileSync('android/app/src/main/res/xml/shortcuts.xml', 'utf8');
+  test('oyna ochilganda tarixga yozuv — «orqaga» oynani yopadi', /tarixga\(\{ tab: holat\.tab, modal: 1 \}, true\)/.test(ilova));
+  test('popstate ochiq oynani yopadi', /addEventListener\('popstate'/.test(ilova));
+  test('Telegram ichida tarix ishlatilmaydi', /const TARIX = !tg\?\.initData/.test(ilova));
+  test('Android 13 bildirishnoma ruxsati', /android\.permission\.POST_NOTIFICATIONS/.test(man));
+  test('bildirishnoma KiOVO nomidan (SMALL_ICON)', /trusted\.SMALL_ICON/.test(man) && /@drawable\/ic_bildirishnoma/.test(man));
+  test('ruxsat so‘rash oynasi e’lon qilingan', /NotificationPermissionRequestActivity/.test(man));
+  test('ikonka yorliqlari ulangan', /android\.app\.shortcuts/.test(man));
+  test('yorliqlar: skaner, savat, buyurtmalar',
+    ['tab=skaner', 'tab=savat', 'bolim=buyurtma'].every((x) => yor.includes(x)));
+  test('yorliqlar ilova domenida', (yor.match(/android:data="https:\/\/kiovo\.shop\/app\//g) || []).length === 3);
+  for (const f of ['drawable-xxxhdpi/yorliq_skaner.png', 'drawable-mdpi/ic_bildirishnoma.png', 'drawable-xxxhdpi/ic_bildirishnoma.png']) {
+    test(`resurs bor: ${f}`, fsA.existsSync(`android/app/src/main/res/${f}`));
+  }
+  const m = JSON.parse(fsA.readFileSync('public/app/manifest.json', 'utf8'));
+  test('brauzer ilovasida ham yorliqlar', m.shortcuts?.length === 3);
 }
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);

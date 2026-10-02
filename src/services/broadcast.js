@@ -25,8 +25,12 @@ const kut = (ms) => new Promise((r) => setTimeout(r, ms));
  */
 export async function broadcastBoshla({ matn, fileId, adminId, chatId }) {
   const oluvchilar = await qatorlar(
+    // Faqat HAQIQIY Telegram id (raqam). Google/telefon bilan kirganlar,
+    // ochiq skaner mehmonlari va o'chirilgan hisoblar (`google:…`,
+    // `tel:…`, `mehmon:…`, `ochirilgan:…`) botdan xabar ola olmaydi —
+    // ular «xato» bo'lib sanalib, yuborishni sekinlatardi.
     `select telegram_id from users
-      where not is_blocked and telegram_id is not null order by id`);
+      where not is_blocked and telegram_id ~ '^[0-9]+$' order by id`);
 
   const y = await qator(
     `insert into yuborishlar (matn, holat, jami, created_by)

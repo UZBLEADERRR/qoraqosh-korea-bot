@@ -657,6 +657,9 @@ async function boshla() {
   const boshlangich = TAB_TAQMOQ[xom] || xom;
   if (boshlangich === 'natija' && holat.tahlil) natijaniChiz();
   tabOch(TABLAR.includes(boshlangich) ? boshlangich : 'katalog');
+  // Bildirishnoma yoki yorliqdan kelganda — kerakli bo'limni ochamiz
+  if (p.get('bolim')) havolaniOch(location.search);
+  pushniYangila();
 }
 
 // ---------------- Ro'yxatdan o'tish ----------------
@@ -1521,10 +1524,15 @@ const qtr = (k, v) => `<div class="qtr"><span class="k">${k}</span><span class="
 function modalOch() {
   kor($('#modal'), true);
   try { tg?.BackButton?.show?.(); } catch {}
+  // Android «orqaga» tugmasi oynani yopsin — ilovadan chiqib ketmasin
+  if (TARIX && !history.state?.modal) tarixga({ tab: holat.tab, modal: 1 }, true);
 }
 const modalYop = () => {
   kor($('#modal'), false);
   try { tg?.BackButton?.hide?.(); } catch {}
+  // Oyna tugma bilan yopildi — tarixdagi yozuvi oddiy yozuvga aylanadi
+  // (orqaga bosilganda takroriy yozuv o'tkazib yuboriladi, pastga qarang)
+  if (TARIX && history.state?.modal) tarixga({ tab: holat.tab });
 };
 try { tg?.BackButton?.onClick?.(() => modalYop()); } catch {}
 $$('[data-yop]').forEach((el) => el.onclick = modalYop);
@@ -3735,13 +3743,96 @@ function tayyorOyna(o, chekBor = false) {
             : 'To‘lov yetkazib berishda naqd pulda.'}<br>
         ${ik('telefon',15)} Menejer tez orada bog‘lanadi.
       </div>
+      ${pushBormi() && Notification.permission === 'default' ? `
+        <div class="push-taklif" id="push-taklif">
+          <span class="b">${ik('qongiroq', 20)}</span>
+          <span><b>Holatini o‘tkazib yubormang</b>
+            <small>To‘lov tasdiqlansa va buyurtma yo‘lga chiqsa — telefoningizga xabar</small></span>
+          <button class="ikkilamchi" id="t-push-yoq">Yoqish</button>
+        </div>` : ''}
       <button class="asosiy" id="t-tayyor" style="margin-top:18px">Yaxshi</button>
     </div>`;
   modalOch();
+  $('#t-push-yoq') && ($('#t-push-yoq').onclick = async () => {
+    try {
+      await pushniYoq();
+      $('#push-taklif').innerHTML = `<span class="b">${ik('tasdiq', 20)}</span>
+        <span><b>Yoqildi</b><small>Buyurtma holati telefoningizga keladi</small></span>`;
+      titra('medium');
+    } catch (e) { ogohlantir(e.message); }
+  });
   $('#t-tayyor').onclick = () => {
     modalYop(); tabOch('profil'); buyurtmalarniChiz({ majburiy: true });
   };
 }
+
+// ---------------- Bildirishnomalar (push) ----------------
+// Google yoki telefon bilan kirgan odamning Telegrami yo'q: buyurtma
+// holatini u faqat shu yo'l bilan biladi. Telegram ichida ko'rsatilmaydi
+// — u yerda xabarni bot yuboradi.
+const pushBormi = () => !tg?.initData && 'serviceWorker' in navigator
+  && 'PushManager' in window && 'Notification' in window;
+const pushYoqiqmi = () => pushBormi() && Notification.permission === 'granted'
+  && localStorage.getItem('kiovo_push') === '1';
+
+const kalitBayt = (b64) => {
+  const s = atob(b64.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - b64.length % 4) % 4));
+  return Uint8Array.from(s, (c) => c.charCodeAt(0));
+};
+const swTayyor = () => Promise.race([navigator.serviceWorker.ready,
+  new Promise((_, rad) => setTimeout(() => rad(new Error('Ilova hali yuklanmoqda — birozdan keyin urining.')), 8000))]);
+
+/** Obuna — server kaliti o'zgargan bo'lsa yangisi olinadi. */
+async function pushObuna({ sinov = false } = {}) {
+  const { kalit } = await api('/api/push/kalit');
+  const r = await swTayyor();
+  let ob = await r.pushManager.getSubscription();
+  const bor = ob?.options?.applicationServerKey;
+  if (ob && bor && new Uint8Array(bor).join() !== kalitBayt(kalit).join()) { await ob.unsubscribe(); ob = null; }
+  if (!ob) ob = await r.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: kalitBayt(kalit) });
+  await api('/api/push/obuna', { method: 'POST', body: JSON.stringify({ obuna: ob.toJSON(), sinov }) });
+  try { localStorage.setItem('kiovo_push', '1'); } catch {}
+}
+
+async function pushniYoq() {
+  const ruxsat = await Notification.requestPermission();
+  if (ruxsat !== 'granted') {
+    throw new Error(ruxsat === 'denied'
+      ? 'Bildirishnomalar telefon sozlamalarida o‘chirilgan: Sozlamalar → Ilovalar → KiOVO → Bildirishnomalar.'
+      : 'Ruxsat berilmadi.');
+  }
+  await pushObuna({ sinov: true });
+}
+
+async function pushniOchir() {
+  try { localStorage.removeItem('kiovo_push'); } catch {}
+  if (!pushBormi()) return;
+  const ob = await (await swTayyor()).pushManager.getSubscription().catch(() => null);
+  if (!ob) return;
+  await api('/api/push/bekor', { method: 'POST', body: JSON.stringify({ endpoint: ob.endpoint }) }).catch(() => {});
+  await ob.unsubscribe().catch(() => {});
+}
+
+/** Har ochilishda jimgina: obuna serverda borligini tasdiqlaydi. */
+function pushniYangila() {
+  if (pushYoqiqmi()) pushObuna().catch(() => {});
+}
+
+/** Bildirishnoma bosilganda yoki yorliqdan: `?tab=…&bolim=…` ni ochadi. */
+function havolaniOch(havola) {
+  let p;
+  try { p = new URL(havola, location.origin).searchParams; } catch { return; }
+  modalYop();
+  tabOch(p.get('tab') || 'katalog');
+  const bolim = p.get('bolim');
+  if (bolim) requestAnimationFrame(() => {
+    const y = $('#y-' + bolim);
+    if (y) { y.open = true; y.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+  });
+}
+navigator.serviceWorker?.addEventListener('message', (e) => {
+  if (e.data?.tur === 'bildirishnoma') havolaniOch(e.data.havola);
+});
 
 // ---------------- Profil ----------------
 // Botdagi menyu ikkita tugmaga qisqardi — qolgan hamma narsa shu yerda.
@@ -3832,6 +3923,13 @@ function profilniChiz() {
     ${yigma('y-buyurtma', 'quti', 'Buyurtmalarim', String(st.buyurtma ?? 0),
       `<div id="buyurtma-tan"></div>`)}
 
+    ${pushBormi() ? yigma('y-bildirish', 'qongiroq', 'Bildirishnomalar',
+      pushYoqiqmi() ? 'Yoqiq' : 'O‘chiq', `
+      <p class="mayda" style="margin:0 0 10px">Buyurtmangiz holati — to‘landi,
+        yo‘lga chiqdi, yetib keldi — telefoningizga keladi. Reklama yuborilmaydi.</p>
+      <button class="${pushYoqiqmi() ? 'ikkilamchi' : 'asosiy'}" id="t-push">
+        ${pushYoqiqmi() ? 'O‘chirish' : 'Bildirishnomalarni yoqish'}</button>`) : ''}
+
     ${yigma('y-korinish', 'quyosh', 'Ko‘rinish',
       MAVZULAR.find((x) => x.kalit === mavzuOqi())?.nom || 'Tizim', `
       <p class="mayda" style="margin:0 0 10px">Tungi ko‘rinish kechqurun
@@ -3881,6 +3979,8 @@ function profilniChiz() {
   });
   $('#t-ornat') && ($('#t-ornat').onclick = ilovaniOrnat);
   $('#t-chiqish') && ($('#t-chiqish').onclick = async () => {
+    // Bu qurilmaga endi bu hisobning bildirishnomasi kelmasin
+    await pushniOchir().catch(() => {});
     try { await api('/api/chiqish', { method: 'POST' }); } catch {}
     seansOchir(); menikiOchir();
     location.reload();
@@ -3956,6 +4056,15 @@ function profilniChiz() {
   yb.ontoggle = () => { if (yb.open) buyurtmalarniChiz(); };
   if (yb.open) buyurtmalarniChiz();
 
+  $('#t-push') && ($('#t-push').onclick = async () => {
+    const t = $('#t-push'); t.disabled = true;
+    try {
+      if (pushYoqiqmi()) await pushniOchir(); else await pushniYoq();
+      titra('medium');
+    } catch (e) { ogohlantir(e.message); }
+    profilniChiz();
+    const y = $('#y-bildirish'); if (y) y.open = true;
+  });
   $('#t-profil-yordam').onclick = yordamOyna;
   $('#t-profil-ochir').onclick = hisobniOchirOyna;
   $('#t-eksport').onclick = malumotlarimniYukla;
@@ -4801,8 +4910,39 @@ function animatsiyasiz(ozgartir) {
 // savatga kirib qaytgan odam yana boshidan qidirishga majbur edi.
 const tabSurish = {};
 
-function tabOch(nom) {
+/* ANDROID «ORQAGA» TUGMASI.
+ *
+ * Ilova (Play'dagi ham, brauzerdagi ham) bitta sahifa: tarix yozuvi
+ * bo'lmasa «orqaga» butun ilovani yopardi — mahsulot oynasini ochib
+ * orqaga bosgan odam ilovadan chiqib ketardi. Endi tartib oddiy ilova
+ * kabi: avval oyna yopiladi, keyin do'kon bo'limiga qaytadi, do'konda
+ * esa ilovadan chiqadi.
+ *
+ * Tarix: [do'kon] → [boshqa bo'lim] → [oyna]. Boshqa bo'limlar orasida
+ * o'tish yozuvni ALMASHTIRADI (profil → savat → orqaga = do'kon).
+ * Telegram ichida bu ishlatilmaydi — u yerda Telegram'ning o'z tugmasi. */
+const TARIX = !tg?.initData;
+function tarixga(h, yangi = false) {
+  try { yangi ? history.pushState(h, '') : history.replaceState(h, ''); } catch {}
+}
+if (TARIX) {
+  window.addEventListener('popstate', (e) => {
+    const h = e.state || {};
+    if (!$('#modal').classList.contains('yashirin')) return modalYop();
+    const tab = h.tab || 'katalog';
+    if (tab !== holat.tab) return tabOch(tab, { tarixsiz: true });
+    // Takroriy yozuv (oyna tugma bilan yopilgan edi) — bittasini o'tkazamiz
+    history.back();
+  });
+}
+
+function tabOch(nom, { tarixsiz = false } = {}) {
   nom = TAB_TAQMOQ[nom] || nom;
+  if (TARIX && !tarixsiz && holat.tab !== nom) {
+    const joriy = history.state?.tab;
+    if (nom === 'katalog') tarixga({ tab: nom });
+    else tarixga({ tab: nom }, !joriy || joriy === 'katalog');
+  }
   // Ketayotgan bo'limning joyini eslab qolamiz
   if (holat.tab && holat.tab !== nom) tabSurish[holat.tab] = window.scrollY || 0;
   const oldingi = holat.tab;

@@ -74,6 +74,32 @@ for (const [z, k] of Object.entries(ZICHLIK)) {
 // Ochilish ekrani: qizil fonda logotip (fon rangi colors.xml da)
 RASMLAR.push([`${RES}/drawable-nodpi/splash.png`, () => shaffof(0.9), 480]);
 
+// Bildirishnoma belgisi: Android uni FAQAT shakli bo'yicha chizadi (rang
+// tizimdan) — shuning uchun oq, shaffof fonda, faqat tabassum
+const oqBelgi = () => logoSvg({ tur: 'belgi', rang: '#FFFFFF', ulush: 0.86 });
+RASMLAR.push(['public/app/bildirishnoma.png', oqBelgi, 96]);
+for (const [z, k] of Object.entries(ZICHLIK)) {
+  RASMLAR.push([`${RES}/drawable-${z}/ic_bildirishnoma.png`, oqBelgi, 24 * k]);
+}
+
+/* Yorliqlar (ikonkani bosib turganda chiqadigan menyu): Skaner, Savat,
+ * Buyurtmalarim. Belgi ilovadagi ikonlar bilan bir xil (public/app/ikon.js),
+ * qizil doirada och yashil. */
+const IKON_YOL = {
+  skaner: '<path d="M4 8.5V6a2 2 0 0 1 2-2h2.5"/><path d="M20 8.5V6a2 2 0 0 0-2-2h-2.5"/><path d="M4 15.5V18a2 2 0 0 0 2 2h2.5"/><path d="M20 15.5V18a2 2 0 0 1-2 2h-2.5"/><circle cx="12" cy="12" r="3.2"/>',
+  savat:  '<path d="M4 7h16l-1.4 12.2a2 2 0 0 1-2 1.8H7.4a2 2 0 0 1-2-1.8z"/><path d="M8.5 7 12 3l3.5 4"/>',
+  quti:   '<path d="M3.5 8 12 4l8.5 4-8.5 4z"/><path d="M3.5 8v8l8.5 4 8.5-4V8"/><path d="M12 12v8"/>',
+};
+export const yorliqSvg = (nom) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <circle cx="24" cy="24" r="24" fill="${BREND.qizil}"/>
+  <g transform="translate(12 12)" fill="none" stroke="${BREND.lime}" stroke-width="1.9"
+     stroke-linecap="round" stroke-linejoin="round">${IKON_YOL[nom]}</g></svg>`;
+for (const nom of Object.keys(IKON_YOL)) {
+  RASMLAR.push([`${RES}/drawable-xxxhdpi/yorliq_${nom}.png`, () => yorliqSvg(nom), 192]);
+  // Brauzerdan o'rnatilgan ilova uchun ham (manifest.json → shortcuts)
+  RASMLAR.push([`public/app/yorliq-${nom}.png`, () => yorliqSvg(nom), 96]);
+}
+
 export function hammasiniYasa() {
   const yasalgan = [];
   for (const [f, mazmun] of Object.entries(FAYLLAR)) yasalgan.push(yoz(f, mazmun() + '\n'));

@@ -18,6 +18,8 @@ let xabarId = 0;
 export const korinadigan = () => yuborilgan.filter((x) => !x.ochirilgan);
 // Eskiz (SMS) — yuborilgan SMS lar. `globalThis.SMS_XATO` bo'lsa rad etadi.
 export const smslar = [];
+/** Soxta push xizmatiga kelgan so'rovlar: {id, sarlavhalar, tana(Buffer)} */
+export const pushlar = [];
 
 function png(w = 400, h = 400) {
   const chunk = (t, d) => {
@@ -200,6 +202,17 @@ export function soxtaServer(port = 4444) {
       const u = new URL(req.url, 'http://x');
       const yol = u.pathname;
       const j = (o) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
+
+      // ---- Web Push xizmati (FCM o'rnida) ----
+      // `globalThis.PUSH_KOD[id]` — shu obunaga qaytariladigan holat kodi
+      if (yol.startsWith('/push/') && req.method === 'POST') {
+        const bolak = [];
+        for await (const b of req) bolak.push(b);
+        const id = yol.slice(6);
+        pushlar.push({ id, sarlavhalar: req.headers, tana: Buffer.concat(bolak) });
+        res.writeHead(globalThis.PUSH_KOD?.[id] || 201);
+        return res.end();
+      }
 
       // ---- Eskiz SMS ----
       // Haqiqiy Eskiz multipart forma qabul qiladi; biz maydonlarni

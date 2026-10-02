@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ilova ikonkasini bosib turganda chiqadigan tezkor yorliqlar.
+     Har biri ilovaning kerakli bo'limini to'g'ridan-to'g'ri ochadi
+     (public/app/app.js `?tab=` ni o'qiydi). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="skaner"
+        android:enabled="true"
+        android:icon="@drawable/yorliq_skaner"
+        android:shortcutShortLabel="@string/yorliqSkaner"
+        android:shortcutLongLabel="@string/yorliqSkanerUzun">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="shop.kiovo.app"
+            android:targetClass="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:data="https://kiovo.shop/app/?tab=skaner" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="savat"
+        android:enabled="true"
+        android:icon="@drawable/yorliq_savat"
+        android:shortcutShortLabel="@string/yorliqSavat"
+        android:shortcutLongLabel="@string/yorliqSavat">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="shop.kiovo.app"
+            android:targetClass="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:data="https://kiovo.shop/app/?tab=savat" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="buyurtmalar"
+        android:enabled="true"
+        android:icon="@drawable/yorliq_quti"
+        android:shortcutShortLabel="@string/yorliqBuyurtma"
+        android:shortcutLongLabel="@string/yorliqBuyurtmaUzun">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="shop.kiovo.app"
+            android:targetClass="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:data="https://kiovo.shop/app/?tab=profil&amp;bolim=buyurtma" />
+    </shortcut>
+</shortcuts>

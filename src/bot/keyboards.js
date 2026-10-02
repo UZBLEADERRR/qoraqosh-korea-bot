@@ -3,7 +3,7 @@
 import { config } from '../config.js';
 import { ilovaTugmasi } from '../lib/ilova-havola.js';
 
-export const appUrl = (yol = '/app/') => (config.publicUrl ? `${config.publicUrl}${yol}` : null);
+export const appUrl = (yol = '/app/') => (config.saytUrl ? `${config.saytUrl}${yol}` : null);
 
 /** Mini App tugmasi; PUBLIC_URL yo'q bo'lsa null. */
 export function appTugma(matn, yol = '/app/') {
@@ -48,7 +48,7 @@ export const telefonSora = () => ({
 
 export function shartnomaTugmalari() {
   const qatorlar = [];
-  const url = config.publicUrl ? `${config.publicUrl}/oferta` : null;
+  const url = config.saytUrl ? `${config.saytUrl}/oferta` : null;
   if (url) qatorlar.push([{ text: '📄 Shartnomani o‘qish', url }]);
   qatorlar.push([{ text: '✅ Roziman, davom etamiz', callback_data: 'roziman' }]);
   return { inline_keyboard: qatorlar };

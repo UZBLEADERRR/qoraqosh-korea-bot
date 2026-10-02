@@ -82,3 +82,37 @@ self.addEventListener('fetch', (e) => {
       .catch(() => caches.match(e.request).then((r) => r || caches.match('/app/'))),
   );
 });
+
+// ── Bildirishnoma (push) ──
+// Server buyurtma holati o'zgarganda yuboradi (src/services/push.js).
+// Android ilovada u KiOVO nomi va ikonkasi bilan chiqadi.
+self.addEventListener('push', (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { matn: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.sarlavha || 'KiOVO', {
+    body: d.matn || '',
+    icon: '/app/ikon-192.png',
+    badge: '/app/bildirishnoma.png',
+    tag: d.teg || undefined,
+    renotify: Boolean(d.teg),
+    lang: 'uz',
+    data: { havola: d.havola || '/app/' },
+  }));
+});
+
+// Bosilganda: ilova ochiq bo'lsa — o'sha oynaga o'tib kerakli joyni
+// ochadi, yopiq bo'lsa — yangisini ochadi
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const havola = new URL(e.notification.data?.havola || '/app/', self.location.origin);
+  if (havola.origin !== self.location.origin) return;
+  e.waitUntil((async () => {
+    const oynalar = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const bor = oynalar.find((o) => new URL(o.url).pathname.startsWith('/app'));
+    if (bor) {
+      bor.postMessage({ tur: 'bildirishnoma', havola: havola.pathname + havola.search });
+      return bor.focus();
+    }
+    return self.clients.openWindow(havola.href);
+  })());
+});

@@ -36,5 +36,43 @@
     }
   ],
   "id": "/app/",
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Yuzni tahlil qilish",
+      "short_name": "Skaner",
+      "url": "/app/?tab=skaner",
+      "icons": [
+        {
+          "src": "/app/yorliq-skaner.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Savat",
+      "short_name": "Savat",
+      "url": "/app/?tab=savat",
+      "icons": [
+        {
+          "src": "/app/yorliq-savat.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Buyurtmalarim",
+      "short_name": "Buyurtma",
+      "url": "/app/?tab=profil&bolim=buyurtma",
+      "icons": [
+        {
+          "src": "/app/yorliq-quti.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
 }

@@ -139,6 +139,7 @@ yoki hisobingizni butunlay o‘chirasiz.</div>
 <tr><td>Buyurtmalar, savat, sevimlilar, mahsulot sharhlari</td><td>Do‘kon xizmati</td></tr>
 <tr><td>To‘lov cheki (skrinshot)</td><td>To‘lovni tasdiqlash</td></tr>
 <tr><td>AI maslahatchiga yozgan savollaringiz va yuborgan rasmlaringiz</td><td>Savolingizga javob berish</td></tr>
+<tr><td>Bildirishnoma obunasi (siz yoqsangiz): qurilmangizning push manzili</td><td>Buyurtma holati haqida telefoningizga xabar. Profil → Bildirishnomalar’da o‘chiriladi</td></tr>
 <tr><td>IP manzil, qurilma turi, kirish vaqti</td><td>Xavfsizlik: begona kirishdan va suiiste’moldan himoya</td></tr>
 </table>
 <p>Biz bank karta raqamingizni ${b('yig‘maymiz')}: to‘lov sizning bankingiz
@@ -163,6 +164,8 @@ quyidagilarga uzatiladi:</p>
   <li>${b('Google LLC')} — yuz surati tahlili (Gemini) va Google bilan kirish;</li>
   <li>${b('Telegram')} — bot orqali xabarlar (agar Telegram bilan foydalansangiz);</li>
   <li>${b('Eskiz.uz')} — telefon raqamingizga kirish kodi SMS yuborish;</li>
+  <li>${b('Brauzer push xizmati')} (Android’da Google Firebase) — bildirishnomani
+    qurilmangizga yetkazish; xabar matni shifrlangan holda o‘tadi;</li>
   <li>${b('Pochta / kuryer xizmati')} — buyurtmani yetkazish uchun ism, telefon va manzil;</li>
   <li>${b('Bulutli server va baza')} (Railway, Supabase) — ma’lumotlar shu yerda saqlanadi.</li>
 </ul>

@@ -22,6 +22,7 @@ import { pochtaHujjati } from '../../services/pochta-hujjati.js';
 import { partiyaQollanmasiPdf } from '../../services/qollanma-hujjati.js';
 import { qollanmaYubor } from '../../services/mijoz-qollanma.js';
 import { broadcastBoshla } from '../../services/broadcast.js';
+import { foydalanuvchigaPush } from '../../services/push.js';
 import { agentCallback, agentHolati, rejaMenyusi, tanitishBoshla } from './agent-oqim.js';
 
 export const BUYRUQLAR = [
@@ -324,8 +325,12 @@ async function mijozgaBosqich(buyurtma, holat) {
     sabab:      sbb ? `\n\nSabab: ${sbb}` : '',
   };
 
-  const j = await yubor(u.telegram_id, oringaQoy(matn, qiymatlar), { ommaviy: true });
-  return Boolean(j?.ok);
+  const tayyor = oringaQoy(matn, qiymatlar);
+  const push = await foydalanuvchigaPush(buyurtma.user_id, {
+    sarlavha: `${b.emoji} ${qiymatlar.raqam} — ${b.nom}`, matn: tayyor,
+    havola: '/app/?tab=profil&bolim=buyurtma', teg: `buyurtma-${qiymatlar.raqam}` }).catch(() => 0);
+  const j = await yubor(u.telegram_id, tayyor, { ommaviy: true });
+  return Boolean(j?.ok) || push > 0;
 }
 
 /**
@@ -362,7 +367,9 @@ async function bosqichniTarqat(buyurtmalar, holat, chatId) {
 // ══════════════════ /reklama — BROADCAST ══════════════════
 
 export async function reklamaBoshla(chatId, user) {
-  const soni = await qator(`select count(*)::int as n from users where not is_blocked and phone is not null`);
+  // Sanoq ham yuborish bilan BIR XIL shart: aks holda «120 ta» deb ko'rsatib,
+  // 80 taga yuborardi (src/services/broadcast.js)
+  const soni = await qator(`select count(*)::int as n from users where not is_blocked and telegram_id ~ '^[0-9]+$'`);
   await holatSaqla(user.id, HOLAT.REKLAMA_MATN);
   return yubor(chatId, [
     `📢 <b>Reklama xabari</b>`, ``,

@@ -92,8 +92,25 @@ export const config = {
   // Android ilova paketi (Play Store'dagi identifikator). TWA imzo
   // barmoq izlari admin panelda yoki ANDROID_SHA256 da (vergul bilan).
   androidPaket:  opt('ANDROID_PAKET', 'shop.kiovo.app'),
-  androidSha256: opt('ANDROID_SHA256'),
+  // Push bildirishnoma kaliti. Bo'sh — ADMIN_JWT_SECRET dan hisoblanadi
+  // (src/services/push.js), ya'ni sozlash shart emas.
+  vapidKalit:    opt('VAPID_KALIT'),
+  // FAQAT sinov uchun: soxta push xizmatining xosti («127.0.0.1:4483»)
+  pushSinovXost: opt('PUSH_SINOV_XOST'),
+  // Doimiy yuklash kalitining (upload key) barmoq izi — OCHIQ ma'lumot,
+  // maxfiy emas. Shu kalit bilan imzolangan APK/AAB saytni darrov tan
+  // oladi. Play'dagi «App signing key» izi esa admin panelda qo'shiladi.
+  androidSha256: opt('ANDROID_SHA256',
+    '4C:9F:81:B6:F7:BF:5F:5F:5E:2F:91:60:07:7E:CF:93:F6:D1:04:6A:A3:04:46:AA:D4:A3:A5:3F:D8:B9:4D:25'),
 };
+
+// Saytning ASOSIY manzili — «www.» siz. kiovo.shop asosiy, www.kiovo.shop
+// unga yo'naltiriladi (server.js). Android ilova, assetlinks, sitemap va
+// mijozga yuboriladigan havolalar shu manzilda bo'lishi kerak: Google
+// Play ilovani aynan bitta domen bilan bog'laydi.
+config.saytUrl = String(config.publicUrl || '').replace(/\/+$/, '').replace(/^(https?:\/\/)www\./i, '$1');
+/** «www.» siz xost: «kiovo.shop». Mahalliyda bo'sh. */
+config.asosiyXost = (() => { try { return new URL(config.saytUrl).host.toLowerCase(); } catch { return ''; } })();
 
 if (need.length) {
   console.error('\n❌ Quyidagi muhit o\'zgaruvchilari yo\'q:\n   ' + need.join('\n   '));

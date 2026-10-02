@@ -16,9 +16,26 @@ tartibda bajaring — har bir qadam keyingisiga kerak.
 
 ---
 
-## 0. Oldindan: server sozlamalari
+## 0. Oldindan: domen va server sozlamalari
 
-Railway → Variables (to'liq ro'yxat `.env.example` da):
+### Domen: kiovo.shop (www emas)
+
+Ilova, Google kirish va Play hammasi **`kiovo.shop`** ga bog'langan.
+`www.kiovo.shop` ham ishlaydi — u `kiovo.shop` ga yo'naltiriladi. Bu
+to'g'ri va Play uchun muammo emas: Play'da domen umuman so'ralmaydi,
+faqat ilova qaysi saytni ochishi muhim, u esa `https://kiovo.shop/app/`.
+
+Tekshiring:
+- Railway → Settings → **Networking → Custom Domain**: `kiovo.shop`
+  qo'shilgan bo'lsin. `www.kiovo.shop` ni ham qo'shsangiz, yo'naltirishni
+  serverning o'zi qiladi (301). Domen sotuvchisida (registrator)
+  «forwarding» qilingan bo'lsa ham bo'ladi.
+- `PUBLIC_URL` = `https://kiovo.shop` (www **siz**). www bilan yozilgan
+  bo'lsa ham server havolalarni o'zi www siz qiladi.
+- Brauzerda https://kiovo.shop/.well-known/assetlinks.json ochilib, JSON
+  ko'rinishi kerak (yo'naltirishsiz).
+
+### Railway → Variables (to'liq ro'yxat `.env.example` da):
 
 | O'zgaruvchi | Nima uchun |
 |---|---|
@@ -89,13 +106,19 @@ Create app → nomi **KiOVO**, til: O'zbekcha, *App* (o'yin emas),
 3. Play Console → **Test and release → App signing**: *Play App Signing*
    yoqilgan bo'lsin (standart). U yerdagi **App signing key certificate →
    SHA-256** ni nusxalang.
-4. Admin → Sozlamalar → **Android ilova → SHA-256** maydoniga IKKI qator:
-   - Play'dagi *App signing key* SHA-256;
-   - yuklash kaliti SHA-256 (`sha256.txt` dan).
+4. Admin → Sozlamalar → **Android ilova → SHA-256** maydoniga Play'dagi
+   *App signing key* SHA-256 ni yozing. Yuklash kalitiningki
+   (`4C:9F:81:B6:…:4D:25`) serverda **allaqachon bor** — GitHub'da
+   yig'ilgan APK darrov to'liq ekranda ochiladi.
 
-   Bu bo'lmasa ilova ochilganda tepada brauzer manzil satri ko'rinib
-   turadi. Tekshirish: https://kiovo.shop/.well-known/assetlinks.json
-   ikkala barmoq izini ko'rsatishi kerak.
+   ⚠️ **«Ilova shunchaki saytni ochyapti» degan holat shu yerdan.** Agar
+   ilovaning tepasida **manzil satri** (kiovo.shop yozuvi) ko'rinsa —
+   Android ilovani sayt egasi deb tan olmagan: imzo barmoq izi
+   `assetlinks.json` da yo'q. Vaqtinchalik kalit bilan yig'ilgan APK
+   (Secrets qo'yilmaganda) har doim shunday ochiladi. Doimiy kalit bilan
+   yig'ilgan APK/AAB da manzil satri bo'lmaydi.
+   Tekshirish: https://kiovo.shop/.well-known/assetlinks.json ikkala
+   barmoq izini ko'rsatishi kerak.
 
 Har safar `android/` o'zgarsa yoki qo'lda ishga tushirilsa yangi versiya
 raqami avtomatik oshadi — Play bir xil raqamni ikki marta qabul qilmaydi.
@@ -296,10 +319,27 @@ Play qoidasi bo'yicha «sharing» emas; **Processed ephemerally: No**):
 | Financial info → **Purchase history** | Buyurtmalar | Optional | App functionality |
 | Messages → **Other in-app messages** | Maslahatchiga yozilgan savollar | Optional | App functionality |
 | App activity → **App interactions** | Qaysi bo'lim ochilgani (statistika) | Required | Analytics |
+| Device or other IDs → **Device or other IDs** | Bildirishnoma manzili (push obunasi) | Optional | App functionality |
 
 **Collected EMAS:** joylashuv, kontaktlar, kalendar, fayllar, audio,
-qurilma ID, reklama ID, brauzer tarixi, kredit karta raqami (to'lov
+reklama ID, brauzer tarixi, kredit karta raqami (to'lov
 chek rasmi orqali, karta raqami saqlanmaydi).
+
+### Ilova «faqat sayt» emasligi (Minimum functionality)
+
+Google Play sayt nusxasidan iborat ilovalarni rad etishi mumkin. KiOVO
+ilovasida telefonning o'z imkoniyatlari ishlatiladi — tekshiruvchiga
+yozish uchun («Notes for review» / App access ichida):
+
+```
+KiOVO is a native-feeling store app (Trusted Web Activity):
+- camera skin analysis (on-device face detection + AI analysis);
+- push notifications for order status (Android notification permission);
+- launcher shortcuts: Scanner, Cart, My orders (long-press the icon);
+- works offline (cached catalog and profile);
+- full-screen UI with its own back-button navigation, no browser bar;
+- in-app account deletion and data export.
+```
 
 ## 8. Yopiq sinov (Closed testing) — 14 kun
 

@@ -47,9 +47,10 @@ async function soro(url, sozlama, usul) {
  */
 /* Telegrami YO'Q foydalanuvchi: Google yoki SMS bilan kirgan, yoki
  * ochiq skanerdagi mehmon. Ularning `telegram_id` si sun'iy
- * (`google:…`, `tel:…`, `mehmon:…`). Bunday manzilga yuborish Telegram
- * xatosi bilan tugar va jurnalni to'ldirardi — urinmaymiz. */
-const TELEGRAMSIZ = /^(google|tel|mehmon):/;
+ * (`google:…`, `tel:…`, `mehmon:…`; o'chirilgan hisob — `ochirilgan:…`).
+ * Bunday manzilga yuborish Telegram xatosi bilan tugar va jurnalni
+ * to'ldirardi — urinmaymiz. */
+const TELEGRAMSIZ = /^(google|tel|mehmon|ochirilgan):/;
 export const telegramiBormi = (chatId) =>
   chatId !== undefined && chatId !== null && !TELEGRAMSIZ.test(String(chatId));
 const telegramsiz = (body) => body?.chat_id !== undefined && !telegramiBormi(body.chat_id);

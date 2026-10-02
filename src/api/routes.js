@@ -21,6 +21,7 @@ import { variantlar, TURLAR, turTozala, bepulChegara } from '../services/yetkazi
 import { natijaRasminiYarat, saqlanganRasm, kanalgaTahlil, yuzniSaqla } from '../services/natija-rasm.js';
 import { rasmYubor } from '../bot/tg.js';
 import { hisobniOchir, meningMalumotlarim } from '../services/hisob.js';
+import { ochiqKalit, obunaSaqla, obunaOchir, foydalanuvchigaPush } from '../services/push.js';
 
 // Kuniga minglab foydalanuvchi bo'lganda katalog eng ko'p so'raladigan yo'l.
 // 30 soniyalik kesh bazaga ketadigan bir xil so'rovlarni yig'ib bitta qiladi.
@@ -153,6 +154,30 @@ export async function apiRoutes(req, res, yol) {
       return xato(res, 409, `Sizda faol buyurtma bor (${r.buyurtmalar.join(', ')}). `
         + 'U yetkazilgach hisobni o‘chirishingiz mumkin — yoki biz bilan bog‘laning.');
     }
+    return ok(res, { ok: true });
+  }
+
+  // --- Push bildirishnoma (buyurtma holati telefonga keladi) ---
+  if (yol === '/api/push/kalit' && req.method === 'GET') {
+    return ok(res, { kalit: ochiqKalit() });
+  }
+  if (yol === '/api/push/obuna' && req.method === 'POST') {
+    const c = cheklov('push:' + user.id, 20, 60 * 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: 'Juda ko‘p so‘rov. Biroz kuting.' });
+    const b = await tana(req);
+    const r = await obunaSaqla(user.id, b.obuna || {},
+      String(req.headers['user-agent'] || '').slice(0, 120));
+    if (r.xato) return xato(res, 400, r.xato);
+    // Birinchi bildirishnoma darrov: odam ishlayotganiga ishonch hosil qiladi
+    if (b.sinov) {
+      foydalanuvchigaPush(user.id, { sarlavha: 'KiOVO', teg: 'sinov',
+        matn: 'Bildirishnomalar yoqildi. Buyurtmangiz holati shu yerga keladi.' }).catch(() => {});
+    }
+    return ok(res, { ok: true });
+  }
+  if (yol === '/api/push/bekor' && req.method === 'POST') {
+    const b = await tana(req);
+    await obunaOchir(user.id, b.endpoint);
     return ok(res, { ok: true });
   }
 

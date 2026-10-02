@@ -36,6 +36,7 @@ import { modelHolatlari, royxat as modelRoyxati, rasmModeli, standartmi,
 import { googleJson } from '../ai/google.js';
 import { kalitHolati } from '../ai/index.js';
 import { keshHolati } from '../lib/media-kesh.js';
+import { foydalanuvchigaPush } from '../services/push.js';
 import { xaridHisoboti, havolasizSoni, mahsulotCsv, viloyatCsv }
   from '../services/xarid-hisobot.js';
 
@@ -1871,7 +1872,7 @@ async function sotuvlar(oy = '') {
  */
 async function mijozgaXabar(buyurtma, holat, sabab) {
   const chatId = buyurtma.telegram_id;
-  if (!chatId) return;
+  if (!chatId && !buyurtma.user_id) return;
 
   const [tel, ishVaqti] = await Promise.all([
     sozlama('menejer_telefon', ''), sozlama('menejer_ish_vaqti', ''),
@@ -1896,7 +1897,13 @@ async function mijozgaXabar(buyurtma, holat, sabab) {
 
   const matn = await xabarOrin(`xabar_holat_${holat}`, qiymatlar,
     `${b.emoji} <b>{raqam}</b> — ${b.nom}`);
-  if (matn) await yubor(chatId, matn);
+  if (!matn) return;
+  // Telefonning o'z bildirishnomasi — Telegrami yo'q (Google/telefon
+  // bilan kirgan) mijoz holatni faqat shundan biladi
+  foydalanuvchigaPush(buyurtma.user_id, { sarlavha: `${b.emoji} ${qiymatlar.raqam} — ${b.nom}`,
+    matn, havola: '/app/?tab=profil&bolim=buyurtma', teg: `buyurtma-${qiymatlar.raqam}` })
+    .catch((e) => console.error('Push:', e.message));
+  if (chatId) await yubor(chatId, matn);
 }
 
 /** Karusel rasmlari ro'yxati (media id lari). */

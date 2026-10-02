@@ -69,7 +69,7 @@ export async function ilovaHavolasi(start = '') {
  * o'sha manzilga boradi.
  */
 export async function ilovaTugmasi(matn, yol = '/app/') {
-  return config.publicUrl
-    ? { text: matn, web_app: { url: `${config.publicUrl}${yol}` } }
+  return config.saytUrl
+    ? { text: matn, web_app: { url: `${config.saytUrl}${yol}` } }
     : null;
 }

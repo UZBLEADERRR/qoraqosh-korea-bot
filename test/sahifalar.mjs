@@ -8,13 +8,14 @@
 //
 //   DATABASE_URL=postgresql://... node test/sahifalar.mjs
 import { spawn } from 'node:child_process';
+import http from 'node:http';
 import { soxtaServer } from './soxta-server.mjs';
 
 if (!process.env.DATABASE_URL) { console.error('DATABASE_URL kerak.'); process.exit(1); }
 
 const SOXTA = 4483, PORT = 4484;
 const srv = await soxtaServer(SOXTA);
-const ASOS = `http://127.0.0.1:${PORT}`;
+const ASOS = `http://localhost:${PORT}`;
 const SHA = Array.from({ length: 32 }, (_, i) => (i * 7 % 256).toString(16).padStart(2, '0')).join(':');
 
 const server = spawn(process.execPath, ['src/server.js'], {
@@ -107,6 +108,27 @@ try {
   test('barmoq izi KATTA harfda, buzug‘i tashlangan',
     alj[0]?.target?.sha256_cert_fingerprints?.length === 1
       && alj[0].target.sha256_cert_fingerprints[0] === SHA.toUpperCase());
+
+  console.log('\n── DOMEN: www → asosiy ──');
+  // Brauzer Host sarlavhasini o'zgartirishga yo'l qo'ymaydi — oddiy http
+  const xom = (yol, xost, usul = 'GET') => new Promise((ok_, rad) => {
+    const r = http.request({ host: '127.0.0.1', port: PORT, path: yol, method: usul,
+      headers: { Host: xost } }, (j) => { j.resume(); j.on('end', () => ok_(j)); });
+    r.on('error', rad); r.end();
+  });
+  const w1 = await xom('/app/?tab=savat', 'www.localhost');
+  test('www.<domen> asosiy domenga 301 bilan yo‘naltiriladi, yo‘l va so‘rov saqlanadi',
+    w1.statusCode === 301 && w1.headers.location === `${ASOS}/app/?tab=savat`, `${w1.statusCode} ${w1.headers.location}`);
+  const w2 = await xom('/.well-known/assetlinks.json', 'www.localhost');
+  test('www dagi assetlinks YO‘NALTIRILMAYDI (Android yo‘naltirishni qabul qilmaydi)', w2.statusCode === 200);
+  const w3 = await xom('/tg/webhook', 'www.localhost', 'POST');
+  test('POST (Telegram webhook) yo‘naltirilmaydi', w3.statusCode !== 301, String(w3.statusCode));
+  const w4 = await xom('/app/', 'localhost');
+  test('asosiy domenning o‘zi yo‘naltirilmaydi', w4.statusCode === 200);
+  const w5 = await xom('/%E0%A4%A', '127.0.0.1');
+  test('buzuq manzil — 400, so‘rov osilib qolmaydi', w5.statusCode === 400, String(w5.statusCode));
+  const w6 = await xom('/app/', 'buzuq host[]');
+  test('buzuq Host sarlavhasi — javob qaytadi', w6.statusCode > 0, String(w6.statusCode));
 
   console.log('\n── GOOGLE BILAN KIRISH (QAYTA YO‘NALTIRISH) ──');
   const g = await fetch(`${ASOS}/kirish/google`, { method: 'POST',
