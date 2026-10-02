@@ -72,6 +72,23 @@ export const config = {
   freeDeliveryFrom: Number(opt('FREE_DELIVERY_FROM', '500000')),
 
   agreementVersion: '1.0',
+
+  // ── Ilovaga kirish (Play Store) ──
+  // Google bilan kirish: Google Cloud Console → APIs & Services →
+  // Credentials → OAuth client ID (Web application). Bo'sh bo'lsa
+  // Google tugmasi ko'rsatilmaydi.
+  googleClientId: opt('GOOGLE_CLIENT_ID'),
+  googleJwks:     opt('GOOGLE_JWKS', 'https://www.googleapis.com/oauth2/v3/certs'),
+  // SMS bilan kirish — Eskiz.uz. Ikkalasi ham bo'lsa SMS yoqiladi.
+  eskizEmail:  opt('ESKIZ_EMAIL'),
+  eskizParol:  opt('ESKIZ_PAROL'),
+  eskizFrom:   opt('ESKIZ_FROM', '4546'),
+  eskizApi:    opt('ESKIZ_API', 'https://notify.eskiz.uz/api'),
+  // Google Play tekshiruvchisi uchun SINOV hisobi: shu raqamga SMS
+  // yuborilmaydi, kod esa qotib turadi. Play Console → App access ga
+  // aynan shu raqam va kod yoziladi. Bo'sh bo'lsa o'chiq.
+  demoTelefon: opt('DEMO_TELEFON'),
+  demoKod:     opt('DEMO_KOD'),
 };
 
 if (need.length) {

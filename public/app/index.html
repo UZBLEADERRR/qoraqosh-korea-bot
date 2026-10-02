@@ -5,21 +5,43 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <title>KiOVO — Koreya kosmetikasi</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<meta name="theme-color" content="#b3161c">
+<meta name="theme-color" content="#ab0a0c">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="KiOVO">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="ikon-192.png">
+<link rel="apple-touch-icon" href="ikon-180.png">
+<!-- Shrift o'z serverimizdan va oldindan: matn bir zumda brend
+     shriftida chiqadi, «sakrab» almashmaydi -->
+<link rel="preload" href="/umumiy/shrift/manrope-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/umumiy/brend.css">
 <link rel="stylesheet" href="style.css">
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- Telegram skripti FAQAT Telegram ichida yuklanadi.
+     Ilgari u har ochilishda, Play'dagi ilovada ham, sahifa boshida
+     yuklanardi va tarmoq sekin bo'lsa butun ilovani kutdirib turardi.
+     app.js shu va'dani kutadi: skript kelmasa ham 4 soniyadan keyin
+     ilova baribir ochiladi. -->
+<script>
+window.__tgTayyor = new Promise(function (tayyor) {
+  var tgda = /tgWebApp/.test(location.hash) || !!window.TelegramWebviewProxy
+    || window.parent !== window
+    || (function () { try { return !!sessionStorage.getItem('__telegram__initParams'); }
+                      catch (e) { return false; } })();
+  if (!tgda || window.Telegram) return tayyor();
+  var s = document.createElement('script');
+  s.src = 'https://telegram.org/js/telegram-web-app.js';
+  s.onload = s.onerror = function () { tayyor(); };
+  document.head.appendChild(s);
+  setTimeout(tayyor, 4000);
+});
+</script>
 </head>
 <body>
 
 <!-- ============ RO'YXATDAN O'TISH ============ -->
 <section id="ekran-royxat" class="ekran yashirin">
-  <div class="bosh">
-    <div class="brend"><i data-ik="brend" data-ik-olcham="15"></i>KiOVO</div>
+  <div class="bosh royxat-bosh">
+    <div class="royxat-logo">__LOGO__</div>
     <h1>Tanishib olamiz</h1>
     <div class="izoh">3 ta savol — yarim daqiqa</div>
   </div>
@@ -42,8 +64,9 @@
        style="margin-top:20px;text-decoration:none"><i data-ik="hujjat" data-ik-olcham="18"></i>Shartnomani o‘qish</a>
     <button class="asosiy" id="t-roziman" style="margin-top:10px"><i data-ik="tasdiq" data-ik-olcham="18"></i>Roziman, boshladik</button>
     <div class="ogoh" style="margin-top:16px">
-      <i data-ik="qulf" data-ik-olcham="15"></i> Yuz suratingiz faqat sizning tahlilingiz uchun ishlatiladi —
-      botdagi <b>/ochir</b> bilan istagan vaqtda o‘chirasiz.
+      <i data-ik="qulf" data-ik-olcham="15"></i> Yuz suratingiz faqat sizning tahlilingiz uchun ishlatiladi.
+      Ma’lumotlaringizni <b>Profil → Hisobni o‘chirish</b> orqali istagan vaqtda o‘chirasiz.
+      <a href="/maxfiylik" target="_blank" rel="noopener">Maxfiylik siyosati</a>
     </div>
   </div>
 </section>
@@ -58,14 +81,9 @@
   <section id="tab-katalog" class="ekran">
     <header class="shapka">
       <div class="shapka-tepa">
-        <div class="logo">
-          <svg class="logo-belgi" viewBox="0 0 22 12" aria-hidden="true">
-            <circle cx="6.2" cy="2.6" r="1.7"/><circle cx="15.8" cy="2.6" r="1.7"/>
-            <path d="M3.6 5.6c1.7 3.4 4.3 5.1 7.4 5.1s5.7-1.7 7.4-5.1"
-                  fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>
-          </svg>
-          <span>KiOVO</span>
-        </div>
+        <!-- Logotip asl rasmdan o'lchab chizilgan (src/lib/logo.js),
+             server shu joyga qo'yadi -->
+        <div class="logo">__LOGO__</div>
         <div class="shapka-amal">
           <button id="t-xabarlar" aria-label="Buyurtmalarim">
             <i data-ik="qongiroq" data-ik-olcham="22"></i>
@@ -107,8 +125,22 @@
 
     <div class="filtr-satr" id="filtr-satr"></div>
 
-    <!-- Toifa bo'yicha bo'limlar (qidiruv yo'q paytda) -->
-    <div id="bolimlar"></div>
+    <!-- Toifa bo'yicha bo'limlar (qidiruv yo'q paytda).
+         Katalog kelguncha SKELET turadi: bo'sh oq ekran «ilova
+         ishlamayapti» degan taassurot qoldirardi. -->
+    <div id="bolimlar">
+      <div class="skelet-bolim" aria-hidden="true">
+        <div class="k-skelet skelet-sarlavha"></div>
+        <div class="qator">
+          <div class="skelet-karta"><div class="k-skelet skelet-rasm"></div>
+            <div class="k-skelet skelet-satr"></div><div class="k-skelet skelet-satr qisqa"></div></div>
+          <div class="skelet-karta"><div class="k-skelet skelet-rasm"></div>
+            <div class="k-skelet skelet-satr"></div><div class="k-skelet skelet-satr qisqa"></div></div>
+          <div class="skelet-karta"><div class="k-skelet skelet-rasm"></div>
+            <div class="k-skelet skelet-satr"></div><div class="k-skelet skelet-satr qisqa"></div></div>
+        </div>
+      </div>
+    </div>
 
     <!-- Qidiruv/filtr natijasi -->
     <div id="royxat-holat" class="yashirin">
@@ -140,7 +172,7 @@
 
       <div class="skaner-namuna">
         <img id="namuna-rasm" alt="Namuna surat">
-        <div class="namuna-yoq" id="namuna-yoq"><i data-ik="selfi" data-ik-olcham="52"></i></div>
+        <div class="namuna-yoq" id="namuna-yoq">__BELGI__</div>
         <span class="yuz-ramka"></span>
       </div>
 
@@ -154,10 +186,14 @@
              avtofokus va HDR bilan suratga oladi. Ba'zi qurilmalarda
              brauzer kamerasi (getUserMedia) past sifat beradi, shuning
              uchun bu yo'l har doim ochiq turadi. -->
-        <button class="ikkilamchi" id="t-telefon-kamera" style="margin-top:9px">
-          <i data-ik="selfi" data-ik-olcham="19"></i>Telefon kamerasi</button>
-        <button class="ikkilamchi" id="t-galereya" style="margin-top:9px">
-          Galereyadan tanlash</button>
+        <!-- Ikkinchi darajali yo'llar YONMA-YON: uchta to'liq kenglikdagi
+             tugma ekrandan chiqib, pastki menyu ostida qolib ketardi -->
+        <div class="tugma-juft">
+          <button class="ikkilamchi" id="t-telefon-kamera">
+            <i data-ik="selfi" data-ik-olcham="18"></i>Telefon kamerasi</button>
+          <button class="ikkilamchi" id="t-galereya">
+            <i data-ik="rasm" data-ik-olcham="18"></i>Galereya</button>
+        </div>
         <input id="fayl" type="file" accept="image/*" capture="user" hidden>
         <input id="fayl-galereya" type="file" accept="image/*" hidden>
       </div>
@@ -234,7 +270,7 @@
        mos mahsulot topib beradi. Input bosilganda pastki menyu yashirinadi. -->
   <section id="tab-maslahat" class="ekran yashirin">
     <div class="suhbat-bosh">
-      <div class="suhbat-avatar"><i data-ik="robot" data-ik-olcham="19"></i></div>
+      <div class="suhbat-avatar">__BELGI__</div>
       <div>
         <div class="suhbat-nom">KiOVO maslahatchi</div>
         <div class="suhbat-holat" id="maslahat-holat">Har doim shu yerda</div>
@@ -297,6 +333,10 @@
     <div id="modal-tan"></div>
   </div>
 </div>
+
+<!-- Brend tabassumi — banner va bo'sh holatlar shu nusxadan oladi -->
+<template id="t-belgi">__BELGI__</template>
+<template id="t-logo">__LOGO__</template>
 
 <script src="hududlar.js"></script>
 <script src="sifat.js"></script>

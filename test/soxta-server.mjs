@@ -16,6 +16,8 @@ export const aiHisobi = { marketplace: 0, jami: 0 };
 let xabarId = 0;
 /** Foydalanuvchi CHATIDA qolgan xabarlar — o'chirilganlari hisobga olinmaydi. */
 export const korinadigan = () => yuborilgan.filter((x) => !x.ochirilgan);
+// Eskiz (SMS) — yuborilgan SMS lar. `globalThis.SMS_XATO` bo'lsa rad etadi.
+export const smslar = [];
 
 function png(w = 400, h = 400) {
   const chunk = (t, d) => {
@@ -198,6 +200,33 @@ export function soxtaServer(port = 4444) {
       const u = new URL(req.url, 'http://x');
       const yol = u.pathname;
       const j = (o) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
+
+      // ---- Eskiz SMS ----
+      // Haqiqiy Eskiz multipart forma qabul qiladi; biz maydonlarni
+      // matndan ajratib olamiz (fayl yo'q, faqat oddiy qiymatlar).
+      if (yol.startsWith('/eskiz/')) {
+        const xom = await tana(req) || '';
+        const maydon = (nom) => (new RegExp(`name="${nom}"\\r\\n\\r\\n([^\\r]*)`).exec(xom) || [])[1] || '';
+        if (yol === '/eskiz/auth/login') {
+          if (maydon('password') !== 'eskiz-parol') {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ message: 'Invalid credentials' }));
+          }
+          return j({ message: 'token_generated', data: { token: 'eskiz-token' } });
+        }
+        if (yol === '/eskiz/message/sms/send') {
+          if (req.headers.authorization !== 'Bearer eskiz-token') {
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ message: 'Unauthorized' }));
+          }
+          if (globalThis.SMS_XATO) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ message: 'Template not approved' }));
+          }
+          smslar.push({ tel: maydon('mobile_phone'), matn: maydon('message'), from: maydon('from') });
+          return j({ id: String(smslar.length), message: 'Waiting for SMS provider', status: 'waiting' });
+        }
+      }
 
       // ---- Telegram ----
       if (yol.endsWith('/getFile'))  return j({ ok: true, result: { file_path: 'photos/x.jpg', file_size: 128000 } });

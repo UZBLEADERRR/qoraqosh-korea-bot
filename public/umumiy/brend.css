@@ -1,0 +1,129 @@
+/* KiOVO BREND TIZIMI — barcha sahifalar uchun umumiy asos.
+ *
+ * Ilgari har sahifaning o'z ranglari bor edi: ilovada yorqin qizil,
+ * saytda bordo, skanerda qora va marjon, admin panelda jigarrang.
+ * Odam saytdan ilovaga o'tganda «boshqa kompaniya» deb o'ylardi.
+ * Endi ranglar, shrift va harakat SHU fayldan keladi. Sahifaning o'z
+ * uslubi faqat joylashuvni belgilaydi.
+ *
+ * Ranglar logotipdan olingan: qizil #AB0A0C, och yashil #BDDB7D
+ * (src/lib/logo.js). Kontrast WCAG bo'yicha tekshirilgan:
+ *   oq       / qizil      — 7.6:1  (har qanday matn)
+ *   lime     / qizil      — 4.9:1  (oddiy matn ham o'tadi)
+ *   lime     / qizil-qora — 11.3:1
+ *   lime-tim / oq         — 5.9:1  (yashil matn oq fonda)
+ * Och yashilni OQ fonga matn qilib qo'yib BO'LMAYDI (1.5:1) — u yerda
+ * faqat fon yoki belgi sifatida ishlatiladi. */
+
+/* ── Shrift: o'z serverimizdan ──
+ * Google Fonts'dan yuklanganda internet sekin bo'lsa yoki ilova
+ * oflayn ochilsa matn oddiy tizim shriftiga tushib qolardi. Bitta
+ * o'zgaruvchan fayl 400–800 qalinlikning hammasini beradi. */
+@font-face {
+  font-family: 'Manrope'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url('/umumiy/shrift/manrope-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Manrope'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url('/umumiy/shrift/manrope-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Manrope'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url('/umumiy/shrift/manrope-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+:root {
+  /* ── Brend ── */
+  --k-qizil:       #AB0A0C;   /* logotip foni, asosiy tugma */
+  --k-qizil-tim:   #860709;   /* tugma bosilganda */
+  --k-qizil-qora:  #3B0304;   /* eng to'q fon (sayt, splash) */
+  --k-qizil-och:   #FBE9E9;   /* och fon, xato qutisi */
+  --k-lime:        #BDDB7D;   /* logotip, urg'u, «yangi» belgisi */
+  --k-lime-yorqin: #D4EBA3;
+  --k-lime-och:    #F0F7DF;   /* och fon */
+  --k-lime-tim:    #4F6E1F;   /* OQ fondagi yashil MATN */
+  --k-krem:        #FBF8F3;
+
+  /* ── Tipografiya ──
+   * Eng kichik matn 12px. Ilgari 10–11.5px yozuvlar ko'p edi va
+   * telefonda ko'zni qisib o'qishga to'g'ri kelardi. */
+  --k-shrift: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --k-matn-xs: 12px;
+  --k-matn-s:  13.5px;
+  --k-matn-m:  15px;
+  --k-matn-l:  17px;
+  --k-matn-xl: 22px;
+  --k-matn-2xl: 28px;
+
+  /* ── Shakl ── */
+  --k-r-s: 10px;
+  --k-r-m: 14px;
+  --k-r-l: 20px;
+  --k-r-to: 999px;
+  /* Barmoq bilan bosiladigan eng kichik joy — Google Play tekshiruvi
+   * 48dp dan kichigini xato deb belgilaydi */
+  --k-bosish: 44px;
+
+  /* ── Harakat ──
+   * Uchta tezlik, ikkita egri chiziq. Har bir animatsiya shulardan
+   * foydalanadi — ilova bir xil «nafas oladi». */
+  --k-tez:   140ms;
+  --k-orta:  240ms;
+  --k-sekin: 420ms;
+  --k-egri:  cubic-bezier(.2, .8, .2, 1);      /* yumshoq to'xtash */
+  --k-sakra: cubic-bezier(.34, 1.56, .64, 1);  /* biroz sakrab to'xtash */
+}
+
+/* ── Umumiy animatsiyalar ── */
+@keyframes k-paydo   { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes k-sochil  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes k-kattalash { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes k-pastdan { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes k-yaltira { from { background-position: -200% 0; } to { background-position: 200% 0; } }
+@keyframes k-urish   { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.18); } }
+@keyframes k-nafas   { 0%, 100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+@keyframes k-aylan   { to { transform: rotate(360deg); } }
+/* Logotipdagi tabassum chizilib chiqadi */
+@keyframes k-tabassum { from { stroke-dashoffset: var(--k-uzunlik, 700); } to { stroke-dashoffset: 0; } }
+@keyframes k-kipriq  { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.15); } }
+
+/* Yuklanayotgan joy — kulrang quti o'rniga yaltiroq to'lqin */
+.k-skelet {
+  background: linear-gradient(90deg,
+    color-mix(in srgb, currentColor 7%, transparent) 25%,
+    color-mix(in srgb, currentColor 14%, transparent) 50%,
+    color-mix(in srgb, currentColor 7%, transparent) 75%);
+  background-size: 200% 100%;
+  animation: k-yaltira 1.4s linear infinite;
+  border-radius: var(--k-r-s);
+  color: inherit;
+}
+
+/* Ko'rinishga kirganda paydo bo'ladigan bloklar (JS `.k-ko` qo'shadi) */
+.k-kir { opacity: 0; transform: translateY(14px);
+  transition: opacity var(--k-sekin) var(--k-egri), transform var(--k-sekin) var(--k-egri); }
+.k-kir.k-ko { opacity: 1; transform: none; }
+
+/* Klaviatura bilan yurganda fokus aniq ko'rinsin */
+:focus-visible { outline: 2.5px solid var(--k-lime-tim); outline-offset: 2px; }
+
+/* HARAKATNI KAMAYTIRISH. Telefonda «animatsiyalarni o'chirish»
+ * yoqilgan bo'lsa (bosh aylanishi, epilepsiya, shunchaki xohish)
+ * hamma harakat deyarli bir zumda tugaydi. Bu Google'ning ham,
+ * Apple'ning ham qulaylik talabi. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .k-kir { opacity: 1; transform: none; }
+}

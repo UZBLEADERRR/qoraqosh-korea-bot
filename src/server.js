@@ -13,7 +13,8 @@ import { fileURLToPath } from 'node:url';
 import crypto from 'node:crypto';
 
 import { config } from './config.js';
-import { statik, ok, xato, tana, sorovniEsla } from './lib/http.js';
+import { statik, ok, xato, tana, sorovniEsla, formaTana, cookieOl } from './lib/http.js';
+import { googleBilanKir } from './services/ilova-kirish.js';
 import { apiRoutes } from './api/routes.js';
 import { ochiqRoutes } from './api/ochiq.js';
 import { adminRoutes } from './api/admin.js';
@@ -34,6 +35,7 @@ import { qator, sorov, sozlama, ulanishniTekshir } from './db.js';
 import { brendNomi } from './lib/brend.js';
 import { verifyAdminToken } from './lib/auth.js';
 import { versiyaOl, versiyalaHtml, versiyalanganmi } from './lib/versiya.js';
+import { logoSvg } from './lib/logo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -41,21 +43,29 @@ const PUBLIC = path.join(__dirname, '..', 'public');
 // Mini App va admin panel sahifalari. HTML har safar yangi (no-cache),
 // ichidagi css/js esa versiyalangan manzil bilan keladi — shuning uchun
 // ularni uzoq keshlash xavfsiz va yangilanish DARROV yetib boradi.
+// UMUMIY brend fayli har sahifaning versiyasiga kiradi: u o'zgarsa
+// hamma sahifaning versiyasi ham o'zgaradi. Aks holda `brend.css?v=…`
+// eski versiya raqami bilan bir yil keshda qolib ketardi.
+const UMUMIY = ['../umumiy/brend.css'];
 const SAHIFA_FAYL = {
   app:   { yol: 'app/index.html',   papka: 'app',
            fayllar: ['index.html', 'app.js', 'style.css', 'ikon.js', 'hududlar.js',
-                     'sifat.js', 'yuz.js'] },
+                     'sifat.js', 'yuz.js', ...UMUMIY] },
   admin: { yol: 'admin/index.html', papka: 'admin',
-           fayllar: ['index.html', 'admin.js', 'style.css'] },
+           fayllar: ['index.html', 'admin.js', 'style.css', ...UMUMIY] },
   skan:  { yol: 'skan/index.html',  papka: 'skan',
-           fayllar: ['index.html', 'app.js', 'style.css'] },
+           fayllar: ['index.html', 'app.js', 'style.css', ...UMUMIY] },
   // kiovo.shop bosh sahifasi
   uy:    { yol: 'uy/index.html',    papka: 'uy',
-           fayllar: ['index.html', 'app.js', 'style.css'] },
+           fayllar: ['index.html', 'app.js', 'style.css', ...UMUMIY] },
   // Buyurtmalar ish stoli — kompyuterdan ham, telefondan ham
   buyurtma: { yol: 'buyurtma/index.html', papka: 'buyurtma',
-              fayllar: ['index.html', 'app.js', 'style.css'] },
+              fayllar: ['index.html', 'app.js', 'style.css', ...UMUMIY] },
 };
+
+const LOGO_INLINE = logoSvg({ rang: 'currentColor' }).replace('<svg ', '<svg class="logo-svg" ');
+const BELGI_INLINE = logoSvg({ tur: 'belgi', rang: 'currentColor' })
+  .replace('<svg ', '<svg class="belgi-svg" ');
 
 function sahifa(res, nom) {
   const s = SAHIFA_FAYL[nom];
@@ -66,8 +76,13 @@ function sahifa(res, nom) {
   // MUTLAQ bo'lishi kerak: nisbiy manzilni Telegram ham, qidiruv
   // tizimi ham ochib ko'rsatolmaydi. Manzil sozlamadan keladi,
   // shuning uchun sinov va ishlab chiqarishda o'zi to'g'ri bo'ladi.
+  // `__LOGO__` / `__BELGI__` — logotip sahifaga INLINE qo'yiladi:
+  // rangi CSS dan (currentColor) keladi va alohida so'rov ketmaydi.
+  // Manba bitta — src/lib/logo.js.
   const html = versiyalaHtml(fs.readFileSync(fayl, 'utf8'), v)
-    .replaceAll('__ASOS__', (config.publicUrl || '').replace(/\/+$/, ''));
+    .replaceAll('__ASOS__', (config.publicUrl || '').replace(/\/+$/, ''))
+    .replaceAll('__LOGO__', LOGO_INLINE)
+    .replaceAll('__BELGI__', BELGI_INLINE);
   res.writeHead(200, {
     'Content-Type': 'text/html; charset=utf-8',
     'Cache-Control': 'no-cache',
@@ -158,6 +173,27 @@ const server = http.createServer(async (req, res) => {
     }
     if (yol.startsWith('/api/admin/')) return await adminRoutes(req, res, yol);
     if (yol.startsWith('/api/'))       return await apiRoutes(req, res, yol);
+
+    // ---------- Google bilan kirish (qayta yo'naltirish rejimi) ----------
+    // Google tugmasi `ux_mode: redirect` da: Google bu manzilga forma
+    // yuboradi. Popup o'rniga shu yo'l tanlangan, chunki Play'dagi
+    // ilovada (TWA) va bosh ekrandagi yorliqda popup oyna ochilmaydi.
+    // CSRF: Google `g_csrf_token` ni ham cookie, ham forma ichida beradi —
+    // ikkalasi bir xil bo'lishi kerak.
+    if (yol === '/kirish/google' && req.method === 'POST') {
+      const f = await formaTana(req);
+      const cookieToken = cookieOl(req, 'g_csrf_token');
+      const sahifaQayt = (matn) => {
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(matn);
+      };
+      if (!cookieToken || cookieToken !== f.g_csrf_token) {
+        return sahifaQayt(googleJavobSahifasi(null, 'Xavfsizlik tekshiruvidan o‘tmadi. Qayta urining.'));
+      }
+      const r = await googleBilanKir(f.credential, {
+        qurilma: String(req.headers['user-agent'] || '').slice(0, 120) });
+      return sahifaQayt(googleJavobSahifasi(r.token || null, r.xato || ''));
+    }
 
     // ---------- Ommaviy oferta ----------
     if (yol === '/oferta') {
@@ -360,6 +396,23 @@ const rasmniBer = (res, bayt, mime) => {
   });
   res.end(bayt);
 };
+
+/** Google'dan qaytgan sahifa: seansni qurilmaga yozadi va ilovaga qaytaradi. */
+function googleJavobSahifasi(token, xatoMatn) {
+  const j = JSON.stringify;
+  return `<!doctype html><html lang="uz"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>KiOVO</title>
+<meta name="theme-color" content="#ab0a0c"></head>
+<body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#ab0a0c;
+  color:#fff;font:600 16px system-ui,sans-serif;text-align:center;padding:24px">
+<p id="m">${token ? 'Kirilmoqda…' : esc(xatoMatn)}</p>
+<script>
+try { ${token ? `localStorage.setItem('kiovo_seans', ${j(token)});` : ''} } catch (e) {}
+${token ? "location.replace('/app/');"
+        : "setTimeout(function () { location.replace('/app/?kirish_xato=1'); }, 2500);"}
+</script></body></html>`;
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const notFound = (res) => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('404 — topilmadi'); };
 const redirect = (res, joy) => { res.writeHead(302, { Location: joy }); res.end(); };

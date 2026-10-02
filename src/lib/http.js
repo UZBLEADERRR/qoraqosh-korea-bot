@@ -77,6 +77,31 @@ export function tana(req, maxBayt = 15 * 1024 * 1024) {
   });
 }
 
+/** HTML forma tanasi (application/x-www-form-urlencoded) — Google shunday yuboradi. */
+export function formaTana(req, maxBayt = 64 * 1024) {
+  return new Promise((resolve, reject) => {
+    let hajm = 0;
+    const bolaklar = [];
+    req.on('data', (c) => {
+      hajm += c.length;
+      if (hajm > maxBayt) { reject(new Error('TANA_KATTA')); req.destroy(); return; }
+      bolaklar.push(c);
+    });
+    req.on('end', () => resolve(Object.fromEntries(
+      new URLSearchParams(Buffer.concat(bolaklar).toString('utf8')))));
+    req.on('error', reject);
+  });
+}
+
+/** Cookie sarlavhasidan bitta qiymat. */
+export function cookieOl(req, nom) {
+  for (const q of String(req.headers.cookie || '').split(';')) {
+    const i = q.indexOf('=');
+    if (i > 0 && q.slice(0, i).trim() === nom) return decodeURIComponent(q.slice(i + 1).trim());
+  }
+  return '';
+}
+
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',

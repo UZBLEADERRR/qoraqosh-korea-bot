@@ -45,7 +45,17 @@ async function soro(url, sozlama, usul) {
  *   kanal posti). Telegram cheklovi paytida bunday yuborish
  *   TO'XTATILADI: urinishning o'zi cheklovni uzaytiradi.
  */
+/* Telegrami YO'Q foydalanuvchi: Google yoki SMS bilan kirgan, yoki
+ * ochiq skanerdagi mehmon. Ularning `telegram_id` si sun'iy
+ * (`google:…`, `tel:…`, `mehmon:…`). Bunday manzilga yuborish Telegram
+ * xatosi bilan tugar va jurnalni to'ldirardi — urinmaymiz. */
+const TELEGRAMSIZ = /^(google|tel|mehmon):/;
+export const telegramiBormi = (chatId) =>
+  chatId !== undefined && chatId !== null && !TELEGRAMSIZ.test(String(chatId));
+const telegramsiz = (body) => body?.chat_id !== undefined && !telegramiBormi(body.chat_id);
+
 export async function tg(method, body = {}, opts = {}) {
+  if (telegramsiz(body)) return { ok: false, description: 'TELEGRAMSIZ' };
   if (opts.ommaviy && floodKutilmoqda()) {
     return { ok: false, description: 'PEER_FLOOD_KUTISH' };
   }
@@ -87,6 +97,7 @@ export async function tg(method, body = {}, opts = {}) {
  * kerak bo'lardi.
  */
 export async function tgFayl(method, maydonlar = {}, fayllar = {}) {
+  if (telegramsiz(maydonlar)) return { ok: false, description: 'TELEGRAMSIZ' };
   const fd = new FormData();
   for (const [k, v] of Object.entries(maydonlar)) {
     if (v === undefined || v === null) continue;

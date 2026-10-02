@@ -1,15 +1,25 @@
-/* KiOVO Mini App — premium ko'rinish.
-   Issiq fil suyagi foni, editorial serif sarlavha, chizma ikonlar,
-   soya emas — ingichka chiziq. Ranglar mavzudan (admin panel) keladi:
-   --urgu ni JS qo'yadi, qolgani shu yerda. */
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Manrope:wght@400;500;600;700;800&display=swap');
+/* KiOVO Mini App.
+   Brend: logotipdagi qizil (#AB0A0C) va och yashil (#BDDB7D), iliq
+   krem fon. Asosiy tokenlar, shrift va harakat `/umumiy/brend.css`
+   dan keladi — sayt, skaner va admin panel bilan BIR XIL. Bu yerda
+   faqat ilovaning o'z o'zgaruvchilari. --urgu ni admin tanlagan
+   mavzudan JS qo'yishi mumkin.
+
+   Ikkinchi darajali matn (--och) ham kamida 4.5:1 kontrastda —
+   ilgari #9a9aa3 oq fonda 2.7:1 edi va mayda yozuv o'qilmasdi. */
 
 :root{
-  --fon:#f6f6f7; --panel:#fff; --matn:#16161a; --kul:#63636b; --och:#9a9aa3;
-  --chiziq:#ececef; --chiziq-och:#f4f4f6;
-  --urgu:#e0242b; --urgu-och:#fdecec; --urgu-tim:#b3161c;
-  --yashil:#2e7d55; --yashil-och:#e7f5ee; --qizil:#e0242b; --qizil-och:#fdecec;
-  --sariq:#b07d16; --sariq-och:#fdf4e3;
+  --fon:#fbf8f3; --panel:#fff; --matn:#1d1514; --kul:#5e5451; --och:#766b67;
+  --chiziq:#ece5dc; --chiziq-och:#f5f0e9;
+  --urgu:#ab0a0c; --urgu-och:#fbe9e9; --urgu-tim:#860709;
+  /* Sarlavha (shapka) foni — brend qizili. Admin mavzusidagi «asosiy» rang */
+  --asosiy:#ab0a0c; --asosiy-matn:#fff;
+  --qidiruv-fon:#fff; --qidiruv-matn:#1d1514; --qidiruv-och:#766b67;
+  /* Och yashil — logotip rangi. OQ fonda MATN bo'la olmaydi (1.5:1),
+     shuning uchun matn uchun --lime-tim, fon uchun --lime-och */
+  --lime:#bddb7d; --lime-och:#f0f7df; --lime-tim:#4f6e1f;
+  --yashil:#4f6e1f; --yashil-och:#eef6dc; --qizil:#c0161b; --qizil-och:#fbe9e9;
+  --sariq:#8a5f08; --sariq-och:#fbf2dd;
   --kok:#2563c9; --kok-och:#e8f0fd;
   /* Baho shkalasi — qizildan yashilgacha BESHTA boshqa-boshqa rang.
      Ilgari `alo` bilan `yaxshi` ikkalasi --yashil, `past` bilan
@@ -17,33 +27,44 @@
      bo'lib chiqar va shkala hech narsa ko'rsatmasdi. */
   --baho-zaif:#d81f26; --baho-past:#e8720f; --baho-orta:#b07d16;
   --baho-yaxshi:#6f9c1f; --baho-alo:#2e7d55;
-  --r:16px; --r-katta:18px; --r-kichik:11px;
-  --sh:0 1px 2px rgba(22,18,14,.03);
+  --r:16px; --r-katta:20px; --r-kichik:11px;
+  --sh:0 1px 2px rgba(59,3,4,.04), 0 4px 14px -6px rgba(59,3,4,.08);
+  --sh-katta:0 12px 32px -12px rgba(59,3,4,.28);
   --past:76px;
-  --serif:"Instrument Serif","Times New Roman",Georgia,serif;
-  --sans:Manrope,-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  /* Bitta shrift — logotip ham geometrik sans. Ilgari natija balli
+     «Instrument Serif» da yozilardi va brenddan ajralib turardi. */
+  --sans:var(--k-shrift);
+  --serif:var(--k-shrift);
 }
+/* Tungi rejim: sof qora emas — qizilga moyil to'q fon. Brend tungida
+   ham tanilsin. Och yashil qora fonda 11:1 — eng yorqin urg'u. */
 @media (prefers-color-scheme:dark){:root:not([data-mavzu="kunduzgi"]){
-  --fon:#0f0f11; --panel:#1a1a1d; --matn:#f2f2f4; --kul:#a0a0a8; --och:#77777f;
-  --chiziq:#28282c; --chiziq-och:#202024;
-  --urgu:#ef5057; --urgu-och:#2a1618; --urgu-tim:#f5878c;
-  --yashil:#5cbb8b; --yashil-och:#132420; --qizil:#ef5057; --qizil-och:#2a1618;
-  --sariq:#d9ab4a; --sariq-och:#251f12;
+  --fon:#120b0b; --panel:#1c1414; --matn:#f6efed; --kul:#b6aaa7; --och:#8f8380;
+  --chiziq:#2f2423; --chiziq-och:#251b1b;
+  --urgu:#f0575a; --urgu-och:#2c1516; --urgu-tim:#f58a8c;
+  --asosiy:#5a0607; --asosiy-matn:#fff;
+  --qidiruv-fon:#2a1c1c; --qidiruv-matn:#f6efed; --qidiruv-och:#a89b98;
+  --lime:#bddb7d; --lime-och:#1f2614; --lime-tim:#bddb7d;
+  --yashil:#bddb7d; --yashil-och:#1d2414; --qizil:#f0575a; --qizil-och:#2c1516;
+  --sariq:#e0b45a; --sariq-och:#2a2112;
   --kok:#6b9df0; --kok-och:#141d2b;
   --baho-zaif:#ef5057; --baho-past:#ff8a3d; --baho-orta:#d9ab4a;
   --baho-yaxshi:#a8d84b; --baho-alo:#5cbb8b;
-  --sh:0 1px 2px rgba(0,0,0,.25);
+  --sh:0 1px 2px rgba(0,0,0,.3); --sh-katta:0 12px 32px -12px rgba(0,0,0,.6);
 }}
 :root[data-mavzu="tungi"]{
-  --fon:#0f0f11; --panel:#1a1a1d; --matn:#f2f2f4; --kul:#a0a0a8; --och:#77777f;
-  --chiziq:#28282c; --chiziq-och:#202024;
-  --urgu:#ef5057; --urgu-och:#2a1618; --urgu-tim:#f5878c;
-  --yashil:#5cbb8b; --yashil-och:#132420; --qizil:#ef5057; --qizil-och:#2a1618;
-  --sariq:#d9ab4a; --sariq-och:#251f12;
+  --fon:#120b0b; --panel:#1c1414; --matn:#f6efed; --kul:#b6aaa7; --och:#8f8380;
+  --chiziq:#2f2423; --chiziq-och:#251b1b;
+  --urgu:#f0575a; --urgu-och:#2c1516; --urgu-tim:#f58a8c;
+  --asosiy:#5a0607; --asosiy-matn:#fff;
+  --qidiruv-fon:#2a1c1c; --qidiruv-matn:#f6efed; --qidiruv-och:#a89b98;
+  --lime:#bddb7d; --lime-och:#1f2614; --lime-tim:#bddb7d;
+  --yashil:#bddb7d; --yashil-och:#1d2414; --qizil:#f0575a; --qizil-och:#2c1516;
+  --sariq:#e0b45a; --sariq-och:#2a2112;
   --kok:#6b9df0; --kok-och:#141d2b;
   --baho-zaif:#ef5057; --baho-past:#ff8a3d; --baho-orta:#d9ab4a;
   --baho-yaxshi:#a8d84b; --baho-alo:#5cbb8b;
-  --sh:0 1px 2px rgba(0,0,0,.25);
+  --sh:0 1px 2px rgba(0,0,0,.3); --sh-katta:0 12px 32px -12px rgba(0,0,0,.6);
 }
 
 
@@ -73,7 +94,7 @@ a{color:var(--urgu)}
 .ekran{max-width:640px;margin:0 auto}
 .ichki{padding:0 16px}                 /* faqat matn uchun chekka bo'shliq */
 .bosh{padding:20px 16px 12px}
-.bosh .brend{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--och);
+.bosh .brend{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--och);
   font-weight:700;letter-spacing:.22em;text-transform:uppercase}
 .bosh .brend i[data-ik]{color:var(--urgu)}
 .bosh h1{margin-top:8px}
@@ -134,11 +155,11 @@ a{color:var(--urgu)}
   background:linear-gradient(160deg,var(--chiziq-och),var(--chiziq));color:var(--och)}
 .rasm img{width:100%;height:100%;object-fit:cover;display:block}
 .rasm .nishonlar{position:absolute;top:8px;left:8px;display:flex;gap:5px;flex-wrap:wrap}
-.nishon-kichik{background:rgba(0,0,0,.62);color:#fff;font-size:11px;font-weight:700;
+.nishon-kichik{background:rgba(0,0,0,.62);color:#fff;font-size:12px;font-weight:700;
   padding:3px 8px;border-radius:99px;backdrop-filter:blur(4px)}
 .nishon-kichik.yoq{background:var(--qizil)}
 .mtan{padding:11px 12px 14px;display:flex;flex-direction:column;gap:3px;flex:1}
-.mbrend{font-size:10.5px;text-transform:uppercase;letter-spacing:.11em;color:var(--och);font-weight:700}
+.mbrend{font-size:12px;text-transform:uppercase;letter-spacing:.11em;color:var(--och);font-weight:700}
 .mnom{font-size:13.5px;font-weight:500;line-height:1.35;flex:1;margin:4px 0 9px}
 .mnarx{font-weight:700;font-size:15px}
 .mnarx s{color:var(--och);font-weight:400;font-size:13px;margin-left:5px}
@@ -264,37 +285,55 @@ textarea{resize:vertical;min-height:86px}
 .nega b{color:var(--urgu)}
 .qollash{margin-top:9px;font-size:14.5px;color:var(--kul)}
 
-/* ---------- Pastki menyu ---------- */
+/* ---------- Pastki menyu ----------
+   Faol bo'lim ikonkasi orqasida OCH YASHIL «kapsula» — Android'ning
+   o'z ilovalaridagi kabi, qayerdaligingiz bir qarashda ko'rinadi. */
 .menyu{position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;background:var(--panel);
   border-top:1px solid var(--chiziq);padding-bottom:env(safe-area-inset-bottom);
-  max-width:640px;margin:0 auto}
-.menyu button{flex:1;background:none;border:0;padding:10px 4px 9px;border-radius:0;
-  color:var(--och);font-size:11.5px;font-weight:650;display:grid;gap:3px;justify-items:center;
+  max-width:640px;margin:0 auto;box-shadow:0 -6px 24px -18px rgba(59,3,4,.4)}
+.menyu button{flex:1;background:none;border:0;padding:8px 2px 9px;border-radius:0;
+  color:var(--och);font-size:12px;font-weight:650;display:grid;gap:4px;justify-items:center;
   position:relative;min-height:var(--past)}
-.menyu button .ikon{display:grid;place-items:center;height:22px;line-height:0}
-/* Faol bo'limning ustida ingichka chiziq — qaysi bo'limdaligi darrov ko'rinadi */
-.menyu button.tanlangan::before{content:"";position:absolute;top:0;left:50%;
-  transform:translateX(-50%);width:26px;height:2px;background:var(--urgu);
-  border-radius:0 0 2px 2px}
-.menyu button.tanlangan{color:var(--urgu)}
-.menyu .nishon{position:absolute;top:5px;left:50%;margin-left:4px;background:var(--qizil);
-  color:#fff;font-size:11px;font-weight:700;min-width:19px;height:19px;border-radius:99px;
-  display:grid;place-items:center;padding:0 5px;font-style:normal}
+.menyu button .ikon{display:grid;place-items:center;width:58px;height:32px;line-height:0;
+  border-radius:99px;transition:background var(--k-orta) var(--k-egri),transform var(--k-tez)}
+.menyu button.tanlangan{color:var(--urgu);font-weight:800}
+.menyu button.tanlangan .ikon{background:var(--lime);color:#3b0304;
+  animation:k-kattalash var(--k-orta) var(--k-sakra)}
+.menyu button:active .ikon{transform:scale(.9)}
+.menyu .nishon{position:absolute;top:4px;left:50%;margin-left:6px;background:var(--urgu);
+  color:#fff;font-size:12px;font-weight:800;min-width:20px;height:20px;border-radius:99px;
+  display:grid;place-items:center;padding:0 5px;font-style:normal;
+  border:2px solid var(--panel)}
 
-/* ---------- Modal ---------- */
+/* ---------- Modal ----------
+   Oyna pastdan SIRG'ALIB chiqadi, parda sekin qorayadi — keskin
+   paydo bo'lish ko'zni charchatardi. */
 .modal{position:fixed;inset:0;z-index:60;display:grid;align-items:end}
-.modal .parda{position:absolute;inset:0;background:rgba(0,0,0,.5)}
-.modal .oyna{position:relative;background:var(--panel);border-radius:22px 22px 0 0;
+.modal .parda{position:absolute;inset:0;background:rgba(20,6,6,.52);
+  backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.modal:not(.yashirin) .parda{animation:k-sochil var(--k-orta) ease both}
+.modal .oyna{position:relative;background:var(--panel);border-radius:26px 26px 0 0;
   max-height:92vh;overflow-y:auto;max-width:640px;margin:0 auto;width:100%;
-  padding-bottom:calc(24px + env(safe-area-inset-bottom))}
-.modal .dasta{width:42px;height:5px;background:var(--chiziq);border-radius:99px;margin:9px auto 0}
+  padding-bottom:calc(24px + env(safe-area-inset-bottom));overscroll-behavior:contain}
+.modal:not(.yashirin) .oyna{animation:k-pastdan var(--k-sekin) var(--k-egri) both}
+.modal .dasta{position:absolute;left:50%;top:8px;z-index:6;transform:translateX(-50%);
+  width:42px;height:5px;background:rgba(255,255,255,.75);border-radius:99px;
+  box-shadow:0 0 0 1px rgba(0,0,0,.06)}
 /* Yopish tugmasi oynaning ustida suzib turadi — rasm ustida ham ko'rinsin */
 .modal .oyna-yop{position:absolute;top:14px;right:14px;z-index:5;
-  width:38px;height:38px;border:0;border-radius:50%;cursor:pointer;
-  background:rgba(0,0,0,.45);color:#fff;font-size:17px;line-height:1;
+  width:44px;height:44px;border:0;border-radius:50%;cursor:pointer;
+  background:rgba(20,6,6,.5);color:#fff;font-size:17px;line-height:1;
   display:grid;place-items:center;backdrop-filter:blur(6px);
   -webkit-backdrop-filter:blur(6px)}
-.modal .oyna-yop:active{background:rgba(0,0,0,.62)}
+.modal .oyna-yop:active{background:rgba(20,6,6,.7)}
+/* Mahsulot rasmi — katta kvadrat, butunligicha (kesilmaydi) */
+.oyna-rasm{position:relative;width:100%;aspect-ratio:1;max-height:48vh;
+  display:grid;place-items:center;background:var(--chiziq-och);color:var(--och);
+  border-radius:26px 26px 0 0;overflow:hidden}
+.oyna-rasm img{width:100%;height:100%;object-fit:contain;display:block;
+  animation:k-sochil var(--k-sekin) ease both}
+.oyna-rasm.bosh{aspect-ratio:4/3;color:color-mix(in srgb,var(--urgu) 45%,transparent)}
+.oyna-rasm .yurak{top:14px;left:14px;right:auto}
 
 /* ---------- Skaner ---------- */
 .tushirish{border:2.5px dashed var(--chiziq);border-radius:var(--r);padding:36px 20px;
@@ -514,7 +553,7 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
 
 .plitkalar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:16px}
 .plitka{border-radius:14px;padding:11px 13px;display:flex;flex-direction:column;gap:3px}
-.plitka-bosh{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;
+.plitka-bosh{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;
   letter-spacing:.08em;text-transform:uppercase;opacity:.75}
 .plitka-qiymat{font-size:14.5px;font-weight:700;line-height:1.3}
 .plitka.urgu{background:var(--urgu-och);color:var(--urgu)}
@@ -570,7 +609,7 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
 /* Ogohlantiruvchi javob (tibbiy savol) — boshqa rangda, e'tibor tortsin */
 .xabar.ai .pufak.tibbiy{background:var(--sariq-och);border-color:transparent}
 .xabar.ai .pufak.tibbiy::before{content:"";display:block}
-.pufak-belgi{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:750;
+.pufak-belgi{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:750;
   letter-spacing:.16em;text-transform:uppercase;color:var(--sariq);margin-bottom:6px}
 
 /* --- «Yozmoqda» nuqtalari --- */
@@ -583,7 +622,7 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
 
 /* --- Tavsiya qilingan mahsulot kartasi --- */
 .tavsiyalar{display:flex;flex-direction:column;gap:9px}
-.tavsiya-bosh{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:750;
+.tavsiya-bosh{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:750;
   letter-spacing:.16em;text-transform:uppercase;color:var(--och);padding-left:2px}
 .tavsiya-bosh i[data-ik]{color:var(--urgu)}
 .t-karta{display:flex;gap:12px;padding:11px;background:var(--panel);
@@ -595,7 +634,7 @@ button:active,.tanlov-tugma:active,.tanlov-qator:active{transform:scale(.97)}
   border:0;aspect-ratio:auto}
 .t-karta .rasm img{width:100%;height:100%;object-fit:cover;display:block}
 .t-ich{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-.t-brend{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+.t-brend{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
   color:var(--och)}
 .t-nom{font-weight:650;font-size:14.5px;line-height:1.3;letter-spacing:-.01em}
 .t-sabab{font-size:13.5px;line-height:1.45;color:var(--kul);background:var(--urgu-och);
@@ -691,95 +730,97 @@ body.tez .menyu,body.tez .yozish{transition:none!important}
    BOSH SAHIFA — qizil shapka, toifa kartalari, bo'limlar
    ============================================================ */
 
-/* ---------- Shapka: OQ, logotip qizil ---------- */
-.shapka{position:sticky;top:0;z-index:35;background:var(--panel);color:var(--matn);
-  padding:calc(8px + env(safe-area-inset-top)) 16px 12px;
-  border-bottom:1px solid var(--chiziq)}
+/* ---------- Shapka: BREND QIZILI, logotip och yashil ----------
+   Logotipning o'zi qanday bo'lsa, ilova ham shunday boshlanadi:
+   qizil fonda och yashil tabassum. Pastki burchaklari yumaloq —
+   sarlavha sahifadan «chiqib» turadi. */
+.shapka{position:sticky;top:0;z-index:35;background:var(--asosiy);color:var(--asosiy-matn);
+  padding:calc(8px + env(safe-area-inset-top)) 16px 14px;
+  border-radius:0 0 24px 24px;box-shadow:var(--sh-katta)}
 .shapka-tepa{display:flex;align-items:center;justify-content:space-between;
   padding:2px 0 12px}
-.logo{display:flex;flex-direction:column;align-items:flex-start;gap:1px;line-height:1;
-  color:var(--urgu)}
-.logo-belgi{width:24px;height:13px;fill:currentColor;margin-left:8px;display:block}
-.logo span{font-size:23px;font-weight:800;letter-spacing:-.03em}
+.logo{display:flex;align-items:center;line-height:0;color:var(--lime)}
+.logo .logo-svg{height:36px;width:auto;display:block}
+/* Ochilganda tabassum chizilib chiqadi, ko'zlar vaqti-vaqti bilan
+   pirpiraydi — jonli, lekin chalg'itmaydigan darajada */
+.logo .logo-svg path[stroke]{stroke-dasharray:700;
+  animation:k-tabassum .9s var(--k-egri) .15s both}
+.logo .logo-svg circle:nth-of-type(-n+2){transform-box:fill-box;transform-origin:center;
+  animation:k-kipriq 5s ease-in-out 2.2s infinite}
 .shapka-amal{display:flex;gap:2px}
-.shapka-amal button{position:relative;background:none;border:0;color:var(--matn);
-  padding:8px;border-radius:99px;display:grid;place-items:center}
-.shapka-amal button:active{background:var(--chiziq-och)}
-.shapka-amal .nishon{position:absolute;top:2px;right:2px;background:var(--urgu);color:#fff;
-  font-size:10px;font-weight:800;min-width:16px;height:16px;border-radius:99px;
-  display:grid;place-items:center;padding:0 4px;font-style:normal;
-  border:2px solid var(--panel)}
+.shapka-amal button{position:relative;background:none;border:0;color:var(--asosiy-matn);
+  width:44px;height:44px;padding:0;border-radius:99px;display:grid;place-items:center}
+.shapka-amal button:active{background:rgba(255,255,255,.16)}
+.shapka-amal .nishon{position:absolute;top:3px;right:2px;background:var(--lime);color:#3b0304;
+  font-size:12px;font-weight:800;min-width:20px;height:20px;border-radius:99px;
+  display:grid;place-items:center;padding:0 5px;font-style:normal;
+  border:2px solid var(--asosiy);animation:k-urish .3s var(--k-sakra)}
 
 .shapka .qidiruv-satr{display:flex;gap:9px;align-items:center}
-.shapka .qidiruv{flex:1;display:flex;align-items:center;gap:9px;background:var(--fon);
-  border:1px solid var(--chiziq);border-radius:12px;padding:0 6px 0 13px;height:46px;
-  color:var(--matn)}
-.shapka .qidiruv i[data-ik]{color:var(--och)}
+.shapka .qidiruv{flex:1;display:flex;align-items:center;gap:9px;background:var(--qidiruv-fon);
+  border:0;border-radius:14px;padding:0 4px 0 14px;height:48px;color:var(--qidiruv-matn);
+  box-shadow:0 1px 0 rgba(0,0,0,.04);transition:box-shadow var(--k-orta) var(--k-egri)}
+.shapka .qidiruv:focus-within{box-shadow:0 0 0 3px var(--lime)}
+.shapka .qidiruv i[data-ik]{color:var(--qidiruv-och)}
 .shapka .qidiruv input{flex:1;width:auto;border:0;background:none;outline:none;padding:0;
-  font:15px var(--sans);color:var(--matn);min-height:0;border-radius:0}
+  font:15px var(--sans);color:var(--qidiruv-matn);min-height:0;border-radius:0}
 .shapka .qidiruv input:focus{outline:none}
-.shapka .qidiruv input::placeholder{color:var(--och)}
-.shapka .qidiruv .tozala{background:none;border:0;color:var(--och);padding:4px;
-  display:grid;place-items:center}
-.shapka .qid-skaner{background:none;border:0;color:var(--matn);padding:7px;
-  display:grid;place-items:center;border-radius:9px}
-.shapka .qid-skaner:active{background:var(--chiziq)}
-.shapka .uch-nuqta{width:46px;height:46px;flex:0 0 auto;background:var(--fon);
-  border:1px solid var(--chiziq);border-radius:12px;color:var(--matn);
+.shapka .qidiruv input::placeholder{color:var(--qidiruv-och)}
+.shapka .qidiruv .tozala{background:none;border:0;color:var(--qidiruv-och);width:40px;height:40px;
+  padding:0;display:grid;place-items:center;border-radius:99px}
+.shapka .qid-skaner{background:none;border:0;color:var(--urgu);width:40px;height:40px;padding:0;
+  display:grid;place-items:center;border-radius:11px}
+.shapka .qid-skaner:active{background:var(--urgu-och)}
+.shapka .uch-nuqta{width:48px;height:48px;flex:0 0 auto;background:rgba(255,255,255,.14);
+  border:0;border-radius:14px;color:var(--asosiy-matn);
   display:grid;place-items:center;position:relative}
-.shapka .uch-nuqta .belgi-nuqta{position:absolute;top:10px;right:11px;width:7px;height:7px;
-  border-radius:99px;background:var(--urgu)}
+.shapka .uch-nuqta.faol{background:var(--lime);color:#3b0304}
+.shapka .uch-nuqta .belgi-nuqta{position:absolute;top:10px;right:10px;width:8px;height:8px;
+  border-radius:99px;background:var(--lime);box-shadow:0 0 0 2px var(--asosiy)}
 
-/* ---------- AI banner ---------- */
+/* ---------- AI banner: OCH YASHIL karta ----------
+   Sarlavha qizil, banner esa och yashil — logotipning ikki rangi
+   yonma-yon. To'q qizil matn och yashilda 11:1 kontrastda. */
 .slayd{flex:0 0 100%;width:100%;height:100%;position:relative}
 .slayd img{width:100%;height:100%;object-fit:cover;display:block}
-.ai-slayd{padding:20px 122px 20px 18px;text-align:left;color:#fff;
+.ai-slayd{padding:18px 128px 18px 18px;text-align:left;color:#3b0304;
   display:flex;flex-direction:column;justify-content:center;
   background:
-    radial-gradient(120% 130% at 88% 18%, rgba(255,255,255,.18), transparent 58%),
-    linear-gradient(135deg, var(--urgu), var(--urgu-tim))}
-.ai-teg{display:block;flex:0 0 auto;font-size:10px;font-weight:800;letter-spacing:.16em;
-  text-transform:uppercase;opacity:.82}
-.ai-sarlavha{display:block;margin-top:7px;font-size:19px;font-weight:800;
-  line-height:1.25;letter-spacing:-.02em}
-.ai-tugma{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;margin-top:14px;
-  background:#fff;color:var(--urgu);border-radius:99px;padding:9px 15px;
-  font-size:13.5px;font-weight:750}
-.ai-robot{position:absolute;right:18px;top:50%;transform:translateY(-50%);
-  width:80px;height:80px;border-radius:22px;display:grid;place-items:center;
-  background:rgba(255,255,255,.16);color:#fff}
+    radial-gradient(90% 120% at 92% 10%, rgba(255,255,255,.55), transparent 60%),
+    linear-gradient(140deg, #d4eba3, var(--k-lime) 60%, #a9cc62)}
+.ai-teg{display:inline-flex;align-self:flex-start;align-items:center;gap:5px;
+  font-size:12px;font-weight:800;letter-spacing:.04em;color:var(--k-qizil);
+  background:rgba(255,255,255,.6);border-radius:99px;padding:5px 10px 5px 8px}
+.ai-sarlavha{display:block;margin-top:9px;font-size:20px;font-weight:800;
+  line-height:1.2;letter-spacing:-.025em}
+.ai-sarlavha em{font-style:normal;color:var(--k-qizil)}
+.ai-tugma{display:inline-flex;align-self:flex-start;align-items:center;gap:6px;margin-top:13px;
+  background:var(--k-qizil);color:#fff;border-radius:99px;padding:0 16px;min-height:44px;
+  font-size:14px;font-weight:800;box-shadow:0 8px 18px -10px rgba(171,10,12,.9)}
+.ai-belgi{position:absolute;right:14px;top:50%;width:108px;margin-top:-34px;
+  color:var(--k-qizil);line-height:0}
+.ai-belgi svg{width:100%;height:auto;display:block;overflow:visible}
+.ai-belgi path{stroke-dasharray:700;animation:k-tabassum 1.1s var(--k-egri) .3s both}
+.ai-belgi circle{transform-box:fill-box;transform-origin:center;
+  animation:k-kipriq 4.5s ease-in-out 1.8s infinite}
 
-/* ---------- Toifa doiralari ---------- */
-.toifalar{display:flex;gap:14px;overflow-x:auto;padding:18px 16px 6px;
+/* ---------- Toifa doiralari ----------
+   Barchasi BIR XIL: oq quti, qizil chizma ikon. Tanlangani to'liq
+   qizil. Ilgari har biri o'z pastel rangida edi (ko'k, binafsha,
+   sariq) va brend ranglari kamalak ichida yo'qolib ketardi. */
+.toifalar{display:flex;gap:12px;overflow-x:auto;padding:18px 16px 6px;
   scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .toifalar::-webkit-scrollbar{display:none}
-.toifalar button{flex:0 0 auto;width:60px;background:none;border:0;padding:0;
-  display:grid;justify-items:center;gap:7px;font-size:11.5px;font-weight:600;
+.toifalar button{flex:0 0 auto;width:66px;background:none;border:0;padding:0;
+  display:grid;justify-items:center;gap:7px;font-size:12.5px;font-weight:650;
   color:var(--kul);line-height:1.2;text-align:center}
-.toifalar .doira{width:52px;height:52px;border-radius:17px;display:grid;place-items:center;
-  background:var(--chiziq-och);color:var(--kul);transition:transform .12s}
-.toifalar button:active .doira{transform:scale(.94)}
-.toifalar button.tanlangan{color:var(--urgu);font-weight:750}
-/* Har toifaga o'z rangi — namunadagidek yumshoq pastel */
-.toifalar .t-tozalash{background:#e7f5ee;color:#2e7d55}
-.toifalar .t-toner   {background:#e8f0fd;color:#2563c9}
-.toifalar .t-serum   {background:#fdf4e3;color:#b07d16}
-.toifalar .t-krem    {background:#eaf4e8;color:#4a7a3c}
-.toifalar .t-quyosh  {background:#fff0e2;color:#c4701a}
-.toifalar .t-niqob   {background:#f2ecfb;color:#6b46c1}
-.toifalar .t-lab     {background:#fdecec;color:#c0272d}
-.toifalar .t-toplam  {background:#e9f2f5;color:#2b6d80}
-.toifalar .t-ichimlik{background:#eef6e4;color:#557a24}
-.toifalar .t-hammasi {background:var(--urgu-och);color:var(--urgu)}
-@media (prefers-color-scheme:dark){html:not([data-mavzu="kunduzgi"]) .toifalar .doira{background:var(--chiziq);color:var(--kul)}
-html:not([data-mavzu="kunduzgi"]) .toifalar .t-tozalash,html:not([data-mavzu="kunduzgi"]) .toifalar .t-toner,html:not([data-mavzu="kunduzgi"]) .toifalar .t-serum,html:not([data-mavzu="kunduzgi"]) .toifalar .t-krem,html:not([data-mavzu="kunduzgi"]) .toifalar .t-quyosh,html:not([data-mavzu="kunduzgi"]) .toifalar .t-niqob,html:not([data-mavzu="kunduzgi"]) .toifalar .t-lab,html:not([data-mavzu="kunduzgi"]) .toifalar .t-toplam,html:not([data-mavzu="kunduzgi"]) .toifalar .t-ichimlik{background:var(--chiziq)}
-html:not([data-mavzu="kunduzgi"]) .toifalar .t-hammasi{background:var(--urgu-och);color:var(--urgu)}
-}
-html[data-mavzu="tungi"] .toifalar .doira{background:var(--chiziq);color:var(--kul)}
-html[data-mavzu="tungi"] .toifalar .t-tozalash,html[data-mavzu="tungi"] .toifalar .t-toner,html[data-mavzu="tungi"] .toifalar .t-serum,html[data-mavzu="tungi"] .toifalar .t-krem,html[data-mavzu="tungi"] .toifalar .t-quyosh,html[data-mavzu="tungi"] .toifalar .t-niqob,html[data-mavzu="tungi"] .toifalar .t-lab,html[data-mavzu="tungi"] .toifalar .t-toplam,html[data-mavzu="tungi"] .toifalar .t-ichimlik{background:var(--chiziq)}
-html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:var(--urgu)}
-
-
+.toifalar .doira{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;
+  background:var(--panel);color:var(--urgu);border:1px solid var(--chiziq);box-shadow:var(--sh);
+  transition:transform var(--k-tez) var(--k-egri),background var(--k-orta),color var(--k-orta)}
+.toifalar button:active .doira{transform:scale(.92)}
+.toifalar button.tanlangan{color:var(--urgu);font-weight:800}
+.toifalar button.tanlangan .doira{background:var(--urgu);color:#fff;border-color:var(--urgu);
+  box-shadow:0 8px 18px -10px rgba(171,10,12,.8)}
 
 /* Ko'rinish tanlovi (kunduzgi / tungi) — profil bo'limida */
 .korinish-tanlov{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
@@ -807,21 +848,6 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 /* Vertikal to'r bo'lim ichida */
 .bolim-tor{display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:0 16px}
 
-/* ---------- Mahsulot nomi: sans-serif, bold ---------- */
-.mahsulot .mnom{font-family:var(--sans);font-weight:650;font-size:13.5px;
-  line-height:1.28;letter-spacing:-.01em}
-.mahsulot .mnarx{font-family:var(--sans);font-weight:800;letter-spacing:-.01em}
-.mahsulot .mbrend{font-size:10.5px;font-weight:750;letter-spacing:.13em;
-  text-transform:uppercase;color:var(--och)}
-
-/* ---------- Pastki menyu: qizil ---------- */
-/* Pastki menyu: oq fon, faol element qizil (namunadagidek) */
-.menyu{background:var(--panel);border-top:1px solid var(--chiziq)}
-.menyu button{color:var(--och);font-weight:600}
-.menyu button.tanlangan{color:var(--urgu);font-weight:750}
-.menyu button.tanlangan::before{display:none}
-.menyu .nishon{background:var(--urgu);color:#fff}
-
 /* ---------- Skaner: sodda ---------- */
 /* ══════════ TAHLIL NATIJASI ══════════
    Bitta uzun sahifa, bo'limlarga ajratilgan. Har bo'limning FONI
@@ -842,7 +868,7 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
   gap:10px;padding:16px 0 12px}
 .n-logo{font-size:19px;font-weight:800;letter-spacing:-.02em;color:var(--matn)}
 .n-logo i{font-style:normal;color:var(--urgu)}
-.n-logo small{display:block;font-size:11.5px;font-weight:600;color:var(--och);
+.n-logo small{display:block;font-size:12px;font-weight:600;color:var(--och);
   letter-spacing:0;margin-top:2px}
 .n-salom{flex:0 0 auto;font-size:12.5px;font-weight:700;color:var(--urgu);
   background:var(--urgu-och);border-radius:99px;padding:6px 12px;white-space:nowrap}
@@ -886,7 +912,7 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
 
 /* Qaysi qatlam yoqilgani — rasmning o'zida yozilib turadi */
 .n-qatlam-teg{position:absolute;right:8px;bottom:8px;border-radius:99px;
-  padding:5px 11px;font-size:11.5px;font-weight:800;color:#fff;
+  padding:5px 11px;font-size:12px;font-weight:800;color:#fff;
   background:rgba(8,8,10,.62);backdrop-filter:blur(6px);pointer-events:none}
 .n-qatlam-teg span{font-weight:600;color:rgba(255,255,255,.7)}
 
@@ -932,7 +958,7 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
    qoladi, sig'magani esa keyingi qatorga tushadi. */
 .n-bolim-bosh h3{flex:1 1 auto;margin:0;font-size:15px;font-weight:800;
   letter-spacing:-.02em;color:var(--matn)}
-.n-bolim-izoh{font-size:11.5px;font-weight:600;color:var(--och)}
+.n-bolim-izoh{font-size:12px;font-weight:600;color:var(--och)}
 .n-bolim-bosh button{flex:0 0 auto;margin-left:auto;background:none;border:0;padding:0;
   font-family:inherit;font-size:12.5px;font-weight:700;line-height:1;
   white-space:nowrap;color:var(--urgu);cursor:pointer}
@@ -949,7 +975,7 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
   border:2px solid var(--chiziq);background:var(--chiziq-och);
   transition:border-color .2s ease}
 .n-qatlam-rasm img{width:100%;height:100%;object-fit:cover;display:block}
-.n-qatlam b{font-size:11.5px;font-weight:700;color:var(--och);text-align:center}
+.n-qatlam b{font-size:12px;font-weight:700;color:var(--och);text-align:center}
 .n-qatlam.tanlangan .n-qatlam-rasm{border-color:var(--urgu)}
 .n-qatlam.tanlangan b{color:var(--urgu)}
 .n-qatlam:active{transform:scale(.97)}
@@ -965,10 +991,10 @@ html[data-mavzu="tungi"] .toifalar .t-hammasi{background:var(--urgu-och);color:v
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .n-olch-tepa b{flex:0 0 auto;font-size:17px;font-weight:800;letter-spacing:-.03em;
   color:var(--matn);font-variant-numeric:tabular-nums}
-.n-olch-tepa b i{font-style:normal;font-size:10.5px;font-weight:600;color:var(--och)}
+.n-olch-tepa b i{font-style:normal;font-size:12px;font-weight:600;color:var(--och)}
 /* Raqamning tagida O'ZBEKCHA baho: «72» ni hamma ham darrov
    tushunmaydi, «Yaxshi» esa tushuntirishsiz o'qiladi. */
-.n-olch>em{font-style:normal;font-size:11.5px;font-weight:700;letter-spacing:.01em}
+.n-olch>em{font-style:normal;font-size:12px;font-weight:700;letter-spacing:.01em}
 .n-olch>em.zaif{color:var(--baho-zaif)} .n-olch>em.past{color:var(--baho-past)}
 .n-olch>em.orta{color:var(--baho-orta)} .n-olch>em.yaxshi{color:var(--baho-yaxshi)}
 .n-olch>em.alo{color:var(--baho-alo)}
@@ -1010,7 +1036,7 @@ details.n-muammo[open] .n-muammo-nom{color:var(--urgu)}
    savolga javob. Rasm o'zgarmaydi, faqat fon joyi suriladi. */
 .n-kesim{display:block;width:64px;height:64px;border-radius:12px;background-size:420%;
   background-repeat:no-repeat;border:1px solid var(--chiziq)}
-.n-satr span{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;
+.n-satr span{display:block;font-size:12px;font-weight:800;letter-spacing:.06em;
   text-transform:uppercase;color:var(--och);margin-bottom:3px}
 .n-satr p{margin:0;font-size:13.5px;line-height:1.55;color:var(--kul)}
 /* Ogohlantirish — umumiy `.diqqat` sariq qutisidan foydalanadi.
@@ -1067,7 +1093,7 @@ details.n-muammo[open] .n-muammo-nom{color:var(--urgu)}
 .nm-rasm{display:flex;align-items:center;justify-content:center;aspect-ratio:1;
   background:var(--chiziq-och);color:var(--och);margin-bottom:9px}
 .nm-rasm img{width:100%;height:100%;object-fit:cover}
-.nm-bosqich{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+.nm-bosqich{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
   color:var(--urgu);padding:0 12px}
 .nm-nom{font-size:13px;font-weight:600;line-height:1.32;padding:0 12px;color:var(--kul);
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -1092,7 +1118,7 @@ details.n-muammo[open] .n-muammo-nom{color:var(--urgu)}
   font-size:12.5px;line-height:1.35;position:relative;padding-left:27px}
 .n-vaqt li::before{content:counter(qadam);position:absolute;left:0;top:0;
   width:20px;height:20px;border-radius:50%;
-  display:grid;place-items:center;font-size:10.5px;font-weight:800;
+  display:grid;place-items:center;font-size:12px;font-weight:800;
   background:var(--kok);color:#fff}
 .n-vaqt li b{flex:0 0 auto;color:var(--matn)}
 .n-vaqt li span{color:var(--kul);min-width:0}
@@ -1123,7 +1149,7 @@ details.n-muammo[open] .n-muammo-nom{color:var(--urgu)}
 
 
 .n-oxir{margin-top:0}
-.n-eslatma{margin:0 0 18px;text-align:center;font-size:11.5px;line-height:1.7;
+.n-eslatma{margin:0 0 18px;text-align:center;font-size:12px;line-height:1.7;
   color:var(--och)}
 
 /* ── JONLI KAMERA VA O'LCHOV TO'RI ──
@@ -1182,7 +1208,7 @@ body.kam-yorug .kam-quti{box-shadow:0 0 0 12px #fff,0 0 72px 26px rgba(255,255,2
   flex-direction:column;gap:6px;padding:11px 13px;border-radius:14px;
   background:rgba(10,10,12,.62);backdrop-filter:blur(8px);
   -webkit-backdrop-filter:blur(8px)}
-.kam-satr{display:flex;align-items:center;gap:10px;font-size:11.5px;color:#d8d8de}
+.kam-satr{display:flex;align-items:center;gap:10px;font-size:12px;color:#d8d8de}
 .kam-satr span{flex:0 0 84px}
 .kam-chiziq{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.16);
   overflow:hidden;display:block}
@@ -1213,7 +1239,7 @@ body.kam-yorug .kam-quti{box-shadow:0 0 0 12px #fff,0 0 72px 26px rgba(255,255,2
 .skaner-namuna.ramkasiz .yuz-ramka{display:none}
 .skaner-namuna .namuna-yoq{color:var(--och);display:grid;place-items:center}
 .namuna-teg{position:absolute;left:12px;top:12px;background:rgba(0,0,0,.55);color:#fff;
-  font-size:11.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
   padding:6px 11px;border-radius:99px;backdrop-filter:blur(6px)}
 .skaner-maslahat{text-align:center;color:var(--kul);font-size:14.5px;
   padding:0 28px;margin:0 0 16px}
@@ -1229,7 +1255,7 @@ body.kam-yorug .kam-quti{box-shadow:0 0 0 12px #fff,0 0 72px 26px rgba(255,255,2
 .profil-stat{display:flex;justify-content:center;gap:26px;margin-top:16px}
 .profil-stat div{text-align:center}
 .profil-stat b{display:block;font-size:19px;font-weight:800;letter-spacing:-.02em}
-.profil-stat span{font-size:11.5px;color:var(--och);font-weight:650;
+.profil-stat span{font-size:12px;color:var(--och);font-weight:650;
   letter-spacing:.07em;text-transform:uppercase}
 
 .yigma{margin:0 16px 9px;background:var(--panel);border:1px solid var(--chiziq);
@@ -1325,7 +1351,7 @@ body.kam-yorug .kam-quti{box-shadow:0 0 0 12px #fff,0 0 72px 26px rgba(255,255,2
 .toplam{background:var(--panel);border:1px solid var(--chiziq);border-radius:18px;
   overflow:hidden;margin-top:2px}
 .toplam-bosh{padding:15px 15px 12px;background:var(--urgu-och)}
-.toplam-teg{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:800;
+.toplam-teg{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:800;
   letter-spacing:.16em;text-transform:uppercase;color:var(--urgu);margin-bottom:7px}
 .toplam-bosh h4{font-size:16.5px;font-weight:800;letter-spacing:-.015em;margin:0}
 .toplam-bosh p{margin:5px 0 0;font-size:13.5px;color:var(--kul);line-height:1.45}
@@ -1333,11 +1359,11 @@ body.kam-yorug .kam-quti{box-shadow:0 0 0 12px #fff,0 0 72px 26px rgba(255,255,2
 .toplam-royxat .t-karta{border:0;background:none;padding:2px}
 .toplam-royxat .t-karta+.t-karta{border-top:1px solid var(--chiziq-och);padding-top:11px}
 .t-tartib{position:absolute;left:-5px;top:-5px;width:21px;height:21px;border-radius:99px;
-  background:var(--urgu);color:#fff;font-size:11.5px;font-weight:800;
+  background:var(--urgu);color:#fff;font-size:12px;font-weight:800;
   display:grid;place-items:center;border:2px solid var(--panel)}
 .t-karta .rasm{position:relative;overflow:visible}
 .t-karta .rasm img{border-radius:12px}
-.t-bosqich{font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+.t-bosqich{font-size:12px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
   color:var(--urgu)}
 .t-qanday{display:flex;gap:6px;align-items:flex-start;font-size:12.5px;color:var(--och);
   line-height:1.4;margin-top:5px}
@@ -1369,57 +1395,80 @@ body.kam-yorug .kam-quti{box-shadow:0 0 0 12px #fff,0 0 72px 26px rgba(255,255,2
 #tab-skaner{padding-top:calc(10px + env(safe-area-inset-top))}
 #tab-savat,#tab-profil,#tab-natija{padding-top:calc(6px + env(safe-area-inset-top))}
 
-/* Mahsulot sahifasidagi poster to'liq ko'rinsin: eski rasmlar 3:4,
-   yangilari 1:1 — qat'iy kvadratga solsak tepasi yoki pasti kesiladi. */
-.modal .rasm{aspect-ratio:auto!important;height:auto;min-height:0}
-.modal .rasm img{height:auto;object-fit:contain;max-height:62vh}
 
 /* ============================================================
-   MAHSULOT KARTASI — namunadagidek
+   MAHSULOT KARTASI
+   Oq karta, krem fonda yumshoq soya. Bosilganda biroz kichrayadi,
+   ro'yxat chizilganda kartalar navbatma-navbat paydo bo'ladi.
    ============================================================ */
 .mahsulot{position:relative;background:var(--panel);border:1px solid var(--chiziq);
-  border-radius:15px;overflow:hidden;padding:0;text-align:left;color:inherit;
-  display:flex;flex-direction:column}
-.mahsulot .rasm{aspect-ratio:1/1;background:var(--chiziq-och);border:0;border-radius:0}
-.mahsulot .mtan{padding:10px 11px 11px;display:flex;flex-direction:column;gap:3px;flex:1}
-.mahsulot .mnom{font-family:var(--sans);font-weight:650;font-size:13.5px;
-  line-height:1.28;letter-spacing:-.01em;
+  border-radius:18px;overflow:hidden;padding:0;text-align:left;color:inherit;
+  display:flex;flex-direction:column;box-shadow:var(--sh);
+  transition:transform var(--k-tez) var(--k-egri),box-shadow var(--k-orta)}
+.mahsulot:active{transform:scale(.975)}
+.qator .mahsulot,.tor .mahsulot,.bolim-tor .mahsulot{animation:k-paydo var(--k-sekin) var(--k-egri) both}
+.qator .mahsulot:nth-child(2),.tor .mahsulot:nth-child(2){animation-delay:40ms}
+.qator .mahsulot:nth-child(3),.tor .mahsulot:nth-child(3){animation-delay:80ms}
+.qator .mahsulot:nth-child(4),.tor .mahsulot:nth-child(4){animation-delay:120ms}
+.qator .mahsulot:nth-child(5),.tor .mahsulot:nth-child(5){animation-delay:160ms}
+.qator .mahsulot:nth-child(6),.tor .mahsulot:nth-child(6){animation-delay:200ms}
+.mahsulot .rasm{aspect-ratio:1/1;background:var(--chiziq-och);border:0;border-radius:0;
+  color:color-mix(in srgb,var(--urgu) 35%,transparent)}
+.mahsulot .rasm img{animation:k-sochil var(--k-sekin) ease both}
+.mahsulot .mtan{padding:11px 12px 12px;display:flex;flex-direction:column;gap:3px;flex:1}
+.mahsulot .mnom{font-family:var(--sans);font-weight:700;font-size:14px;
+  line-height:1.3;letter-spacing:-.01em;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.mahsulot .mnarx{font-family:var(--sans);font-weight:800;font-size:15px;
+.mahsulot .mnarx{font-family:var(--sans);font-weight:800;font-size:16px;
   letter-spacing:-.02em;margin-top:2px}
-.mahsulot .mnarx s{font-weight:500;font-size:12px;color:var(--och);margin-left:6px}
-.mahsulot .mbrend{font-size:10px;font-weight:750;letter-spacing:.13em;
+.mahsulot .mnarx s{font-weight:500;font-size:12.5px;color:var(--och);margin-left:6px}
+.mahsulot .mbrend{font-size:12px;font-weight:800;letter-spacing:.08em;
   text-transform:uppercase;color:var(--och)}
 
 /* ★ reyting — faqat haqiqiy son bo'lganda chiqadi */
-.mreyting{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;
+.mreyting{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;
   color:var(--matn)}
-.mreyting i[data-ik]{color:#f0a92a}
+.mreyting i[data-ik]{color:#e8a01e}
 .mreyting .soni{color:var(--och);font-weight:500;background:none;padding:0;border:0}
 
-/* Yurakcha — rasm ustida */
-.yurak{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:99px;
-  background:rgba(255,255,255,.92);color:var(--och);display:grid;place-items:center;
-  z-index:2;box-shadow:0 1px 4px rgba(0,0,0,.1)}
-.yurak.faol{color:var(--urgu)}
+/* Yurakcha — rasm ustida. Ko'rinishi 34px, bosiladigan joyi esa 46px:
+   barmoq bilan nishonga olish oson bo'lsin (Play talabi — 48dp). */
+.yurak{position:absolute;top:8px;right:8px;width:34px;height:34px;border-radius:99px;
+  background:rgba(255,255,255,.94);color:var(--och);display:grid;place-items:center;
+  z-index:2;box-shadow:0 2px 8px rgba(59,3,4,.12)}
+.yurak::after{content:'';position:absolute;inset:-6px;border-radius:99px}
+.yurak.faol{color:var(--urgu);animation:k-urish .38s var(--k-sakra)}
 .yurak.faol svg path{fill:currentColor}
-@media (prefers-color-scheme:dark){html:not([data-mavzu="kunduzgi"]) .yurak{background:rgba(30,30,34,.9)}}
-html[data-mavzu="tungi"] .yurak{background:rgba(30,30,34,.9)}
-
+@media (prefers-color-scheme:dark){html:not([data-mavzu="kunduzgi"]) .yurak{background:rgba(36,24,24,.92)}}
+html[data-mavzu="tungi"] .yurak{background:rgba(36,24,24,.92)}
 
 /* Pastki qator: moslik yorlig'i va «+» */
-.mpast{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:6px}
-.teg-mos{font-size:10.5px;font-weight:700;padding:4px 8px;border-radius:7px;
+.mpast{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:7px}
+.teg-mos{font-size:12px;font-weight:750;padding:4px 9px;border-radius:8px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.teg-yashil{background:var(--yashil-och);color:var(--yashil)}
+.teg-yashil{background:var(--lime-och);color:var(--lime-tim)}
 .teg-qizil{background:var(--urgu-och);color:var(--urgu)}
-.karta-qosh{flex:0 0 auto;width:30px;height:30px;border-radius:99px;background:var(--urgu);
-  color:#fff;display:grid;place-items:center}
-.karta-qosh.qoshildi{background:var(--yashil)}
+.karta-qosh{position:relative;flex:0 0 auto;width:38px;height:38px;border-radius:99px;
+  background:var(--urgu);color:#fff;display:grid;place-items:center;
+  box-shadow:0 6px 14px -8px rgba(171,10,12,.9);
+  transition:background var(--k-orta),color var(--k-orta),transform var(--k-tez)}
+.karta-qosh::after{content:'';position:absolute;inset:-4px;border-radius:99px}
+.karta-qosh:active{transform:scale(.88)}
+/* Savatga tushdi — och yashil, «urib» tasdiqlaydi */
+.karta-qosh.qoshildi{background:var(--lime);color:#3b0304;box-shadow:none;
+  animation:k-urish .38s var(--k-sakra)}
 .nishon-kichik.chegirma{background:var(--urgu)}
 
 /* Karta ichidagi nishonlar chapda qolsin (yurakcha o'ngda) */
-.rasm .nishonlar{max-width:calc(100% - 46px)}
+.rasm .nishonlar{max-width:calc(100% - 50px)}
+
+/* Katalog kelguncha — skelet */
+.skelet-bolim{padding:22px 0 4px}
+.skelet-sarlavha{height:22px;width:140px;margin:0 16px 14px}
+.skelet-karta{flex:0 0 160px;display:flex;flex-direction:column;gap:9px}
+.skelet-rasm{aspect-ratio:1;border-radius:18px}
+.skelet-satr{height:13px}
+.skelet-satr.qisqa{width:60%}
 
 /* ============================================================
    SKANER — namunadagidek: qadam, yuz ramkasi, belgilar
@@ -1440,7 +1489,7 @@ html[data-mavzu="tungi"] .yurak{background:rgba(30,30,34,.9)}
 
 /* Nimalarni aniqlaymiz */
 .skan-belgilar{display:flex;justify-content:space-between;gap:6px;padding:14px 18px 4px}
-.skan-belgilar div{flex:1;display:grid;justify-items:center;gap:6px;font-size:11px;
+.skan-belgilar div{flex:1;display:grid;justify-items:center;gap:6px;font-size:12px;
   font-weight:600;color:var(--kul);text-align:center}
 .skan-belgilar .b{width:44px;height:44px;border-radius:99px;display:grid;place-items:center}
 .skan-belgilar .b-qizil{background:var(--urgu-och);color:var(--urgu)}
@@ -1466,7 +1515,7 @@ html[data-mavzu="tungi"] .skan-belgilar .b-binafsha{background:#1d1729;color:#a9
 
 /* AI taklifi savat ostida */
 .ai-taklif{border:1px solid var(--urgu-och);background:var(--panel)}
-.ai-taklif-bosh{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;
+.ai-taklif-bosh{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:800;
   letter-spacing:.14em;text-transform:uppercase;color:var(--urgu);margin-bottom:8px}
 .ai-taklif p{margin:0 0 12px;font-size:14px;color:var(--kul);line-height:1.45}
 .ai-taklif-qator{display:flex;align-items:center;gap:12px}
@@ -1476,7 +1525,7 @@ html[data-mavzu="tungi"] .skan-belgilar .b-binafsha{background:#1d1729;color:#a9
 .ai-taklif-qator .savat-tan{flex:1;min-width:0}
 .ai-taklif-qator .savat-nom{font-weight:650;font-size:14px;line-height:1.3;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.ai-taklif-qator .savat-brend{font-size:10px;font-weight:750;letter-spacing:.12em;
+.ai-taklif-qator .savat-brend{font-size:12px;font-weight:750;letter-spacing:.12em;
   text-transform:uppercase;color:var(--och)}
 .ai-taklif-qator .savat-narx{font-weight:800;font-size:14.5px;margin-top:3px}
 .ai-taklif-qator .karta-qosh{width:34px;height:34px}
@@ -1494,7 +1543,6 @@ html[data-mavzu="tungi"] .skan-belgilar .b-binafsha{background:#1d1729;color:#a9
 .oyna-baho .mreyting{font-size:13.5px}
 .oyna-teglar{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
 .oyna-teglar .teg-mos{font-size:12px;padding:6px 11px;border-radius:9px}
-.modal .yurak{top:14px;left:14px;right:auto;width:36px;height:36px}
 
 /* Profil statistikasi: sevimlilar bosiladigan */
 .profil-stat div[data-sevimli]{cursor:pointer}
@@ -1504,7 +1552,7 @@ html[data-mavzu="tungi"] .skan-belgilar .b-binafsha{background:#1d1729;color:#a9
 /* ---------- Buyurtma yo'li (4 bosqich) ---------- */
 .yol{display:flex;align-items:flex-start;margin:14px 0 4px;padding:0 2px}
 .yol-qadam{flex:1;position:relative;display:grid;justify-items:center;gap:6px;
-  font-size:10.5px;font-weight:600;color:var(--och);text-align:center;line-height:1.25}
+  font-size:12px;font-weight:600;color:var(--och);text-align:center;line-height:1.25}
 .yol-qadam .d{width:32px;height:32px;border-radius:99px;display:grid;place-items:center;
   background:var(--chiziq-och);color:var(--och);border:2px solid transparent;z-index:1}
 /* Bosqichlarni bog'lovchi chiziq */
@@ -1558,7 +1606,7 @@ html[data-mavzu="tungi"] .skan-belgilar .b-binafsha{background:#1d1729;color:#a9
 .pufak ol li{position:relative;padding-left:26px;margin-bottom:6px;counter-increment:qadam}
 .pufak ol li::before{content:counter(qadam);position:absolute;left:0;top:1px;
   width:18px;height:18px;border-radius:99px;background:var(--urgu-och);color:var(--urgu);
-  font-size:11px;font-weight:800;display:grid;place-items:center}
+  font-size:12px;font-weight:800;display:grid;place-items:center}
 .diqqat-satr{display:flex;gap:8px;align-items:flex-start;margin:10px 0 4px;
   padding:10px 12px;background:var(--sariq-och);color:var(--sariq);
   border-radius:11px;font-size:13.5px;line-height:1.45;font-weight:600}
@@ -1585,45 +1633,173 @@ html[data-mavzu="tungi"] .skan-belgilar .b-binafsha{background:#1d1729;color:#a9
 .tavsiya-ich .t-karta{border:0;padding:2px}
 .tavsiya-ich .t-karta+.t-karta{border-top:1px solid var(--chiziq-och);padding-top:11px}
 
-/* Telegramsiz kirish ekrani — brauzerda va bosh ekrandagi yorliqda */
-.kirish-fon { min-height: 100dvh; display: flex; align-items: center;
-  justify-content: center; padding: 24px; background: var(--fon); }
-.kirish-quti { width: 100%; max-width: 340px; text-align: center; }
-.kirish-belgi { font-weight: 800; letter-spacing: 5px; font-size: 15px;
-  color: var(--urgu); margin-bottom: 20px; }
-.kirish-quti h2 { font-size: 23px; font-weight: 800; margin: 0 0 8px; }
-.kirish-quti p { color: var(--kul); line-height: 1.5; margin: 0 0 18px; font-size: 15px; }
-/* Chet el raqami haqidagi eslatma — kiritish maydonining OSTIDA,
-   ya'ni odam yozayotgan paytda ko'radi. Tepada bo'lsa u sarlavha
-   bilan qo'shilib ketardi va o'qilmasdi. */
-.kirish-mayda { font-size: 13px; color: var(--och); margin: -6px 0 16px;
-  line-height: 1.5; }
-.kirish-mayda b { color: var(--kul); }
-.maydon-izoh { font-size: 13px; color: var(--och); line-height: 1.5;
-  margin: -8px 0 14px; }
-.maydon-izoh b { color: var(--kul); font-weight: 700; }
-.kirish-quti input { width: 100%; padding: 15px 16px; font-size: 18px; font-weight: 600;
-  text-align: center; letter-spacing: .5px; border: 1.5px solid var(--chiziq);
-  border-radius: 14px; background: var(--karta); color: var(--matn); }
-.kirish-quti input:focus { outline: 2.5px solid var(--urgu); outline-offset: -1px; }
-.kirish-quti .asosiy { width: 100%; margin-top: 14px; }
-.kirish-quti .matnli { width: 100%; margin-top: 10px; background: none; border: 0;
-  color: var(--kul); font: inherit; font-size: 15px; font-weight: 600; padding: 12px;
-  cursor: pointer; }
-.kirish-xato { color: var(--urgu); font-size: 14px; font-weight: 600;
-  margin-top: 10px; line-height: 1.45; }
+/* ══════════ KIRISH EKRANI ══════════
+   Brend qizili fonida och yashil logotip (tabassum chizilib chiqadi),
+   pastdan oq panel ko'tariladi. Ilova Play'dan birinchi marta
+   ochilganda odam AYNAN shu ekranni ko'radi — u do'konning yuzi. */
+.kirish-fon{min-height:100dvh;display:flex;flex-direction:column;
+  background:radial-gradient(120% 60% at 50% 0%, #c41418, var(--k-qizil) 55%, var(--k-qizil-tim));
+  color:#fff}
+.kirish-tepa{flex:1 0 auto;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:14px;padding:calc(36px + env(safe-area-inset-top)) 24px 30px;min-height:34dvh}
+.kirish-logo{color:var(--k-lime);line-height:0;animation:k-kattalash var(--k-sekin) var(--k-sakra) both}
+.kirish-logo svg{width:min(200px,52vw);height:auto;overflow:visible}
+.kirish-logo path[stroke]{stroke-dasharray:700;animation:k-tabassum 1.1s var(--k-egri) .25s both}
+.kirish-logo circle:nth-of-type(-n+2){transform-box:fill-box;transform-origin:center;
+  animation:k-kipriq 4.8s ease-in-out 2s infinite}
+.kirish-shior{margin:0;font-size:15px;font-weight:650;color:rgba(255,255,255,.86);
+  letter-spacing:.01em;animation:k-paydo var(--k-sekin) var(--k-egri) .35s both}
+
+.kirish-quti{background:var(--panel);color:var(--matn);border-radius:28px 28px 0 0;
+  padding:28px 22px calc(26px + env(safe-area-inset-bottom));width:100%;max-width:520px;
+  margin:0 auto;text-align:center;box-shadow:0 -18px 40px -24px rgba(0,0,0,.5);
+  animation:k-pastdan var(--k-sekin) var(--k-egri) .1s both}
+.kirish-quti h1{font-size:25px;margin:0 0 6px}
+.kirish-izoh{color:var(--kul);font-size:15px;line-height:1.5;margin:0 0 18px}
+.kirish-usullar{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.g-tugma{min-height:44px;display:flex;justify-content:center}
+.kirish-usul{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+  min-height:48px;border-radius:99px;border:1.5px solid var(--chiziq);background:var(--panel);
+  color:var(--matn);font-size:15.5px;font-weight:700}
+.kirish-usul:active{background:var(--chiziq-och);transform:scale(.98)}
+.kirish-usul-belgi{width:28px;height:28px;border-radius:99px;display:grid;place-items:center}
+.kirish-usul-belgi.tg{background:#229ed9;color:#fff}
+.kirish-ajratgich{display:flex;align-items:center;gap:12px;margin:20px 0 14px;
+  color:var(--och);font-size:13px;font-weight:650}
+.kirish-ajratgich::before,.kirish-ajratgich::after{content:'';flex:1;height:1px;background:var(--chiziq)}
+.yashirin-yorliq{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);margin:0}
+.kirish-quti input{width:100%;padding:15px 16px;font-size:18px;font-weight:700;
+  text-align:center;letter-spacing:.5px;border:1.5px solid var(--chiziq);
+  border-radius:16px;background:var(--fon);color:var(--matn)}
+.kirish-quti input:focus{outline:none;border-color:var(--urgu);box-shadow:0 0 0 4px var(--urgu-och)}
+.kirish-kod-maydon{font-size:28px!important;letter-spacing:.45em!important;padding-left:.45em!important}
+.kirish-mayda{font-size:13px;color:var(--och);margin:8px 0 14px;line-height:1.5}
+.kirish-mayda b{color:var(--kul)}
+.kirish-quti .asosiy{width:100%;margin-top:6px}
+.tugma-havola{text-decoration:none}
+.kirish-quti .matnli{width:100%;margin-top:6px;background:none;border:0;min-height:44px;
+  color:var(--kul);font:inherit;font-size:15px;font-weight:650;cursor:pointer}
+.kirish-quti .matnli:disabled{opacity:.55}
+.kirish-shart{margin:18px 0 0;font-size:12.5px;color:var(--och);line-height:1.55}
+.kirish-shart a{color:var(--urgu);font-weight:650}
+.kirish-xato{background:var(--qizil-och);color:var(--qizil);font-size:14px;font-weight:600;
+  border-radius:12px;padding:10px 12px;margin:0 0 14px;line-height:1.45;
+  animation:k-paydo var(--k-orta) var(--k-egri)}
+.kirish-belgi-katta{width:68px;height:68px;margin:0 auto 14px;border-radius:99px;display:grid;
+  place-items:center;background:var(--urgu-och);color:var(--urgu);
+  animation:k-kattalash var(--k-sekin) var(--k-sakra)}
+.kirish-belgi-katta.tg{background:#229ed9;color:#fff}
 
 /* Kod: brauzerdagi va botdagi kod MOS kelishi kerak — shu tekshiruv
    begonaning so'rovini adashib tasdiqlashdan saqlaydi. */
-.kirish-kod { background: var(--karta); border: 1.5px solid var(--chiziq);
-  border-radius: 16px; padding: 16px; margin-bottom: 12px; }
-.kirish-kod span { display: block; font-size: 12px; text-transform: uppercase;
-  letter-spacing: .06em; color: var(--och); font-weight: 700; }
-.kirish-kod b { display: block; font-size: 38px; font-weight: 800; letter-spacing: 7px;
-  color: var(--urgu); margin-top: 6px; }
-.kirish-ogoh { font-size: 13.5px !important; color: var(--och) !important; }
-.kirish-kutish { display: flex; align-items: center; justify-content: center; gap: 10px;
-  color: var(--kul); font-size: 14.5px; font-weight: 600; margin-top: 6px; }
-.kirish-kutish .aylana { width: 18px; height: 18px; border: 2.5px solid var(--chiziq);
-  border-top-color: var(--urgu); border-radius: 50%; animation: kayl .8s linear infinite; }
-@keyframes kayl { to { transform: rotate(360deg) } }
+.kirish-kod{background:var(--fon);border:1.5px solid var(--chiziq);
+  border-radius:16px;padding:16px;margin-bottom:8px}
+.kirish-kod span{display:block;font-size:12px;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--och);font-weight:700}
+.kirish-kod b{display:block;font-size:38px;font-weight:800;letter-spacing:7px;
+  color:var(--urgu);margin-top:6px}
+.kirish-kutish{display:flex;align-items:center;justify-content:center;gap:10px;
+  color:var(--kul);font-size:14.5px;font-weight:600;margin-top:14px}
+.kirish-kutish .aylana{width:18px;height:18px;border:2.5px solid var(--chiziq);margin:0;
+  border-top-color:var(--urgu);border-radius:50%;animation:k-aylan .8s linear infinite}
+
+/* ============================================================
+   BREND QATLAMI — tugmalar, skaner, maslahatchi, profil
+   ============================================================ */
+
+/* ── Tugmalar ──
+   Asosiy — brend qizili, bosilganda to'qlashadi va biroz kichrayadi.
+   Ikkinchi darajali — oq, ingichka ramka. */
+.asosiy,.ikkilamchi{border-radius:16px;transition:transform var(--k-tez) var(--k-egri),
+  background-color var(--k-orta),box-shadow var(--k-orta),opacity var(--k-tez)}
+.asosiy{background:var(--urgu);color:#fff;box-shadow:0 10px 22px -14px rgba(171,10,12,.95)}
+.asosiy:active{background:var(--urgu-tim);transform:scale(.975);opacity:1}
+.ikkilamchi{background:var(--panel);color:var(--matn);border:1.5px solid var(--chiziq)}
+.ikkilamchi:active{background:var(--chiziq-och);transform:scale(.975);opacity:1}
+button:active{opacity:1}
+.tugma-juft{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px}
+.tugma-juft .ikkilamchi{min-height:50px;padding:10px 8px;font-size:14.5px;gap:7px}
+
+/* ── Ekranlar almashganda ── */
+.ekran:not(.yashirin){animation:k-paydo var(--k-orta) var(--k-egri)}
+#tab-maslahat.ekran:not(.yashirin){animation:k-sochil var(--k-orta) ease}
+
+/* ── Bosiladigan joy kamida 44px ──
+   Ko'rinishi kichik bo'lsa ham barmoq tegadigan maydon kattaroq:
+   Google Play tekshiruvi 48dp dan kichik nishonni xato deb belgilaydi. */
+.soni button{width:44px;height:40px}
+.t-qosh{width:40px;height:40px;position:relative}
+.t-qosh::after,.yozish-biriktir::after,.yozish-tugma::after{content:'';position:absolute;inset:-4px}
+.yozish-tugma{position:relative;width:42px;height:42px}
+.yozish-biriktir{position:relative;width:42px;height:42px}
+.suhbat-tozala,.belgi-tugma,.chat-rasm button,.qidiruv .tozala{min-width:44px;min-height:44px;
+  display:grid;place-items:center}
+.matn-tugma{min-height:44px;padding:10px 4px}
+.bolim-satr button{min-height:44px;color:var(--urgu)}
+.n-bolim-bosh button{min-height:44px;padding:0 2px}
+.filtr-yorliq button{min-width:32px;min-height:32px}
+
+/* ── Bo'lim sarlavhasi ── */
+.bolim-satr h2{font-size:20px}
+
+/* ── Skaner ── */
+.limit-satr{justify-content:space-between;border-radius:14px}
+.limit-nuqtalar{display:flex;gap:5px;flex:0 0 auto}
+.limit-nuqtalar i{width:9px;height:9px;border-radius:99px;background:var(--lime);
+  box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--lime-tim) 40%,transparent)}
+.limit-nuqtalar i.ishlatildi{background:var(--chiziq);box-shadow:none}
+.qadam-holat span:first-child{border-color:var(--urgu);color:var(--urgu)}
+.qadam-chiziq i{background:var(--urgu)}
+/* Namunasiz quti: brend tabassumi va «nafas oluvchi» yuz ramkasi */
+.skaner-namuna:not(.rasmli){background:
+  radial-gradient(70% 55% at 50% 45%, var(--lime-och), transparent 72%), var(--chiziq-och)}
+.skaner-namuna .namuna-yoq{width:46%;color:var(--urgu);line-height:0}
+.skaner-namuna .namuna-yoq svg{width:100%;height:auto;overflow:visible}
+.skaner-namuna .namuna-yoq path{stroke-dasharray:700;animation:k-tabassum 1.2s var(--k-egri) .2s both}
+.skaner-namuna:not(.rasmli) .yuz-ramka{border:2px dashed color-mix(in srgb,var(--urgu) 55%,transparent);
+  animation:k-nafas 2.8s ease-in-out infinite}
+/* Aniqlanadigan belgilar — qizil va och yashil navbatma-navbat */
+.skan-belgilar .b{background:var(--urgu-och);color:var(--urgu)}
+.skan-belgilar div:nth-child(even) .b{background:var(--lime-och);color:var(--lime-tim)}
+
+/* ── AI maslahatchi ── */
+.suhbat-avatar{background:var(--urgu);color:var(--lime);width:40px;height:40px}
+.suhbat-avatar svg{width:26px;height:auto}
+.suhbat-bosh-ekran .halqa{background:var(--lime);color:var(--k-qizil);width:84px;height:84px}
+.suhbat-bosh-ekran .halqa svg{width:56px;height:auto;overflow:visible}
+.suhbat-bosh-ekran .halqa path{stroke-dasharray:700;animation:k-tabassum 1s var(--k-egri) .1s both}
+.suhbat-holat::before{background:var(--lime-tim)}
+.xabar.men .pufak{background:var(--urgu)}
+
+/* ── Profil ── */
+.avatar{background:var(--lime);color:var(--k-qizil);border:3px solid var(--panel);
+  box-shadow:0 0 0 2px var(--lime),var(--sh-katta)}
+.profil-stat{background:var(--panel);border:1px solid var(--chiziq);border-radius:18px;
+  padding:14px 8px;margin:18px 0 0;gap:0;box-shadow:var(--sh)}
+.profil-stat div{flex:1;border-right:1px solid var(--chiziq-och)}
+.profil-stat div:last-child{border-right:0}
+.profil-stat span{text-transform:none;letter-spacing:0;font-size:12.5px}
+.yigma{border-radius:18px;box-shadow:var(--sh)}
+.yigma>summary .b{border-radius:12px}
+.yigma:nth-of-type(even)>summary .b{background:var(--lime-och);color:var(--lime-tim)}
+
+/* ── Savat va checkout ── */
+.yopishqoq{box-shadow:0 -8px 26px -18px rgba(59,3,4,.45)}
+
+/* Skaner: asosiy va ikkinchi darajali tugmalar BIRINCHI ekranga sig'sin.
+   Namuna qutisi pastroq — telefon kichik bo'lsa ham tugmalar menyu
+   ostida qolib ketmaydi. */
+.skaner-namuna{max-height:31vh;margin:12px auto 10px}
+.ekran-bosh{padding:12px 26px 0}
+.qadam-holat{margin-bottom:12px}
+.skan-belgilar{padding:8px 18px 2px}
+#skaner-boshlash .ichki{margin-top:10px}
+.filtr-satr:empty{display:none}
+.oyna-rasm.bosh{aspect-ratio:16/10}
+
+/* Ro'yxatdan o'tish — logotip qizil (krem fonda och yashil ko'rinmaydi) */
+.royxat-bosh{text-align:center;padding-top:calc(26px + env(safe-area-inset-top))}
+.royxat-logo{color:var(--urgu);line-height:0;margin-bottom:14px}
+.royxat-logo svg{width:116px;height:auto;overflow:visible}
+.royxat-logo path[stroke]{stroke-dasharray:700;animation:k-tabassum 1s var(--k-egri) .1s both}
+#ekran-royxat .karta{animation:k-paydo var(--k-sekin) var(--k-egri) .1s both}

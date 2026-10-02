@@ -8,17 +8,20 @@
 // Bir xil palitra uch joyda ishlatiladi: Mini App (CSS o'zgaruvchilari),
 // natija rasmi (SVG) va admin paneldagi ko'rinish.
 
+/* Standart — KiOVO BRENDI: logotipdagi qizil (src/lib/logo.js) va
+ * iliq krem fon. Ilgari standart yorqin #E0242B edi — logotipdagi
+ * to'q qizilga mos kelmasdi va sayt bilan ilova ikki xil ko'rinardi. */
 export const MAVZU_STANDART = {
-  asosiy: '#E0242B',   // sarlavha foni (brend qizili)
-  fon:    '#F6F6F7',   // ilova va rasm foni (neytral kulrang)
-  urgu:   '#E0242B',   // tugmalar va narx
+  asosiy: '#AB0A0C',   // sarlavha foni (logotip qizili)
+  fon:    '#FBF8F3',   // ilova va rasm foni (iliq krem)
+  urgu:   '#AB0A0C',   // tugmalar va narx
 };
 
-/** Tayyor to'plamlar — admin bir bosishda tanlaydi. */
+/** Tayyor to'plamlar — admin bir bosishda tanlaydi. Birinchisi BREND. */
 export const TOPLAMLAR = [
-  { kalit: 'kiovo',    nom: 'KiOVO · oq',         asosiy: '#E0242B', fon: '#F6F6F7', urgu: '#E0242B' },
-  { kalit: 'fil',      nom: 'Qizil · fil suyagi', asosiy: '#B3161C', fon: '#FBF8F3', urgu: '#B3161C' },
-  { kalit: 'qizil',    nom: 'Qizil · och yashil', asosiy: '#B3161C', fon: '#EAF3D9', urgu: '#C0392B' },
+  { kalit: 'kiovo',    nom: 'KiOVO · brend',      asosiy: '#AB0A0C', fon: '#FBF8F3', urgu: '#AB0A0C' },
+  { kalit: 'oq',       nom: 'KiOVO · oq',         asosiy: '#AB0A0C', fon: '#F6F6F7', urgu: '#AB0A0C' },
+  { kalit: 'qizil',    nom: 'Qizil · och yashil', asosiy: '#AB0A0C', fon: '#F0F7DF', urgu: '#AB0A0C' },
   { kalit: 'jigarrang', nom: 'Jigarrang · krem',  asosiy: '#6F4830', fon: '#FAF9F7', urgu: '#8A5A3D' },
   { kalit: 'yashil',   nom: 'To‘q yashil · krem', asosiy: '#12362A', fon: '#F2EDE8', urgu: '#B4654A' },
   { kalit: 'kok',      nom: 'Ko‘k · och ko‘k',    asosiy: '#123A63', fon: '#E7F0F7', urgu: '#1D6FA5' },

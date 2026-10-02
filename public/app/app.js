@@ -1,5 +1,7 @@
 /* KiOVO Mini App */
-(() => {
+// Ilova Telegram skriptini KUTADI — u faqat Telegram ichida yuklanadi
+// (index.html). Play'dagi ilova va brauzerda va'da darrov bajariladi.
+(window.__tgTayyor || Promise.resolve()).then(() => {
 'use strict';
 
 const tg = window.Telegram?.WebApp;
@@ -10,7 +12,13 @@ const { ik, ikonlarniChiz } = window.IK;
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
-const narx = (n) => Number(n || 0).toLocaleString('uz-UZ').replace(/,/g, ' ') + " so'm";
+const narx = (n) => Number(n || 0).toLocaleString('uz-UZ').replace(/,/g, ' ') + ' so‘m';
+/* Tutuq belgisi. Bazada «To'plam», «yog'li» oddiy ' bilan yozilgan, ilova
+   matnida esa ‘ — yonma-yon turganda bir xil ko'rinmasdi. o' va g' →
+   o‘ / g‘, qolgan apostrof → ’ («ma’lumot», «L’Oréal»). Qidiruv bunga
+   bog'liq emas: `meyor` hamma tutuqni olib tashlaydi. */
+const tutuq = (s) => (s == null ? s : String(s)
+  .replace(/([oOgG])['`ʻ‘’]/g, '$1‘').replace(/['`ʼ]/g, '’'));
 const qisqaNarx = (n) => Number(n || 0).toLocaleString('uz-UZ').replace(/,/g, ' ');
 const kor = (el, ha) => el && el.classList.toggle('yashirin', !ha);
 const titra = (t = 'light') => { try { tg?.HapticFeedback?.impactOccurred?.(t); } catch {} };
@@ -293,63 +301,194 @@ function raqamFormat(xom) {
 
 let kirishTimer = null;
 
+/* ================= KIRISH (Telegramdan tashqarida) =================
+ *
+ * Uchta yo'l: Google (Gmail), telefon (SMS kod) va Telegram. Play
+ * Store'dan yuklagan odamda bot hisobi bo'lmasligi mumkin — ilgari u
+ * ilovaga umuman kira olmasdi. Server qaysi usul yoqilganini aytadi
+ * (/api/kirish/usullar): sozlanmagani ko'rsatilmaydi.
+ *
+ * Logotip va tabassum <template> dan OLDINDAN olinadi: ekran
+ * `document.body` ni almashtiradi va shablonlar yo'qolib ketadi. */
+let kirishShakllari = null;
+
 function kirishEkrani() {
   clearInterval(kirishTimer);
+  kirishShakllari ||= { logo: $('#t-logo')?.innerHTML || 'KiOVO' };
   document.body.innerHTML = `
     <div class="kirish-fon">
-      <div class="kirish-quti" id="kirish-quti"></div>
+      <header class="kirish-tepa">
+        <div class="kirish-logo">${kirishShakllari.logo}</div>
+        <p class="kirish-shior">Teringiz o‘zi gapirsin</p>
+      </header>
+      <main class="kirish-quti" id="kirish-quti"></main>
     </div>`;
-  kirishQadam1();
+  kirishUsullariniYukla();
+}
+
+async function kirishUsullariniYukla() {
+  let u = { google: '', sms: false, telegram: true };
+  try { u = await api('/api/kirish/usullar'); } catch { /* tarmoq — standart */ }
+  holat.kirishUsul = u;
+  const xato = new URLSearchParams(location.search).get('kirish_xato')
+    ? 'Google bilan kirib bo‘lmadi. Qayta urining yoki boshqa usulni tanlang.' : '';
+  kirishQadam1(xato);
+}
+
+/** Google tugmasi — Google'ning o'z tugmasi (brend qoidasi shuni talab qiladi). */
+function googleTugmasi(clientId) {
+  const joy = $('#g-tugma');
+  if (!joy || !clientId) return;
+  const chiz = () => {
+    try {
+      // `redirect` rejimi: Play'dagi ilovada (TWA) popup oyna ochilmaydi
+      google.accounts.id.initialize({ client_id: clientId, ux_mode: 'redirect',
+        login_uri: `${location.origin}/kirish/google`, auto_select: false });
+      google.accounts.id.renderButton(joy, { type: 'standard', theme: 'outline',
+        size: 'large', text: 'continue_with', shape: 'pill', locale: 'uz',
+        logo_alignment: 'center', width: Math.min(360, joy.offsetWidth || 320) });
+    } catch { joy.remove(); }
+  };
+  if (window.google?.accounts?.id) return chiz();
+  const sc = document.createElement('script');
+  sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
+  sc.onload = chiz;
+  sc.onerror = () => joy.remove();
+  document.head.appendChild(sc);
 }
 
 function kirishQadam1(xato = '') {
+  clearInterval(kirishTimer);
+  const u = holat.kirishUsul || {};
+  const smsBor = Boolean(u.sms);
   $('#kirish-quti').innerHTML = `
-    <div class="kirish-belgi">KiOVO</div>
-    <h2>Telefon raqamingiz</h2>
-    <p>Botga tasdiqlash so‘rovi keladi. Parol kerak emas.</p>
+    <h1>Xush kelibsiz</h1>
+    <p class="kirish-izoh">Kirish usulini tanlang — parol kerak emas.</p>
+    ${xato ? `<div class="kirish-xato" role="alert">${esc(xato)}</div>` : ''}
+
+    <div class="kirish-usullar">
+      ${u.google ? '<div id="g-tugma" class="g-tugma"></div>' : ''}
+      ${u.telegram ? `<button class="kirish-usul" id="k-telegram">
+        <span class="kirish-usul-belgi tg">${ik('telegram', 20)}</span>Telegram orqali kirish</button>` : ''}
+    </div>
+
+    <div class="kirish-ajratgich"><span>yoki telefon raqami</span></div>
+    <label class="yashirin-yorliq" for="k-raqam">Telefon raqami</label>
     <input id="k-raqam" type="tel" inputmode="tel" autocomplete="tel"
            placeholder="+998 90 123 45 67" value="+998 ">
-    <p class="kirish-mayda">Chet elda bo‘lsangiz mamlakat kodi bilan yozing —
-      masalan <b>+82</b> (Koreya), <b>+7</b> (Rossiya).</p>
-    ${xato ? `<div class="kirish-xato">${esc(xato)}</div>` : ''}
-    <button class="asosiy" id="k-yubor">Davom etish</button>
-    <button class="matnli" id="k-telegram">Telegramda ochish</button>`;
+    <p class="kirish-mayda">Chet elda bo‘lsangiz mamlakat kodi bilan — masalan
+      <b>+82</b> (Koreya), <b>+7</b> (Rossiya).</p>
+    <button class="asosiy" id="k-yubor">${smsBor ? 'Kod olish' : 'Davom etish'}</button>
+
+    <p class="kirish-shart">Davom etib, <a href="/oferta" target="_blank" rel="noopener">ommaviy
+      oferta</a> va <a href="/maxfiylik" target="_blank" rel="noopener">maxfiylik
+      siyosati</a>ga rozilik bildirasiz.</p>`;
 
   const inp = $('#k-raqam');
   inp.oninput = () => { inp.value = raqamFormat(inp.value); };
   inp.onkeydown = (e) => { if (e.key === 'Enter') $('#k-yubor').click(); };
-  setTimeout(() => { inp.focus(); inp.setSelectionRange(99, 99); }, 100);
 
-  $('#k-telegram').onclick = () => { location.href = '/app/ochish'; };
+  googleTugmasi(u.google);
+  $('#k-telegram') && ($('#k-telegram').onclick = kirishTelegram);
+
   $('#k-yubor').onclick = async () => {
     const t = $('#k-yubor');
     t.disabled = true; t.textContent = 'Yuborilmoqda…';
     try {
-      const r = await api('/api/kirish/sorov', { method: 'POST',
-        body: JSON.stringify({ telefon: inp.value }) });
-      kirishQadam2(r);
+      if (smsBor) {
+        const r = await api('/api/kirish/sms', { method: 'POST',
+          body: JSON.stringify({ telefon: inp.value }) });
+        kirishSmsKod(r);
+      } else {
+        // SMS sozlanmagan: botdan tasdiqlash (botda ro'yxatdan o'tganlar uchun)
+        const r = await api('/api/kirish/sorov', { method: 'POST',
+          body: JSON.stringify({ telefon: inp.value }) });
+        kirishQadam2(r);
+      }
     } catch (e) {
-      t.disabled = false; t.textContent = 'Davom etish';
       kirishQadam1(e.message);
     }
   };
 }
 
-function kirishQadam2({ kalit, kod, raqam, muddat }) {
-  const tugash = Date.now() + (muddat || 180000);
+/** Telegram orqali: havola ochiladi, ilova botdagi tasdiqni kutadi. */
+async function kirishTelegram() {
+  const t = $('#k-telegram');
+  if (t) t.disabled = true;
+  let r;
+  try { r = await api('/api/kirish/telegram', { method: 'POST' }); }
+  catch (e) { return kirishQadam1(e.message); }
+
+  const tugash = Date.now() + (r.muddat || 300000);
   $('#kirish-quti').innerHTML = `
-    <div class="kirish-belgi">KiOVO</div>
-    <h2>Telegramni oching</h2>
-    <p>${esc(raqam || '')} raqamiga bog‘langan Telegramga
-       tasdiqlash so‘rovi yuborildi.</p>
-    <div class="kirish-kod"><span>Ekrandagi kod</span><b>${esc(kod)}</b></div>
-    <p class="kirish-ogoh">Botdagi kod SHU raqamga mos kelsagina tasdiqlang.</p>
+    <div class="kirish-belgi-katta tg">${ik('telegram', 34)}</div>
+    <h1>Telegramni oching</h1>
+    <p class="kirish-izoh">Botda <b>«Start»</b> ni bosing — ilova shu zahoti ochiladi.
+      Botda ro‘yxatdan o‘tgan bo‘lishingiz shart emas.</p>
+    <a class="asosiy tugma-havola" id="k-tg-och" href="${esc(r.havola)}" target="_blank"
+       rel="noopener">${ik('telegram', 19)}Telegramda ochish</a>
     <div class="kirish-kutish"><span class="aylana"></span>
       <span id="k-qoldi">Kutilmoqda…</span></div>
+    <button class="matnli" id="k-ortga">Boshqa usul</button>`;
+  $('#k-ortga').onclick = () => kirishQadam1();
+  // Birinchi urinishda havola o'zi ochiladi; to'sib qo'yilsa tugma bor
+  try { window.open(r.havola, '_blank', 'noopener'); } catch { /* tugma qoladi */ }
+  kirishniKut(r.kalit, tugash);
+}
+
+/** SMS kodi: 6 ta raqam, telefon o'zi taklif qiladi (one-time-code). */
+function kirishSmsKod({ kalit, raqam, muddat }) {
+  const tugash = Date.now() + (muddat || 300000);
+  const qaytaGacha = Date.now() + 60_000;
+  $('#kirish-quti').innerHTML = `
+    <div class="kirish-belgi-katta">${ik('sms', 34)}</div>
+    <h1>Kodni kiriting</h1>
+    <p class="kirish-izoh"><b>${esc(raqam || '')}</b> raqamiga 6 xonali kod yuborildi.</p>
+    <label class="yashirin-yorliq" for="k-kod">SMS kodi</label>
+    <input id="k-kod" class="kirish-kod-maydon" type="text" inputmode="numeric"
+           autocomplete="one-time-code" maxlength="6" placeholder="••••••">
+    <div class="kirish-xato" id="k-xato" role="alert" hidden></div>
+    <button class="asosiy" id="k-tasdiq" disabled>Kirish</button>
+    <button class="matnli" id="k-qayta" disabled>Qayta yuborish</button>
     <button class="matnli" id="k-ortga">Boshqa raqam</button>`;
 
-  $('#k-ortga').onclick = () => { clearInterval(kirishTimer); kirishQadam1(); };
+  const inp = $('#k-kod'), tasdiq = $('#k-tasdiq'), qayta = $('#k-qayta');
+  setTimeout(() => inp.focus(), 80);
+  const yubor = async () => {
+    tasdiq.disabled = true; tasdiq.textContent = 'Tekshirilmoqda…';
+    try {
+      const r = await api('/api/kirish/sms/tasdiq', { method: 'POST',
+        body: JSON.stringify({ kalit, kod: inp.value }) });
+      clearInterval(kirishTimer);
+      seansSaqla(r.token); titra('medium');
+      location.replace('/app/');
+    } catch (e) {
+      const x = $('#k-xato'); x.hidden = false; x.textContent = e.message;
+      tasdiq.disabled = false; tasdiq.textContent = 'Kirish';
+      inp.select();
+    }
+  };
+  inp.oninput = () => {
+    inp.value = inp.value.replace(/\D/g, '').slice(0, 6);
+    tasdiq.disabled = inp.value.length !== 6;
+    if (inp.value.length === 6) yubor();      // oxirgi raqam — o'zi yuboradi
+  };
+  tasdiq.onclick = yubor;
+  qayta.onclick = () => kirishQadam1();
+  $('#k-ortga').onclick = () => kirishQadam1();
 
+  clearInterval(kirishTimer);
+  kirishTimer = setInterval(() => {
+    const q = Math.ceil((qaytaGacha - Date.now()) / 1000);
+    qayta.disabled = q > 0;
+    qayta.textContent = q > 0 ? `Qayta yuborish · ${q} s` : 'Qayta yuborish';
+    if (Date.now() > tugash) { clearInterval(kirishTimer); kirishQadam1('Kodning muddati tugadi. Qayta so‘rang.'); }
+  }, 1000);
+}
+
+/** Bot tasdig'ini kutadi (telefon + bot va Telegram havolasi uchun umumiy). */
+function kirishniKut(kalit, tugash, { radMatni = 'Siz rad etdingiz. Bu siz bo‘lsangiz qayta urining.' } = {}) {
+  clearInterval(kirishTimer);
   kirishTimer = setInterval(async () => {
     const qoldi = Math.max(0, Math.ceil((tugash - Date.now()) / 1000));
     const q = $('#k-qoldi');
@@ -359,17 +498,32 @@ function kirishQadam2({ kalit, kod, raqam, muddat }) {
       const r = await api(`/api/kirish/holat?kalit=${encodeURIComponent(kalit)}`);
       if (r.holat === 'tasdiqlandi' && r.token) {
         clearInterval(kirishTimer);
-        seansSaqla(r.token);
-        location.reload();
+        seansSaqla(r.token); titra('medium');
+        location.replace('/app/');
       } else if (r.holat === 'rad') {
-        clearInterval(kirishTimer);
-        kirishQadam1('Siz rad etdingiz. Bu siz bo‘lsangiz qayta urining.');
+        clearInterval(kirishTimer); kirishQadam1(radMatni);
       } else if (r.holat === 'muddati_otdi' || r.holat === 'yoq') {
-        clearInterval(kirishTimer);
-        kirishQadam1('So‘rov muddati tugadi. Qayta urining.');
+        clearInterval(kirishTimer); kirishQadam1('So‘rov muddati tugadi. Qayta urining.');
       }
     } catch { /* tarmoq — keyingi urinishda */ }
   }, 2000);
+}
+
+/** Telefon + botdan tasdiqlash (SMS sozlanmagan bo'lsa). */
+function kirishQadam2({ kalit, kod, raqam, muddat }) {
+  const tugash = Date.now() + (muddat || 180000);
+  $('#kirish-quti').innerHTML = `
+    <div class="kirish-belgi-katta tg">${ik('telegram', 34)}</div>
+    <h1>Telegramni oching</h1>
+    <p class="kirish-izoh">${esc(raqam || '')} raqamiga bog‘langan Telegramga
+       tasdiqlash so‘rovi yuborildi.</p>
+    <div class="kirish-kod"><span>Ekrandagi kod</span><b>${esc(kod)}</b></div>
+    <p class="kirish-mayda">Botdagi kod SHU kodga mos kelsagina tasdiqlang.</p>
+    <div class="kirish-kutish"><span class="aylana"></span>
+      <span id="k-qoldi">Kutilmoqda…</span></div>
+    <button class="matnli" id="k-ortga">Boshqa raqam</button>`;
+  $('#k-ortga').onclick = () => kirishQadam1();
+  kirishniKut(kalit, tugash);
 }
 
 // ---------------- Ishga tushirish ----------------
@@ -403,8 +557,10 @@ async function boshla() {
   pwaniUla();
   try {
     const k = await api('/api/catalog');
-    holat.kategoriyalar = k.kategoriyalar;
-    holat.mahsulotlar   = k.mahsulotlar.map((p) => ({ ...p, _indeks: '' }));
+    holat.kategoriyalar = (k.kategoriyalar || []).map((x) => ({ ...x, name: tutuq(x.name) }));
+    holat.mahsulotlar   = k.mahsulotlar.map((p) => ({ ...p,
+      name: tutuq(p.name), nom_uz: tutuq(p.nom_uz), description: tutuq(p.description),
+      usage_text: tutuq(p.usage_text), warnings: tutuq(p.warnings), _indeks: '' }));
     holat.mahsulotlar.forEach((p) => { p._indeks = indeks(p); });
     holat.yetkazish   = k.yetkazish;
     holat.chegirmalar = k.chegirmalar || [];
@@ -451,9 +607,14 @@ async function boshla() {
 function royxatEkrani() {
   kor($('#ekran-royxat'), true);
   // Yozilganini saqlaymiz — chiqib ketsa yo'qolmasin
+  // Google'dan kelgan ism va SMS bilan tasdiqlangan raqam o'zi
+  // to'ldiriladi — odam bir narsani ikki marta yozmasin
+  const u = holat.user || {};
+  const bor = { 'f-ism': u.full_name || '', 'f-tel': u.phone ? raqamFormat(u.phone) : '',
+                'f-yosh': u.age || '' };
   ['f-ism','f-tel','f-yosh'].forEach((id) => {
     const el = $('#' + id);
-    el.value = localStorage.getItem('qq_' + id) || '';
+    el.value = localStorage.getItem('qq_' + id) || bor[id] || '';
     el.oninput = () => localStorage.setItem('qq_' + id, el.value);
   });
 
@@ -550,12 +711,17 @@ function mavzuniQoll(m) {
 let karuselTaymer = null;
 
 /** Birinchi slayd — AI tahlil chaqirig'i. Admin rasm yuklamasa ham qoladi. */
+/* Brend tabassumi — server index.html ga qo'ygan <template> dan.
+   Logotipning o'zi, chizma ikon emas: banner do'kon belgisi bilan
+   gapiradi. Ko'zlari vaqti-vaqti bilan «pirpiraydi» (CSS). */
+const BELGI = () => $('#t-belgi')?.innerHTML || '';
+
 const aiSlayd = () => `
   <div class="slayd ai-slayd" data-skaner="1">
-    <span class="ai-teg">AI SKIN ADVISOR</span>
-    <span class="ai-sarlavha">Teringiz uchun mos<br>mahsulotni toping</span>
+    <span class="ai-teg">${ik('skaner', 13)}AI teri tahlili</span>
+    <span class="ai-sarlavha">Teringizga <em>aynan mos</em><br>parvarishni toping</span>
     <span class="ai-tugma">Yuzimni tahlil qil ${ik('keyingi', 15)}</span>
-    <span class="ai-robot">${ik('robot', 52)}</span>
+    <span class="ai-belgi" aria-hidden="true">${BELGI()}</span>
   </div>`;
 
 function karuselniChiz() {
@@ -621,7 +787,9 @@ function namunaniChiz() {
   const rasm = $('#namuna-rasm');
   const yoq  = $('#namuna-yoq');
   if (!rasm) return;
-  const korsat = (bor) => { kor(rasm, bor); kor(yoq, !bor); };
+  const korsat = (bor) => { kor(rasm, bor); kor(yoq, !bor);
+    // Namunasiz quti — brend tabassumi va uzuq-uzuq yuz ramkasi
+    rasm.closest('.skaner-namuna')?.classList.toggle('rasmli', bor); };
   if (!holat.namuna) return korsat(false);
   rasm.src = `/media/${holat.namuna}?w=800`;
   // Rasm ochilmasa (o'chirilgan bo'lsa) o'rnida ikon qoladi
@@ -778,19 +946,9 @@ function toifaIkon(k) {
   return ZAXIRA_IKON[xeshRaqam(k.slug || k.name || '') % ZAXIRA_IKON.length];
 }
 
-// Rang ham shunday: tayyor sinf bo'lmasa slug'dan barqaror tus.
-const ZAXIRA_TUS = [
-  ['#fdeceb', '#c0392b'], ['#e7f5ee', '#2e7d55'], ['#e8f0fd', '#2563c9'],
-  ['#fdf1e0', '#a9741a'], ['#f2ecfb', '#6b46c1'], ['#e6f6f8', '#12707d'],
-  ['#fbecf5', '#a02472'], ['#eef2e8', '#5a7a2e'],
-];
-const TAYYOR_SINF = new Set(Object.keys(TOIFA_IKON));
-
-function toifaUslub(k) {
-  if (TAYYOR_SINF.has(k.slug)) return '';
-  const [fon, matn] = ZAXIRA_TUS[xeshRaqam(k.slug || k.name || '') % ZAXIRA_TUS.length];
-  return `background:${fon};color:${matn}`;
-}
+// Toifa RANGI yo'q: barcha toifa bir xil brend uslubida (CSS). Ilgari
+// har biriga ko'k, binafsha, sariq pastel berilardi va bosh sahifa
+// kamalakka aylanib, qizil–yashil brend yo'qolib qolardi.
 
 /** Yuqoridagi toifa kartalari (rasmdagidek oq, ikonli, siriladigan). */
 function toifalarniChiz() {
@@ -799,7 +957,7 @@ function toifalarniChiz() {
                   ...holat.kategoriyalar.filter((k) => bor.has(k.id))];
   $('#toifalar').innerHTML = royxat.map((k) => `
     <button data-toifa="${esc(k.slug)}" class="${k.slug === holat.kategoriya ? 'tanlangan' : ''}">
-      <span class="doira t-${esc(k.slug)}" style="${toifaUslub(k)}">${ik(toifaIkon(k), 23)}</span>
+      <span class="doira">${ik(toifaIkon(k), 23)}</span>
       <span>${esc(k.name)}</span>
     </button>`).join('');
   $$('#toifalar [data-toifa]').forEach((b) => b.onclick = () => {
@@ -897,6 +1055,19 @@ function mahsulotlarniChiz(uy = false) {
  * Soxta emas: oxirgi tahlildagi muammolar va profildagi teri turi bilan
  * solishtiriladi. Mos kelmasa yorliq umuman chiqmaydi.
  */
+/** Teri turi kaliti → yorliq. Ilgari ekranda «yogli, aralash» turardi. */
+const TERI_NOM = { quruq: 'Quruq', yogli: 'Yog‘li', aralash: 'Aralash',
+  normal: 'Normal', sezgir: 'Sezgir', barcha: 'Barcha turdagi' };
+const teriNomi = (k) => TERI_NOM[k] || tutuq(String(k || ''));
+
+/** Mahsulot yordam beradigan muammo — «teshik akne» emas, to'liq nom. */
+const YORDAM_NOM = { akne: 'Toshmalar', teshik: 'Kengaygan teshiklar',
+  yoglilik: 'Yog‘lanish', quruqlik: 'Quruqlik', qizarish: 'Qizarish',
+  dog: 'Dog‘lar', ajin: 'Ajinlar', xiralik: 'Xiralik', sezgirlik: 'Sezgir teri',
+  qora_doira: 'Ko‘z ostidagi soya', shishish: 'Shishish', quyosh: 'Quyoshdan himoya' };
+const yordamNomi = (k) => YORDAM_NOM[k]
+  || (s0 => s0.charAt(0).toUpperCase() + s0.slice(1))(tutuq(String(k || '')).replace(/_/g, ' '));
+
 function moslikTegi(p) {
   const teri = holat.user?.teri_turi || '';
   const muammolar = new Set((holat.tahlil?.problems || []).map((m) => m.kalit).filter(Boolean));
@@ -1067,10 +1238,16 @@ function mahsulotOyna(id) {
       <span class="plitka-qiymat">${qiymat}</span>
     </div>`;
 
+  // Rasm KATTA va kvadrat: odam mahsulotni shu yerda ko'rib tanlaydi.
+  // Ilgari rasmsiz mahsulotda bu joy 90px li tor chiziqqa siqilib,
+  // yurakcha bilan yopish tugmasi uning ustiga chiqib qolardi.
+  const yurak = `<i class="yurak ${holat.sevimlilar?.has(p.id) ? 'faol' : ''}" data-yurak="${p.id}"
+          role="button" aria-label="Sevimlilarga">${ik('yurak', 19)}</i>`;
   $('#modal-tan').innerHTML = `
-    ${rasmHtml(p, p.poster_id ? 'aspect-ratio:1/1' : 'aspect-ratio:16/9',
-      `<i class="yurak ${holat.sevimlilar?.has(p.id) ? 'faol' : ''}" data-yurak="${p.id}"
-          role="button" aria-label="Sevimlilarga">${ik('yurak', 18)}</i>`)}
+    ${p.poster_id
+      ? `<div class="oyna-rasm"><img src="/media/${esc(p.poster_id)}?w=800"
+           alt="${esc(nomi(p))}" decoding="async">${yurak}</div>`
+      : `<div class="oyna-rasm bosh">${ik('shisha', 64)}${yurak}</div>`}
     <div style="padding:18px 18px 0">
       <div class="mbrend">${esc(p.brand || '')}</div>
       <h2 style="margin:5px 0 8px">${esc(nomi(p))}</h2>
@@ -1099,7 +1276,7 @@ function mahsulotOyna(id) {
         return (t || teri) ? `<div class="oyna-teglar">
           ${t ? `<span class="teg-mos ${t.sinf}">${esc(t.matn)}</span>` : ''}
           ${teri && (p.skin_types || []).includes(teri)
-            ? `<span class="teg-mos teg-yashil">${esc(teri)} teriga</span>` : ''}
+            ? `<span class="teg-mos teg-yashil">${esc(teriNomi(teri))} teriga</span>` : ''}
         </div>` : '';
       })()}
 
@@ -1112,13 +1289,13 @@ function mahsulotOyna(id) {
         ${plitka('quti', 'Omborda', p.stock > 0 ? `${p.stock} dona` : 'tugagan',
             p.stock > 0 ? 'yashil' : 'qizil')}
         ${p.skin_types?.length
-          ? plitka('tomchi', 'Teri turi', p.skin_types.map(esc).join(', '), 'kul') : ''}
+          ? plitka('tomchi', 'Teri turi', p.skin_types.map((t) => esc(teriNomi(t))).join(', '), 'kul') : ''}
       </div>
 
       ${p.concerns?.length ? `
         <div class="bolim">
           <div class="bolim-bosh">${ik('tozalik', 16)}Nimaga yordam beradi</div>
-          <div class="teglar">${p.concerns.map((c) => `<span class="teg">${esc(c)}</span>`).join('')}</div>
+          <div class="teglar">${p.concerns.map((c) => `<span class="teg">${esc(yordamNomi(c))}</span>`).join('')}</div>
         </div>` : ''}
 
       ${p.usage_text ? `
@@ -2029,8 +2206,10 @@ function limitniChiz() {
   el.innerHTML = L.qolgan === 0
     ? `<span>Bugungi limit tugadi. ${L.mijoz ? 'Ertaga yana ochiladi.'
         : '<b>Xarid qilsangiz limit oshadi.</b>'}</span>`
-    : `<span>Bugun yana <b>${L.qolgan} ta</b> tahlil qilishingiz mumkin
-        <span class="ozgina">(${L.ishlatilgan}/${L.limit})</span></span>`;
+    : `<span>Bugun yana <b>${L.qolgan} ta</b> bepul tahlil</span>
+       <span class="limit-nuqtalar" aria-label="${L.ishlatilgan} / ${L.limit} ishlatildi">${
+         Array.from({ length: Math.min(10, L.limit || 0) }, (_, i) =>
+           `<i class="${i < L.ishlatilgan ? 'ishlatildi' : ''}"></i>`).join('')}</span>`;
 }
 
 /**
@@ -3065,7 +3244,7 @@ function savatniChiz() {
               <span>${quantity}</span>
               <button data-kop="${p.id}" aria-label="Ko‘paytirish">+</button>
             </span>
-            <span class="savat-narx">${qisqaNarx(p.price * quantity)} so'm</span>
+            <span class="savat-narx">${qisqaNarx(p.price * quantity)} so‘m</span>
           </div>
         </div>
       </div>`).join('')}
@@ -3521,17 +3700,17 @@ function profilniChiz() {
     ? `<img src="${esc(tgU.photo_url)}" alt="" onerror="this.replaceWith(document.createTextNode('${esc(bosh)}'))">`
     : esc(bosh);
   $('#profil-ism').textContent = ism || tgU.first_name || 'Profilim';
-  $('#profil-tel').textContent = u.phone || (tgU.username ? '@' + tgU.username : '');
+  $('#profil-tel').textContent = u.phone ? raqamFormat(u.phone)
+    : (u.email || (tgU.username ? '@' + tgU.username : ''));
   $('#profil-stat').innerHTML = `
     <div><b>${st.tahlil ?? 0}</b><span>AI tahlil</span></div>
-    <div data-sevimli="1"><b>${st.sevimli ?? holat.sevimlilar.size}</b><span>sevimlilar</span></div>
-    <div><b>${st.buyurtma ?? 0}</b><span>buyurtmalar</span></div>`;
+    <div data-sevimli="1"><b>${st.sevimli ?? holat.sevimlilar.size}</b><span>Sevimlilar</span></div>
+    <div><b>${st.buyurtma ?? 0}</b><span>Buyurtmalar</span></div>`;
 
   const m = holat.menejer || {};
   const tgNom = String(holat.konsultatsiya || '').replace(/^@/, '');
   const tel = String(m.telefon || '');
-  const teriNom = { quruq:'Quruq', yogli:'Yog‘li', aralash:'Aralash',
-                    normal:'Normal', sezgir:'Sezgir' };
+  const teriNom = TERI_NOM;
 
   // Har bo'lim YOPIQ: profil sahifasi bir ekranga sig'sin, kerakligini
   // odam o'zi ochsin.
@@ -4095,7 +4274,7 @@ function maslahatniChiz() {
   if (!holat.suhbat.length) {
     oqim.innerHTML = `
       <div class="suhbat-bosh-ekran">
-        <div class="halqa">${ik('robot', 34)}</div>
+        <div class="halqa">${BELGI()}</div>
         <h2>Nima bezovta qilyapti?</h2>
         <p>O‘z so‘zingiz bilan yozing — mos mahsulotni topib beraman.</p>
         <div class="namunalar">
@@ -4533,4 +4712,4 @@ $('#t-savatga-otish').onclick = () => { titra(); tabOch('savat'); };
 $('#t-qid-skaner').onclick = () => { titra('medium'); tabOch('skaner'); };
 
 boshla();
-})();
+});

@@ -10,7 +10,7 @@ import * as reg from './handlers/register.js';
 import * as skaner from './handlers/scanner.js';
 import * as dokon from './handlers/shop.js';
 import { esc } from './format.js';
-import { sorovJavobi } from '../services/ilova-kirish.js';
+import { sorovJavobi, telegramKirishniTasdiqla } from '../services/ilova-kirish.js';
 import * as ochiq from '../services/ochiq-skan.js';
 
 async function foydalanuvchi(from) {
@@ -36,6 +36,19 @@ export async function yangilanish(upd) {
 
   const chatId = msg.chat.id;
   const matn = (msg.text || '').trim();
+
+  // ---- Ilovaga Telegram orqali kirish ----
+  // `t.me/bot?start=kir_<kalit>`. Obuna va ro'yxatdan o'tish
+  // tekshiruvidan OLDIN: ilovaga kirish kanalga obuna bo'lishga
+  // bog'liq bo'lmasligi kerak. Ro'yxatdan o'tish (ism, telefon,
+  // rozilik) keyin ilovaning o'zida so'raladi.
+  const kirMos = /^\/start kir_([A-Za-z0-9_-]{20,64})$/.exec(matn);
+  if (kirMos) {
+    const ok = await telegramKirishniTasdiqla(kirMos[1], user);
+    return yubor(chatId, ok
+      ? '✅ <b>Ilovaga kirdingiz</b>\n\nKiOVO ilovasiga qayting — u allaqachon ochildi.'
+      : '⏳ Bu havolaning muddati o‘tgan. Ilovada «Telegram orqali kirish» ni qayta bosing.');
+  }
 
   // «Yozmoqda…» DARHOL ko'rinadi. Javobning o'zi bir necha baza
   // so'rovidan keyin keladi va shu bir lahzada odam «bot o'lganmi?»
@@ -155,7 +168,7 @@ async function callback(cq) {
   // Brauzerdan kirishni tasdiqlash
   if (data.startsWith('kir:')) {
     const [, javob, id] = data.split(':');
-    const s = await sorovJavobi(id, javob === 'ha');
+    const s = await sorovJavobi(id, javob === 'ha', user.id);
     if (!s) return javobBer(cq.id, 'Bu so‘rovning muddati o‘tgan yoki javob berilgan', true);
 
     await javobBer(cq.id, javob === 'ha' ? '✅ Tasdiqlandi' : '🚫 Rad etildi');

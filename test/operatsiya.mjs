@@ -1,4 +1,4 @@
-import { soxtaServer, yuborilgan, aiHisobi } from './soxta-server.mjs';
+import { soxtaServer, yuborilgan, aiHisobi, smslar, urinishlar } from './soxta-server.mjs';
 const PORT=4479; const srv=await soxtaServer(PORT);
 process.env.BOT_TOKEN='111111:TEST';
 process.env.ADMIN_LOGIN='a'; process.env.ADMIN_PASSWORD='parol12345';
@@ -7,6 +7,11 @@ process.env.TELEGRAM_API=`http://127.0.0.1:${PORT}`;
 process.env.GEMINI_API=`http://127.0.0.1:${PORT}/models`; process.env.GEMINI_API_KEY='soxta';
 process.env.PUBLIC_URL='https://sinov.example';
 process.env.ADMIN_TELEGRAM_IDS='700001';
+// Ilovaga kirish: Google, SMS (soxta Eskiz) va Play tekshiruvchisi uchun demo
+process.env.GOOGLE_CLIENT_ID='sinov-mijoz.apps.googleusercontent.com';
+process.env.ESKIZ_EMAIL='do\u2018kon@sinov.uz'; process.env.ESKIZ_PAROL='eskiz-parol';
+process.env.ESKIZ_API=`http://127.0.0.1:${PORT}/eskiz`;
+process.env.DEMO_TELEFON='+998 90 000 00 77'; process.env.DEMO_KOD='135790';
 
 const { migratsiyalarniQoll } = await import('../src/db/migrate.js');
 await migratsiyalarniQoll();
@@ -2037,7 +2042,10 @@ console.log('\n── KO‘RINISH (KUNDUZGI/TUNGI) ──');
   const js  = fs.readFileSync('public/app/app.js', 'utf8');
 
   const media = [...css.matchAll(/@media \(prefers-color-scheme:dark\)/g)].length;
-  test('tungi bloklar bor', media >= 4, `${media} ta`);
+  // Toifalarning pastel ranglari olib tashlangach (brend bitta) ularning
+  // tungi nusxasi ham ketdi — bloklar soni kamaydi, himoya talabi esa
+  // o'zgarmadi.
+  test('tungi bloklar bor', media >= 3, `${media} ta`);
 
   // Har bir tungi media blok «kunduzgi» tanlovidan himoyalangan
   const himoyasiz = [...css.matchAll(/@media \(prefers-color-scheme:dark\)\{([^{]*)\{/g)]
@@ -2047,9 +2055,14 @@ console.log('\n── KO‘RINISH (KUNDUZGI/TUNGI) ──');
 
   // Majburiy tungi uchun takror bloklar
   const tungi = [...css.matchAll(/\[data-mavzu="tungi"\]/g)].length;
-  test('majburiy tungi qoidalar bor', tungi >= 4, `${tungi} ta`);
+  test('majburiy tungi qoidalar bor', tungi >= 3, `${tungi} ta`);
+  // Telefon sozlamasidagi tungi tokenlar va qo'lda tanlangan «tungi»
+  // AYNAN bir xil bo'lishi kerak — aks holda ikki xil tungi ko'rinish chiqadi
+  const tizimTungi = (/@media \(prefers-color-scheme:dark\)\{:root:not\(\[data-mavzu="kunduzgi"\]\)\{([^}]*)\}\}/.exec(css) || [])[1];
+  const qolTungi = (/:root\[data-mavzu="tungi"\]\{([^}]*)\}/.exec(css) || [])[1];
   test('tungi tokenlar to‘liq ko‘chirilgan',
-    /:root\[data-mavzu="tungi"\][^}]*--fon:#0f0f11/.test(css));
+    Boolean(tizimTungi) && tizimTungi.trim() === (qolTungi || '').trim()
+      && /--fon:#120b0b/.test(qolTungi || ''));
   test('ko‘rinish tanlovi uslubi bor', css.includes('.korinish-tanlov'));
 
   // JS tomoni
@@ -4946,6 +4959,178 @@ console.log('\n── KARTOCHKA SHABLONI ──');
     /function buyurtmalar\(\) \{\s*location\.href = '\/buyurtma\/';/.test(adminJs2));
   test('eski ikkinchi ro‘yxat olib tashlandi — bitta joy qoldi',
     !/function buyurtmaKarta/.test(adminJs2) && !/function buyurtmaOyna/.test(adminJs2));
+}
+
+// ═══════════════ ILOVAGA KIRISH: GOOGLE, SMS, TELEGRAM ═══════════════
+// «Gmail va telefon raqam qo'shamiz va Telegram orqali kirish ham
+// qoladi.» Play'dan yuklagan odamda bot hisobi bo'lmasligi mumkin —
+// ilgari u ilovaga umuman kira olmasdi.
+console.log('\n── ILOVAGA KIRISH ──');
+{
+  const crypto = await import('node:crypto');
+  const K = await import('../src/services/ilova-kirish.js');
+  const G = await import('../src/services/google-kirish.js');
+  const { tg } = await import('../src/bot/tg.js');
+  const CLIENT = process.env.GOOGLE_CLIENT_ID;
+
+  // ── Google: haqiqiy RS256 imzo bilan sinov tokeni ──
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'sinov-kalit', alg: 'RS256', use: 'sig' };
+  const kalitlar = async () => [jwk];
+  const hozir = Math.floor(Date.now() / 1000);
+  const jwtYasa = (tana, { kalit = privateKey, kid = 'sinov-kalit' } = {}) => {
+    const b = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const bosh = b({ alg: 'RS256', kid, typ: 'JWT' });
+    const t = b({ iss: 'https://accounts.google.com', aud: CLIENT, sub: '1100220033',
+      email: 'malika@gmail.com', email_verified: true, name: 'Malika Aliyeva',
+      iat: hozir, exp: hozir + 3600, ...tana });
+    const imzo = crypto.sign('RSA-SHA256', Buffer.from(`${bosh}.${t}`), kalit).toString('base64url');
+    return `${bosh}.${t}.${imzo}`;
+  };
+  const tekshir = (jwt, o = {}) => G.googleTokeniniTekshir(jwt, { kalitlarOl: kalitlar, ...o });
+  const rad = async (jwt, o) => { try { await tekshir(jwt, o); return ''; } catch (e) { return e.message; } };
+
+  const g = await tekshir(jwtYasa({}));
+  test('Google tokeni imzosi tekshiriladi va qabul qilinadi',
+    g.sub === '1100220033' && g.email === 'malika@gmail.com' && g.ism === 'Malika Aliyeva');
+  test('boshqa ilova uchun berilgan token RAD etiladi (aud)', /aud/.test(await rad(jwtYasa({ aud: 'begona' }))));
+  test('muddati o‘tgan token rad etiladi', /muddat/.test(await rad(jwtYasa({ exp: hozir - 7200 }))));
+  test('Google bermagan token rad etiladi (iss)', /iss/.test(await rad(jwtYasa({ iss: 'https://soxta.uz' }))));
+  test('tasdiqlanmagan email rad etiladi — birovning hisobiga ulanib qolmasin',
+    /email/.test(await rad(jwtYasa({ email_verified: false }))));
+  const { privateKey: begonaKalit } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  test('boshqa kalit bilan imzolangan (soxta) token rad etiladi',
+    /imzo/.test(await rad(jwtYasa({}, { kalit: begonaKalit }))));
+  const t0 = jwtYasa({}); const bolak = t0.split('.');
+  const buzuq = `${bolak[0]}.${Buffer.from(JSON.stringify({ ...JSON.parse(Buffer.from(bolak[1], 'base64url')), sub: 'boshqa' })).toString('base64url')}.${bolak[2]}`;
+  test('ichi o‘zgartirilgan token rad etiladi', /imzo/.test(await rad(buzuq)));
+  test('noma’lum kalit rad etiladi', /kalit/.test(await rad(jwtYasa({}, { kid: 'yoq' }))));
+
+  // ── Google bilan kirish: foydalanuvchi va seans ──
+  await sorov(`delete from users where google_sub in ('1100220033','2200330044') or email in ('malika@gmail.com','eski@gmail.com')`);
+  const g1 = await K.googleBilanKir(jwtYasa({}), { tekshir });
+  const gu = await qator('select * from users where google_sub = $1', ['1100220033']);
+  test('Google bilan YANGI foydalanuvchi yaratiladi — botda ro‘yxatdan o‘tish shart emas',
+    Boolean(g1.token) && gu?.telegram_id === 'google:1100220033' && gu.email === 'malika@gmail.com',
+    gu?.telegram_id);
+  test('Google’dagi ism saqlanadi', gu?.full_name === 'Malika Aliyeva');
+  const g2 = await K.googleBilanKir(jwtYasa({}), { tekshir });
+  test('ikkinchi kirish — O‘SHA hisob', g2.user?.id === gu.id);
+  test('seans tokeni bilan foydalanuvchi topiladi', (await K.seansdanUser(g1.token))?.id === gu.id);
+  // Oldin email bilan ro'yxatdan o'tgan hisobga bog'lanadi
+  const eski = await qator(`insert into users (telegram_id, email, full_name, phone)
+    values ('900777', 'eski@gmail.com', 'Eski Mijoz', '+998901110022') returning id`);
+  const g3 = await K.googleBilanKir(jwtYasa({ sub: '2200330044', email: 'eski@gmail.com' }), { tekshir });
+  test('shu email bilan mavjud hisob bo‘lsa — o‘shanga bog‘lanadi (buyurtmalari ko‘rinadi)',
+    g3.user?.id === eski.id);
+  const gx = await K.googleBilanKir('buzuq.token.bu', { tekshir });
+  test('buzuq token bilan kirib bo‘lmaydi', !gx.token && Boolean(gx.xato));
+
+  // ── Telegrami yo'q foydalanuvchiga bot xabar YUBORMAYDI ──
+  const oldin = urinishlar.length;
+  const r0 = await tg('sendMessage', { chat_id: 'google:1100220033', text: 'salom' });
+  test('Telegramsiz foydalanuvchiga xabar yuborishga urinilmaydi',
+    r0.description === 'TELEGRAMSIZ' && urinishlar.length === oldin);
+  test('kanal nomi (@kanal) va raqamli id odatdagidek ishlaydi',
+    (await import('../src/bot/tg.js')).telegramiBormi('@kiovo_kanal')
+      && (await import('../src/bot/tg.js')).telegramiBormi(-1001234567890));
+
+  // ── SMS: soxta Eskiz orqali ──
+  await sorov(`delete from kirish_sorovlari where tur = 'sms'`);
+  await sorov(`delete from users where phone in ('+998935557711','+998900000077')`);
+  smslar.length = 0;
+  const s1 = await K.smsSorovYarat('93 555 77 11', { ip: '1.1.1.1' });
+  const sms = smslar.at(-1);
+  const kod = (/(\d{6})/.exec(sms?.matn || '') || [])[1];
+  test('SMS yuborildi — Eskiz’ga to‘g‘ri raqam va jo‘natuvchi bilan',
+    Boolean(s1.kalit) && sms?.tel === '998935557711' && sms?.from === '4546', JSON.stringify(sms));
+  test('SMS matni Eskiz’da tasdiqlatiladigan shablonda', /^KiOVO ilovasiga kirish kodi: \d{6}\./.test(sms?.matn || ''));
+  test('raqam ekranda yashirin ko‘rsatiladi', /\*/.test(s1.raqam || ''), s1.raqam);
+  const bazada = await qator(`select kod from kirish_sorovlari where kalit = $1`, [s1.kalit]);
+  test('kod bazada OCHIQ saqlanmaydi', bazada && bazada.kod !== kod && bazada.kod.length === 64);
+
+  const notogri = await K.smsTasdiqla(s1.kalit, '000000');
+  test('noto‘g‘ri kod rad etiladi va urinish qoldig‘i aytiladi', /Yana 4/.test(notogri.xato || ''), notogri.xato);
+  const s1ok = await K.smsTasdiqla(s1.kalit, kod);
+  const su = await qator(`select * from users where phone = '+998935557711'`);
+  test('to‘g‘ri kod — yangi foydalanuvchi va seans', Boolean(s1ok.token) && su?.telegram_id === 'tel:+998935557711');
+  test('kod ikkinchi marta ishlamaydi', Boolean((await K.smsTasdiqla(s1.kalit, kod)).xato));
+
+  // Mavjud (botdan ro'yxatdan o'tgan) mijoz SMS bilan O'Z hisobiga kiradi
+  await sorov(`delete from users where telegram_id = '900888'`);
+  const botdagi = await qator(`insert into users (telegram_id, full_name, phone)
+    values ('900888', 'Botdagi Mijoz', '+998935557722') returning id`);
+  const s2 = await K.smsSorovYarat('+998 93 555 77 22');
+  const kod2 = (/(\d{6})/.exec(smslar.at(-1)?.matn || '') || [])[1];
+  test('botdagi mijoz SMS bilan O‘Z hisobiga kiradi',
+    (await K.smsTasdiqla(s2.kalit, kod2)).user?.id === botdagi.id);
+
+  // Besh noto'g'ri urinishdan keyin so'rov yopiladi
+  const s3 = await K.smsSorovYarat('93 555 77 33');
+  for (let i = 0; i < 5; i++) await K.smsTasdiqla(s3.kalit, '999999');
+  const kod3 = (/(\d{6})/.exec(smslar.at(-1)?.matn || '') || [])[1];
+  test('5 ta noto‘g‘ri urinishdan keyin to‘g‘ri kod ham ishlamaydi (taxmin qilib bo‘lmaydi)',
+    !((await K.smsTasdiqla(s3.kalit, kod3)).token));
+
+  // Bitta raqamga SMS yog'dirib bo'lmaydi
+  await K.smsSorovYarat('93 555 77 44'); await K.smsSorovYarat('93 555 77 44');
+  await K.smsSorovYarat('93 555 77 44');
+  test('bitta raqamga 10 daqiqada 3 tadan ortiq SMS yuborilmaydi',
+    /ko‘p so‘raldi/.test((await K.smsSorovYarat('93 555 77 44')).xato || ''));
+  test('chet el raqamiga SMS yuborilmaydi — Google/Telegram taklif qilinadi',
+    /Google yoki Telegram/.test((await K.smsSorovYarat('+82 10 1234 5678')).xato || ''));
+  globalThis.SMS_XATO = true;
+  const sx = await K.smsSorovYarat('93 555 77 55');
+  globalThis.SMS_XATO = false;
+  test('SMS yuborilmasa odamga tushunarli xato', /SMS yuborib bo‘lmadi/.test(sx.xato || ''));
+
+  // Google Play tekshiruvchisi uchun demo
+  const smsOldin = smslar.length;
+  const d = await K.smsSorovYarat('+998 90 000 00 77');
+  test('DEMO raqamga SMS yuborilmaydi', Boolean(d.kalit) && smslar.length === smsOldin);
+  test('DEMO raqam qotgan kod bilan kiradi — tekshiruvchi ilovani ochadi',
+    Boolean((await K.smsTasdiqla(d.kalit, '135790')).token));
+
+  // ── Telegram orqali (deep link) — oldindan ro'yxatdan o'tish SHART EMAS ──
+  const tgs = await K.telegramSorovYarat({ ip: '1.1.1.1' });
+  test('Telegram havolasi botga olib boradi', /^https:\/\/t\.me\/sinov_bot\?start=kir_[A-Za-z0-9_-]{20,64}$/.test(tgs.havola || ''), tgs.havola);
+  await sorov(`delete from users where telegram_id = '815001'`);
+  yuborilgan.length = 0;
+  await yangilanish({ update_id: 98001, message: { message_id: 1, date: 1,
+    chat: { id: 815001, type: 'private' }, from: { id: 815001, first_name: 'Yangi' },
+    text: `/start ${tgs.havola.split('start=')[1]}` } });
+  test('botda tasdiq xabari keldi', /Ilovaga kirdingiz/.test(yuborilgan.map((x) => x.text || '').join('\n')));
+  const h = await K.sorovHolati(tgs.kalit);
+  const tgu = await qator(`select id from users where telegram_id = '815001'`);
+  test('ilova token oladi — botda ROYXATDAN O‘TMAGAN odam ham',
+    h.holat === 'tasdiqlandi' && (await K.seansdanUser(h.token))?.id === tgu?.id);
+  test('havola ikkinchi marta ishlamaydi',
+    !(await K.telegramKirishniTasdiqla(tgs.kalit, { id: tgu.id })));
+
+  // Eski yo'l: tasdiq tugmasini FAQAT so'rov egasi bosa oladi
+  await sorov(`delete from users where telegram_id in ('815002','815003')`);
+  const ega = await qator(`insert into users (telegram_id, full_name, phone, agreed_at)
+    values ('815002', 'Ega', '+998935557799', now()) returning id`);
+  const begona = await qator(`insert into users (telegram_id, full_name) values ('815003', 'Begona') returning id`);
+  const sv = await K.sorovYarat('+998 93 555 77 99');
+  const svId = (await qator('select id from kirish_sorovlari where kalit = $1', [sv.kalit])).id;
+  test('BEGONA odam boshqaning kirishini tasdiqlay olmaydi', !(await K.sorovJavobi(svId, true, begona.id)));
+  test('egasi tasdiqlay oladi', Boolean(await K.sorovJavobi(svId, true, ega.id)));
+
+  // ── HTTP: kirish usullari va Google qayta yo'naltirish ──
+  const us = await K.kirishUsullari();
+  test('kirish ekrani uchala usulni ham biladi',
+    us.google === CLIENT && us.sms === true && us.telegram === true, JSON.stringify(us));
+  const serverKod = (await import('node:fs')).readFileSync('src/server.js', 'utf8');
+  test('Google qayta yo‘naltirishda CSRF tekshiriladi',
+    /cookieToken !== f\.g_csrf_token/.test(serverKod));
+  const ilova = (await import('node:fs')).readFileSync('public/app/app.js', 'utf8');
+  test('ilovada Google tugmasi — redirect rejimi (TWA da popup ochilmaydi)',
+    /ux_mode: 'redirect'/.test(ilova) && /login_uri: `\$\{location\.origin\}\/kirish\/google`/.test(ilova));
+  test('SMS kodi telefon tomonidan taklif qilinadi', /autocomplete="one-time-code"/.test(ilova));
+  test('kirishda oferta va maxfiylik havolasi bor', /href="\/maxfiylik"/.test(ilova) && /href="\/oferta"/.test(ilova));
+
+  await sorov(`delete from users where telegram_id in ('900777','900888','815001','815002','815003') or telegram_id like 'google:%' or telegram_id like 'tel:%'`);
 }
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);

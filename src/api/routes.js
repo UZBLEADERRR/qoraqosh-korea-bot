@@ -1,7 +1,8 @@
 // Mini App API. Har bir so'rov Telegram initData imzosi bilan tekshiriladi.
 import { qator, qatorlar, sorov, hodisa, sozlama } from '../db.js';
 import { verifyInitData } from '../lib/auth.js';
-import { sorovYarat, sorovHolati, seansdanUser, seansniYop, seanslarSoni }
+import { sorovYarat, sorovHolati, seansdanUser, seansniYop, seanslarSoni,
+         kirishUsullari, telegramSorovYarat, smsSorovYarat, smsTasdiqla, googleBilanKir }
   from '../services/ilova-kirish.js';
 import { raqamTozala } from '../lib/telefon.js';
 import { ok, xato, tana, json, ipOl } from '../lib/http.js';
@@ -81,6 +82,53 @@ export async function apiRoutes(req, res, yol) {
       qurilma: String(req.headers['user-agent'] || '').slice(0, 120) }));
   }
 
+  // --- Kirish ekrani: qaysi usullar yoqilgan ---
+  if (yol === '/api/kirish/usullar' && req.method === 'GET') {
+    return ok(res, await kirishUsullari());
+  }
+
+  // --- Telegram orqali (deep link). Oldindan ro'yxatdan o'tish shart emas ---
+  if (yol === '/api/kirish/telegram' && req.method === 'POST') {
+    const c = cheklov('kirtg:' + ipOl(req), 10, 15 * 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: 'Juda ko‘p urinish. Birozdan keyin qayta urining.' });
+    const r = await telegramSorovYarat({ ip: ipOl(req),
+      qurilma: String(req.headers['user-agent'] || '').slice(0, 120) });
+    if (r.xato) return xato(res, 400, r.xato);
+    return ok(res, r);
+  }
+
+  // --- Telefon: SMS kod ---
+  if (yol === '/api/kirish/sms' && req.method === 'POST') {
+    // SMS pul turadi: IP bo'yicha qattiq chegara
+    const c = cheklov('kirsms:' + ipOl(req), 5, 15 * 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: 'Juda ko‘p urinish. 15 daqiqadan keyin qayta urining.' });
+    const b = await tana(req);
+    const r = await smsSorovYarat(b.telefon, { ip: ipOl(req),
+      qurilma: String(req.headers['user-agent'] || '').slice(0, 120) });
+    if (r.xato) return xato(res, 400, r.xato);
+    return ok(res, r);
+  }
+  if (yol === '/api/kirish/sms/tasdiq' && req.method === 'POST') {
+    const c = cheklov('kirsmst:' + ipOl(req), 20, 15 * 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: 'Juda ko‘p urinish. Birozdan keyin qayta urining.' });
+    const b = await tana(req);
+    const r = await smsTasdiqla(b.kalit, b.kod, {
+      qurilma: String(req.headers['user-agent'] || '').slice(0, 120) });
+    if (r.xato) return xato(res, 400, r.xato);
+    return ok(res, r);
+  }
+
+  // --- Google (popup rejimi — JSON). Qayta yo'naltirish rejimi server.js da ---
+  if (yol === '/api/kirish/google' && req.method === 'POST') {
+    const c = cheklov('kirg:' + ipOl(req), 20, 15 * 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: 'Juda ko‘p urinish. Birozdan keyin qayta urining.' });
+    const b = await tana(req);
+    const r = await googleBilanKir(b.credential, {
+      qurilma: String(req.headers['user-agent'] || '').slice(0, 120) });
+    if (r.xato) return xato(res, 400, r.xato);
+    return ok(res, r);
+  }
+
   // --- Bundan keyingi hammasi imzo talab qiladi ---
   const user = await kim(req);
   if (!user) return xato(res, 401, 'Ruxsat yo‘q. Ilovaga qayta kiring.');
@@ -109,6 +157,11 @@ export async function apiRoutes(req, res, yol) {
               jami_xarid: Number(stat?.jami_xarid ?? 0), sevimli: stat?.sevimli ?? 0 },
       user: {
         id: user.id, full_name: user.full_name, phone: user.phone,
+        email: user.email || '',
+        // Qaysi yo'l bilan kirgan: Telegram, Google yoki telefon (SMS).
+        // Profilda shu ko'rsatiladi, Telegramsizlarga bot buyruqlari aytilmaydi.
+        kirish: /^google:/.test(user.telegram_id) ? 'google'
+          : /^tel:/.test(user.telegram_id) ? 'telefon' : 'telegram',
         age: user.age, address: user.address || '',
         viloyat: user.viloyat, tuman: user.tuman,
         // Profildagi tahrirlanadigan qismlar. Allergiya va kasallik AI
