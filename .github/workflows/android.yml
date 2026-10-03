@@ -62,11 +62,15 @@ jobs:
             echo "::add-mask::$KALIT_PAROL"
             # Telefondan nusxalanganda matnga bo'sh joy, qator uzilishi yoki
             # «data:...;base64,» qo'shilib qolishi mumkin — hammasi tozalanadi.
+            if [ ${#KEYSTORE_B64} -lt 300 ] && printf '%s' "$KEYSTORE_B64" | grep -qiE '\.(txt|jks|keystore)[[:space:]]*$'; then
+              echo "::error title=KIOVO_KEYSTORE_B64 ga fayl NOMI yozilgan::Secret'da fayl nomi turibdi, ichidagi matn emas. kiovo-upload.jks.base64.txt faylini oching, ichidagi uzun matnni (3528 belgi, MIIK... bilan boshlanadi) to'liq nusxalab secret qiymatiga qo'ying."
+              exit 1
+            fi
             TOZA=$(printf '%s' "$KEYSTORE_B64" | sed 's/^data:[^,]*,//' | tr -- '-_' '+/' | tr -cd 'A-Za-z0-9+/=')
             UZ=${#TOZA}
             echo "Kalit matni: $UZ belgi (kutilgan: 3528)"
             if ! printf '%s' "$TOZA" | base64 -d > "$KS" 2>/dev/null || [ ! -s "$KS" ]; then
-              echo "::error title=KIOVO_KEYSTORE_B64 buzilgan::Secret'dagi matn base64 emas yoki to'liq emas ($UZ belgi, kerak 3528). kiovo-keystore-base64.txt faylini kompyuterda oching, Ctrl+A → Ctrl+C bilan HAMMASINI nusxalab, secret'ni qayta saqlang."
+              echo "::error title=KIOVO_KEYSTORE_B64 buzilgan::Secret'dagi matn base64 emas yoki to'liq emas ($UZ belgi, kerak 3528). kiovo-upload.jks.base64.txt faylini oching, Ctrl+A → Ctrl+C bilan HAMMASINI nusxalab, secret'ni qayta saqlang."
               exit 1
             fi
             echo "Kalit fayli: $(stat -c %s "$KS") bayt (kutilgan: 2646)"
@@ -76,7 +80,7 @@ jobs:
               if printf '%s' "$ROYXAT" | grep -qi 'password'; then
                 echo "::error title=KIOVO_KEYSTORE_PAROL noto'g'ri::Kalit fayli o'qildi, lekin parol mos kelmadi. KIOVO_KEYSTORE_PAROL ni qayta kiriting (boshida/oxirida bo'sh joy qolmasin)."
               else
-                echo "::error title=KIOVO_KEYSTORE_B64 to'liq emas::Kalit matni $UZ belgi (kerak 3528) — fayl buzilgan. kiovo-keystore-base64.txt ni to'liq nusxalab secret'ni qayta saqlang."
+                echo "::error title=KIOVO_KEYSTORE_B64 to'liq emas::Kalit matni $UZ belgi (kerak 3528) — fayl buzilgan. kiovo-upload.jks.base64.txt ichidagi matnni to'liq nusxalab secret'ni qayta saqlang."
               fi
               exit 1
             fi
