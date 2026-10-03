@@ -53,15 +53,54 @@ jobs:
           KEYSTORE_PAROL: ${{ secrets.KIOVO_KEYSTORE_PAROL }}
           KALIT_NOMI: ${{ secrets.KIOVO_KALIT_NOMI }}
           KALIT_PAROL: ${{ secrets.KIOVO_KALIT_PAROL }}
+          # Doimiy kalitning kutilgan barmoq izi (src/config.js dagi androidSha256)
+          KUTILGAN_IZ: "4C:9F:81:B6:F7:BF:5F:5F:5E:2F:91:60:07:7E:CF:93:F6:D1:04:6A:A3:04:46:AA:D4:A3:A5:3F:D8:B9:4D:25"
         run: |
           KS="$RUNNER_TEMP/kiovo.jks"
           if [ -n "$KEYSTORE_B64" ]; then
             echo "::add-mask::$KEYSTORE_PAROL"
             echo "::add-mask::$KALIT_PAROL"
-            echo "$KEYSTORE_B64" | base64 -d > "$KS"
+            # Telefondan nusxalanganda matnga bo'sh joy, qator uzilishi yoki
+            # «data:...;base64,» qo'shilib qolishi mumkin — hammasi tozalanadi.
+            TOZA=$(printf '%s' "$KEYSTORE_B64" | sed 's/^data:[^,]*,//' | tr -- '-_' '+/' | tr -cd 'A-Za-z0-9+/=')
+            UZ=${#TOZA}
+            echo "Kalit matni: $UZ belgi (kutilgan: 3528)"
+            if ! printf '%s' "$TOZA" | base64 -d > "$KS" 2>/dev/null || [ ! -s "$KS" ]; then
+              echo "::error title=KIOVO_KEYSTORE_B64 buzilgan::Secret'dagi matn base64 emas yoki to'liq emas ($UZ belgi, kerak 3528). kiovo-keystore-base64.txt faylini kompyuterda oching, Ctrl+A → Ctrl+C bilan HAMMASINI nusxalab, secret'ni qayta saqlang."
+              exit 1
+            fi
+            echo "Kalit fayli: $(stat -c %s "$KS") bayt (kutilgan: 2646)"
+            NOM="${KALIT_NOMI:-kiovo}"
+            KP="${KALIT_PAROL:-$KEYSTORE_PAROL}"
+            if ! ROYXAT=$(keytool -list -keystore "$KS" -storepass "$KEYSTORE_PAROL" 2>&1); then
+              if printf '%s' "$ROYXAT" | grep -qi 'password'; then
+                echo "::error title=KIOVO_KEYSTORE_PAROL noto'g'ri::Kalit fayli o'qildi, lekin parol mos kelmadi. KIOVO_KEYSTORE_PAROL ni qayta kiriting (boshida/oxirida bo'sh joy qolmasin)."
+              else
+                echo "::error title=KIOVO_KEYSTORE_B64 to'liq emas::Kalit matni $UZ belgi (kerak 3528) — fayl buzilgan. kiovo-keystore-base64.txt ni to'liq nusxalab secret'ni qayta saqlang."
+              fi
+              exit 1
+            fi
+            if ! keytool -list -keystore "$KS" -storepass "$KEYSTORE_PAROL" -alias "$NOM" > /dev/null 2>&1; then
+              echo "::error title=KIOVO_KALIT_NOMI noto'g'ri::Kalit omborida «$NOM» nomli kalit yo'q. KIOVO_KALIT_NOMI qiymati: kiovo"
+              exit 1
+            fi
+            if printf '%s' "$ROYXAT" | grep -qi 'PKCS12'; then
+              # PKCS12 da kalit paroli ombor paroli bilan bir xil bo'ladi
+              if [ "$KP" != "$KEYSTORE_PAROL" ]; then
+                echo "::warning::KIOVO_KALIT_PAROL ombor parolidan farq qiladi — PKCS12 kalitida ular bir xil, ombor paroli ishlatildi."
+              fi
+              KP="$KEYSTORE_PAROL"
+            elif ! keytool -certreq -keystore "$KS" -storepass "$KEYSTORE_PAROL" -alias "$NOM" -keypass "$KP" -file /dev/null > /dev/null 2>&1; then
+              echo "::error title=KIOVO_KALIT_PAROL noto'g'ri::Kalit paroli mos kelmadi. KIOVO_KALIT_PAROL ni qayta kiriting."
+              exit 1
+            fi
+            IZ=$(keytool -list -v -keystore "$KS" -storepass "$KEYSTORE_PAROL" -alias "$NOM" | grep -m1 'SHA256:' | sed 's/.*SHA256: //')
+            if [ "$IZ" != "$KUTILGAN_IZ" ]; then
+              echo "::warning title=Boshqa kalit::Bu kalitning izi ($IZ) saytdagi izdan farq qiladi. Admin panel → Sozlamalar → Android ilova ga shu izni qo'shmasangiz ilovada manzil satri ko'rinadi."
+            fi
             echo "KIOVO_KEYSTORE_PAROL=$KEYSTORE_PAROL" >> "$GITHUB_ENV"
-            echo "KIOVO_KALIT_NOMI=${KALIT_NOMI:-kiovo}" >> "$GITHUB_ENV"
-            echo "KIOVO_KALIT_PAROL=${KALIT_PAROL:-$KEYSTORE_PAROL}" >> "$GITHUB_ENV"
+            echo "KIOVO_KALIT_NOMI=$NOM" >> "$GITHUB_ENV"
+            echo "KIOVO_KALIT_PAROL=$KP" >> "$GITHUB_ENV"
             echo "KALIT_TURI=doimiy" >> "$GITHUB_ENV"
           else
             P="vaqtinchalik-$(openssl rand -hex 8)"
