@@ -5490,6 +5490,62 @@ console.log('\n── SHARH RASMLARI ──');
   test('ilovada rasm tanlash va to‘liq ekranda ko‘rish', /id="sharh-fayl"/.test(js) && /function rasmKorish/.test(js));
 }
 
+
+console.log('\n── MAHSULOT VARIANTLARI ──');
+{
+  const { buyurtmaYarat } = await import('../src/services/orders.js');
+  await sorov(`delete from products where name like 'Sinov Tint%'`);
+  // Yangi mahsulot formadan (ilgari nom_uz sabab qo'shib bo'lmasdi)
+  const yangi = await chaqirAdmin('/api/admin/product', 'POST', { name: 'Sinov Tint', nom_uz: 'Sinov lab bo‘yog‘i',
+    brand: 'SinovBrend', price: 50000, stock: 4, step: 'qoshimcha' });
+  test('yangi mahsulot formadan qo‘shiladi (nom_uz bilan)', yangi.kod === 200 && yangi.tana.mahsulot?.nom_uz === 'Sinov lab bo‘yog‘i',
+    JSON.stringify(yangi.tana).slice(0, 120));
+  const asos = yangi.tana.mahsulot;
+  const yoq = await chaqirAdmin('/api/admin/variant', 'POST', { asos_id: asos.id, variant_nom: '02 Pushti', variant_tur: 'rang', price: 52000 });
+  test('asosiy mahsulot variant nomisiz — tushuntirib rad etiladi', yoq.kod === 400 && /Asosiy/.test(yoq.tana.error || ''));
+  const v = await chaqirAdmin('/api/admin/variant', 'POST', { asos_id: asos.id, asos_variant_nom: '01 Qizil', asos_rang_hex: '#b3263e',
+    variant_nom: '02 Pushti', variant_tur: 'rang', rang_hex: '#E86A8A', price: 52000, stock: 3 });
+  test('variant qo‘shildi', v.kod === 200 && v.tana.mahsulot?.variant_of == asos.id, JSON.stringify(v.tana).slice(0, 120));
+  const vm = v.tana.mahsulot;
+  test('variant asosiysidan ko‘chirildi (nom, brend, tavsif), o‘z narxi bilan',
+    vm.name === 'Sinov Tint' && vm.brand === 'SinovBrend' && vm.price === 52000 && vm.rang_hex === '#e86a8a');
+  const asosYangi = await qator('select variant_nom, rang_hex from products where id = $1', [asos.id]);
+  test('asosiy mahsulot ham variant nomini oldi', asosYangi.variant_nom === '01 Qizil' && asosYangi.rang_hex === '#b3263e');
+  const takror = await chaqirAdmin('/api/admin/variant', 'POST', { asos_id: asos.id, variant_nom: '02 Pushti', variant_tur: 'rang', price: 1 });
+  test('bir xil nomli variant ikkinchi marta qo‘shilmaydi', takror.kod === 409);
+  const ichma = await chaqirAdmin('/api/admin/variant', 'POST', { asos_id: vm.id, variant_nom: '03 Marjon', variant_tur: 'rang', price: 53000 });
+  test('variantdan variant — asl asosiyga ulanadi (bir daraja)', ichma.tana.mahsulot?.variant_of == asos.id);
+  const yomonRang = await chaqirAdmin('/api/admin/product', 'POST', { ...vm, variant_nom: '02 Pushti', variant_tur: 'rang', rang_hex: 'javascript:1' });
+  test('noto‘g‘ri rang kodi saqlanmaydi', yomonRang.tana.mahsulot?.rang_hex === null);
+
+  // Katalog
+  const { faolMahsulotlar } = await import('../src/services/analysis.js');
+  const kat = await faolMahsulotlar();
+  const k = kat.find((x) => x.id == vm.id);
+  test('katalogda variant maydonlari bor', k && k.variant_of == asos.id && k.variant_nom === '02 Pushti');
+
+  // Buyurtma: variant nomi qatorda, qoldiq FAQAT variantdan
+  await sorov(`delete from users where telegram_id = '816999'`);
+  const u = await qator(`insert into users (telegram_id, full_name, phone, address, agreed_at)
+    values ('816999','Variant Mijoz','+998935559999','Toshkent', now()) returning *`);
+  const b = await buyurtmaYarat(u, [{ product_id: vm.id, quantity: 2 }], { name: 'Variant Mijoz', phone: '+998935559999', address: 'Toshkent' });
+  const qator0 = (b.items || [])[0] || {};
+  test('buyurtma qatorida variant nomi (xarid ro‘yxati shunga tayanadi)',
+    qator0.variant === '02 Pushti' && /Sinov Tint · 02 Pushti/.test(qator0.name || ''), JSON.stringify(qator0));
+  const qold = await qatorlar('select id, stock from products where id = any($1::bigint[]) order by id', [[asos.id, vm.id]]);
+  test('qoldiq faqat tanlangan variantdan kamaydi',
+    qold.find((x) => x.id == asos.id).stock === 4 && qold.find((x) => x.id == vm.id).stock === 1);
+  await sorov('select restock_order($1)', [b.id]);
+  test('bekor qilinsa qoldiq variantga qaytadi', (await qator('select stock from products where id = $1', [vm.id])).stock === 3);
+  await sorov('delete from orders where id = $1', [b.id]);
+  await sorov(`delete from products where name like 'Sinov Tint%'`);
+
+  const js = (await import('node:fs')).readFileSync('public/app/app.js', 'utf8');
+  test('do‘kon ro‘yxatlarida faqat asosiy mahsulot', /const vitrina = \(\) => holat\.mahsulotlar\.filter\(\(p\) => !p\.variant_of\)/.test(js)
+    && (js.match(/vitrina\(\)/g) || []).length >= 3);
+  test('oynada variant tanlovi', /data-variant-id/.test(js) && /class="variant-tanlov"/.test(js));
+}
+
 console.log('\n── REKLAMA: FAQAT TELEGRAMI BORLARGA ──');
 {
   const fsR = await import('node:fs');

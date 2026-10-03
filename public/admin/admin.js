@@ -457,6 +457,7 @@ function mahsulotKarta(p) {
             ${!p.poster_id ? '<span class="yor qizil">rasmsiz</span>' : ''}
             ${!p.nom_uz ? '<span class="yor sariq">nomi inglizcha</span>' : ''}
             ${!p.manba_url ? '<span class="yor kul">havolasiz</span>' : ''}
+            ${p.variant_nom ? `<span class="yor yashil">${p.rang_hex ? `<i class="rang-nuqta" style="background:${esc(p.rang_hex)}"></i>` : ''}${p.variant_of ? 'variant · ' : ''}${esc(p.variant_nom)}</span>` : ''}
           </div>
         </div>
       </div>
@@ -515,6 +516,7 @@ function mahsulotOyna(p) {
           value="${p?.ogirlik || ''}" placeholder="150"></div>
       <div><label>Emoji</label><input id="m-emoji" value="${esc(p?.emoji || '🧴')}" maxlength="4"></div>
     </div>
+    ${variantBolimi(p)}
     <label>🔗 Qayerdan olinadi <span class="yordam">Coupang yoki Daiso havolasi</span></label>
     <input id="m-manba" type="url" inputmode="url" placeholder="https://www.coupang.com/vp/products/..."
       value="${esc(p?.manba_url || '')}">
@@ -540,6 +542,7 @@ function mahsulotOyna(p) {
 
   const och = $('#m-ochir');
   if (och) och.onclick = () => mahsulotniOchirOyna(p);
+  variantniUla(p);
 
   $('#m-saqla').onclick = async () => {
     const xato = $('#m-xato');
@@ -559,6 +562,8 @@ function mahsulotOyna(p) {
       is_active: $('#m-faol').checked, ai_filled: Boolean(p?.ai_filled),
       manba_url: $('#m-manba').value.trim(),
       ogirlik: Math.max(0, Number($('#m-ogirlik').value) || 0),
+      variant_nom: $('#m-vnom').value.trim(), variant_tur: $('#m-vtur').value,
+      rang_hex: $('#m-vtur').value === 'rang' ? $('#m-vrang').value : '',
     };
     if (!tana.name)  return xato.textContent = 'Nomi kerak.';
     if (!tana.price) return xato.textContent = 'Narx kerak.';
@@ -567,6 +572,90 @@ function mahsulotOyna(p) {
       await api('/api/admin/product', { method: 'POST', body: JSON.stringify(tana) });
       modalYop(); tost('Saqlandi'); yuklanmoqda(); mahsulotlar();
     } catch (e) { xato.textContent = e.message; $('#m-saqla').disabled = false; }
+  };
+}
+
+/* ── VARIANTLAR (rang, hajm) ──
+   Har variant — alohida mahsulot (o'z narxi va qoldig'i), asosiysiga
+   bog'langan. Ilovada faqat asosiysi ko'rinadi, oynasida variant tanlanadi. */
+const VARIANT_TUR = { hajm: 'Hajm / o‘lcham', rang: 'Rang', tur: 'Boshqa' };
+function variantBolimi(p) {
+  const asos = p?.variant_of ? (holat.kesh.mahsulotlar || []).find((x) => x.id === p.variant_of) : null;
+  const bolalar = p?.id && !p.variant_of
+    ? (holat.kesh.mahsulotlar || []).filter((x) => x.variant_of === p.id) : [];
+  const tur = p?.variant_tur || 'hajm';
+  return `
+    <div class="variant-bolim">
+      <h4>🎨 Variantlar <span class="yordam">bir mahsulotning rangi yoki hajmi — har birining o‘z narxi</span></h4>
+      ${asos ? `<p class="mayda" style="margin:0 0 8px">Bu <b>${esc(asos.nom_uz || asos.name)}</b> mahsulotining varianti.</p>` : ''}
+      <div class="forma-tor">
+        <div><label>Shu variantning nomi<span class="yordam">«50 ml», «02 Pushti»</span></label>
+          <input id="m-vnom" value="${esc(p?.variant_nom || '')}" placeholder="${tur === 'rang' ? '02 Pushti' : '50 ml'}"></div>
+        <div><label>Turi</label><select id="m-vtur">
+          ${Object.entries(VARIANT_TUR).map(([k, n]) => `<option value="${k}" ${k === tur ? 'selected' : ''}>${n}</option>`).join('')}
+        </select></div>
+        <div id="m-vrang-quti" class="${tur === 'rang' ? '' : 'yashirin'}"><label>Rang</label>
+          <input id="m-vrang" type="color" value="${esc(p?.rang_hex || '#d4506a')}"></div>
+      </div>
+      ${bolalar.length ? `<div class="variant-royxat">${bolalar.map((v) => `
+        <button class="variant-qator" data-variant="${v.id}">
+          ${v.rang_hex ? `<i class="rang-nuqta" style="background:${esc(v.rang_hex)}"></i>` : ''}
+          <b>${esc(v.variant_nom || '—')}</b>
+          <span>${narx(v.price)}</span><span class="ozgina">${v.stock} dona</span>
+          <span class="ozgina">✏️</span></button>`).join('')}</div>` : ''}
+      ${p?.id && !p.variant_of ? `
+        <details class="variant-qosh">
+          <summary>＋ Variant qo‘shish</summary>
+          <div class="forma-tor">
+            <div><label>Variant nomi *</label><input id="v-nom" placeholder="${tur === 'rang' ? '03 Qizil' : '100 ml'}"></div>
+            <div class="${tur === 'rang' ? '' : 'yashirin'}" id="v-rang-quti"><label>Rang</label>
+              <input id="v-rang" type="color" value="#b3263e"></div>
+            <div><label>Narx (so‘m) *</label><input id="v-narx" type="number" inputmode="numeric" value="${p.price || ''}"></div>
+            <div><label>Tannarx</label><input id="v-tannarx" type="number" inputmode="numeric" value="${p.cost_price || ''}"></div>
+            <div><label>Ombor (dona)</label><input id="v-ombor" type="number" inputmode="numeric" value="0"></div>
+          </div>
+          <p class="mayda">Tavsif, tarkib, rasm va toifa asosiy mahsulotdan ko‘chiriladi —
+            keyin variantni alohida tahrirlab, o‘z rasmini qo‘yasiz.</p>
+          <div id="v-xato" class="xato"></div>
+          <button class="tug asos keng" id="v-qosh">Variantni qo‘shish</button>
+        </details>` : ''}
+    </div>`;
+}
+function variantniUla(p) {
+  const tur = $('#m-vtur');
+  if (!tur) return;
+  tur.onchange = () => {
+    $('#m-vrang-quti').classList.toggle('yashirin', tur.value !== 'rang');
+    const vq = $('#v-rang-quti'); if (vq) vq.classList.toggle('yashirin', tur.value !== 'rang');
+  };
+  $$('[data-variant]').forEach((b) => b.onclick = () => {
+    const v = (holat.kesh.mahsulotlar || []).find((x) => x.id === Number(b.dataset.variant));
+    if (v) mahsulotOyna(v);
+  });
+  const qosh = $('#v-qosh');
+  if (qosh) qosh.onclick = async () => {
+    const xato = $('#v-xato'); xato.textContent = '';
+    const tana = {
+      asos_id: p.id, asos_variant_nom: $('#m-vnom').value.trim(),
+      asos_rang_hex: tur.value === 'rang' ? $('#m-vrang').value : '',
+      variant_nom: $('#v-nom').value.trim(), variant_tur: tur.value,
+      rang_hex: tur.value === 'rang' ? $('#v-rang').value : '',
+      price: Number($('#v-narx').value), cost_price: Number($('#v-tannarx').value) || 0,
+      stock: Number($('#v-ombor').value) || 0,
+    };
+    if (!tana.variant_nom) return void (xato.textContent = 'Variant nomini yozing.');
+    if (!p.variant_nom && !tana.asos_variant_nom) {
+      return void (xato.textContent = 'Avval yuqorida SHU mahsulotning variant nomini yozing (masalan «30 ml»).');
+    }
+    qosh.disabled = true;
+    try {
+      await api('/api/admin/variant', { method: 'POST', body: JSON.stringify(tana) });
+      tost('Variant qo‘shildi');
+      holat.kesh.mahsulotlar = null;
+      await mahsulotlar();
+      const yangi = (holat.kesh.mahsulotlar || []).find((x) => x.id === p.id);
+      mahsulotOyna(yangi || p);
+    } catch (e) { xato.textContent = e.message; qosh.disabled = false; }
   };
 }
 

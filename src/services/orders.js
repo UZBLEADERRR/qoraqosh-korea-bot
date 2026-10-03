@@ -42,6 +42,26 @@ export async function buyurtmaYarat(user, items,
        'karta', viloyat || user.viloyat || null, tuman || user.tuman || null,
        y.narx, y.turi, y.gramm],
     );
+    // VARIANT buyurtma qatoriga yoziladi: «Lip Tint · 02 Pushti». Xarid
+    // ro'yxati, pochta hujjati va bot xabarlari qatordagi NOMga tayanadi —
+    // variantsiz bo'lsa xodim qaysi rangni olishni bilmasdi.
+    if (buyurtma) {
+      await sorov(
+        `update orders o set items = (
+           select jsonb_agg(case when p.variant_nom is not null and p.variant_nom <> ''
+                    then e.it || jsonb_build_object('variant', p.variant_nom,
+                           'name', (e.it->>'name') || ' · ' || p.variant_nom)
+                    else e.it end order by e.n)
+             from jsonb_array_elements(o.items) with ordinality as e(it, n)
+             left join products p on p.id = (e.it->>'product_id')::bigint)
+          where o.id = $1
+            and exists (select 1 from jsonb_array_elements(o.items) it
+                          join products p on p.id = (it->>'product_id')::bigint
+                         where p.variant_nom is not null and p.variant_nom <> '')`,
+        [buyurtma.id]);
+      const yangi = await qator('select items from orders where id = $1', [buyurtma.id]);
+      if (yangi) buyurtma.items = yangi.items;
+    }
     // "Nega shuncha?" degan savolga javob bera olishimiz uchun hisob
     // tafsiloti saqlanadi (zona, masofa, kg, ustama).
     if (buyurtma && y.izoh) {
@@ -60,7 +80,9 @@ export const savatniOl = (userId) => qatorlar(
   `select c.quantity,
           json_build_object('id', p.id, 'name', p.name, 'nom_uz', p.nom_uz, 'brand', p.brand,
                             'price', p.price, 'stock', p.stock, 'emoji', p.emoji,
-                            'volume', p.volume, 'poster_id', p.poster_id) as products
+                            'volume', p.volume, 'poster_id', p.poster_id,
+                            'variant_of', p.variant_of, 'variant_nom', p.variant_nom,
+                            'rang_hex', p.rang_hex) as products
      from cart_items c
      join products p on p.id = c.product_id
     where c.user_id = $1

@@ -52,7 +52,8 @@ const KATALOG_SQL = `
   select p.id, p.name, p.nom_uz, p.brand, p.step, p.price, p.volume, p.emoji, p.usage_text,
          p.warnings, p.concerns, p.skin_types, p.actives, p.stock, p.description,
          p.gradient, p.category_id, p.poster_id, p.old_price, p.sold_count,
-         p.kalit_sozlar, p.reyting, p.sharh_soni, p.manba_reyting, p.manba_sharh
+         p.kalit_sozlar, p.reyting, p.sharh_soni, p.manba_reyting, p.manba_sharh,
+         p.variant_of, p.variant_nom, p.variant_tur, p.rang_hex
     from products p
    where p.is_active
    order by p.id`;

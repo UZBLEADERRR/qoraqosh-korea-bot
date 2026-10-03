@@ -814,6 +814,7 @@ export async function adminRoutes(req, res, yol) {
       ogirlik: Math.max(0, Math.min(50000, Number(b.ogirlik) || 0)),
       ai_filled: Boolean(b.ai_filled),
       is_active: b.is_active !== false,
+      ...variantMaydonlari(b),
     };
     if (!m.name)  return xato(res, 400, 'Mahsulot nomi kerak.');
     if (!m.price) return xato(res, 400, 'Narx kerak.');
@@ -821,7 +822,7 @@ export async function adminRoutes(req, res, yol) {
     const q = [m.name, m.brand, m.category_id, m.step, m.price, m.old_price, m.cost_price,
                m.stock, m.volume, m.country, m.description, m.usage_text, m.ingredients,
                m.actives, m.concerns, m.skin_types, m.warnings, m.emoji, m.ai_filled, m.is_active,
-               m.manba_url, m.manba, m.ogirlik, m.nom_uz];
+               m.manba_url, m.manba, m.ogirlik, m.nom_uz, m.variant_nom, m.variant_tur, m.rang_hex];
     try {
       const natija = b.id
         ? await qator(
@@ -829,19 +830,69 @@ export async function adminRoutes(req, res, yol) {
                     cost_price=$7,stock=$8,volume=$9,country=$10,description=$11,usage_text=$12,
                     ingredients=$13,actives=$14,concerns=$15,skin_types=$16,warnings=$17,
                     emoji=$18,ai_filled=$19,is_active=$20,manba_url=$21,manba=$22,
-                    ogirlik=$23,nom_uz=$24,updated_at=now()
-              where id=$25 returning *`, [...q, b.id])
+                    ogirlik=$23,nom_uz=$24,variant_nom=$25,variant_tur=$26,rang_hex=$27,
+                    updated_at=now()
+              where id=$28 returning *`, [...q, b.id])
+        // nom_uz ustunlar ro'yxatida YO'Q edi: 24 qiymat 23 ustunga — yangi
+        // mahsulotni formadan qo'shib bo'lmasdi
         : await qator(
             `insert into products (name,brand,category_id,step,price,old_price,cost_price,stock,
                     volume,country,description,usage_text,ingredients,actives,concerns,skin_types,
-                    warnings,emoji,ai_filled,is_active,manba_url,manba,ogirlik)
-             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+                    warnings,emoji,ai_filled,is_active,manba_url,manba,ogirlik,nom_uz,
+                    variant_nom,variant_tur,rang_hex)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
              returning *`, q);
       katalogYangilandi();
       return ok(res, { mahsulot: natija });
     } catch (e) {
       if (/duplicate key|products_brend_nom_uniq/i.test(e.message)) {
         return xato(res, 409, 'Bu brend va nom bilan mahsulot allaqachon bor. Mavjudini tahrirlang.');
+      }
+      throw e;
+    }
+  }
+
+  // ══════════ VARIANT QO'SHISH ══════════
+  // Asosiy mahsulotning nusxasi: tavsif, tarkib, rasm va toifa ko'chiriladi,
+  // admin faqat variant nomi, rangi, narxi va qoldig'ini yozadi.
+  if (yol === '/api/admin/variant' && req.method === 'POST') {
+    const b = await tana(req);
+    let asos = await qator('select * from products where id = $1', [Number(b.asos_id)]);
+    if (!asos) return xato(res, 404, 'Asosiy mahsulot topilmadi.');
+    // Bir daraja: variantdan variant qo'shilsa — asl asosiyga ulanadi
+    if (asos.variant_of) asos = await qator('select * from products where id = $1', [asos.variant_of]);
+    const v = variantMaydonlari(b);
+    if (!v.variant_nom) return xato(res, 400, 'Variant nomi kerak (masalan «50 ml» yoki «02 Pushti»).');
+    const price = Math.max(0, Number(b.price) || 0);
+    if (!price) return xato(res, 400, 'Variant narxi kerak.');
+    // Asosiy mahsulot ham variant: uning ham nomi bo'lishi kerak
+    const asosNom = String(b.asos_variant_nom || '').trim().slice(0, 40);
+    if (!asos.variant_nom) {
+      if (!asosNom) return xato(res, 400, 'Asosiy mahsulotning variant nomini ham yozing (masalan «30 ml»).');
+      await sorov(`update products set variant_nom = $1, variant_tur = $2,
+                     rang_hex = coalesce(rang_hex, $3), updated_at = now() where id = $4`,
+        [asosNom, v.variant_tur, b.asos_rang_hex && /^#[0-9a-f]{6}$/i.test(b.asos_rang_hex) ? b.asos_rang_hex : null, asos.id]);
+    }
+    try {
+      const yangi = await qator(
+        `insert into products (name, nom_uz, brand, category_id, step, price, old_price, cost_price,
+                stock, volume, country, description, usage_text, ingredients, actives, concerns,
+                skin_types, warnings, emoji, ai_filled, is_active, manba_url, manba, ogirlik,
+                poster_id, kalit_sozlar, variant_of, variant_nom, variant_tur, rang_hex)
+         select name, nom_uz, brand, category_id, step, $2, $3, $4, $5,
+                case when $7 = 'hajm' then $6 else volume end, country, description, usage_text,
+                ingredients, actives, concerns, skin_types, warnings, emoji, ai_filled, true,
+                manba_url, manba, ogirlik, poster_id, kalit_sozlar, id, $6, $7, $8
+           from products where id = $1
+         returning *`,
+        [asos.id, price, b.old_price ? Number(b.old_price) : null,
+         Math.max(0, Number(b.cost_price) || 0), Math.max(0, Number(b.stock) || 0),
+         v.variant_nom, v.variant_tur, v.rang_hex]);
+      katalogYangilandi();
+      return ok(res, { mahsulot: yangi });
+    } catch (e) {
+      if (/duplicate key|products_brend_nom_uniq/i.test(e.message)) {
+        return xato(res, 409, 'Bu nomli variant allaqachon bor.');
       }
       throw e;
     }
@@ -1520,6 +1571,16 @@ export async function adminRoutes(req, res, yol) {
   }
 
   return xato(res, 404, 'Topilmadi');
+}
+
+/** Variant maydonlari — tekshirilgan holda. Bo'sh nom — variant emas. */
+function variantMaydonlari(b) {
+  const nom = String(b.variant_nom || '').trim().slice(0, 40) || null;
+  return {
+    variant_nom: nom,
+    variant_tur: nom ? (['hajm', 'rang', 'tur'].includes(b.variant_tur) ? b.variant_tur : 'tur') : null,
+    rang_hex: nom && /^#[0-9a-f]{6}$/i.test(String(b.rang_hex || '')) ? String(b.rang_hex).toLowerCase() : null,
+  };
 }
 
 // Ilovadagi ikon to'plami — bo'lim uchun tanlanadigan ro'yxat.

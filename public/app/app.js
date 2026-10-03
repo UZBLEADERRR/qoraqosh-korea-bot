@@ -151,6 +151,18 @@ const meyor = (s) => translit(String(s || '').toLowerCase())
  */
 const nomi = (p) => String(p?.nom_uz || '').trim() || String(p?.name || '').trim();
 
+/* VARIANTLAR. Har variant (rang, hajm) — alohida mahsulot, asosiysiga
+   `variant_of` bilan bog'langan. Do'kon ro'yxatlarida FAQAT asosiysi
+   («vitrina»), oynasida esa guruhning hammasi tanlov bo'lib chiqadi. */
+const vitrina = () => holat.mahsulotlar.filter((p) => !p.variant_of);
+function guruh(p) {
+  if (!p) return [];
+  const asosId = p.variant_of || p.id;
+  const g = holat.mahsulotlar.filter((x) => x.id === asosId || x.variant_of === asosId);
+  // Arzonidan qimmatiga: hajmlar tabiiy tartibda (30 → 200 → 400 ml)
+  return g.length > 1 ? g.sort((a, b) => a.price - b.price || a.id - b.id) : [p];
+}
+
 /** Mahsulotdan qidiriladigan matn tuzadi. */
 function indeks(p) {
   const kat = holat.kategoriyalar.find((k) => k.id === p.category_id)?.name || '';
@@ -943,7 +955,7 @@ function filtrOyna() {
 function saralangan() {
   const katId = holat.kategoriyalar.find((k) => k.slug === holat.kategoriya)?.id;
   const q = meyor(holat.qidiruv);
-  return holat.mahsulotlar
+  return vitrina()
     .filter((p) => holat.kategoriya === 'hammasi' || p.category_id === katId)
     .filter((p) => NARX_FILTR[holat.narxFiltr].tekshir(p))
     .map((p) => ({ p, b: ball(p, q) }))
@@ -1041,12 +1053,12 @@ function bolimlarniChiz() {
   const tartib = (a, b) => (b.sold_count || 0) - (a.sold_count || 0);
   const bolimlar = holat.kategoriyalar.map((k) => ({
     k,
-    royxat: holat.mahsulotlar.filter((p) => p.category_id === k.id).sort(tartib),
+    royxat: vitrina().filter((p) => p.category_id === k.id).sort(tartib),
   })).filter((x) => x.royxat.length);
 
   // Bo'limi yo'q mahsulotlar ham ko'rinsin: aks holda ular faqat
   // "Barcha mahsulotlar" ichida qolib, bosh sahifada yo'qoladi.
-  const bolimsiz = holat.mahsulotlar.filter((p) => !p.category_id).sort(tartib);
+  const bolimsiz = vitrina().filter((p) => !p.category_id).sort(tartib);
   if (bolimsiz.length) bolimlar.push({ k: { name: 'Boshqa', slug: 'boshqa' }, royxat: bolimsiz });
 
   // Hamma bo'lim GORIZONTAL siriladi. Ilgari bittasi gorizontal,
@@ -1173,10 +1185,19 @@ function kartaHtml(p) {
       <div class="mbrend">${esc(p.brand || '')}</div>
       <div class="mnom">${esc(nomi(p))}</div>
       ${reytingHtml(p)}
+      ${(() => {
+        const g = guruh(p);
+        if (g.length < 2) return '';
+        const ranglar = g.filter((x) => x.rang_hex).slice(0, 5);
+        return `<span class="m-variant">${ranglar.length
+          ? ranglar.map((x) => `<i style="background:${esc(x.rang_hex)}"></i>`).join('') + `<b>${g.length} rang</b>`
+          : `<b>${g.length} ${p.variant_tur === 'hajm' ? 'hajm' : 'xil'}</b>`}</span>`;
+      })()}
       ${teg ? `<span class="teg-mos ${teg.sinf}">${esc(teg.matn)}</span>` : ''}
       <!-- Narx va «+» BIR qatorda: ilgari «+» o'z qatorida yolg'iz turardi -->
       <div class="mpast">
-        <div class="mnarx">${qisqaNarx(p.price)} so‘m${
+        <div class="mnarx">${guruh(p).some((x) => x.price !== p.price)
+          ? `${qisqaNarx(Math.min(...guruh(p).map((x) => x.price)))} so‘m<small>dan boshlab</small>` : `${qisqaNarx(p.price)} so‘m`}${
           p.old_price && p.old_price > p.price ? `<s>${qisqaNarx(p.old_price)}</s>` : ''}</div>
         ${p.stock > 0
           ? `<i class="karta-qosh ${savatda ? 'qoshildi' : ''}" data-tez="${p.id}"
@@ -1327,6 +1348,22 @@ function mahsulotOyna(id) {
         ${p.sold_count > 0 ? `<span class="ozgina">${p.sold_count}+ sotildi</span>` : ''}
       </div>
 
+      ${(() => {
+        const g = guruh(p);
+        if (g.length < 2) return '';
+        const rangli = g.some((x) => x.rang_hex);
+        return `<div class="variant-tanlov">
+          <div class="variant-sarlavha">${rangli ? 'Rang' : 'Variant'}: <b>${esc(p.variant_nom || '')}</b></div>
+          <div class="variantlar ${rangli ? 'rangli' : ''}">${g.map((x) => `
+            <button data-variant-id="${x.id}" class="${x.id === p.id ? 'tanlangan' : ''} ${x.stock > 0 ? '' : 'tugagan'}"
+              aria-label="${esc(x.variant_nom || '')}">
+              ${x.rang_hex ? `<i style="background:${esc(x.rang_hex)}"></i>` : ''}
+              <span>${esc(x.variant_nom || '—')}</span>
+              ${x.price !== p.price ? `<small>${qisqaNarx(x.price)}</small>` : ''}
+            </button>`).join('')}</div>
+        </div>`;
+      })()}
+
       <div class="narx-satr">
         <span class="narx-katta">${narx(p.price)}</span>
         ${p.old_price && p.old_price > p.price
@@ -1394,6 +1431,11 @@ function mahsulotOyna(id) {
   if (t && p.stock > 0) t.onclick = async () => { await savatga(p.id); modalYop(); };
   const y = $('#modal-tan [data-yurak]');
   if (y) y.onclick = (e) => { e.stopPropagation(); sevimliAlmash(p.id); };
+  // Variant tanlansa — o'sha variantning narxi, rasmi va qoldig'i
+  $$('#modal-tan [data-variant-id]').forEach((b) => b.onclick = () => {
+    const vid = Number(b.dataset.variantId);
+    if (vid !== p.id) mahsulotOyna(vid);
+  });
 }
 // ================= SHARHLAR =================
 // Sharh HAQIQIY: uni faqat shu mahsulotni SOTIB OLGAN odam yozadi
@@ -3451,7 +3493,8 @@ function savatniChiz() {
           ${p.poster_id ? `<img src="/media/${esc(p.poster_id)}?w=200" alt="" loading="lazy">` : ik('shisha', 28)}</div>
         <div class="savat-tan">
           <div class="savat-nom">${esc(nomi(p))}</div>
-          <div class="savat-brend">${esc(p.brand || '')}${p.volume ? ' · ' + esc(p.volume) : ''}</div>
+          ${p.variant_nom ? `<span class="savat-variant">${p.rang_hex ? `<i style="background:${esc(p.rang_hex)}"></i>` : ''}${esc(p.variant_nom)}</span>` : ''}
+          <div class="savat-brend">${esc(p.brand || '')}${p.volume && p.variant_tur !== 'hajm' ? ' · ' + esc(p.volume) : ''}</div>
           <div class="savat-past">
             <span class="soni">
               <button data-kam="${p.id}" aria-label="Kamaytirish">−</button>

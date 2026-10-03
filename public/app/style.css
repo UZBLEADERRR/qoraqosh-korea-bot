@@ -2279,3 +2279,31 @@ body:has(#tab-natija:not(.yashirin)){background:#0d0205}
 .rasm-korish img{max-width:100%;max-height:86vh;border-radius:18px;object-fit:contain}
 .rasm-korish button{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;width:44px;height:44px;
   border-radius:99px;background:rgba(255,255,255,.14);color:#fff;display:grid;place-items:center}
+
+/* ════════ VARIANTLAR: rang va hajm tanlovi ════════ */
+.variant-tanlov{margin:4px 0 14px}
+.variant-sarlavha{font-size:14px;color:var(--kul);margin-bottom:8px}
+.variant-sarlavha b{color:var(--matn);font-weight:800}
+.variantlar{display:flex;gap:8px;flex-wrap:wrap}
+.variantlar button{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 15px;
+  border-radius:14px;background:var(--fon);color:var(--matn);font-size:14px;font-weight:700;
+  border:2px solid transparent;transition:border-color var(--k-tez),background var(--k-tez)}
+.variantlar button small{font-size:12px;font-weight:650;color:var(--och)}
+.variantlar button.tanlangan{border-color:var(--k-qizil);background:var(--panel);box-shadow:var(--sh)}
+.variantlar button.tugagan{opacity:.55;text-decoration:line-through}
+.variantlar.rangli button{padding:0 13px 0 7px;border-radius:99px}
+.variantlar button i{width:28px;height:28px;border-radius:99px;flex:0 0 auto;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.12),0 0 0 2px var(--panel)}
+.m-variant{display:inline-flex;align-items:center;gap:3px;margin-top:4px;font-size:12px;color:var(--kul)}
+.m-variant i{width:13px;height:13px;border-radius:99px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.m-variant i+i{margin-left:-5px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12),0 0 0 1.5px var(--panel)}
+.m-variant b{margin-left:4px;font-weight:750}
+.savat-variant{display:inline-flex;align-items:center;gap:6px;margin-top:4px;padding:3px 10px 3px 4px;
+  border-radius:99px;background:var(--lime-och);color:var(--lime-tim);font-size:12.5px;font-weight:750}
+.savat-variant i{width:16px;height:16px;border-radius:99px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.savat-variant:not(:has(i)){padding-left:10px}
+/* Kirish ekranida pastki menyu yo'q — uning uchun qoldirilgan bo'sh joy
+   oq panel ostida yashil chiziq bo'lib ko'rinardi */
+body:has(.kirish-fon){padding-bottom:0;background:var(--panel)}
+.mahsulot .mnarx{white-space:nowrap;font-size:clamp(14.5px,4.1vw,16.5px)}
+.mahsulot .mnarx small{display:block;font-size:12px;font-weight:600;color:var(--och);margin-top:2px}
