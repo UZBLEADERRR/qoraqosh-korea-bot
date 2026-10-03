@@ -18,22 +18,23 @@ tartibda bajaring — har bir qadam keyingisiga kerak.
 
 ## 0. Oldindan: domen va server sozlamalari
 
-### Domen: kiovo.shop (www emas)
+### Domen: www.kiovo.shop (www SHART)
 
-Ilova, Google kirish va Play hammasi **`kiovo.shop`** ga bog'langan.
-`www.kiovo.shop` ham ishlaydi — u `kiovo.shop` ga yo'naltiriladi. Bu
-to'g'ri va Play uchun muammo emas: Play'da domen umuman so'ralmaydi,
-faqat ilova qaysi saytni ochishi muhim, u esa `https://kiovo.shop/app/`.
+Sayt, Android ilova, Google kirish va Play hammasi **`www.kiovo.shop`**
+ga bog'langan. `www` siz `kiovo.shop` boshqa saytga olib boradi, shuning
+uchun u hech qayerda ishlatilmaydi. Play uchun bu muammo emas: Play'da
+domen so'ralmaydi, faqat ilova qaysi saytni ochishi muhim — u
+`https://www.kiovo.shop/app/`.
 
 Tekshiring:
-- Railway → Settings → **Networking → Custom Domain**: `kiovo.shop`
-  qo'shilgan bo'lsin. `www.kiovo.shop` ni ham qo'shsangiz, yo'naltirishni
-  serverning o'zi qiladi (301). Domen sotuvchisida (registrator)
-  «forwarding» qilingan bo'lsa ham bo'ladi.
-- `PUBLIC_URL` = `https://kiovo.shop` (www **siz**). www bilan yozilgan
-  bo'lsa ham server havolalarni o'zi www siz qiladi.
-- Brauzerda https://kiovo.shop/.well-known/assetlinks.json ochilib, JSON
-  ko'rinishi kerak (yo'naltirishsiz).
+- Railway → Variables: `PUBLIC_URL` = `https://www.kiovo.shop` (www
+  **bilan**). Xato bilan www siz yozilgan bo'lsa ham server havolalarga
+  www ni o'zi qo'shadi.
+- Brauzerda https://www.kiovo.shop/.well-known/assetlinks.json ochilib,
+  JSON ko'rinishi kerak (boshqa sahifaga o'tib ketmasdan).
+- Ixtiyoriy: domen sotuvchisida (registrator) `kiovo.shop` ni
+  `www.kiovo.shop` ga «forwarding» qilsangiz, www siz yozgan odam ham
+  do'konga keladi. Ilova uchun bu shart emas.
 
 ### Railway → Variables (to'liq ro'yxat `.env.example` da):
 
@@ -50,7 +51,7 @@ Admin panel → **Sozlamalar**:
   **Email majburiy** — Play uni do'kon sahifasida ko'rsatadi.
 - **🤖 Android ilova** — SHA-256 barmoq izlari (5-bo'lim).
 
-Tekshirish: https://kiovo.shop/maxfiylik va https://kiovo.shop/oferta
+Tekshirish: https://www.kiovo.shop/maxfiylik va https://www.kiovo.shop/oferta
 ochilib, sizning ismingiz yozilgan bo'lishi kerak.
 
 ## 1. Google bilan kirish (OAuth)
@@ -58,12 +59,13 @@ ochilib, sizning ismingiz yozilgan bo'lishi kerak.
 1. https://console.cloud.google.com → yangi loyiha «KiOVO».
 2. **APIs & Services → OAuth consent screen**: External; ilova nomi
    «KiOVO», logotip `ikon-512.png`, support email; *Authorized domains*:
-   `kiovo.shop`; havolalar: `https://kiovo.shop/maxfiylik`,
-   `https://kiovo.shop/oferta`. Scope'lar: faqat `email`, `profile`,
+   `kiovo.shop` (bu maydon asosiy domenni www siz so'raydi — www.kiovo.shop
+   ham shunga kiradi); havolalar: `https://www.kiovo.shop/maxfiylik`,
+   `https://www.kiovo.shop/oferta`. Scope'lar: faqat `email`, `profile`,
    `openid` (tekshiruv talab qilinmaydi). **Publish app** bosing.
 3. **Credentials → Create credentials → OAuth client ID** → *Web application*:
-   - Authorized JavaScript origins: `https://kiovo.shop`
-   - Authorized redirect URIs: `https://kiovo.shop/kirish/google`
+   - Authorized JavaScript origins: `https://www.kiovo.shop`
+   - Authorized redirect URIs: `https://www.kiovo.shop/kirish/google`
 4. Chiqqan **Client ID** ni Railway'da `GOOGLE_CLIENT_ID` ga qo'ying.
 
 ## 2. SMS (Eskiz.uz)
@@ -112,12 +114,12 @@ Create app → nomi **KiOVO**, til: O'zbekcha, *App* (o'yin emas),
    yig'ilgan APK darrov to'liq ekranda ochiladi.
 
    ⚠️ **«Ilova shunchaki saytni ochyapti» degan holat shu yerdan.** Agar
-   ilovaning tepasida **manzil satri** (kiovo.shop yozuvi) ko'rinsa —
+   ilovaning tepasida **manzil satri** (www.kiovo.shop yozuvi) ko'rinsa —
    Android ilovani sayt egasi deb tan olmagan: imzo barmoq izi
    `assetlinks.json` da yo'q. Vaqtinchalik kalit bilan yig'ilgan APK
    (Secrets qo'yilmaganda) har doim shunday ochiladi. Doimiy kalit bilan
    yig'ilgan APK/AAB da manzil satri bo'lmaydi.
-   Tekshirish: https://kiovo.shop/.well-known/assetlinks.json ikkala
+   Tekshirish: https://www.kiovo.shop/.well-known/assetlinks.json ikkala
    barmoq izini ko'rsatishi kerak.
 
 Har safar `android/` o'zgarsa yoki qo'lda ishga tushirilsa yangi versiya
@@ -128,8 +130,8 @@ yangi AAB kerak emas, server yangilansa ilova ham yangilanadi.
 ## 6. Do'kon sahifasi (Main store listing)
 
 **Kategoriya:** Beauty (Go'zallik). **Teglar:** Beauty, Shopping.
-**Kontakt:** email (sotuvchi email), sayt `https://kiovo.shop`.
-**Privacy policy:** `https://kiovo.shop/maxfiylik`
+**Kontakt:** email (sotuvchi email), sayt `https://www.kiovo.shop`.
+**Privacy policy:** `https://www.kiovo.shop/maxfiylik`
 
 ### O'zbekcha (asosiy)
 
@@ -291,7 +293,7 @@ shunday yozilgan). *Appeals to children?* — No.
 belgilanmaydi; tavsifda «tibbiy tashxis emas» deb yozilgan.
 
 **Data deletion:** *Yes, users can request deletion*. URL:
-`https://kiovo.shop/hisobni-ochirish`
+`https://www.kiovo.shop/hisobni-ochirish`
 
 ### Data safety (Ma'lumot xavfsizligi)
 

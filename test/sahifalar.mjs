@@ -15,11 +15,14 @@ if (!process.env.DATABASE_URL) { console.error('DATABASE_URL kerak.'); process.e
 
 const SOXTA = 4483, PORT = 4484;
 const srv = await soxtaServer(SOXTA);
-const ASOS = `http://localhost:${PORT}`;
+const ASOS = `http://127.0.0.1:${PORT}`;
+// Sayt manzili haqiqiydagidek www BILAN (www.kiovo.shop) — «www» siz
+// variant (localhost) unga yo'naltirilishi kerak, teskarisi emas
+const SAYT = `http://www.localhost:${PORT}`;
 const SHA = Array.from({ length: 32 }, (_, i) => (i * 7 % 256).toString(16).padStart(2, '0')).join(':');
 
 const server = spawn(process.execPath, ['src/server.js'], {
-  env: { ...process.env, PORT: String(PORT), PUBLIC_URL: ASOS,
+  env: { ...process.env, PORT: String(PORT), PUBLIC_URL: SAYT,
     BOT_TOKEN: '111111:TEST', ADMIN_LOGIN: 'sinov', ADMIN_PASSWORD: 'parol12345',
     ADMIN_JWT_SECRET: 'x'.repeat(30), TELEGRAM_API: `http://127.0.0.1:${SOXTA}`,
     GEMINI_API: `http://127.0.0.1:${SOXTA}/models`, GEMINI_API_KEY: 'soxta',
@@ -109,22 +112,24 @@ try {
     alj[0]?.target?.sha256_cert_fingerprints?.length === 1
       && alj[0].target.sha256_cert_fingerprints[0] === SHA.toUpperCase());
 
-  console.log('\n── DOMEN: www → asosiy ──');
+  console.log('\n── DOMEN: asosiy manzil www BILAN ──');
   // Brauzer Host sarlavhasini o'zgartirishga yo'l qo'ymaydi — oddiy http
   const xom = (yol, xost, usul = 'GET') => new Promise((ok_, rad) => {
     const r = http.request({ host: '127.0.0.1', port: PORT, path: yol, method: usul,
       headers: { Host: xost } }, (j) => { j.resume(); j.on('end', () => ok_(j)); });
     r.on('error', rad); r.end();
   });
-  const w1 = await xom('/app/?tab=savat', 'www.localhost');
-  test('www.<domen> asosiy domenga 301 bilan yo‘naltiriladi, yo‘l va so‘rov saqlanadi',
-    w1.statusCode === 301 && w1.headers.location === `${ASOS}/app/?tab=savat`, `${w1.statusCode} ${w1.headers.location}`);
-  const w2 = await xom('/.well-known/assetlinks.json', 'www.localhost');
-  test('www dagi assetlinks YO‘NALTIRILMAYDI (Android yo‘naltirishni qabul qilmaydi)', w2.statusCode === 200);
-  const w3 = await xom('/tg/webhook', 'www.localhost', 'POST');
+  const w0 = await xom('/app/?tab=savat', `www.localhost:${PORT}`);
+  test('www dagi sahifa YO‘NALTIRILMAYDI (www siz domen boshqa sayt)', w0.statusCode === 200, String(w0.statusCode));
+  const w1 = await xom('/app/?tab=savat', 'localhost');
+  test('www siz so‘rov www ga 301 bilan yo‘naltiriladi, yo‘l va so‘rov saqlanadi',
+    w1.statusCode === 301 && w1.headers.location === `${SAYT}/app/?tab=savat`, `${w1.statusCode} ${w1.headers.location}`);
+  const w2 = await xom('/.well-known/assetlinks.json', 'localhost');
+  test('assetlinks hech qachon yo‘naltirilmaydi (Android yo‘naltirishni qabul qilmaydi)', w2.statusCode === 200);
+  const w3 = await xom('/tg/webhook', 'localhost', 'POST');
   test('POST (Telegram webhook) yo‘naltirilmaydi', w3.statusCode !== 301, String(w3.statusCode));
-  const w4 = await xom('/app/', 'localhost');
-  test('asosiy domenning o‘zi yo‘naltirilmaydi', w4.statusCode === 200);
+  const bosh = await (await fetch(`${ASOS}/`)).text();
+  test('sahifalardagi mutlaq havolalar www bilan', bosh.includes(`${SAYT}/`) && !bosh.includes(`http://localhost:${PORT}/`));
   const w5 = await xom('/%E0%A4%A', '127.0.0.1');
   test('buzuq manzil — 400, so‘rov osilib qolmaydi', w5.statusCode === 400, String(w5.statusCode));
   const w6 = await xom('/app/', 'buzuq host[]');

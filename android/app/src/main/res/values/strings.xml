@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="appName">KiOVO</string>
-    <!-- Ilova shu saytga egalik qilishini e'lon qiladi. Sayt tomoni:
-         https://kiovo.shop/.well-known/assetlinks.json -->
-    <string name="assetStatements" translatable="false">[{\"relation\": [\"delegate_permission/common.handle_all_urls\"], \"target\": {\"namespace\": \"web\", \"site\": \"https://kiovo.shop\"}}]</string>
+    <!-- assetStatements — app/build.gradle da (domen bilan birga) -->
     <!-- Ikonkani bosib turganda chiqadigan yorliqlar (shortcutShortLabel ≤ 10 belgi) -->
     <string name="yorliqSkaner">Skaner</string>
     <string name="yorliqSkanerUzun">Yuzni tahlil qilish</string>

@@ -90,7 +90,7 @@ export function shifrla(matn, uaOchiq, uaSir, { tuz = crypto.randomBytes(16), ec
 export function vapidSarlavha(endpoint, hozir = Math.floor(Date.now() / 1000)) {
   const { yopiq, ochiqB64 } = vapid();
   const aud = new URL(endpoint).origin;
-  const sub = /^https:\/\//.test(config.saytUrl || '') ? config.saytUrl : 'https://kiovo.shop';
+  const sub = /^https:\/\//.test(config.saytUrl || '') ? config.saytUrl : 'https://www.kiovo.shop';
   const qism = `${b64u(JSON.stringify({ typ: 'JWT', alg: 'ES256' }))}.${b64u(JSON.stringify({ aud, exp: hozir + 12 * 3600, sub }))}`;
   const imzo = crypto.sign('sha256', Buffer.from(qism), { key: yopiq, dsaEncoding: 'ieee-p1363' });
   return `vapid t=${qism}.${b64u(imzo)}, k=${ochiqB64}`;

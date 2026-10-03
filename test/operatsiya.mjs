@@ -5384,7 +5384,24 @@ console.log('\n── ANDROID ILOVA: ORQAGA TUGMASI, YORLIQLAR ──');
   test('ikonka yorliqlari ulangan', /android\.app\.shortcuts/.test(man));
   test('yorliqlar: skaner, savat, buyurtmalar',
     ['tab=skaner', 'tab=savat', 'bolim=buyurtma'].every((x) => yor.includes(x)));
-  test('yorliqlar ilova domenida', (yor.match(/android:data="https:\/\/kiovo\.shop\/app\//g) || []).length === 3);
+  // www SHART: www siz kiovo.shop boshqa saytga olib boradi
+  const gradle = fsA.readFileSync('android/app/build.gradle', 'utf8');
+  const domen = (/def ilovaDomeni = '([^']+)'/.exec(gradle) || [])[1];
+  test('Android domeni www.kiovo.shop', domen === 'www.kiovo.shop', domen);
+  test('manifest domenni build.gradle dan oladi (bitta joy)',
+    /android:value="https:\/\/\$\{ilovaDomeni\}\/app\/"/.test(man) && /android:host="\$\{ilovaDomeni\}"/.test(man)
+      && /resValue 'string', 'assetStatements'/.test(gradle));
+  test('yorliqlar o‘sha domenda', (yor.match(/android:data="https:\/\/www\.kiovo\.shop\/app\//g) || []).length === 3);
+  test('Android loyihasida www siz domen YO‘Q',
+    !/https:\/\/kiovo\.shop|host="kiovo\.shop"/.test(man + yor + gradle));
+  const { spawnSync } = await import('node:child_process');
+  const saytUrl = (pu) => spawnSync(process.execPath, ['--input-type=module', '-e',
+    "const { config } = await import('./src/config.js'); console.log(config.saytUrl)"],
+    { env: { ...process.env, PUBLIC_URL: pu }, encoding: 'utf8' }).stdout.trim();
+  test('PUBLIC_URL www siz yozilsa ham havolalar www bilan',
+    saytUrl('https://kiovo.shop/') === 'https://www.kiovo.shop', saytUrl('https://kiovo.shop/'));
+  test('www bilan yozilgani o‘zgarmaydi', saytUrl('https://www.kiovo.shop') === 'https://www.kiovo.shop');
+  test('boshqa domen tegilmaydi', saytUrl('https://kiovo.shop.example') === 'https://kiovo.shop.example');
   for (const f of ['drawable-xxxhdpi/yorliq_skaner.png', 'drawable-mdpi/ic_bildirishnoma.png', 'drawable-xxxhdpi/ic_bildirishnoma.png']) {
     test(`resurs bor: ${f}`, fsA.existsSync(`android/app/src/main/res/${f}`));
   }

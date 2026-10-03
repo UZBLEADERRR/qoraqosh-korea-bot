@@ -2,9 +2,10 @@
 <!--
   KiOVO — Trusted Web Activity.
 
-  LauncherActivity kiovo.shop/app/ ni Chrome orqali TO'LIQ EKRANDA ochadi.
+  LauncherActivity www.kiovo.shop/app/ ni Chrome orqali TO'LIQ EKRANDA ochadi.
+  Domen app/build.gradle dagi `ilovaDomeni` dan (www SHART).
   Brauzer manzil satri ko'rinmasligi uchun sayt shu ilovani tan olishi
-  kerak: kiovo.shop/.well-known/assetlinks.json da ilova imzosining
+  kerak: www.kiovo.shop/.well-known/assetlinks.json da ilova imzosining
   SHA-256 izi turadi (admin panel → Sozlamalar → Android ilova).
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -41,7 +42,7 @@
             android:theme="@style/Theme.KiOVO">
 
             <meta-data android:name="android.support.customtabs.trusted.DEFAULT_URL"
-                android:value="https://kiovo.shop/app/" />
+                android:value="https://${ilovaDomeni}/app/" />
             <meta-data android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
                 android:resource="@color/qizil" />
             <meta-data android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR_DARK"
@@ -78,12 +79,12 @@
             <meta-data android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
 
-            <!-- kiovo.shop/app/... havolalari ilovada ochiladi -->
+            <!-- www.kiovo.shop/app/... havolalari ilovada ochiladi -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="kiovo.shop"
+                <data android:scheme="https" android:host="${ilovaDomeni}"
                     android:pathPrefix="/app" />
             </intent-filter>
         </activity>

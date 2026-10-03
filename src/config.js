@@ -104,12 +104,14 @@ export const config = {
     '4C:9F:81:B6:F7:BF:5F:5F:5E:2F:91:60:07:7E:CF:93:F6:D1:04:6A:A3:04:46:AA:D4:A3:A5:3F:D8:B9:4D:25'),
 };
 
-// Saytning ASOSIY manzili — «www.» siz. kiovo.shop asosiy, www.kiovo.shop
-// unga yo'naltiriladi (server.js). Android ilova, assetlinks, sitemap va
-// mijozga yuboriladigan havolalar shu manzilda bo'lishi kerak: Google
-// Play ilovani aynan bitta domen bilan bog'laydi.
-config.saytUrl = String(config.publicUrl || '').replace(/\/+$/, '').replace(/^(https?:\/\/)www\./i, '$1');
-/** «www.» siz xost: «kiovo.shop». Mahalliyda bo'sh. */
+// Saytning ASOSIY manzili — PUBLIC_URL ning o'zi (www.kiovo.shop).
+// «www» siz kiovo.shop BOSHQA saytga olib boradi, shuning uchun www hech
+// qachon olib tashlanmaydi. Android ilova, assetlinks, sitemap va mijozga
+// yuboriladigan havolalar shu manzilda.
+config.saytUrl = String(config.publicUrl || '').replace(/\/+$/, '')
+  // PUBLIC_URL xato bilan www siz yozilgan bo'lsa ham havolalar to'g'ri
+  .replace(/^(https?:\/\/)kiovo\.shop(?=[:/]|$)/i, '$1www.kiovo.shop');
+/** Asosiy xost: «www.kiovo.shop». Mahalliyda bo'sh. */
 config.asosiyXost = (() => { try { return new URL(config.saytUrl).host.toLowerCase(); } catch { return ''; } })();
 
 if (need.length) {

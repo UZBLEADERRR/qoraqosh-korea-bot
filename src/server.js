@@ -56,7 +56,7 @@ const SAHIFA_FAYL = {
            fayllar: ['index.html', 'admin.js', 'style.css', ...UMUMIY] },
   skan:  { yol: 'skan/index.html',  papka: 'skan',
            fayllar: ['index.html', 'app.js', 'style.css', ...UMUMIY] },
-  // kiovo.shop bosh sahifasi
+  // www.kiovo.shop bosh sahifasi
   uy:    { yol: 'uy/index.html',    papka: 'uy',
            fayllar: ['index.html', 'app.js', 'style.css', ...UMUMIY] },
   // Buyurtmalar ish stoli — kompyuterdan ham, telefondan ham
@@ -157,14 +157,15 @@ const server = http.createServer(async (req, res) => {
 
     if (yol === '/healthz') return ok(res, { ok: true, vaqt: new Date().toISOString() });
 
-    // ---------- www.kiovo.shop → kiovo.shop ----------
-    // Bitta domen: Play'dagi ilova, Google kirish va qidiruv tizimlari
-    // ikki xil manzilni ikki xil sayt deb hisoblaydi. Faqat GET/HEAD
-    // yo'naltiriladi (POST — masalan, Telegram webhook — yo'naltirishga
-    // ergashmaydi), `/.well-known/` esa yo'naltirilMAYDI: Android
-    // assetlinks.json ni tekshirganda yo'naltirishni qabul qilmaydi.
-    if (config.asosiyXost && (req.method === 'GET' || req.method === 'HEAD')
-        && String(req.headers.host || '').toLowerCase().split(':')[0] === `www.${config.asosiyXost.split(':')[0]}`
+    // ---------- kiovo.shop → www.kiovo.shop ----------
+    // Asosiy manzil www BILAN. Agar «www» siz so'rov qachondir shu serverga
+    // kelsa (domen sozlamasi o'zgarsa), u www ga yo'naltiriladi. TESKARI
+    // yo'naltirish YO'Q: www siz domen boshqa saytga olib boradi.
+    // Faqat GET/HEAD (POST — Telegram webhook — yo'naltirishga ergashmaydi),
+    // `/.well-known/` esa hech qachon: Android assetlinks.json ni
+    // yo'naltirishsiz o'qishi kerak.
+    if (config.asosiyXost.startsWith('www.') && (req.method === 'GET' || req.method === 'HEAD')
+        && String(req.headers.host || '').toLowerCase().split(':')[0] === config.asosiyXost.split(':')[0].slice(4)
         && !yol.startsWith('/.well-known/')) {
       res.writeHead(301, { Location: `${config.saytUrl}${req.url}`, 'Cache-Control': 'public, max-age=86400' });
       return res.end();
@@ -386,7 +387,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ---------- Statik ----------
-    // Bosh sahifa (kiovo.shop). `sahifa()` orqali: css/js havolalariga
+    // Bosh sahifa (www.kiovo.shop). `sahifa()` orqali: css/js havolalariga
     // versiya qo'shiladi, aks holda brauzer eski uslubni saqlab qoladi.
     if (yol === '/' )        return sahifa(res, 'uy');
 

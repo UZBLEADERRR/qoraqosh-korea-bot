@@ -83,6 +83,23 @@ jobs:
           VERSIYA_NOMI: ${{ github.event.inputs.versiya || format('1.0.{0}', github.run_number) }}
         run: gradle --no-daemon --stacktrace bundleRelease assembleRelease
 
+      # Ilova AYNAN www.kiovo.shop ni ochishini yig'ilgan fayllardan tekshiradi.
+      # www siz domen boshqa saytga olib boradi — xato domenli APK chiqmasin.
+      - name: Domen tekshiruvi (www.kiovo.shop)
+        working-directory: android/app/build
+        run: |
+          MAN=$(find intermediates -path '*release*' -name AndroidManifest.xml | xargs grep -l 'trusted.DEFAULT_URL' | head -1)
+          RES=$(find generated intermediates -name 'gradleResValues.xml' -path '*release*' | head -1)
+          echo "manifest: $MAN"; echo "resurs: $RES"
+          test -n "$MAN" && test -n "$RES"
+          grep -o 'https://[a-z.]*/app/' "$MAN" | sort -u
+          grep -o 'site[^,}]*' "$RES"
+          grep -q 'android:value="https://www.kiovo.shop/app/"' "$MAN"
+          grep -q 'android:host="www.kiovo.shop"' "$MAN"
+          grep -q 'https://www.kiovo.shop' "$RES"
+          ! grep -E 'https://kiovo\.shop|host="kiovo\.shop"' "$MAN" "$RES"
+          echo "✅ Ilova www.kiovo.shop ni ochadi" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Imzo barmoq izi (assetlinks uchun)
         run: |
           IZ=$(keytool -list -v -keystore "$KIOVO_KEYSTORE" -storepass "$KIOVO_KEYSTORE_PAROL" \

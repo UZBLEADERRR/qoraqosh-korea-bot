@@ -7,6 +7,13 @@ plugins {
 def versiyaKodi = (System.getenv('VERSIYA_KODI') ?: '1') as int
 def versiyaNomi = System.getenv('VERSIYA_NOMI') ?: '1.0.0'
 
+// Ilova ochadigan sayt — YAGONA joy. «www» SHART: www siz kiovo.shop
+// boshqa saytga olib boradi. Manifest (ochiladigan manzil, havolalar) va
+// assetStatements shu qiymatdan olinadi. Yorliqlar (res/xml/shortcuts.xml)
+// placeholder qo'llamaydi — u yerda ham xuddi shu domen yozilgan, sinov
+// (test/operatsiya.mjs) ikkalasi bir xilligini tekshiradi.
+def ilovaDomeni = 'www.kiovo.shop'
+
 // Imzo kaliti CI dagi maxfiy o'zgaruvchilardan. Kalit fayli repozitoriyga
 // HECH QACHON qo'yilmaydi.
 def kalitFayli = System.getenv('KIOVO_KEYSTORE')
@@ -21,6 +28,11 @@ android {
         targetSdk 36
         versionCode versiyaKodi
         versionName versiyaNomi
+
+        manifestPlaceholders = [ilovaDomeni: ilovaDomeni]
+        // Ilova shu saytga egalik qilishini e'lon qiladi. Sayt tomoni:
+        // https://www.kiovo.shop/.well-known/assetlinks.json
+        resValue 'string', 'assetStatements', """[{\\"relation\\": [\\"delegate_permission/common.handle_all_urls\\"], \\"target\\": {\\"namespace\\": \\"web\\", \\"site\\": \\"https://${ilovaDomeni}\\"}}]"""
     }
 
     signingConfigs {

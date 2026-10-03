@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Ilova ikonkasini bosib turganda chiqadigan tezkor yorliqlar.
      Har biri ilovaning kerakli bo'limini to'g'ridan-to'g'ri ochadi
-     (public/app/app.js `?tab=` ni o'qiydi). -->
+     (public/app/app.js `?tab=` ni o'qiydi). Domen app/build.gradle dagi
+     `ilovaDomeni` bilan BIR XIL bo'lishi shart (www bilan). -->
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut
         android:shortcutId="skaner"
@@ -13,7 +14,7 @@
             android:action="android.intent.action.VIEW"
             android:targetPackage="shop.kiovo.app"
             android:targetClass="com.google.androidbrowserhelper.trusted.LauncherActivity"
-            android:data="https://kiovo.shop/app/?tab=skaner" />
+            android:data="https://www.kiovo.shop/app/?tab=skaner" />
     </shortcut>
     <shortcut
         android:shortcutId="savat"
@@ -25,7 +26,7 @@
             android:action="android.intent.action.VIEW"
             android:targetPackage="shop.kiovo.app"
             android:targetClass="com.google.androidbrowserhelper.trusted.LauncherActivity"
-            android:data="https://kiovo.shop/app/?tab=savat" />
+            android:data="https://www.kiovo.shop/app/?tab=savat" />
     </shortcut>
     <shortcut
         android:shortcutId="buyurtmalar"
@@ -37,6 +38,6 @@
             android:action="android.intent.action.VIEW"
             android:targetPackage="shop.kiovo.app"
             android:targetClass="com.google.androidbrowserhelper.trusted.LauncherActivity"
-            android:data="https://kiovo.shop/app/?tab=profil&amp;bolim=buyurtma" />
+            android:data="https://www.kiovo.shop/app/?tab=profil&amp;bolim=buyurtma" />
     </shortcut>
 </shortcuts>

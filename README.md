@@ -1563,7 +1563,7 @@ server ishga tushmaydi (default parol bilan ochiq qolib ketmasligi uchun):
 | `GEMINI_API_KEY` | [AI Studio](https://aistudio.google.com/apikey) — bo'lmasa skaner zaxira rejimda, poster esa umuman ishlamaydi |
 | `ADMIN_LOGIN` / `ADMIN_PASSWORD` | Admin panel (parol ≥ 8 belgi) |
 | `ADMIN_JWT_SECRET` | ≥ 24 belgi: `openssl rand -hex 32` |
-| `PUBLIC_URL` | Railway avtomatik beradi. Bo'sh bo'lsa long-polling |
+| `PUBLIC_URL` | Sayt manzili, **www bilan**: `https://www.kiovo.shop`. Bo'sh bo'lsa long-polling |
 | `WEBHOOK_SECRET` | Ixtiyoriy, lekin tavsiya etiladi |
 
 Ixtiyoriy o'zgaruvchilar:
@@ -1613,7 +1613,7 @@ Keyingi adminlarni panelning **Sozlamalar → Adminlar** bo'limidan qo'shasiz.
 
 ### 5. Android ilova va Google Play
 
-`android/` — Trusted Web Activity: ilova `https://kiovo.shop/app/` ni
+`android/` — Trusted Web Activity: ilova `https://www.kiovo.shop/app/` ni
 manzil satrisiz, to'liq ekranda ochadi. Ilova ichidagi hamma narsa
 saytdan keladi, shuning uchun dizayn yoki funksiya o'zgarsa Play'ga
 yangi versiya yuklash shart emas.
@@ -1635,9 +1635,11 @@ Ilova saytdan farqli o'laroq telefonning o'z imkoniyatlarini ishlatadi:
 - **Yorliqlar** — ikonkani bosib turganda Skaner, Savat, Buyurtmalarim.
 - **Oflayn** — katalog va profil telefonda saqlanadi.
 
-**Domen.** Asosiy manzil `kiovo.shop`; `www.kiovo.shop` unga 301 bilan
-yo'naltiriladi (faqat GET, `/.well-known/` dan tashqari — Android
-`assetlinks.json` ni yo'naltirishsiz o'qishi kerak).
+**Domen.** Asosiy manzil **`www.kiovo.shop`** — www SHART: www siz
+`kiovo.shop` boshqa saytga olib boradi. `PUBLIC_URL=https://www.kiovo.shop`.
+Android domeni bitta joyda: `android/app/build.gradle` → `ilovaDomeni`.
+Agar www siz so'rov serverga kelsa, u www ga 301 bilan yo'naltiriladi
+(faqat GET, `/.well-known/` dan tashqari); teskarisi hech qachon.
 
 Play'ga chiqarishning to'liq tartibi, do'kon matnlari (uz/ru/en),
 Data safety javoblari va tayyor rasmlar: **`store/PLAY-STORE.md`**.
