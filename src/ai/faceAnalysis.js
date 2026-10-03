@@ -51,6 +51,18 @@ const SXEMA = {
       propertyOrdering: ['taxminiy_yosh', 'jins', 'teri_rangi', 'teri_turi', 'ball',
                          'tavsif', 'xulosa'],
     },
+    // YUZ QUTISI — rasmda yuz qayerda (0..1000). Serverda yuz aniqlagich
+    // yo'q: ilgari kartochka yuzni doim rasmning o'rtasida deb hisoblardi
+    // va yuz chetroqda bo'lsa belgilar sochga yoki fonga tushardi.
+    yuz: {
+      type: 'object',
+      properties: {
+        ymin: { type: 'integer' }, xmin: { type: 'integer' },
+        ymax: { type: 'integer' }, xmax: { type: 'integer' },
+      },
+      required: ['ymin', 'xmin', 'ymax', 'xmax'],
+      propertyOrdering: ['ymin', 'xmin', 'ymax', 'xmax'],
+    },
     // YETTITA O'LCHOV — har tahlilda to'liq, muammo bor-yo'qligidan
     // qat'i nazar. Ilgari ko'rsatkichlar topilgan muammolardan
     // yasalardi: terisi toza odam bitta ham ko'rsatkich ko'rmasdi va
@@ -72,13 +84,17 @@ const SXEMA = {
           foiz:         { type: 'integer' },
           ishonch:      { type: 'integer' },
           zona:         { type: 'string' },
+          // Muammo eng yaqqol ko'rinadigan joy — RASM koordinatalarida,
+          // 0..1000 (x chapdan, y tepadan). Nishon aynan shu nuqtaga qo'yiladi.
+          nuqta_x:      { type: 'integer' },
+          nuqta_y:      { type: 'integer' },
           izoh:         { type: 'string' },
           sabab:        { type: 'string' },
           yechim:       { type: 'string' },
           ogohlantirish:{ type: 'string' },
         },
-        required: ['kalit','nom','foiz','ishonch','zona','izoh','sabab','yechim','ogohlantirish'],
-        propertyOrdering: ['kalit','nom','foiz','ishonch','zona','izoh','sabab','yechim','ogohlantirish'],
+        required: ['kalit','nom','foiz','ishonch','zona','nuqta_x','nuqta_y','izoh','sabab','yechim','ogohlantirish'],
+        propertyOrdering: ['kalit','nom','foiz','ishonch','zona','nuqta_x','nuqta_y','izoh','sabab','yechim','ogohlantirish'],
       },
     },
     prognoz: {
@@ -122,8 +138,8 @@ const SXEMA = {
       propertyOrdering: ['foydali', 'cheklang', 'izoh'],
     },
   },
-  required: ['sifat', 'umumiy', 'olchovlar', 'muammolar', 'prognoz', 'tavsiya', 'parhez'],
-  propertyOrdering: ['sifat', 'umumiy', 'olchovlar', 'muammolar', 'prognoz',
+  required: ['sifat', 'umumiy', 'yuz', 'olchovlar', 'muammolar', 'prognoz', 'tavsiya', 'parhez'],
+  propertyOrdering: ['sifat', 'umumiy', 'yuz', 'olchovlar', 'muammolar', 'prognoz',
                      'tavsiya', 'parhez'],
 };
 
@@ -186,6 +202,9 @@ qo'y, va qolgan bo'limlarni BO'SH qoldir (muammolar: [], prognoz: [], tavsiya: [
 umumiy maydonlarini bo'sh satr / 0 qilib qo'y). Taxmin qilma.
 
 QADAM 2 — faqat sifat yaroqli bo'lsa tahlil qil:
+  yuz — yuzning chegarasi RASM koordinatalarida, 0..1000: ymin (peshona
+        tepasi, soch chizig'i), xmin, ymax (iyak), xmax. Soch, quloq va
+        bo'yin kirmaydi. Ilova nishonlarni shu quti bo'yicha tekshiradi.
   umumiy.taxminiy_yosh — oraliq, masalan "24-28"
   umumiy.jins          — "erkak", "ayol" yoki "nomalum".
                          TAXMIN, aniq hukm emas. Ishonching bo'lmasa
@@ -265,6 +284,11 @@ QADAM 3 — muammolar. ENG MUHIM QOIDA:
   zona    — teridagi ANIQ joyi: "burun qanotlari va peshona (T-zona)",
             "yonoqlarning yuqori qismi", "iyak va jag' chizig'i". Umumiy
             "yuz" deb yozma.
+  nuqta_x, nuqta_y — muammo ENG YAQQOL ko'rinadigan joyning markazi,
+            RASMNING O'ZI bo'yicha 0..1000 (x — chap chetdan, y — tepadan).
+            Rasm qanday bo'lsa shunday — ko'zgu emas: odamning o'ng yonog'i
+            rasmning chap tomonida. Nuqta TERIDA bo'lsin: sochda, ko'zda,
+            qoshda yoki fonda emas.
   izoh    — nima ko'rinayotgani, 1 jumla
   sabab   — nima uchun paydo bo'lgan bo'lishi mumkin, 1 jumla, sodda tilda
             (masalan "yog' bezlari faol ishlaydi va teshiklar tiqiladi")
@@ -408,8 +432,42 @@ function kasallikniOlib(matn) {
   return 'Aniq sabab uchun dermatologga ko‘rinishni tavsiya qilamiz.';
 }
 
+/**
+ * Yuz qutisi (model 0..1000 da beradi) → rasm FOIZIDA {x, y, en, boy}.
+ * Ma'nosiz quti (teskari, juda kichik, rasmdan tashqarida) — null:
+ * kartochka u holda eski taxminiy joyga qaytadi.
+ */
+export function yuzQutiTozala(q) {
+  if (!q || typeof q !== 'object') return null;
+  const n = (v) => Math.min(1000, Math.max(0, Number(v)));
+  const [y0, x0, y1, x1] = [q.ymin, q.xmin, q.ymax, q.xmax].map(n);
+  if (![y0, x0, y1, x1].every(Number.isFinite)) return null;
+  if (x1 - x0 < 120 || y1 - y0 < 120) return null;      // juda kichik yoki teskari
+  return { x: x0 / 10, y: y0 / 10, en: (x1 - x0) / 10, boy: (y1 - y0) / 10 };
+}
+
+/**
+ * Muammo nuqtasi (0..1000) → rasm foizida. Yuz qutisi bo'lsa nuqta
+ * uning ICHIDA (ozgina zaxira bilan) bo'lishi shart: model ba'zan
+ * nuqtani sochga yoki fonga qo'yadi — bunday nuqta tashlanadi va
+ * nishon zona matnidan topiladi.
+ */
+export function nuqtaTozala(x, y, yuz) {
+  const nx = Number(x), ny = Number(y);
+  if (!Number.isFinite(nx) || !Number.isFinite(ny)) return null;
+  if (nx <= 0 && ny <= 0) return null;                  // «bilmayman» — 0,0
+  const p = { x: Math.min(100, Math.max(0, nx / 10)), y: Math.min(100, Math.max(0, ny / 10)) };
+  if (yuz) {
+    const zx = yuz.en * 0.08, zy = yuz.boy * 0.06;
+    if (p.x < yuz.x - zx || p.x > yuz.x + yuz.en + zx
+     || p.y < yuz.y - zy || p.y > yuz.y + yuz.boy + zy) return null;
+  }
+  return { x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10 };
+}
+
 function tozala(javob, products) {
   const karta = new Map(products.map((p) => [p.id, p]));
+  const yuzQuti = yuzQutiTozala(javob.yuz);
 
   const muammolar = (javob.muammolar || []).slice(0, 8).map((m) => {
     const foiz = Math.min(95, Math.max(5, Number(m.foiz) || 30));
@@ -425,6 +483,7 @@ function tozala(javob, products) {
       // Daraja foizdan kelib chiqadi — ikkalasi hech qachon qarama-qarshi bo'lmaydi
       daraja: foiz >= 70 ? 3 : foiz >= 40 ? 2 : 1,
       zona:   String(m.zona || '').slice(0, 80),
+      nuqta:  nuqtaTozala(m.nuqta_x, m.nuqta_y, yuzQuti),
       izoh:   String(m.izoh || '').slice(0, 200),
       sabab:  String(m.sabab || '').slice(0, 220),
       yechim: kasallikniOlib(String(m.yechim || '')).slice(0, 260),
@@ -491,6 +550,7 @@ function tozala(javob, products) {
     // hisoblanadi (`olchovlarniHisobla`), shuning uchun ekranda
     // baribir to'liq yettitasi chiqadi.
     olchovlar: olchovlarniTozala(javob.olchovlar),
+    yuz_quti: yuzQuti,
     taxminiy_yosh: String(u.taxminiy_yosh || "noma'lum").slice(0, 20),
     jins: ['erkak', 'ayol'].includes(u.jins) ? u.jins : 'nomalum',
     teri_rangi:    String(u.teri_rangi || "aniqlanmadi").slice(0, 60),

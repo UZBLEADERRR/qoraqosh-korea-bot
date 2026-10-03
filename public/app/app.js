@@ -232,8 +232,11 @@ const MAVZULAR = [
   { kalit: 'tungi',    nom: 'Tungi',    ik: 'oy' },
 ];
 
+// Standart — KUNDUZGI (och yashil fon). Tungi va «Tizim» profilda
+// tanlanadi. Ilgari standart «Tizim» edi: telefoni tungi rejimdagi
+// odam brendning och yashil ilovasini umuman ko'rmasdi.
 const mavzuOqi = () => {
-  try { return localStorage.getItem(MAVZU_KALIT) || 'tizim'; } catch { return 'tizim'; }
+  try { return localStorage.getItem(MAVZU_KALIT) || 'kunduzgi'; } catch { return 'kunduzgi'; }
 };
 
 /**
@@ -263,9 +266,10 @@ function mavzuniQoy(kalit) {
   // o'tganda ekran deyarli o'zgarmasdi — inline uslub har qanday CSS
   // qoidasidan kuchli.
   mavzuniQoll(oxirgiMavzu);
-  // Telegram va brauzer yuqori panelini ham moslashtiramiz
+  // Telefonning yuqori paneli — sarlavha rangida (qizil): sarlavha
+  // ekranning eng tepasigacha davom etgandek ko'rinadi
   const fon = getComputedStyle(document.documentElement)
-    .getPropertyValue('--fon').trim();
+    .getPropertyValue('--asosiy').trim();
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta && fon) meta.setAttribute('content', fon);
 }
@@ -1169,10 +1173,11 @@ function kartaHtml(p) {
       <div class="mbrend">${esc(p.brand || '')}</div>
       <div class="mnom">${esc(nomi(p))}</div>
       ${reytingHtml(p)}
-      <div class="mnarx">${qisqaNarx(p.price)} so‘m${
-        p.old_price && p.old_price > p.price ? `<s>${qisqaNarx(p.old_price)}</s>` : ''}</div>
+      ${teg ? `<span class="teg-mos ${teg.sinf}">${esc(teg.matn)}</span>` : ''}
+      <!-- Narx va «+» BIR qatorda: ilgari «+» o'z qatorida yolg'iz turardi -->
       <div class="mpast">
-        ${teg ? `<span class="teg-mos ${teg.sinf}">${esc(teg.matn)}</span>` : '<span></span>'}
+        <div class="mnarx">${qisqaNarx(p.price)} so‘m${
+          p.old_price && p.old_price > p.price ? `<s>${qisqaNarx(p.old_price)}</s>` : ''}</div>
         ${p.stock > 0
           ? `<i class="karta-qosh ${savatda ? 'qoshildi' : ''}" data-tez="${p.id}"
                role="button" aria-label="Savatga">${ik(savatda ? 'tasdiq' : 'plyus', 17)}</i>`
@@ -2340,9 +2345,13 @@ async function tahlilQil() {
       // tashlab ketilgan edi. Sahifa yangilangach (/api/me) paydo
       // bo'lardi, ya'ni xato faqat birinchi ko'rishda bilinardi.
       raw: { xulosa: j.tahlil.xulosa, parhez: j.tahlil.parhez,
-             tavsif: j.tahlil.tavsif, olchovlar: j.tahlil.olchovlar || null },
+             tavsif: j.tahlil.tavsif, olchovlar: j.tahlil.olchovlar || null,
+             yuz_quti: j.tahlil.yuz_quti || null },
       yuz_rasm_id: j.yuz_rasm_id || null,
+      // O'sish — oldingi tahlildan farq (endi bu oxirgisi bo'ldi)
+      oldingi_ball: holat.tahlil?.score ?? null,
     };
+    holat.natijaKorish = null;
     holat.limit = j.limit || holat.limit;
     menikiSaqla();                        // yangi tahlil qurilmada ham tursin
     kor($('#skaner-boshlash'), true);
@@ -2536,13 +2545,23 @@ const beshRang = (b) => DARAJALAR[olchovDaraja(b)].kalit;
 const olchovBahosi = (b) => DARAJALAR[olchovDaraja(b)].nom;
 
 /** Ball halqasi — SVG, har qanday ekranga cho'ziladi. */
+// Har halqaning O'Z gradienti: umumiy id yashirin bo'limda (display:none)
+// qolsa, Chrome uni boshqa joyda chizmaydi — profil ro'yxatidagi
+// halqalar yoysiz chiqardi.
+let halqaSoni = 0;
 function ballHalqa(ball, olcham = 132) {
   const r = 54, c = 2 * Math.PI * r;
+  const gid = `n-ball-grad-${++halqaSoni}`;
   const to = (c * Math.max(0, Math.min(100, ball))) / 100;
+  // Yoy GRADIENT: qizil → sariq → yashil — qaysi tomonga borish kerakligi
+  // halqaning o'zida ko'rinib turadi
   return `<svg class="n-halqa" viewBox="0 0 128 128" width="${olcham}" height="${olcham}"
       role="img" aria-label="Umumiy ball ${ball}">
+    <defs><linearGradient id="${gid}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e52648"/><stop offset="60%" stop-color="#f6a338"/>
+      <stop offset="100%" stop-color="#3cd88b"/></linearGradient></defs>
     <circle cx="64" cy="64" r="${r}" class="n-halqa-fon"/>
-    <circle cx="64" cy="64" r="${r}" class="n-halqa-yoy ${ballRang(ball)}"
+    <circle cx="64" cy="64" r="${r}" class="n-halqa-yoy ${ballRang(ball)}" style="stroke:url(#${gid})"
       stroke-dasharray="${to.toFixed(1)} ${(c - to).toFixed(1)}"
       transform="rotate(-90 64 64)"/>
     <text x="64" y="66" class="n-halqa-son">${ball}</text>
@@ -2654,7 +2673,8 @@ function olchovlarniHisobla(muammolar, xom) {
 }
 
 function natijaniChiz() {
-  const t = holat.tahlil;
+  // Profildagi «Natijalarim» dan eski tahlil ochilgan bo'lsa — o'sha
+  const t = holat.natijaKorish || holat.tahlil;
   const el = $('#natija-tan');
   holat.natijaKesh = true;   // qayta chizmaslik uchun belgi
   if (!t) {
@@ -2682,8 +2702,11 @@ function natijaniChiz() {
   const muammolar = (t.problems || [])
     .map((m) => ({ ...m, foiz: m.foiz ?? (m.daraja === 3 ? 80 : m.daraja === 2 ? 55 : 25) }))
     .sort((x, y) => y.foiz - x.foiz)
+    // Joy: AI rasmda ko'rsatgan aniq nuqta (bo'lsa), aks holda zona
+    // matnidan — AI bergan yuz qutisi bo'yicha
     .map((m, i) => ({ ...m, tartib: i + 1, ballHolat: 100 - m.foiz,
-                      joy: zonaJoyi(m.zona || m.nom, i) }));
+                      joy: (m.nuqta && Number.isFinite(m.nuqta.x)) ? { x: m.nuqta.x, y: m.nuqta.y }
+                        : zonaJoyi(m.zona || m.nom, i, t.raw?.yuz_quti || undefined) }));
   // Suratda HAMMASI belgilanadi (ilgari faqat 4 tasi edi — odam
   // «nega yonog'im belgilanmagan?» deb so'rardi)
   const belgili = muammolar.slice(0, 8);
@@ -2695,11 +2718,19 @@ function natijaniChiz() {
   const sana = `${d.getDate()}-${OYLAR_UZ[d.getMonth()]}`;
   const ism = (holat.user?.full_name || '').trim().split(/\s+/)[0];
 
+  const delta = t.oldingi_ball != null && Number.isFinite(Number(t.oldingi_ball))
+    ? ball - Number(t.oldingi_ball) : null;
+  const DARAJA_NOM = { 1: 'Yengil', 2: 'O‘rtacha', 3: 'Kuchli' };
+
   el.innerHTML = `
   <header class="n-shapka">
     <div class="n-logo">K<i>i</i>OVO<small>Teri tahlili · ${sana}</small></div>
     ${ism ? `<span class="n-salom">${esc(ism)}</span>` : ''}
   </header>
+
+  ${holat.natijaKorish ? `
+    <div class="n-eski">${ik('soat', 16)}<span>Eski natija · ${sana}</span>
+      <button id="t-oxirgiga">Oxirgisi</button></div>` : ''}
 
   ${t.is_offline ? `<div class="n-karta"><div class="ogoh">AI hozir mavjud emas — bazaviy tavsiya ko‘rsatilmoqda.</div></div>` : ''}
 
@@ -2716,6 +2747,7 @@ function natijaniChiz() {
         <button class="n-nishon d${Math.min(3, m.daraja || 1)}" data-nishon="${m.tartib}"
           style="left:${m.joy.x}%;top:${m.joy.y}%"
           title="${esc(KALIT_NOM[m.kalit] || m.nom)}">${m.tartib}</button>`).join('')}
+      <div class="n-yorliq" id="n-yorliq" aria-live="polite"></div>
       <div class="n-qatlam-teg" id="n-qatlam-teg">Asl <span>· filtrsiz</span></div>
     </div>` : ''}
 
@@ -2724,6 +2756,9 @@ function natijaniChiz() {
       <div>
         <h2 class="${ballRang(ball)}">${holatSoz} holat</h2>
         <p>${esc(t.raw?.xulosa || 'Teri holati baholandi.')}</p>
+        ${delta !== null ? `<span class="n-delta ${delta >= 0 ? 'osdi' : 'tushdi'}">
+          <i>${delta >= 0 ? '↗' : '↘'}</i><b>${delta > 0 ? '+' : ''}${delta}</b>
+          oldingi tahlilga nisbatan</span>` : ''}
       </div>
     </div>
 
@@ -2763,6 +2798,7 @@ function natijaniChiz() {
     <div class="n-olchamlar">
       ${olchovlar.map((o) => `
         <div class="n-olch">
+          <span class="n-olch-belgi ${beshRang(o.ball)}">${ik(o.ikon || 'tomchi', 15)}</span>
           <div class="n-olch-tepa">
             <span>${esc(o.nom)}</span>
             <b>${o.ball}<i>/100</i></b>
@@ -2772,6 +2808,26 @@ function natijaniChiz() {
           <em class="${beshRang(o.ball)}">${esc(o.baho)}</em>
         </div>`).join('')}
     </div>
+  </section>
+
+  <!-- Umid beruvchi xulosa: odam natijadan qo'rqib ketmasin, yo'l ko'rsin -->
+  <section class="n-banner">
+    <span class="n-banner-belgi">${ik('barg', 22)}</span>
+    <div class="n-banner-matn">
+      <b>${ball >= 65 ? 'Teringiz potensiali yuqori!' : 'Teringizni tiklash mumkin!'}</b>
+      <span>To‘g‘ri parvarish bilan yanada yaxshilanadi.</span>
+    </div>
+    <div class="n-banner-trend">
+      <svg viewBox="0 0 36 36" width="30" height="30" aria-hidden="true">
+        <rect x="2" y="24" width="6" height="10" rx="2" fill="#bbf7d0"/>
+        <rect x="11" y="18" width="6" height="16" rx="2" fill="#86efac"/>
+        <rect x="20" y="11" width="6" height="23" rx="2" fill="#4ade80"/>
+        <path d="M5 18 L15 10 L23 14 L33 4" stroke="#dc2626" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M27 4 H33 V10" stroke="#dc2626" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>28 kun ichida<br>ko‘rinadigan natija</span>
+    </div>
+    ${tavsiyalar.length ? `<button class="n-banner-tugma" id="t-rejam">Mening rejam ${ik('keyingi', 15)}</button>` : ''}
   </section>
 
   ${muammolar.length ? `
@@ -2786,6 +2842,7 @@ function natijaniChiz() {
         <summary>
           <span class="n-raqam d${Math.min(3, m.daraja || 1)}">${m.tartib}</span>
           <span class="n-muammo-nom">${esc(KALIT_NOM[m.kalit] || m.nom)}
+            <span class="n-daraja d${Math.min(3, m.daraja || 1)}">${DARAJA_NOM[Math.min(3, m.daraja || 1)]}</span>
             ${m.zona ? `<em>${esc(m.zona)}</em>` : ''}</span>
           <span class="n-muammo-foiz ${ballRang(m.ballHolat)}">${m.foiz}%</span>
           <i class="n-ochish" aria-hidden="true"></i>
@@ -2833,6 +2890,17 @@ function natijaniChiz() {
   const nishonBelgila = (tartib) => {
     $$('[data-nishon]', el).forEach((x) =>
       x.classList.toggle('tanlangan', x.dataset.nishon === String(tartib)));
+    // Tanlangan belgining yonida nomi — «bu nuqta nima?» degan savol qolmasin
+    const yor = $('#n-yorliq', el);
+    const nq = $(`[data-nishon="${tartib}"]`, el);
+    const m = muammolar.find((x) => String(x.tartib) === String(tartib));
+    if (!yor || !nq || !m) { if (yor) yor.classList.remove('kor'); return; }
+    const x = parseFloat(nq.style.left) || 50, y = parseFloat(nq.style.top) || 50;
+    yor.innerHTML = `<b>${esc(KALIT_NOM[m.kalit] || m.nom)}</b>${m.zona ? `<span>${esc(m.zona)}</span>` : ''}`;
+    yor.style.top = `${y}%`;
+    yor.style.left = x > 55 ? '' : `calc(${x}% + 18px)`;
+    yor.style.right = x > 55 ? `calc(${100 - x}% + 18px)` : '';
+    yor.classList.add('kor');
   };
   $$('[data-nishon]', el).forEach((b) => b.onclick = () => {
     const nom = b.dataset.nishon;
@@ -2845,6 +2913,7 @@ function natijaniChiz() {
     if (d.open) nishonBelgila(d.dataset.muammo);
   }));
   nishonBelgila(1);
+  el.addEventListener('belgi-kochdi', (e) => nishonBelgila(e.detail));
 
   const hammasi = $('#t-hammasini-och');
   if (hammasi) hammasi.onclick = () => {
@@ -2882,7 +2951,11 @@ function natijaniChiz() {
   };
   const a = $('#t-arzon');
   if (a) a.onclick = () => { holat.arzon = !holat.arzon; titra(); natijaniChiz(); };
-  $('#t-qayta').onclick = () => tabOch('skaner');
+  $('#t-qayta').onclick = () => { holat.natijaKorish = null; tabOch('skaner'); };
+  const rejam = $('#t-rejam');
+  if (rejam) rejam.onclick = () => { titra(); $('#n-reja', el)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  const oxirgiga = $('#t-oxirgiga');
+  if (oxirgiga) oxirgiga.onclick = () => { holat.natijaKorish = null; titra(); natijaniChiz(); scrollTo({ top: 0 }); };
 
   // Belgilar avval TAXMINIY joyga qo'yildi. Endi rasmda yuzni
   // haqiqatan topib, ularni o'z joyiga suramiz.
@@ -2903,6 +2976,8 @@ function belgilarniYuzgaQoy(el, belgilar) {
   if (!im || !belgilar.length) return;
   kaskadniYukla();
 
+  // Hammasining aniq nuqtasi bo'lsa — yuzni qidirish ham shart emas
+  if (belgilar.every((m) => m.nuqta && Number.isFinite(m.nuqta.x))) return;
   const ishla = () => {
     if (kaskadHolat === 'yuklanmoqda') { setTimeout(ishla, 150); return; }
     if (kaskadHolat !== 'tayyor' || !window.Yuz || !im.naturalWidth) return;
@@ -2927,6 +3002,8 @@ function belgilarniYuzgaQoy(el, belgilar) {
     const nishonlar = el.querySelectorAll('.n-nishon');
     const olingan = [];
     belgilar.forEach((m, i) => {
+      // AI o'zi aniq nuqta bergan bo'lsa — u rasmni ko'rgan, tegilmaydi
+      if (m.nuqta && Number.isFinite(m.nuqta.x)) { olingan.push(m.joy); return; }
       let joy = zonaJoyi(m.zona || m.nom, i, q);
       // Ikki belgi bir joyga tushsa biri ko'rinmay qoladi — ularni
       // ajratamiz, aks holda odam bittasini butunlay ko'rmaydi
@@ -2939,6 +3016,8 @@ function belgilarniYuzgaQoy(el, belgilar) {
       const kes = el.querySelector(`[data-kesim="${m.tartib}"]`);
       if (kes) kes.style.backgroundPosition = `${joy.x}% ${joy.y}%`;
     });
+    const tanl = el.querySelector('.n-nishon.tanlangan');
+    if (tanl) el.dispatchEvent(new CustomEvent('belgi-kochdi', { detail: tanl.dataset.nishon }));
   };
 
   if (im.complete && im.naturalWidth) ishla();
@@ -3036,7 +3115,7 @@ function natijaParvarish(tavsiyalar) {
         <span>${esc(nomi(r.p))}</span></li>`).join('')}</ol>
     </div>`;
   };
-  return `<section class="n-karta n-kok">
+  return `<section class="n-karta n-kok" id="n-reja">
     <h3 class="n-karta-bosh">Har kuni shunday qiling</h3>
     <div class="n-vaqtlar">
       ${ustun(ERTALAB, 'Ertalab', ik('quyosh', 16))}
@@ -3851,7 +3930,7 @@ function profilniChiz() {
   $('#profil-tel').textContent = u.phone ? raqamFormat(u.phone)
     : (u.email || (tgU.username ? '@' + tgU.username : ''));
   $('#profil-stat').innerHTML = `
-    <div><b>${st.tahlil ?? 0}</b><span>AI tahlil</span></div>
+    <div data-natijalar="1"><b>${st.tahlil ?? 0}</b><span>AI tahlil</span></div>
     <div data-sevimli="1"><b>${st.sevimli ?? holat.sevimlilar.size}</b><span>Sevimlilar</span></div>
     <div><b>${st.buyurtma ?? 0}</b><span>Buyurtmalar</span></div>`;
 
@@ -3919,6 +3998,9 @@ function profilniChiz() {
       <label for="p-kocha">Ko‘cha, uy, xonadon</label>
       <textarea id="p-kocha" placeholder="Bunyodkor ko‘chasi 12-uy, 45-xonadon">${esc(u.address || '')}</textarea>
       <button class="asosiy" id="t-manzil-saqla" style="margin-top:16px">Saqlash</button>`)}
+
+    ${yigma('y-natijalar', 'skaner', 'Natijalarim', String(st.tahlil ?? 0),
+      `<div id="natija-tarix"></div>`)}
 
     ${yigma('y-buyurtma', 'quti', 'Buyurtmalarim', String(st.buyurtma ?? 0),
       `<div id="buyurtma-tan"></div>`)}
@@ -4051,6 +4133,12 @@ function profilniChiz() {
   const ss = $('#profil-stat [data-sevimli]');
   if (ss) ss.onclick = () => { ys.open = true; sevimliniChiz(); ys.scrollIntoView({ block: 'center' }); };
 
+  // Natijalar tarixi — bo'lim ochilganda yuklanadi
+  const yn = $('#y-natijalar');
+  yn.ontoggle = () => { if (yn.open) natijaTarixiniChiz(); };
+  const sn = $('#profil-stat [data-natijalar]');
+  if (sn) sn.onclick = () => { yn.open = true; yn.scrollIntoView({ block: 'center', behavior: 'smooth' }); };
+
   // Buyurtmalar faqat bo'lim ochilganda yuklanadi
   const yb = $('#y-buyurtma');
   yb.ontoggle = () => { if (yb.open) buyurtmalarniChiz(); };
@@ -4068,6 +4156,59 @@ function profilniChiz() {
   $('#t-profil-yordam').onclick = yordamOyna;
   $('#t-profil-ochir').onclick = hisobniOchirOyna;
   $('#t-eksport').onclick = malumotlarimniYukla;
+}
+
+/**
+ * «Natijalarim» — har yuz tahlili saqlanadi va shu yerda turadi.
+ * Surat emas, natija: sana, ball, teri turi, eng og'ir belgilar va
+ * oldingisiga nisbatan o'zgarish. Bosilganda to'liq natija ochiladi.
+ */
+async function natijaTarixiniChiz() {
+  const q = $('#natija-tarix');
+  if (!q) return;
+  q.innerHTML = '<div class="tarix-yukl"><span class="aylana"></span></div>';
+  let r;
+  try { r = (await api('/api/tahlillar')).tahlillar || []; }
+  catch (e) { q.innerHTML = `<p class="ozgina">${esc(e.message)}</p>`; return; }
+  if (!r.length) {
+    q.innerHTML = `<div class="tarix-bosh">${ik('skaner', 26)}
+      <p>Hali tahlil yo‘q. Birinchi skanerdan keyin natijalar shu yerda saqlanadi.</p>
+      <button class="asosiy" id="t-tarix-skan">${ik('kamera', 17)}Yuzni tahlil qilish</button></div>`;
+    $('#t-tarix-skan').onclick = () => tabOch('skaner');
+    return;
+  }
+  q.innerHTML = `<div class="tarix">${r.map((x) => {
+    const d = new Date(x.created_at);
+    const sana = `${d.getDate()}-${OYLAR_UZ[d.getMonth()]}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const fark = x.oldingi_ball != null ? (x.score ?? 0) - Number(x.oldingi_ball) : null;
+    return `
+      <button class="tarix-qator" data-tahlil="${esc(x.id)}">
+        ${ballHalqa(x.score ?? 0, 54)}
+        <span class="tarix-tan">
+          <b>${esc(sana)}</b>
+          <span>${[x.skin_type ? `${esc(x.skin_type)} teri` : '', x.age_estimate ? `${esc(x.age_estimate)} yosh` : '']
+            .filter(Boolean).join(' · ') || 'Teri tahlili'}</span>
+          ${x.belgilar?.length ? `<span class="tarix-belgilar">${x.belgilar.map((m) =>
+            `<i>${esc(KALIT_NOM[m.kalit] || m.nom || '')}</i>`).join('')}</span>` : ''}
+        </span>
+        ${fark !== null ? `<span class="tarix-fark ${fark >= 0 ? 'osdi' : 'tushdi'}">${fark > 0 ? '+' : ''}${fark}</span>` : ''}
+        <span class="oq">${ik('keyingi', 16)}</span>
+      </button>`;
+  }).join('')}</div>`;
+  $$('.tarix-qator', q).forEach((b) => b.onclick = async () => {
+    titra();
+    b.disabled = true;
+    try {
+      const { tahlil } = await api(`/api/tahlil?id=${encodeURIComponent(b.dataset.tahlil)}`);
+      // Oxirgi tahlil bo'lsa — oddiy holat, aks holda «eski natija»
+      holat.natijaKorish = String(tahlil.id) === String(holat.tahlil?.id) ? null : tahlil;
+      holat.natijaKesh = false;
+      tabOch('natija');
+      natijaniChiz();
+      scrollTo({ top: 0 });
+    } catch (e) { ogohlantir(e.message); }
+    b.disabled = false;
+  });
 }
 
 /**
@@ -4352,122 +4493,161 @@ const suhbatTarixi = () => holat.suhbat
   .map((x) => ({ kim: x.kim, matn: x.matn }));
 
 /**
- * AI javobining yengil formati. To'liq markdown emas — chatda kerak
- * bo'ladigan uchta narsa: kichik sarlavha, ro'yxat va qalin so'z.
+ * AI javobi — SHABLON bo'yicha chiziladi, oddiy matn emas.
+ *
+ * AI (src/ai/maslahat.js) javobni yengil belgilar bilan yozadi:
+ * birinchi jumlalar — muammoning mohiyati, «## Sarlavha», «1. qadam»,
+ * «• band», «> diqqat». Ilgari bularning hammasi bitta pufak ichida
+ * mayda matn bo'lib chiqardi. Endi har biri o'z ko'rinishida:
+ *   · mohiyat  — katta, o'qishli «lid» matn;
+ *   · sarlavha — belgili alohida bo'lim kartasi;
+ *   · qadamlar — raqamli vaqt chizig'i;
+ *   · bandlar  — belgichali qatorlar;
+ *   · diqqat   — rangli ogohlantirish kartasi.
  */
 function formatMatn(xom) {
   const qatorlar = String(xom || '').split('\n');
   const chiq = [];
   let royxat = [];
   let tur = 'ul';
-  const royxatniYop = () => {
-    if (royxat.length) { chiq.push(`<${tur}>${royxat.join('')}</${tur}>`); royxat = []; }
-  };
+  let bolimOchiq = false;
+  let lidBor = false;
   const qalin = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+  const royxatniYop = () => {
+    if (!royxat.length) return;
+    chiq.push(tur === 'ol'
+      ? `<ol class="ai-qadamlar">${royxat.join('')}</ol>`
+      : `<ul class="ai-bandlar">${royxat.join('')}</ul>`);
+    royxat = [];
+  };
+  const bolimniYop = () => { royxatniYop(); if (bolimOchiq) { chiq.push('</section>'); bolimOchiq = false; } };
 
   for (const xq of qatorlar) {
     const q = xq.trim();
     if (!q) { royxatniYop(); continue; }
 
-    // ## Sarlavha — boshidagi emoji alohida belgi bo'lib chiqadi
+    // ## Sarlavha — yangi bo'lim kartasi; boshidagi emoji belgi bo'ladi
     if (q.startsWith('##')) {
-      royxatniYop();
+      bolimniYop();
       const matn = q.replace(/^#+\s*/, '');
-      const e = matn.match(/^(\p{Extended_Pictographic}\uFE0F?)\s*(.*)$/u);
-      chiq.push(e
-        ? `<h4><span class="h4-belgi">${esc(e[1])}</span>${qalin(e[2])}</h4>`
-        : `<h4>${qalin(matn)}</h4>`);
+      const e = matn.match(/^(\p{Extended_Pictographic}️?)\s*(.*)$/u);
+      chiq.push(`<section class="ai-bolim"><h4>${e
+        ? `<span class="ai-bolim-belgi">${esc(e[1])}</span>${qalin(e[2])}`
+        : `<span class="ai-bolim-belgi">${ik('tasdiq', 15)}</span>${qalin(matn)}`}</h4>`);
+      bolimOchiq = true;
       continue;
     }
     // > Diqqat qilinadigan jumla
     if (q.startsWith('>')) {
       royxatniYop();
-      chiq.push(`<div class="diqqat-satr">${ik('ogoh', 15)}<span>${qalin(q.slice(1).trim())}</span></div>`);
+      chiq.push(`<div class="ai-diqqat"><span class="ai-diqqat-belgi">${ik('ogoh', 17)}</span>
+        <span>${qalin(q.slice(1).trim())}</span></div>`);
       continue;
     }
     // 1. Tartibli qadam
     const raqamli = q.match(/^(\d{1,2})[.)]\s+(.*)$/);
     if (raqamli) {
       if (tur !== 'ol') { royxatniYop(); tur = 'ol'; }
-      royxat.push(`<li>${qalin(raqamli[2])}</li>`);
+      royxat.push(`<li><i>${esc(raqamli[1])}</i><span>${qalin(raqamli[2])}</span></li>`);
       continue;
     }
     // • Ro'yxat bandi
     if (/^[•\-*]\s/.test(q)) {
       if (tur !== 'ul') { royxatniYop(); tur = 'ul'; }
-      royxat.push(`<li>${qalin(q.slice(1).trim())}</li>`);
+      royxat.push(`<li><i>${ik('tasdiq', 13)}</i><span>${qalin(q.slice(1).trim())}</span></li>`);
       continue;
     }
     royxatniYop(); tur = 'ul';
-    chiq.push(`<p>${qalin(q)}</p>`);
+    // Birinchi xatboshi (bo'limdan oldin) — mohiyat, kattaroq
+    if (!bolimOchiq && !lidBor) { chiq.push(`<p class="ai-lid">${qalin(q)}</p>`); lidBor = true; }
+    else chiq.push(`<p>${qalin(q)}</p>`);
   }
-  royxatniYop();
+  bolimniYop();
   return chiq.join('');
 }
 
-/** Bitta tavsiya kartasi: rasm, nom, narx, «nega» va bitta bosishda savatga. */
+const TUR_NOM = {
+  javob: ['Maslahat', 'tomchi'], tavsiya: ['Tavsiya', 'savat'], savol: ['Aniqlashtirish', 'savol'],
+  tibbiy: ['Sog‘liq', 'tibbiy'], yoq: ['Javob', 'suhbat'], mavzudan_tashqari: ['Javob', 'suhbat'],
+};
+
+/**
+ * Tavsiya qilingan mahsulot — gorizontal lentadagi KARTA: katta rasm,
+ * bosqich va tartib raqami, nom, asosiy ma'lumot (hajm, reyting),
+ * «nega aynan shu», qanday ishlatish, narx va «Savatga» tugmasi.
+ */
 function tavsiyaKartasi(t, tartibli = false) {
   const p = t.mahsulot;
   const yoq = !(p.stock > 0);
   const savatda = holat.savat.some((r) => r.products.id === p.id);
   const rasm = p.poster_id
-    ? `<img src="/media/${esc(p.poster_id)}?w=200" alt="" loading="lazy">`
-    : ik('shisha', 26);
+    ? `<img src="/media/${esc(p.poster_id)}?w=400" alt="" loading="lazy">`
+    : `<span class="ai-m-bosh">${ik('shisha', 34)}</span>`;
   const eski = p.old_price && p.old_price > p.price ? `<s>${qisqaNarx(p.old_price)}</s>` : '';
+  const chiplar = [
+    p.volume ? `<span>${ik('tomchi', 12)}${esc(p.volume)}</span>` : '',
+    Number(p.reyting) > 0 ? `<span>${ik('yulduz', 12)}${Number(p.reyting).toFixed(1)}</span>` : '',
+  ].join('');
   return `
-    <div class="t-karta" data-mahsulot="${p.id}">
-      <div class="rasm">${rasm}${tartibli ? `<span class="t-tartib">${t.tartib}</span>` : ''}</div>
-      <div class="t-ich">
-        <div class="t-tepa">
-          ${tartibli && t.bosqich
-            ? `<span class="t-bosqich">${esc(BOSQICH_NOM[t.bosqich] || t.bosqich)}</span>`
-            : (p.brand ? `<span class="t-brend">${esc(p.brand)}</span>` : '')}
-        </div>
-        <div class="t-nom">${esc(nomi(p))}</div>
-        ${t.sabab ? `<div class="t-sabab">${esc(t.sabab)}</div>` : ''}
-        ${t.qanday ? `<div class="t-qanday">${ik('soat', 13)}${esc(t.qanday)}</div>` : ''}
-        <div class="t-past">
-          <span class="t-narx">${narx(p.price)}${eski}</span>
+    <article class="ai-m" data-mahsulot="${p.id}">
+      <div class="ai-m-rasm">${rasm}
+        ${tartibli ? `<span class="ai-m-tartib">${t.tartib}</span>` : ''}
+        ${tartibli && t.bosqich ? `<span class="ai-m-bosqich">${esc(BOSQICH_NOM[t.bosqich] || t.bosqich)}</span>` : ''}
+      </div>
+      <div class="ai-m-tan">
+        ${p.brand ? `<span class="ai-m-brend">${esc(p.brand)}</span>` : ''}
+        <b class="ai-m-nom">${esc(nomi(p))}</b>
+        ${chiplar ? `<div class="ai-m-chiplar">${chiplar}</div>` : ''}
+        ${t.sabab ? `<p class="ai-m-sabab">${esc(t.sabab)}</p>` : ''}
+        ${t.qanday ? `<p class="ai-m-qanday">${ik('soat', 13)}<span>${esc(t.qanday)}</span></p>` : ''}
+        <div class="ai-m-past">
+          <span class="ai-m-narx">${narx(p.price)}${eski}</span>
           ${yoq
-            ? '<span class="t-yoq">Tugagan</span>'
-            : `<button class="t-qosh ${savatda ? 'qoshildi' : ''}" data-qosh="${p.id}"
-                 aria-label="Savatga qo‘shish">${ik(savatda ? 'tasdiq' : 'plyus', 19)}</button>`}
+            ? '<span class="ai-m-yoq">Tugagan</span>'
+            : `<button class="ai-m-qosh ${savatda ? 'qoshildi' : ''}" data-qosh="${p.id}"
+                 aria-label="Savatga qo‘shish">${savatda ? `${ik('tasdiq', 16)}Savatda` : `${ik('plyus', 16)}Savatga`}</button>`}
         </div>
       </div>
-    </div>`;
+    </article>`;
 }
 
-/** To'plam: raqamlangan bosqichlar, jami narx va «hammasini savatga». */
-function toplamHtml(j) {
+/** Tavsiyalar bloki: sarlavha, gorizontal lenta, jami va «hammasini savatga». */
+function tavsiyaBloki(j) {
+  const toplam = Boolean(j.toplam && j.tavsiya.length > 1);
   const jami = j.tavsiya.reduce((s, t) => s + (t.mahsulot?.price || 0), 0);
   const idlar = j.tavsiya.map((t) => t.product_id).join(',');
   const hammasiBor = j.tavsiya.every((t) =>
     holat.savat.some((r) => r.products.id === t.product_id));
+  const n = j.tavsiya.length;
   return `
-    <div class="toplam">
-      ${j.toplam.izoh ? `<div class="toplam-bosh"><p>${esc(j.toplam.izoh)}</p></div>` : ''}
-      <div class="toplam-royxat">${j.tavsiya.map((t) => tavsiyaKartasi(t, true)).join('')}</div>
-      <div class="toplam-past">
-        <div><span class="ozgina">${j.tavsiya.length} ta mahsulot</span>
-          <b>${narx(jami)}</b></div>
-        <button class="asosiy toplam-tugma ${hammasiBor ? 'qoshildi' : ''}"
-          data-toplam="${idlar}" ${hammasiBor ? 'disabled' : ''}>
-          ${ik(hammasiBor ? 'tasdiq' : 'savat', 18)}${hammasiBor ? 'Savatda' : 'Hammasini savatga'}</button>
+    <div class="ai-tavsiya">
+      <div class="ai-tavsiya-bosh">
+        <span class="ai-tavsiya-belgi">${ik(toplam ? 'sovga' : 'savat', 18)}</span>
+        <div><b>${toplam ? esc(j.toplam.nom) : 'Sizga mos mahsulotlar'}</b>
+          <span>${n} ta mahsulot${n > 1 ? ' · suring' : ''}</span></div>
       </div>
+      ${toplam && j.toplam.izoh ? `<p class="ai-tavsiya-izoh">${esc(j.toplam.izoh)}</p>` : ''}
+      <div class="ai-mahsulotlar">${j.tavsiya.map((t) => tavsiyaKartasi(t, toplam)).join('')}</div>
+      ${n > 1 ? `
+        <div class="ai-tavsiya-past">
+          <div><span>${n} ta mahsulot</span><b>${narx(jami)}</b></div>
+          <button class="asosiy ai-toplam-tugma ${hammasiBor ? 'qoshildi' : ''}"
+            data-toplam="${idlar}" ${hammasiBor ? 'disabled' : ''}>
+            ${ik(hammasiBor ? 'tasdiq' : 'savat', 18)}${hammasiBor ? 'Savatda' : 'Hammasini savatga'}</button>
+        </div>` : ''}
     </div>`;
 }
 
-/** Bitta AI javobi: matn pufagi + savol / to'plam / mahsulotlar. */
+/** Bitta AI javobi: shablonli karta + savol / mahsulotlar. */
 function aiXabarHtml(j) {
   const tibbiy = j.turi === 'tibbiy';
-  const belgi = tibbiy
-    ? `<div class="pufak-belgi">${ik('tibbiy', 13)}Sog‘liq masalasi</div>` : '';
+  const [turNom, turIk] = TUR_NOM[j.savol ? 'savol' : j.turi] || TUR_NOM.javob;
 
   let ost = '';
   if (j.savol) {
     ost = `
       <div class="savol-quti">
-        <div class="savol-matn">${ik('savol', 15)}${esc(j.savol.matn)}</div>
+        <div class="savol-matn">${ik('savol', 17)}<span>${esc(j.savol.matn)}</span></div>
         <div class="savol-variantlar">
           ${(j.savol.variantlar || []).map((v) =>
             `<button data-savol="${esc(v)}">${esc(v)}</button>`).join('')}
@@ -4476,27 +4656,19 @@ function aiXabarHtml(j) {
         </div>
       </div>`;
   } else if ((j.tavsiya || []).length) {
-    // Mahsulotlar YOPIQ turadi: ochilgan holda javob juda uzayib
-    // ketadi va suhbatni o'qib bo'lmaydi. Bosilganda ochiladi.
-    const ich = (j.toplam && j.tavsiya.length > 1)
-      ? toplamHtml(j)
-      : `<div class="tavsiyalar">${j.tavsiya.map((t) => tavsiyaKartasi(t)).join('')}</div>`;
-    const jami = j.tavsiya.reduce((s, t) => s + (t.mahsulot?.price || 0), 0);
-    ost = `
-      <details class="tavsiya-yigma">
-        <summary>
-          <span class="tav-belgi">${ik('savat', 17)}</span>
-          <span class="tav-matn"><b>${j.toplam ? esc(j.toplam.nom) : 'Sizga mos mahsulotlar'}</b>
-            <span>${j.tavsiya.length} ta · ${narx(jami)}</span></span>
-          <span class="tav-oq">${ik('pastga', 18)}</span>
-        </summary>
-        <div class="tavsiya-ich">${ich}</div>
-      </details>`;
+    ost = tavsiyaBloki(j);
   }
 
   return `
     <div class="xabar ai">
-      <div class="pufak ${tibbiy ? 'tibbiy' : ''}">${belgi}${formatMatn(j.javob)}</div>
+      <div class="ai-javob ${tibbiy ? 'tibbiy' : ''}">
+        <div class="ai-javob-bosh">
+          <span class="ai-avatar">${BELGI()}</span>
+          <b>KiOVO AI</b>
+          <span class="ai-tur">${ik(turIk, 13)}${esc(turNom)}</span>
+        </div>
+        <div class="ai-javob-tan">${formatMatn(j.javob)}</div>
+      </div>
       ${ost}
     </div>`;
 }
@@ -4617,6 +4789,42 @@ function rasmOldindaniChiz() {
 
 let olchamniYangila = () => {};
 
+/* KLAVIATURA.
+ *
+ * Android Chrome (Play'dagi ilova ham shu) klaviatura ochilganda faqat
+ * KO'RINADIGAN qismni kichraytiradi — sahifaning o'zi o'zgarmaydi, va
+ * pastga yopishgan yozish paneli klaviatura ORTIDA qolib ketardi.
+ * Ikki himoya: index.html dagi `interactive-widget=resizes-content`
+ * (Chrome sahifani kichraytiradi) va shu yerda o'lchov — klaviatura
+ * balandligi `--klav` ga yoziladi, panel shuncha yuqoriga ko'tariladi.
+ *
+ * Ikkinchi muammo: klaviaturani Android'ning «orqaga» strelkasi bilan
+ * yopsa, input fokusda QOLADI — `blur` kelmaydi, pastki menyu esa
+ * yashirinligicha qolardi. Endi klaviatura yopilganini balandlikdan
+ * bilamiz. */
+function klaviaturaniKuzat(yopildi, ochildi) {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const yozuvdami = () => /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || '');
+  let tayanch = Math.max(window.innerHeight, vv.height);
+  let ochiq = false;
+  const olchov = () => {
+    // Klaviatura yo'q paytdagi balandlik — taqqoslash uchun
+    if (!yozuvdami()) tayanch = Math.max(window.innerHeight, vv.height);
+    const ostki = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    document.documentElement.style.setProperty('--klav', `${ostki}px`);
+    const endi = tayanch - vv.height > 140;
+    if (ochiq && !endi) yopildi();
+    if (!ochiq && endi) ochildi?.();
+    ochiq = endi;
+  };
+  vv.addEventListener('resize', olchov);
+  vv.addEventListener('scroll', olchov);
+  window.addEventListener('orientationchange', () => setTimeout(() => {
+    tayanch = Math.max(window.innerHeight, vv.height); olchov();
+  }, 400));
+}
+
 function maslahatniUla() {
   const matn = $('#maslahat-matn');
   const yubor = $('#maslahat-yubor');
@@ -4658,12 +4866,18 @@ function maslahatniUla() {
   };
 
   // Input bosilganda pastki menyu berkiladi — klaviatura tepasida
-  // faqat yozish paneli qoladi
+  // faqat yozish paneli qoladi. Klaviatura qanday yopilmasin (Android
+  // «orqaga» strelkasi inputdan fokusni OLMAYDI) — `klaviaturaniKuzat`
+  // buni sezib menyuni qaytaradi.
   matn.addEventListener('focus', () => {
     document.body.classList.add('yozilmoqda');
     setTimeout(pastgaTush, 260);
   });
   matn.addEventListener('blur', () => document.body.classList.remove('yozilmoqda'));
+  klaviaturaniKuzat(() => {
+    document.body.classList.remove('yozilmoqda');
+    if (document.activeElement === matn) matn.blur();
+  }, () => { if (document.activeElement === matn) pastgaTush(); });
 
   const savolBos = (e) => {
     const b = e.target.closest('[data-savol]');
@@ -4691,7 +4905,8 @@ function maslahatniUla() {
     if (q) {
       e.stopPropagation();
       const id = Number(q.dataset.qosh);
-      q.disabled = true; q.classList.add('qoshildi'); q.innerHTML = ik('tasdiq', 19);
+      q.disabled = true; q.classList.add('qoshildi');
+      q.innerHTML = q.classList.contains('ai-m-qosh') ? `${ik('tasdiq', 16)}Savatda` : ik('tasdiq', 19);
       savatga(id);
       return;
     }
@@ -4938,6 +5153,9 @@ if (TARIX) {
 
 function tabOch(nom, { tarixsiz = false } = {}) {
   nom = TAB_TAQMOQ[nom] || nom;
+  // Tarixdan ochilgan eski natija faqat o'sha safar ko'rinadi — keyingi
+  // safar «Natija» yana oxirgi tahlilni ko'rsatadi
+  if (nom !== 'natija' && holat.natijaKorish) { holat.natijaKorish = null; holat.natijaKesh = false; }
   if (TARIX && !tarixsiz && holat.tab !== nom) {
     const joriy = history.state?.tab;
     if (nom === 'katalog') tarixga({ tab: nom });

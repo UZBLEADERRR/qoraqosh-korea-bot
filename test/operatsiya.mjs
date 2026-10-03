@@ -2080,7 +2080,7 @@ console.log('\n── KO‘RINISH (KUNDUZGI/TUNGI) ──');
   const qolTungi = (/:root\[data-mavzu="tungi"\]\{([^}]*)\}/.exec(css) || [])[1];
   test('tungi tokenlar to‘liq ko‘chirilgan',
     Boolean(tizimTungi) && tizimTungi.trim() === (qolTungi || '').trim()
-      && /--fon:#120b0b/.test(qolTungi || ''));
+      && /--fon:#140307/.test(qolTungi || ''));
   test('ko‘rinish tanlovi uslubi bor', css.includes('.korinish-tanlov'));
 
   // JS tomoni
@@ -4677,7 +4677,7 @@ console.log('\n── KARTOCHKA SHABLONI ──');
   // AI sxemasi
   const aiKod = fs4.readFileSync('src/ai/faceAnalysis.js', 'utf8');
   test('sxemada olchovlar MAJBURIY — model tashlab keta olmaydi',
-    /required: \['sifat', 'umumiy', 'olchovlar'/.test(aiKod));
+    /required: \['sifat', 'umumiy', ('yuz', )?'olchovlar'/.test(aiKod));
   test('modelga «yuqori = yaxshi» deb aytilgan',
     /QANCHA YUQORI BO.LSA SHUNCHA YAXSHI/.test(aiKod));
   test('modelga muammolar bilan ziddiyatsiz bo‘lishi aytilgan',
@@ -5355,6 +5355,84 @@ console.log('\n── PUSH BILDIRISHNOMALAR ──');
   test('Telegram ichida push taklif qilinmaydi (u yerda bot yozadi)', /const pushBormi = \(\) => !tg\?\.initData/.test(ilova));
   test('chiqishda bu qurilmaning obunasi bekor qilinadi', /await pushniOchir\(\)\.catch/.test(ilova));
   test('kalit almashsa obuna yangilanadi', /applicationServerKey/.test(ilova) && /ob\.unsubscribe\(\)/.test(ilova));
+}
+
+
+console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
+{
+  const fsY = await import('node:fs');
+  const FA = await import('../src/ai/faceAnalysis.js');
+  const Z = await import('../src/lib/zona.js');
+  // Yuz qutisi
+  const q = FA.yuzQutiTozala({ ymin: 100, xmin: 50, ymax: 800, xmax: 450 });
+  test('yuz qutisi foizga o‘tadi', q && q.x === 5 && q.y === 10 && q.en === 40 && q.boy === 70, JSON.stringify(q));
+  test('teskari yoki juda kichik quti tashlanadi',
+    FA.yuzQutiTozala({ ymin: 500, xmin: 500, ymax: 520, xmax: 900 }) === null
+      && FA.yuzQutiTozala({ ymin: 800, xmin: 0, ymax: 100, xmax: 900 }) === null && FA.yuzQutiTozala(null) === null);
+  // Nuqta
+  const n = FA.nuqtaTozala(250, 400, q);
+  test('muammo nuqtasi rasm foizida', n && n.x === 25 && n.y === 40, JSON.stringify(n));
+  test('yuzdan tashqaridagi nuqta (soch, fon) tashlanadi', FA.nuqtaTozala(900, 400, q) === null
+    && FA.nuqtaTozala(250, 20, q) === null);
+  test('«bilmayman» (0,0) nuqta tashlanadi', FA.nuqtaTozala(0, 0, null) === null);
+  // Joylash: aniq nuqta zona matnidan ustun
+  const j = Z.joylarniHisobla([{ nom: 'Pora', zona: 'peshona', foiz: 60, nuqta: { x: 31, y: 48 } },
+                               { nom: 'Dog', zona: 'iyak', foiz: 30 }], q);
+  test('AI nuqtasi bo‘lsa nishon AYNAN o‘sha joyda', j[0].joy.x === 31 && j[0].joy.y === 48, JSON.stringify(j[0].joy));
+  test('nuqtasiz muammo — yuz qutisi bo‘yicha (taxminiy markazga emas)',
+    j[1].joy.x >= 5 && j[1].joy.x <= 45 && j[1].joy.y >= 60, JSON.stringify(j[1].joy));
+  const aiKod = fsY.readFileSync('src/ai/faceAnalysis.js', 'utf8');
+  test('sxemada yuz qutisi va nuqtalar majburiy',
+    /'zona','nuqta_x','nuqta_y'/.test(aiKod) && /required: \['ymin', 'xmin', 'ymax', 'xmax'\]/.test(aiKod));
+  const anKod = fsY.readFileSync('src/services/analysis.js', 'utf8');
+  test('yuz qutisi bazaga saqlanadi', /yuz_quti: a\.yuz_quti/.test(anKod));
+  const nrKod = fsY.readFileSync('src/services/natija-rasm.js', 'utf8');
+  test('kartochka yuz qutisini ishlatadi', /joylarniHisobla\([\s\S]{0,80}yuz_quti/.test(nrKod));
+
+  // Tarix API
+  const { seansOch } = await import('../src/services/ilova-kirish.js');
+  await sorov(`delete from users where telegram_id = '816777'`);
+  const u = await qator(`insert into users (telegram_id, full_name, phone, agreed_at) values ('816777','Tarix','+998935557777', now()) returning id`);
+  await sorov(`insert into analyses (user_id, score, problems, created_at) values ($1, 55, '[{"kalit":"akne","nom":"Akne","foiz":60}]', now() - interval '10 days'),
+               ($1, 71, '[{"kalit":"teshik","nom":"Pora","foiz":40},{"kalit":"dog","nom":"Dog","foiz":70}]', now())`, [u.id]);
+  const { token } = await seansOch(u.id, 'sinov');
+  const tr = await chaqirIlova('/api/tahlillar', 'GET', null, token);
+  const r = tr.tana.tahlillar || [];
+  test('tarix: ikkala tahlil, eng yangisi birinchi', r.length === 2 && r[0].score === 71, JSON.stringify(r.map((x) => x.score)));
+  test('tarix: oldingi ball bilan (o‘sish ko‘rinadi)', r[0].oldingi_ball === 55 && r[1].oldingi_ball === null);
+  test('tarix: eng og‘ir belgilar birinchi', r[0].belgilar[0].kalit === 'dog');
+  test('tarixda surat va xom ma’lumot YO‘Q', !('raw' in r[0]) && !('yuz_rasm_id' in r[0]));
+  const bir = await chaqirIlova(`/api/tahlil?id=${r[1].id}`, 'GET', null, token);
+  test('bitta eski tahlil ochiladi', bir.kod === 200 && bir.tana.tahlil.score === 55);
+  const begona = await qator(`select id from analyses where user_id <> $1 limit 1`, [u.id]);
+  if (begona) {
+    const b = await chaqirIlova(`/api/tahlil?id=${begona.id}`, 'GET', null, token);
+    test('BOSHQA odamning tahlili ochilmaydi', b.kod === 404);
+  }
+  const me = await chaqirIlova('/api/me', 'GET', null, token);
+  test('oxirgi tahlilda oldingi ball bor', me.tana.oxirgi_tahlil?.oldingi_ball === 55);
+  await sorov('delete from analyses where user_id = $1', [u.id]);
+
+  // Ilova
+  const js = fsY.readFileSync('public/app/app.js', 'utf8');
+  const css = fsY.readFileSync('public/app/style.css', 'utf8');
+  const html = fsY.readFileSync('public/app/index.html', 'utf8');
+  test('profilda «Natijalarim»', js.includes("yigma('y-natijalar'") && /async function natijaTarixiniChiz/.test(js));
+  test('natija ekrani diagnostika palitrasida', /#tab-natija\{\s*--fon:#140307/.test(css));
+  test('ball halqasi gradientli va har biri o‘z id si bilan', /n-ball-grad-\$\{\+\+halqaSoni\}/.test(js));
+  test('o‘sish yorlig‘i («oldingi tahlilga nisbatan»)', /oldingi tahlilga nisbatan/.test(js));
+  test('klaviatura: sahifa kichrayadi', /interactive-widget=resizes-content/.test(html));
+  test('klaviatura yopilganda menyu qaytadi (fokus qolsa ham)', /function klaviaturaniKuzat/.test(js)
+    && /classList\.remove\('yozilmoqda'\)/.test(js));
+  test('AI javobi shablon bloklari bilan', ['ai-lid', 'ai-bolim', 'ai-qadamlar', 'ai-bandlar', 'ai-diqqat'].every((k) => js.includes(k) && css.includes('.' + k)));
+  test('tavsiya — gorizontal kartalar va «Savatga» tugmasi', /class="ai-mahsulotlar"/.test(js) && /\.ai-mahsulotlar\{display:flex;gap:12px;overflow-x:auto/.test(css));
+  test('fon och yashil (kunduzgi standart)', /--fon:#edf5e1/.test(css) && /\|\| 'kunduzgi'/.test(js));
+  test('pastki menyu shisha qizil', /\.menyu\{left:12px;right:12px/.test(css) && /backdrop-filter:blur\(18px\)/.test(css));
+  test('lentaning birinchi kartasi chetga yopishmaydi', /scroll-padding-inline:16px/.test(css));
+  const mz = await import('../src/lib/mavzu.js');
+  test('brend mavzusi och yashil', mz.MAVZU_STANDART.fon === '#EDF5E1');
+  test('ikkinchi darajali matn och fonda o‘qiladi (4.5:1)', mz.kontrast(mz.palitra({}).och, '#EDF5E1') >= 4.5,
+    mz.kontrast(mz.palitra({}).och, '#EDF5E1').toFixed(2));
 }
 
 console.log('\n── REKLAMA: FAQAT TELEGRAMI BORLARGA ──');

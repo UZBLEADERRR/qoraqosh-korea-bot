@@ -2,7 +2,9 @@
 <html lang="uz">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<!-- interactive-widget: klaviatura ochilganda Chrome SAHIFANI kichraytirsin.
+     Busiz pastga yopishgan yozish paneli klaviatura ORTIDA qolardi. -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,interactive-widget=resizes-content">
 <title>KiOVO — Koreya kosmetikasi</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <meta name="theme-color" content="#ab0a0c">
@@ -22,6 +24,14 @@
      app.js shu va'dani kutadi: skript kelmasa ham 4 soniyadan keyin
      ilova baribir ochiladi. -->
 <script>
+/* Ko'rinish (kunduzgi / tungi) CSS dan OLDIN qo'yiladi — aks holda
+   telefoni tungi rejimdagi odamda ekran bir lahza qorayib, keyin
+   och yashilga «sakrardi». Standart — kunduzgi. */
+(function () {
+  var k = 'kunduzgi';
+  try { k = localStorage.getItem('kiovo_korinish') || 'kunduzgi'; } catch (e) {}
+  if (k !== 'tizim') document.documentElement.setAttribute('data-mavzu', k);
+})();
 window.__tgTayyor = new Promise(function (tayyor) {
   var tgda = /tgWebApp/.test(location.hash) || !!window.TelegramWebviewProxy
     || window.parent !== window

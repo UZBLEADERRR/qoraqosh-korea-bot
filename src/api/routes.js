@@ -6,7 +6,8 @@ import { sorovYarat, sorovHolati, seansdanUser, seansniYop, seanslarSoni,
   from '../services/ilova-kirish.js';
 import { raqamTozala } from '../lib/telefon.js';
 import { ok, xato, tana, json, ipOl } from '../lib/http.js';
-import { faolMahsulotlar, tahlilQil, oxirgiTahlil, limitHolati, rasmLimiti } from '../services/analysis.js';
+import { faolMahsulotlar, tahlilQil, oxirgiTahlil, limitHolati, rasmLimiti,
+         tahlillarTarixi, tahlilniOl } from '../services/analysis.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { maslahatBer } from '../ai/maslahat.js';
 import { savatniOl, savatgaQosh, savatOzgartir, savatniTozala, buyurtmaYarat } from '../services/orders.js';
@@ -183,6 +184,18 @@ export async function apiRoutes(req, res, yol) {
 
   if (yol === '/api/limit' && req.method === 'GET') {
     return ok(res, { limit: await limitHolati(user.id) });
+  }
+
+  // --- Tahlillar tarixi: profilda eski natijalar ---
+  if (yol === '/api/tahlillar' && req.method === 'GET') {
+    return ok(res, { tahlillar: await tahlillarTarixi(user.id) });
+  }
+  if (yol === '/api/tahlil' && req.method === 'GET') {
+    const id = Number(new URL(req.url, 'http://ichki').searchParams.get('id'));
+    if (!Number.isInteger(id) || id <= 0) return xato(res, 400, 'Tahlil raqami noto‘g‘ri.');
+    const t = await tahlilniOl(user.id, id);
+    if (!t) return xato(res, 404, 'Tahlil topilmadi.');
+    return ok(res, { tahlil: t });
   }
 
   if (yol === '/api/me' && req.method === 'GET') {

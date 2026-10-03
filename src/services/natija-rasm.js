@@ -82,7 +82,8 @@ export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime,
   // kattalashtirib ko'rsatiladi
   const bilanJoy = {
     ...tahlil,
-    muammolar: joylarniHisobla(tahlil?.muammolar || tahlil?.problems || []),
+    muammolar: joylarniHisobla(tahlil?.muammolar || tahlil?.problems || [],
+      tahlil?.yuz_quti || tahlil?.raw?.yuz_quti || null),
   };
 
   // ADMIN YORDAMCHISI yozgan shablon bo'lsa — kartochka o'sha

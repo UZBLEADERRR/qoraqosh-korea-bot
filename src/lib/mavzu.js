@@ -9,17 +9,18 @@
 // natija rasmi (SVG) va admin paneldagi ko'rinish.
 
 /* Standart — KiOVO BRENDI: logotipdagi qizil (src/lib/logo.js) va
- * iliq krem fon. Ilgari standart yorqin #E0242B edi — logotipdagi
- * to'q qizilga mos kelmasdi va sayt bilan ilova ikki xil ko'rinardi. */
+ * och yashil fon (logotipning ikkinchi rangi). Ilgari fon iliq krem
+ * edi — ilova oq ko'rinardi va brendning yashili faqat logotipda qolardi. */
 export const MAVZU_STANDART = {
   asosiy: '#AB0A0C',   // sarlavha foni (logotip qizili)
-  fon:    '#FBF8F3',   // ilova va rasm foni (iliq krem)
+  fon:    '#EDF5E1',   // ilova va rasm foni (och yashil)
   urgu:   '#AB0A0C',   // tugmalar va narx
 };
 
 /** Tayyor to'plamlar — admin bir bosishda tanlaydi. Birinchisi BREND. */
 export const TOPLAMLAR = [
-  { kalit: 'kiovo',    nom: 'KiOVO · brend',      asosiy: '#AB0A0C', fon: '#FBF8F3', urgu: '#AB0A0C' },
+  { kalit: 'kiovo',    nom: 'KiOVO · brend',      asosiy: '#AB0A0C', fon: '#EDF5E1', urgu: '#AB0A0C' },
+  { kalit: 'krem',     nom: 'KiOVO · krem',       asosiy: '#AB0A0C', fon: '#FBF8F3', urgu: '#AB0A0C' },
   { kalit: 'oq',       nom: 'KiOVO · oq',         asosiy: '#AB0A0C', fon: '#F6F6F7', urgu: '#AB0A0C' },
   { kalit: 'qizil',    nom: 'Qizil · och yashil', asosiy: '#AB0A0C', fon: '#F0F7DF', urgu: '#AB0A0C' },
   { kalit: 'jigarrang', nom: 'Jigarrang · krem',  asosiy: '#6F4830', fon: '#FAF9F7', urgu: '#8A5A3D' },
@@ -155,9 +156,12 @@ export function palitra(xom = {}) {
     urguTungiTim: yoritish(tungiUrgu(urgu), 0.25),
     urguTungiOch: qoraytirish(tungiUrgu(urgu), 0.82),
     // Fon ustidagi matn va kartochka
+    // Ikkinchi va uchinchi darajali matn ham och fonda kamida 4.5:1.
+    // Ilgari --och #8A847E edi: oq fonda 3.6:1, och yashilda 3.4:1 —
+    // mayda yozuv o'qilmasdi.
     matn:   fonOch ? '#1F1D1B' : '#F2F0EE',
-    kul:    fonOch ? '#5F5A55' : '#B3ADA8',
-    och:    fonOch ? '#8A847E' : '#8A847E',
+    kul:    fonOch ? '#4C4943' : '#B3ADA8',
+    och:    fonOch ? '#625E57' : '#8A847E',
     karta:  fonOch ? '#FFFFFF' : qoraytirish(fon, 0.35),
     chiziq: fonOch ? qoraytirish(fon, 0.1) : yoritish(fon, 0.12),
     // Mahsulot kartochkasining foni — fondan biroz to'qroq

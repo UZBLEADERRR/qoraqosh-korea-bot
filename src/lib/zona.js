@@ -78,14 +78,23 @@ export function joyniAjrat(joy, olingan, engKam = 9) {
   return joy;
 }
 
-/** Muammolar ro'yxatiga `joy` qo'shadi — og'irligi bo'yicha tartiblab. */
-export function joylarniHisobla(muammolar) {
+/**
+ * Muammolar ro'yxatiga `joy` qo'shadi — og'irligi bo'yicha tartiblab.
+ *
+ * Joy tartibi: (1) AI ko'rsatgan aniq nuqta (`m.nuqta`, rasm foizida) —
+ * u rasmni ko'rgan; (2) bo'lmasa zona matni, lekin AI bergan YUZ
+ * QUTISI bo'yicha; (3) u ham bo'lmasa taxminiy quti. Ilgari doim (3)
+ * ishlatilardi: yuz rasm o'rtasida bo'lmasa belgilar sochga tushardi.
+ */
+export function joylarniHisobla(muammolar, yuz = null) {
   const olingan = [];
   return (muammolar || [])
     .map((m) => ({ ...m, foiz: Math.round(Number(m.foiz ?? (m.daraja === 3 ? 80 : m.daraja === 2 ? 55 : 25))) }))
     .sort((a, b) => b.foiz - a.foiz)
     .map((m, i) => {
-      const joy = joyniAjrat(zonaJoyi(m.zona || m.nom, i), olingan);
+      const aniq = m.nuqta && Number.isFinite(m.nuqta.x) && Number.isFinite(m.nuqta.y)
+        ? { x: m.nuqta.x, y: m.nuqta.y } : null;
+      const joy = joyniAjrat(aniq || zonaJoyi(m.zona || m.nom, i, yuz || undefined), olingan, aniq ? 5 : 9);
       olingan.push(joy);
       return { ...m, joy };
     });

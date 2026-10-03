@@ -30,7 +30,7 @@ export function shablonMalumoti({ tahlil = {}, tavsiyalar = [], brend = 'KiOVO',
                                   en = 1080 } = {}) {
   const t = tahlil || {};
   const ball = Math.round(Number(t.ball ?? t.score ?? 0));
-  const muammolar = joylarniHisobla(t.muammolar || t.problems || []);
+  const muammolar = joylarniHisobla(t.muammolar || t.problems || [], t.yuz_quti || t.raw?.yuz_quti || null);
   const parhez = t.parhez || {};
 
   return {

@@ -106,7 +106,9 @@ export async function tahlilQil(user, base64, mime) {
      // ekranda turardi, qayta ochilganda esa bazada yo'q edi.
      // O'lchovlar ham shu yerda — ular tahlilning bir qismi.
      JSON.stringify({ xulosa: a.xulosa, tavsif: a.tavsif,
-                      parhez: a.parhez, olchovlar: a.olchovlar || null }),
+                      parhez: a.parhez, olchovlar: a.olchovlar || null,
+                      // Yuz qayerda — nishonlar shu bo'yicha qo'yiladi
+                      yuz_quti: a.yuz_quti || null }),
      a.jins || 'nomalum'],
   );
 
@@ -122,5 +124,33 @@ export async function tahlilQil(user, base64, mime) {
 }
 
 /** Foydalanuvchining oxirgi tahlili. */
-export const oxirgiTahlil = (userId) =>
-  qator('select * from analyses where user_id = $1 order by created_at desc limit 1', [userId]);
+export const oxirgiTahlil = (userId) => qator(
+  `select a.*, (select b.score from analyses b where b.user_id = a.user_id
+                  and b.created_at < a.created_at order by b.created_at desc limit 1) as oldingi_ball
+     from analyses a where a.user_id = $1 order by a.created_at desc limit 1`, [userId]);
+
+/**
+ * Tahlillar tarixi — profil «Natijalarim» bo'limi uchun.
+ * Surat emas, faqat natija: sana, ball, teri turi va eng og'ir 3 belgi.
+ * Har biriga o'zidan OLDINGI ball qo'shiladi — o'sish ko'rinsin.
+ */
+export async function tahlillarTarixi(userId, chegara = 30) {
+  const r = await qatorlar(
+    `select id, created_at, score, skin_type, age_estimate, problems,
+            lag(score) over (order by created_at) as oldingi_ball
+       from analyses where user_id = $1
+      order by created_at desc limit $2`, [userId, chegara]);
+  return r.map((x) => ({
+    id: x.id, created_at: x.created_at, score: x.score, skin_type: x.skin_type,
+    age_estimate: x.age_estimate, oldingi_ball: x.oldingi_ball,
+    belgilar: (Array.isArray(x.problems) ? x.problems : [])
+      .map((m) => ({ kalit: m.kalit, nom: m.nom, foiz: Number(m.foiz ?? 0) }))
+      .sort((a, b) => b.foiz - a.foiz).slice(0, 3),
+  }));
+}
+
+/** Bitta (o'zining) tahlili — tarixdan ochilganda. */
+export const tahlilniOl = (userId, id) => qator(
+  `select a.*, (select b.score from analyses b where b.user_id = a.user_id
+                  and b.created_at < a.created_at order by b.created_at desc limit 1) as oldingi_ball
+     from analyses a where a.user_id = $1 and a.id = $2`, [userId, id]);
