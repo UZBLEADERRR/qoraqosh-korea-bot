@@ -4,6 +4,7 @@
 // Qaytgan id'lar baribir katalogga solishtirib tekshiriladi.
 import { aiJson, rasmPart, aiBormi } from './index.js';
 import { OLCHOV_KALITLARI, olchovlarniTozala } from '../lib/olchov.js';
+import { zonaMosmi } from '../lib/zona.js';
 
 export const RAD_SABABLARI = {
   yuz_yoq:      { emoji: '🙈', matn: "Rasmda yuz topilmadi." },
@@ -86,15 +87,17 @@ const SXEMA = {
           zona:         { type: 'string' },
           // Muammo eng yaqqol ko'rinadigan joy — RASM koordinatalarida,
           // 0..1000 (x chapdan, y tepadan). Nishon aynan shu nuqtaga qo'yiladi.
-          nuqta_x:      { type: 'integer' },
           nuqta_y:      { type: 'integer' },
+          nuqta_x:      { type: 'integer' },
           izoh:         { type: 'string' },
           sabab:        { type: 'string' },
           yechim:       { type: 'string' },
           ogohlantirish:{ type: 'string' },
         },
-        required: ['kalit','nom','foiz','ishonch','zona','nuqta_x','nuqta_y','izoh','sabab','yechim','ogohlantirish'],
-        propertyOrdering: ['kalit','nom','foiz','ishonch','zona','nuqta_x','nuqta_y','izoh','sabab','yechim','ogohlantirish'],
+        // nuqta_y AVVAL: Gemini nuqtani [y, x] tartibida berishga o'rgatilgan
+        // (box_2d kabi) — shu tartibda u aniqroq.
+        required: ['kalit','nom','foiz','ishonch','zona','nuqta_y','nuqta_x','izoh','sabab','yechim','ogohlantirish'],
+        propertyOrdering: ['kalit','nom','foiz','ishonch','zona','nuqta_y','nuqta_x','izoh','sabab','yechim','ogohlantirish'],
       },
     },
     prognoz: {
@@ -284,8 +287,12 @@ QADAM 3 — muammolar. ENG MUHIM QOIDA:
   zona    — teridagi ANIQ joyi: "burun qanotlari va peshona (T-zona)",
             "yonoqlarning yuqori qismi", "iyak va jag' chizig'i". Umumiy
             "yuz" deb yozma.
-  nuqta_x, nuqta_y — muammo ENG YAQQOL ko'rinadigan joyning markazi,
-            RASMNING O'ZI bo'yicha 0..1000 (x — chap chetdan, y — tepadan).
+  nuqta_y, nuqta_x — muammo ENG YAQQOL ko'rinadigan joyning markazi,
+            RASMNING O'ZI bo'yicha 0..1000 (y — tepadan, x — chap chetdan),
+            xuddi [y, x] nuqta kabi. Avval zonani yuz qutisi ichida top,
+            keyin o'sha zonadagi eng yaqqol dog'/teshik/qizarishga ko'rsat.
+            Nuqta ZONA matniga mos bo'lsin: zona «iyak» bo'lsa nuqta
+            iyakda, «peshona» bo'lsa peshonada.
             Rasm qanday bo'lsa shunday — ko'zgu emas: odamning o'ng yonog'i
             rasmning chap tomonida. Nuqta TERIDA bo'lsin: sochda, ko'zda,
             qoshda yoki fonda emas.
@@ -483,7 +490,11 @@ function tozala(javob, products) {
       // Daraja foizdan kelib chiqadi — ikkalasi hech qachon qarama-qarshi bo'lmaydi
       daraja: foiz >= 70 ? 3 : foiz >= 40 ? 2 : 1,
       zona:   String(m.zona || '').slice(0, 80),
-      nuqta:  nuqtaTozala(m.nuqta_x, m.nuqta_y, yuzQuti),
+      // Zonaga zid nuqta tashlanadi — belgi zona matnidan topiladi
+      nuqta:  (() => {
+        const n = nuqtaTozala(m.nuqta_x, m.nuqta_y, yuzQuti);
+        return n && zonaMosmi(m.zona, n, yuzQuti) ? n : null;
+      })(),
       izoh:   String(m.izoh || '').slice(0, 200),
       sabab:  String(m.sabab || '').slice(0, 220),
       yechim: kasallikniOlib(String(m.yechim || '')).slice(0, 260),

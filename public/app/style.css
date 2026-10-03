@@ -9,17 +9,18 @@
    ilgari #9a9aa3 oq fonda 2.7:1 edi va mayda yozuv o'qilmasdi. */
 
 :root{
-  /* Fon — OCH YASHIL (logotipning ikkinchi rangi), oq emas. Kartalar oq,
-     sarlavha va pastki menyu qizil: ilova ikki rangdan iborat. */
-  --fon:#edf5e1; --panel:#fff; --matn:#1d1514; --kul:#4c4943; --och:#67635b;
-  --chiziq:#dbe7c9; --chiziq-och:#e6f0d7;
+  /* Fon — OCH YASHIL (logotipning ikkinchi rangi), oq emas. Kartalar ham
+     oq emas — fondan ochroq yashil; sarlavha va pastki menyu qizil:
+     ilova ikki rangdan iborat, oq deyarli ishlatilmaydi. */
+  --fon:#e1edcf; --panel:#f0f6e7; --matn:#1d1514; --kul:#4a463f; --och:#605b52;
+  --chiziq:#cfe0b6; --chiziq-och:#dae8c4;
   --urgu:#ab0a0c; --urgu-och:#fbe6e6; --urgu-tim:#860709;
   /* Sarlavha (shapka) foni — brend qizili. Admin mavzusidagi «asosiy» rang */
   --asosiy:#ab0a0c; --asosiy-matn:#fff;
-  --qidiruv-fon:#fff; --qidiruv-matn:#1d1514; --qidiruv-och:#766b67;
+  --qidiruv-fon:#f0f6e7; --qidiruv-matn:#1d1514; --qidiruv-och:#766b67;
   /* Och yashil — logotip rangi. OQ fonda MATN bo'la olmaydi (1.5:1),
      shuning uchun matn uchun --lime-tim, fon uchun --lime-och */
-  --lime:#bddb7d; --lime-och:#dcefbf; --lime-tim:#3f5f12;
+  --lime:#bddb7d; --lime-och:#d3e8b0; --lime-tim:#3f5f12;
   --yashil:#3f6116; --yashil-och:#ddefc4; --qizil:#c0161b; --qizil-och:#fbe9e9;
   --sariq:#8a5f08; --sariq-och:#fbf2dd;
   --kok:#2563c9; --kok-och:#e8f0fd;
@@ -1926,7 +1927,7 @@ body.kam-yorug .menyu button{color:#7a7a82}
 .karusel-tugma{border-radius:14px}
 
 /* ── Toifalar ── */
-.toifalar .doira{border:0;border-radius:20px;width:58px;height:58px;background:#fff}
+.toifalar .doira{border:0;border-radius:20px;width:58px;height:58px;background:var(--panel)}
 .toifalar button.tanlangan .doira{background:var(--k-qizil);color:#fff}
 :root[data-mavzu="tungi"] .toifalar .doira{background:var(--panel)}
 @media (prefers-color-scheme:dark){:root:not([data-mavzu="kunduzgi"]) .toifalar .doira{background:var(--panel)}}
@@ -2307,3 +2308,329 @@ body:has(#tab-natija:not(.yashirin)){background:#0d0205}
 body:has(.kirish-fon){padding-bottom:0;background:var(--panel)}
 .mahsulot .mnarx{white-space:nowrap;font-size:clamp(14.5px,4.1vw,16.5px)}
 .mahsulot .mnarx small{display:block;font-size:12px;font-weight:600;color:var(--och);margin-top:2px}
+
+/* ═════════════ KiOVO 4 — ALOHIDA EKRANLAR ═════════════
+   Sozlamalar, sharhlar, sharh yozish o'z ekranida ochiladi: o'ngdan
+   suriladi, tepada qizil sarlavha va «orqaga». Joyida ochilib-yopiladigan
+   yig'malar o'rniga — haqiqiy ilovadagidek. */
+.sahifa{position:fixed;inset:0;z-index:55;display:flex;flex-direction:column;
+  background:var(--fon);overflow:hidden;animation:sahifa-kir .32s var(--k-egri) both;
+  box-shadow:-18px 0 40px -20px rgba(20,6,6,.45)}
+.sahifa.ketdi{animation:sahifa-chiq .26s ease both;pointer-events:none}
+@keyframes sahifa-kir{from{transform:translateX(100%)}to{transform:none}}
+@keyframes sahifa-chiq{to{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.sahifa,.sahifa.ketdi{animation-duration:1ms}}
+.sahifa-bosh{flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 12px;
+  background:var(--asosiy);color:var(--asosiy-matn);border-radius:0 0 22px 22px;
+  box-shadow:0 10px 24px -16px rgba(59,3,4,.7)}
+.sahifa-orqa{flex:0 0 auto;width:42px;height:42px;border:0;border-radius:50%;
+  display:grid;place-items:center;color:inherit;cursor:pointer;
+  background:rgba(255,255,255,.16);transition:transform var(--k-tez) var(--k-egri)}
+.sahifa-orqa:active{transform:scale(.9);background:rgba(255,255,255,.26)}
+.sahifa-nom{min-width:0;flex:1}
+.sahifa-nom h2{margin:0;font-size:19px;font-weight:800;letter-spacing:-.01em;line-height:1.2;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sahifa-nom small{display:block;font-size:12.5px;opacity:.8;margin-top:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sahifa-tan{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  padding:16px 16px calc(28px + env(safe-area-inset-bottom));display:flex;flex-direction:column}
+.sahifa-tan>*{flex:0 0 auto}
+.sahifa-karta{background:var(--panel);border-radius:20px;padding:4px 16px 18px;box-shadow:var(--sh)}
+.sahifa-karta label{font-size:13px;font-weight:700;color:var(--kul);margin:16px 0 7px;letter-spacing:.01em}
+.sahifa-karta input,.sahifa-karta textarea{font-size:16px;padding:13px 14px;border-radius:13px;background:var(--fon)}
+.sahifa-izoh{display:flex;gap:10px;align-items:flex-start;margin:0 0 12px;padding:12px 14px;
+  border-radius:16px;background:var(--lime-och);color:var(--lime-tim);font-size:13.5px;line-height:1.45;font-weight:600}
+.sahifa-izoh i[data-ik]{margin-top:1px}
+/* Saqlash tugmasi ekran pastida doim ko'rinadi */
+.sahifa-pastki{position:sticky;bottom:calc(-28px - env(safe-area-inset-bottom));margin:auto -16px
+  calc(-28px - env(safe-area-inset-bottom));padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+  background:linear-gradient(to top,var(--fon) 72%,transparent);z-index:2}
+.sahifa-tan>.sahifa-pastki{margin-top:auto;padding-top:22px}
+.sahifa .bosh-holat{padding:40px 10px}
+
+/* Profil ro'yxati — guruhlangan qatorlar */
+.sozlama-guruh{margin:14px 16px 0}
+.sozlama-guruh h3{margin:0 4px 8px;font-size:12.5px;font-weight:800;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--och)}
+.sozlama-ro{background:var(--panel);border-radius:20px;box-shadow:var(--sh);overflow:hidden}
+.sozlama-qator{display:flex;align-items:center;gap:12px;width:100%;min-height:58px;
+  padding:11px 14px;border:0;background:none;color:var(--matn);text-decoration:none;
+  font:inherit;font-size:15px;font-weight:650;text-align:left;cursor:pointer;position:relative;
+  transition:background var(--k-tez)}
+.sozlama-qator+.sozlama-qator::before{content:'';position:absolute;top:0;left:60px;right:0;
+  border-top:1px solid var(--chiziq-och)}
+.sozlama-qator:active{background:var(--chiziq-och)}
+.sozlama-qator .b{flex:0 0 auto;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;
+  background:var(--urgu-och);color:var(--urgu)}
+.sozlama-qator:nth-child(even) .b{background:var(--lime-och);color:var(--lime-tim)}
+.sozlama-qator .nom{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.sozlama-qator .nom small{display:block;font-size:12.5px;font-weight:500;color:var(--och);margin-top:2px}
+.sozlama-qator .qiy{flex:0 1 auto;max-width:42%;color:var(--och);font-size:13.5px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sozlama-qator .oq{flex:0 0 auto;color:var(--och);display:grid}
+.sozlama-qator.xavf{color:var(--qizil)}
+.sozlama-qator.xavf .b{background:var(--qizil-och);color:var(--qizil)}
+.sahifa .sozlama-ro+.sozlama-ro{margin-top:12px}
+.sahifa .korinish-tanlov button{padding:18px 8px;border-radius:18px;background:var(--panel);box-shadow:var(--sh)}
+.sevimli-tor{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.sevimli-tor .mahsulot{width:auto;margin:0}
+
+/* Almashtirgich (switch) */
+.sozlama-almash{display:flex;align-items:center;gap:14px;padding:16px}
+.sozlama-almash>div{flex:1;min-width:0}
+.sozlama-almash b{display:block;font-size:15.5px}
+.sozlama-almash span{display:block;font-size:13.5px;color:var(--och);line-height:1.45;margin-top:3px}
+.almash{flex:0 0 auto;width:54px;height:32px;border-radius:99px;border:0;padding:3px;cursor:pointer;
+  background:var(--chiziq);transition:background .2s ease;display:flex}
+.almash i{width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.2);
+  transition:transform .22s var(--k-egri)}
+.almash.yoqiq{background:var(--urgu)}
+.almash.yoqiq i{transform:translateX(22px)}
+.almash:disabled{opacity:.6}
+
+/* Qisqa xabar («Saqlandi») */
+.tost{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom));z-index:95;
+  transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:12px 18px;
+  border-radius:99px;background:#2a0a12;color:#fff;font-weight:700;font-size:14.5px;
+  box-shadow:0 14px 30px -12px rgba(0,0,0,.6);animation:k-paydo .25s var(--k-egri) both}
+.tost i[data-ik]{color:var(--k-lime)}
+.tost.ketdi{opacity:0;transform:translate(-50%,10px);transition:.28s ease}
+
+/* ── Mahsulot oynasi: reyting tugmasi va doimiy pastki panel ── */
+.baho-tugma{display:inline-flex;align-items:center;gap:6px;padding:7px 11px 7px 10px;
+  border-radius:99px;border:0;cursor:pointer;font:inherit;font-size:13.5px;
+  background:var(--sariq-och);color:var(--matn);transition:transform var(--k-tez) var(--k-egri)}
+.baho-tugma:active{transform:scale(.96)}
+.baho-tugma .yulduzlar{display:inline-flex;gap:1px}
+.baho-tugma b{font-weight:800}
+.baho-tugma .soni{color:var(--kul);font-weight:600;text-decoration:underline;text-underline-offset:3px;
+  text-decoration-color:color-mix(in srgb,var(--kul) 40%,transparent)}
+.baho-tugma.bosh{background:var(--chiziq-och)}
+.baho-tugma>i[data-ik]:last-child{color:var(--och)}
+.yulduzlar .yld{color:color-mix(in srgb,var(--och) 45%,transparent)}
+.yulduzlar .yld.faol{color:#e8a01e}
+.yulduzlar .yld.faol svg path{fill:currentColor}
+.sharh-havola{display:flex;align-items:center;gap:12px;width:100%;margin:16px 0 4px;padding:13px 14px;
+  border:0;border-radius:18px;background:var(--panel);color:var(--matn);font:inherit;text-align:left;
+  cursor:pointer;box-shadow:var(--sh)}
+.sharh-havola .b{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+  background:var(--sariq-och);color:#d38b0b;flex:0 0 auto}
+.sharh-havola>span:nth-child(2){flex:1;min-width:0}
+.sharh-havola b{display:block;font-size:15px}
+.sharh-havola small{display:block;color:var(--och);font-size:12.5px;margin-top:2px}
+.modal .oyna.pastli{padding-bottom:0}
+.oyna-pastki{position:sticky;bottom:0;z-index:4;display:flex;align-items:center;gap:12px;
+  margin-top:14px;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  background:color-mix(in srgb,var(--panel) 88%,transparent);
+  backdrop-filter:blur(14px) saturate(1.3);-webkit-backdrop-filter:blur(14px) saturate(1.3);
+  border-top:1px solid var(--chiziq-och);box-shadow:0 -12px 26px -18px rgba(20,6,6,.45)}
+.oyna-pastki-narx{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.oyna-pastki-narx b{font-size:19px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.oyna-pastki-narx s,.oyna-pastki-narx small{font-size:12.5px;color:var(--och);white-space:nowrap}
+.oyna-pastki .asosiy{flex:1 1 auto;width:auto;min-width:0;min-height:52px;padding:12px 14px;
+  display:flex;align-items:center;justify-content:center;gap:8px;margin:0}
+.oyna-pastki .asosiy span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ── Sharhlar ekrani ── */
+.sharh-xulosa-katta{display:flex;align-items:center;gap:18px;padding:18px;border-radius:22px;
+  background:var(--panel);box-shadow:var(--sh)}
+.sharh-ball{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto}
+.sharh-ball b{font-size:44px;font-weight:800;letter-spacing:-.04em;line-height:1}
+.sharh-ball small{font-size:12px;color:var(--och);text-align:center}
+.sharh-taqsim{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.sharh-taqsim div{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--kul)}
+.sharh-taqsim div>i[data-ik]{color:#e8a01e}
+.sharh-taqsim div>i[data-ik] svg path{fill:currentColor}
+.sharh-taqsim div>i:not([data-ik]){flex:1;height:7px;border-radius:99px;background:var(--chiziq-och);overflow:hidden}
+.sharh-taqsim em{display:block;height:100%;border-radius:inherit;
+  background:linear-gradient(90deg,#f0b429,#e8a01e)}
+.sharh-taqsim small{width:22px;text-align:right;color:var(--och)}
+.sharh-manba{display:flex;align-items:center;gap:6px;margin:10px 2px 0;font-size:13px;color:var(--och)}
+.sharh-qoida{display:flex;gap:9px;align-items:flex-start;margin:14px 0 0;padding:12px 14px;border-radius:16px;
+  background:var(--lime-och);color:var(--lime-tim);font-size:13.5px;line-height:1.45;font-weight:600}
+.sharh-sahifa .sahifa-tan>.asosiy{margin-top:14px}
+.sharh-bolim-nom{display:flex;align-items:center;gap:7px;margin:22px 2px 10px;font-size:16px;font-weight:800}
+.sharh-bolim-nom small{color:var(--och);font-weight:700;font-size:13px}
+.sharh-sahifa .sharh{background:var(--panel);border:0;border-radius:20px;padding:14px;margin:0 0 10px;
+  box-shadow:var(--sh);animation:k-paydo .3s var(--k-egri) both}
+.sharh-sahifa .sharh.meniki{background:var(--urgu-och)}
+.sharh-sahifa .sharh-bosh{flex-wrap:nowrap;gap:10px;margin-bottom:9px}
+.sharh-avatar{flex:0 0 auto;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
+  font-weight:800;font-size:16px;color:#fff;
+  background:linear-gradient(140deg,hsl(var(--h) 62% 46%),hsl(calc(var(--h) + 40) 62% 36%))}
+.sharh-kim{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.sharh-kim b{font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sharh-kim>span{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--och)}
+.sharh-tasdiq{flex:0 0 auto;display:inline-flex;align-items:center;gap:3px;padding:4px 8px;border-radius:99px;
+  font-size:11px;font-weight:800;background:var(--lime-och);color:var(--lime-tim)}
+.sharh-sahifa .sharh p{color:var(--matn);font-size:15px}
+.sharh-sahifa .sharh-galereya{margin:0}
+
+/* Sharh yozish ekrani */
+.sharh-yoz-mahsulot{display:flex;align-items:center;gap:12px;padding:12px;border-radius:18px;
+  background:var(--panel);box-shadow:var(--sh);margin-bottom:18px}
+.sharh-yoz-mahsulot img,.sharh-yoz-mahsulot>span{width:56px;height:56px;border-radius:14px;object-fit:cover;
+  flex:0 0 auto;display:grid;place-items:center;background:var(--chiziq-och);color:var(--och)}
+.sharh-yoz-mahsulot div{min-width:0}
+.sharh-yoz-mahsulot small{display:block;font-size:11.5px;font-weight:800;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--urgu)}
+.sharh-yoz-mahsulot b{display:block;font-size:14.5px;line-height:1.3}
+.sharh-yoz .baho-tanlov button{color:color-mix(in srgb,var(--och) 40%,transparent);
+  transition:transform .18s var(--k-sakra)}
+.sharh-yoz .baho-tanlov button.faol{color:#f0a92a;transform:scale(1.08)}
+.sharh-yoz .baho-matn{text-align:center;font-weight:800;font-size:16px;color:var(--urgu);margin-bottom:6px}
+.sharh-yoz textarea{background:var(--panel)}
+.baho-tugma .soni{background:none;border:0;padding:0;border-radius:0}
+.sozlama-qator .nom{white-space:nowrap}
+
+/* AI tavsiya kartasi: narx TEPADA, «Savatga» butun kenglikda pastda.
+   Yonma-yon turganda tor ekranda tugma kartadan chiqib ketardi. */
+.ai-m-past{flex-direction:column;align-items:stretch;gap:10px}
+.ai-m-narx{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ai-m-narx s{display:inline}
+.ai-m-qosh{width:100%;justify-content:center;height:46px}
+.ai-m-yoq{text-align:center;padding:12px;border-radius:15px;background:var(--qizil-och)}
+@media (max-width:380px){
+  .ai-m{flex-basis:84%}
+  .ai-m-nom{font-size:15.5px}
+  .ai-m-tan{padding:12px 12px 13px}
+}
+.ai-tavsiya-past{flex-wrap:wrap}
+.ai-toplam-tugma{min-width:min(100%,180px)}
+
+/* ═════════════ NATIJA — SKANER EFFEKTLARI ═════════════
+   Natija «haqiqiy tekshiruvdan chiqqandek» ochiladi: yuz ustidan
+   to'r o'tadi, lazer chizig'i tepadan pastga yuradi, u o'tgan joydagi
+   belgilar birin-ketin «topiladi», yuz ramkasi chiziladi va o'lchov
+   yozuvlari bitta-bitta ✓ oladi. Keyin lazer har 7 soniyada sekin
+   o'tib turadi — ekran «jonli» qoladi. */
+.n-yuz{isolation:isolate}
+.n-yuz-media img{transition:transform 1.4s var(--k-egri)}
+.n-yuz.intro .n-yuz-media img{animation:n-kirish 1.6s var(--k-egri) both}
+@keyframes n-kirish{from{transform:scale(1.08);filter:saturate(.2) brightness(.7)}to{transform:none;filter:none}}
+.n-skan{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.n-skan-tor{position:absolute;inset:0;opacity:.0;
+  background:
+    repeating-linear-gradient(0deg,rgba(189,219,125,.38) 0 1px,transparent 1px 22px),
+    repeating-linear-gradient(90deg,rgba(189,219,125,.38) 0 1px,transparent 1px 22px);
+  -webkit-mask:radial-gradient(60% 55% at 50% 45%,#000 30%,transparent 75%);
+          mask:radial-gradient(60% 55% at 50% 45%,#000 30%,transparent 75%)}
+.n-yuz.intro .n-skan-tor{animation:n-tor 2.6s ease both}
+@keyframes n-tor{0%{opacity:0;transform:scale(1.15)}25%{opacity:.85}70%{opacity:.6}100%{opacity:.12;transform:none}}
+.n-yuz:not(.intro) .n-skan-tor{opacity:.1}
+.n-skan-chiziq{position:absolute;left:-5%;right:-5%;top:0;height:3px;opacity:0;
+  background:linear-gradient(90deg,transparent,#bddb7d 18%,#fff 50%,#bddb7d 82%,transparent);
+  box-shadow:0 0 18px 4px rgba(189,219,125,.75),0 0 46px 10px rgba(171,10,12,.35);
+  animation:n-lazer 7s 3s ease-in-out infinite}
+.n-skan-nur{position:absolute;left:0;right:0;top:0;height:30%;opacity:0;
+  background:linear-gradient(to bottom,transparent,rgba(189,219,125,.22));
+  animation:n-nur 7s 3s ease-in-out infinite}
+.n-yuz.intro .n-skan-chiziq{animation:n-lazer-intro 2.3s .25s cubic-bezier(.45,.05,.4,1) both,n-lazer 7s 4.5s ease-in-out infinite}
+.n-yuz.intro .n-skan-nur{animation:n-nur-intro 2.3s .25s cubic-bezier(.45,.05,.4,1) both,n-nur 7s 4.5s ease-in-out infinite}
+.n-yuz.qayta .n-skan-chiziq{animation:n-lazer-intro 1.1s cubic-bezier(.45,.05,.4,1) both}
+.n-yuz.qayta .n-skan-nur{animation:n-nur-intro 1.1s cubic-bezier(.45,.05,.4,1) both}
+@keyframes n-lazer-intro{0%{top:-2%;opacity:0}8%{opacity:1}92%{opacity:1}100%{top:100%;opacity:0}}
+@keyframes n-nur-intro{0%{top:-30%;opacity:0}10%{opacity:1}90%{opacity:1}100%{top:72%;opacity:0}}
+@keyframes n-lazer{0%,62%{top:-2%;opacity:0}66%{opacity:.7}96%{opacity:.7}100%{top:100%;opacity:0}}
+@keyframes n-nur{0%,62%{top:-30%;opacity:0}66%{opacity:.6}96%{opacity:.6}100%{top:72%;opacity:0}}
+
+/* Yuz ramkasi — to'rt burchak, HUD uslubida */
+.n-ramka{position:absolute;z-index:1;pointer-events:none;left:12%;top:5%;width:76%;height:80%}
+.n-ramka i{position:absolute;width:18%;max-width:34px;aspect-ratio:1;border:2.5px solid #bddb7d;
+  filter:drop-shadow(0 0 6px rgba(189,219,125,.8))}
+.n-ramka i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-top-left-radius:10px}
+.n-ramka i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0;border-top-right-radius:10px}
+.n-ramka i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0;border-bottom-left-radius:10px}
+.n-ramka i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0;border-bottom-right-radius:10px}
+.n-ramka span{position:absolute;left:0;top:-24px;padding:3px 8px;border-radius:7px;white-space:nowrap;
+  font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+  background:rgba(189,219,125,.92);color:#1f2d07}
+.n-ramka{opacity:.55}
+.n-yuz.intro .n-ramka{animation:n-ramka 1.2s .2s var(--k-egri) both}
+@keyframes n-ramka{0%{opacity:0;transform:scale(1.25)}60%{opacity:1}100%{opacity:.55;transform:none}}
+
+/* O'lchov yozuvlari — chap tepada, bittadan ✓ oladi */
+.n-hud{position:absolute;left:8px;top:8px;z-index:2;display:flex;flex-direction:column;gap:3px;
+  pointer-events:none;max-width:48%}
+.n-hud span{display:flex;align-items:center;gap:6px;padding:3px 8px;border-radius:7px;
+  font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#e9f6d0;
+  background:rgba(13,2,5,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:max-content;max-width:100%}
+.n-hud span b{color:#bddb7d;font-size:11px}
+.n-hud .n-hud-jami{background:rgba(171,10,12,.82);color:#fff}
+.n-yuz:not(.intro) .n-hud span:not(.n-hud-jami){display:none}
+.n-yuz.intro .n-hud span{animation:n-hud-kir .35s calc(.45s + var(--k) * .42s) var(--k-egri) both,
+  n-hud-ket .4s 4.4s ease forwards}
+.n-yuz.intro .n-hud .n-hud-jami{animation:n-hud-kir .35s calc(.45s + var(--k) * .42s) var(--k-egri) both}
+.n-yuz.intro .n-hud span b{animation:n-hud-belgi .3s calc(.7s + var(--k) * .42s) both}
+@keyframes n-hud-kir{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+@keyframes n-hud-ket{to{opacity:0;height:0;padding-top:0;padding-bottom:0;margin-top:-3px}}
+@keyframes n-hud-belgi{from{opacity:0;transform:scale(2)}to{opacity:1;transform:none}}
+
+/* Belgilar: topilganda «portlab» chiqadi, keyin to'lqin taratib turadi */
+.n-nishon{z-index:2;width:28px;height:28px;font-size:13px}
+.n-nishon span{position:relative;z-index:1}
+.n-nishon::before,.n-nishon::after{content:'';position:absolute;inset:-2px;border-radius:50%;
+  border:2px solid currentColor;pointer-events:none;opacity:0}
+.n-nishon.d1{color:#3cd88b}.n-nishon.d2{color:#f6a338}.n-nishon.d3{color:#ff3d5e}
+.n-nishon span{color:#fff}
+.n-nishon::after{animation:n-tolqin 2.8s calc(var(--k, 0) * .45s + 2.6s) ease-out infinite}
+.n-yuz.intro .n-nishon{animation:n-topildi .6s var(--kech, .8s) cubic-bezier(.3,1.6,.5,1) backwards}
+.n-yuz.intro .n-nishon::before{animation:n-portlash .9s var(--kech, .8s) ease-out backwards}
+@keyframes n-topildi{0%{transform:translate(-50%,-50%) scale(0);opacity:0}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+@keyframes n-portlash{0%{opacity:.95;transform:scale(.6)}100%{opacity:0;transform:scale(3.2)}}
+@keyframes n-tolqin{0%{opacity:.75;transform:scale(1)}70%,100%{opacity:0;transform:scale(2.3)}}
+.n-nishon.tanlangan{transform:translate(-50%,-50%) scale(1.25)}
+.n-yuz .n-nishon.tanlangan::before,.n-yuz.intro .n-nishon.tanlangan::before{opacity:1;inset:-7px;border:2px dashed currentColor;animation:n-aylan 6s linear infinite}
+@keyframes n-aylan{to{transform:rotate(360deg)}}
+
+/* Tanlangan belgi nomi — rasm PASTIDA, yuzni yopmaydi */
+.n-yorliq{left:8px;right:auto;top:auto;bottom:8px;transform:none;flex-direction:row;align-items:center;gap:9px;
+  max-width:calc(100% - 16px);padding:7px 12px 7px 7px;border-radius:14px;z-index:3;
+  background:rgba(253,245,245,.94);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.n-yorliq.kor{animation:n-yorliq .32s var(--k-egri) both}
+@keyframes n-yorliq{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.n-yorliq>i{flex:0 0 auto;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;
+  font-style:normal;font-size:12px;font-weight:800;color:#fff;background:#8a7b7e}
+.n-yorliq>i.d1{background:#22a565}.n-yorliq>i.d2{background:#e0861b}.n-yorliq>i.d3{background:#d81f3c}
+.n-yorliq>span{display:flex;flex-direction:column;min-width:0}
+.n-yorliq b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.n-yorliq em{font-style:normal;font-size:12px;color:#7a3b48;line-height:1.25;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* Qatlam yorlig'i tepaga — pastda belgi nomi turadi */
+.n-qatlam-teg{top:8px;bottom:auto;z-index:3}
+
+/* Ball halqasi va ko'rsatkichlar ham «o'lchanadi» */
+#tab-natija .n-ball .n-halqa-yoy{animation:n-yoy 1.5s .2s cubic-bezier(.3,.7,.3,1) both}
+@keyframes n-yoy{from{stroke-dasharray:0 400}}
+#tab-natija .n-ball .n-halqa{filter:drop-shadow(0 0 14px rgba(240,71,95,.35))}
+#tab-natija .n-chiziq i{transform-origin:left;animation:n-chiziq 1.1s cubic-bezier(.3,.7,.3,1) both}
+#tab-natija .n-olch:nth-child(2) .n-chiziq i{animation-delay:.08s}
+#tab-natija .n-olch:nth-child(3) .n-chiziq i{animation-delay:.16s}
+#tab-natija .n-olch:nth-child(4) .n-chiziq i{animation-delay:.24s}
+#tab-natija .n-olch:nth-child(5) .n-chiziq i{animation-delay:.32s}
+#tab-natija .n-olch:nth-child(6) .n-chiziq i{animation-delay:.4s}
+#tab-natija .n-olch:nth-child(7) .n-chiziq i{animation-delay:.48s}
+@keyframes n-chiziq{from{transform:scaleX(0)}}
+#tab-natija .n-chiziq i{position:relative;overflow:hidden}
+#tab-natija .n-chiziq i::after{content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
+  transform:translateX(-100%);animation:n-yaltir 3.2s 1.4s ease-in-out infinite}
+@keyframes n-yaltir{0%{transform:translateX(-100%)}40%,100%{transform:translateX(100%)}}
+
+@media (prefers-reduced-motion:reduce){
+  .n-yuz *,.n-yuz *::before,.n-yuz *::after,#tab-natija .n-chiziq i,#tab-natija .n-chiziq i::after,
+  #tab-natija .n-ball .n-halqa-yoy{animation:none!important}
+  .n-skan-chiziq,.n-skan-nur{display:none}
+}
+.n-chaqiriq-tugmalar{margin-left:auto;display:flex;gap:8px;flex:0 0 auto}
+.n-chaqiriq-tugmalar button{margin-left:0}
+.n-chaqiriq-tugmalar .ulash{width:46px;padding:0;justify-content:center}
+.tost{bottom:calc(var(--past) + 16px + env(safe-area-inset-bottom));white-space:nowrap;max-width:calc(100% - 32px)}
+body.sahifa-ochiq .tost{bottom:calc(96px + env(safe-area-inset-bottom))}
+@media (max-width:360px){
+  .oyna-pastki{gap:10px;padding-left:14px;padding-right:14px}
+  .oyna-pastki .asosiy>i[data-ik]{display:none}
+  .oyna-pastki-narx b{font-size:17.5px}
+}

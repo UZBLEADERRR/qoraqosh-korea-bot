@@ -617,7 +617,9 @@ console.log('\n── MAVZU ──');
   const qizil = palitra({ asosiy: '#B3161C', fon: '#EAF3D9' });
   test('to‘q fon ustida OQ matn', qizil.asosiyMatn === '#FFFFFF', qizil.asosiyMatn);
   test('och fon ustida QORA matn', kontrastMatn('#EAF3D9') === '#141414');
-  test('och fonda kartochka oq', qizil.karta === '#FFFFFF');
+  // Kartochka OQ emas — fonning ochroq tusi (ilova oq rangsiz bo'lsin)
+  test('och fonda kartochka oq EMAS, fondan ochroq',
+    qizil.karta !== '#FFFFFF' && kontrastMatn(qizil.karta) === '#141414', qizil.karta);
 
   const qora = palitra({ asosiy: '#1A1A1A', fon: '#101010' });
   test('qorong‘i fonda matn oqaradi', qora.matn.toLowerCase() !== '#1f1d1b', qora.matn);
@@ -2089,7 +2091,7 @@ console.log('\n── KO‘RINISH (KUNDUZGI/TUNGI) ──');
     /removeAttribute\('data-mavzu'\)/.test(js));
   test('uchta variant bor',
     /kalit: 'tizim'/.test(js) && /kalit: 'kunduzgi'/.test(js) && /kalit: 'tungi'/.test(js));
-  test('profilda tanlov chiziladi', js.includes("'y-korinish'"));
+  test('profilda tanlov chiziladi', /qator\('korinish'/.test(js));
 
   // Ikonlar mavjud — yo'q ikon bo'sh joy bo'lib qoladi
   const ikon = fs.readFileSync('public/app/ikon.js', 'utf8');
@@ -5383,7 +5385,7 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     j[1].joy.x >= 5 && j[1].joy.x <= 45 && j[1].joy.y >= 60, JSON.stringify(j[1].joy));
   const aiKod = fsY.readFileSync('src/ai/faceAnalysis.js', 'utf8');
   test('sxemada yuz qutisi va nuqtalar majburiy',
-    /'zona','nuqta_x','nuqta_y'/.test(aiKod) && /required: \['ymin', 'xmin', 'ymax', 'xmax'\]/.test(aiKod));
+    /'zona','nuqta_y','nuqta_x'/.test(aiKod) && /required: \['ymin', 'xmin', 'ymax', 'xmax'\]/.test(aiKod));
   const anKod = fsY.readFileSync('src/services/analysis.js', 'utf8');
   test('yuz qutisi bazaga saqlanadi', /yuz_quti: a\.yuz_quti/.test(anKod));
   const nrKod = fsY.readFileSync('src/services/natija-rasm.js', 'utf8');
@@ -5417,7 +5419,7 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
   const js = fsY.readFileSync('public/app/app.js', 'utf8');
   const css = fsY.readFileSync('public/app/style.css', 'utf8');
   const html = fsY.readFileSync('public/app/index.html', 'utf8');
-  test('profilda «Natijalarim»', js.includes("yigma('y-natijalar'") && /async function natijaTarixiniChiz/.test(js));
+  test('profilda «Natijalarim»', /qator\('natijalar', 'skaner', 'Natijalarim'/.test(js) && /async function natijaTarixiniChiz/.test(js));
   test('natija ekrani diagnostika palitrasida', /#tab-natija\{\s*--fon:#140307/.test(css));
   test('ball halqasi gradientli va har biri o‘z id si bilan', /n-ball-grad-\$\{\+\+halqaSoni\}/.test(js));
   test('o‘sish yorlig‘i («oldingi tahlilga nisbatan»)', /oldingi tahlilga nisbatan/.test(js));
@@ -5426,13 +5428,13 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     && /classList\.remove\('yozilmoqda'\)/.test(js));
   test('AI javobi shablon bloklari bilan', ['ai-lid', 'ai-bolim', 'ai-qadamlar', 'ai-bandlar', 'ai-diqqat'].every((k) => js.includes(k) && css.includes('.' + k)));
   test('tavsiya — gorizontal kartalar va «Savatga» tugmasi', /class="ai-mahsulotlar"/.test(js) && /\.ai-mahsulotlar\{display:flex;gap:12px;overflow-x:auto/.test(css));
-  test('fon och yashil (kunduzgi standart)', /--fon:#edf5e1/.test(css) && /\|\| 'kunduzgi'/.test(js));
+  test('fon och yashil (kunduzgi standart)', /--fon:#e1edcf/.test(css) && /\|\| 'kunduzgi'/.test(js));
   test('pastki menyu shisha qizil', /\.menyu\{left:12px;right:12px/.test(css) && /backdrop-filter:blur\(18px\)/.test(css));
   test('lentaning birinchi kartasi chetga yopishmaydi', /scroll-padding-inline:16px/.test(css));
   const mz = await import('../src/lib/mavzu.js');
-  test('brend mavzusi och yashil', mz.MAVZU_STANDART.fon === '#EDF5E1');
-  test('ikkinchi darajali matn och fonda o‘qiladi (4.5:1)', mz.kontrast(mz.palitra({}).och, '#EDF5E1') >= 4.5,
-    mz.kontrast(mz.palitra({}).och, '#EDF5E1').toFixed(2));
+  test('brend mavzusi och yashil', mz.MAVZU_STANDART.fon === '#E1EDCF');
+  test('ikkinchi darajali matn och fonda o‘qiladi (4.5:1)', mz.kontrast(mz.palitra({}).och, '#E1EDCF') >= 4.5,
+    mz.kontrast(mz.palitra({}).och, '#E1EDCF').toFixed(2));
 }
 
 
@@ -5596,6 +5598,135 @@ console.log('\n── ANDROID ILOVA: ORQAGA TUGMASI, YORLIQLAR ──');
   }
   const m = JSON.parse(fsA.readFileSync('public/app/manifest.json', 'utf8'));
   test('brauzer ilovasida ham yorliqlar', m.shortcuts?.length === 3);
+}
+
+console.log('\n── EKRANLAR, SHARHLAR, BELGILAR, GALEREYA ──');
+{
+  const fsE = await import('node:fs');
+  const js = fsE.readFileSync('public/app/app.js', 'utf8');
+  const css = fsE.readFileSync('public/app/style.css', 'utf8');
+  const mz = await import('../src/lib/mavzu.js');
+
+  // ── Ranglar: oq deyarli yo'q, yashil biroz to'qroq ──
+  const kun = /:root\{[\s\S]*?\n\}/.exec(css)?.[0] || '';
+  test('kunduzgi kartalar oq EMAS', /--panel:#f0f6e7/.test(kun) && !/--panel:#fff\b/.test(kun));
+  test('qidiruv maydoni ham oq emas', /--qidiruv-fon:#f0f6e7/.test(kun));
+  test('ikkinchi darajali matn kartada ham o‘qiladi (4.5:1)', mz.kontrast('#605b52', '#f0f6e7') >= 4.5,
+    mz.kontrast('#605b52', '#f0f6e7').toFixed(2));
+  test('kul matn fonda o‘qiladi (4.5:1)', mz.kontrast('#4a463f', '#e1edcf') >= 4.5);
+  const p = mz.palitra({});
+  test('standart palitrada kartochka oq emas', p.karta !== '#FFFFFF' && p.karta.toLowerCase() !== p.fon.toLowerCase(), p.karta);
+  const mig = fsE.readFileSync('migrations/043_yashil_toqroq.sql', 'utf8');
+  test('migratsiya faqat standart fonni almashtiradi', /'#edf5e1', ''/.test(mig) && /#E1EDCF/.test(mig));
+  const mv = await qator(`select value->>'fon' as fon from settings where key = 'mavzu'`);
+  test('bazada fon yangilandi (yoki admin o‘zinikini tanlagan)', !mv || String(mv.fon || '').toLowerCase() !== '#edf5e1', mv?.fon);
+
+  // ── Alohida ekranlar ──
+  test('ekran tizimi: ochish/yopish va tarix', /function sahifaOch\(/.test(js) && /function sahifaYop\(/.test(js)
+    && /sahifa: sahifalar\.length/.test(js));
+  test('«orqaga» avval ustidagi ekranni yopadi', /ustki === 'sahifa'\) return sahifaYop\(\{ tarixdan: true \}\)/.test(js));
+  test('profil bo‘limlari yig‘ma EMAS — ekran', !/<details class="yigma"/.test(js) && /function profilBolimOch\(/.test(js)
+    && /data-bolim="\$\{id\}"/.test(js));
+  test('hamma bo‘lim ekranda ochiladi',
+    ['natijalar', 'buyurtma', 'sevimli', 'shaxsiy', 'teri', 'manzil', 'korinish', 'aloqa', 'hisob']
+      .every((k) => js.includes(`qator('${k}'`)));
+  test('ekran o‘ngdan suriladi, sarlavha qizil', /@keyframes sahifa-kir\{from\{transform:translateX\(100%\)\}/.test(css)
+    && /\.sahifa-bosh\{[^}]*background:var\(--asosiy\)/.test(css));
+  test('buyurtmadan keyin «Buyurtmalarim» ekrani ochiladi', /tabOch\('profil'\); profilBolimOch\('buyurtma'\)/.test(js));
+  test('bildirishnoma va yorliq «Buyurtmalarim» ekranini ochadi', /profilBolimOch\(bolim\)/.test(js)
+    && !/\$\('#y-' \+ bolim\)/.test(js));
+  test('bildirishnoma — almashtirgich (switch)', /role="switch"/.test(js) && /\.almash\.yoqiq/.test(css));
+
+  // ── Mahsulot oynasi ──
+  test('savatga tugmasi DOIM ko‘rinadi (pastga yopishgan)', /class="oyna-pastki"/.test(js)
+    && /\.oyna-pastki\{position:sticky;bottom:0/.test(css));
+  test('reyting tepada va bosiladi', /id="oyna-baho">\$\{bahoQatori\(p\)\}/.test(js)
+    && /class="baho-tugma[^"]*" data-sharhlar=/.test(js));
+  test('sharhlar o‘z ekranida', /function sharhlarSahifa\(/.test(js) && /sarlavha: 'Sharhlar'/.test(js));
+  test('sharhlar ekranida taqsimot va har mijozning kartasi', /sharh-taqsim/.test(js) && /sharh-avatar/.test(js)
+    && /\.sharh-taqsim\{/.test(css));
+  test('sharh yozish ham ekranda', /sarlavha: joriy \? 'Sharhni o‘zgartirish' : 'Sharh yozish'/.test(js));
+
+  // ── AI tavsiya kartasi ──
+  test('narx va «Savatga» ustma-ust (tor ekranda buzilmaydi)', /\.ai-m-past\{flex-direction:column/.test(css)
+    && /\.ai-m-qosh\{width:100%/.test(css));
+
+  // ── Belgilar: kesilgan surat hisobga olinadi ──
+  const qm = /function qoplamaJoy[\s\S]*?\n\}/.exec(js)?.[0];
+  const qoplamaJoy = new Function(`${qm}; return qoplamaJoy;`)();
+  const a = qoplamaJoy(50, 50, 750, 1000, 400, 300);
+  test('markaz markazda qoladi', Math.abs(a.x - 50) < 0.01 && Math.abs(a.y - 50) < 0.01);
+  const b = qoplamaJoy(30, 30, 750, 1000, 400, 300);      // tik surat 4:3 qutida
+  test('tik surat kesilganda peshona nuqtasi TEPAGA suriladi', b.y < 20 && Math.abs(b.x - 30) < 0.01, JSON.stringify(b));
+  const c = qoplamaJoy(30, 30, 750, 1000, 300, 400);      // quti surat nisbatida
+  test('quti surat nisbatida bo‘lsa — joy o‘zgarmaydi', Math.abs(c.x - 30) < 0.01 && Math.abs(c.y - 30) < 0.01);
+  test('quti suratning o‘z nisbatini oladi', /quti\.style\.aspectRatio = String\(Math\.min\(4 \/ 3, Math\.max\(3 \/ 4/.test(js));
+  test('belgi teriga tortiladi', /function terigaTort\(/.test(js));
+  test('yorliq yuzni yopmaydi (rasm pastida)', /\.n-yorliq\{left:8px;right:auto;top:auto;bottom:8px/.test(css));
+
+  const { zonaMosmi } = await import('../src/lib/zona.js');
+  const yz = { x: 20, y: 10, en: 60, boy: 80 };
+  test('zona «iyak», nuqta peshonada — ZID', zonaMosmi('iyak', { x: 50, y: 18 }, yz) === false);
+  test('zona «peshona», nuqta peshonada — mos', zonaMosmi('peshona', { x: 50, y: 18 }, yz) === true);
+  test('bir nechta zona — birortasi mos kelsa yetarli', zonaMosmi('yonoqlar, peshona va burun atrofi', { x: 30, y: 55 }, yz) === true);
+  test('zona tanilmasa tekshirilmaydi', zonaMosmi('yuz terisi', { x: 1, y: 1 }, yz) === true);
+  test('yuz qutisi bo‘lmasa tekshirilmaydi', zonaMosmi('iyak', { x: 50, y: 5 }, null) === true);
+  const aiKod = fsE.readFileSync('src/ai/faceAnalysis.js', 'utf8');
+  test('zid nuqta tahlilda tashlanadi', /zonaMosmi\(m\.zona, n, yuzQuti\) \? n : null/.test(aiKod));
+
+  // ── Skaner effektlari ──
+  test('lazer, to‘r, ramka va o‘lchov yozuvlari', ['n-skan-chiziq', 'n-skan-tor', 'n-ramka', 'n-hud']
+    .every((k) => js.includes(k) && css.includes('.' + k)));
+  test('intro har tahlilda bir marta', /natijaKorildi\.has\(/.test(js));
+  test('belgi lazer o‘tganda topiladi', /--kech/.test(js) && /var\(--kech/.test(css));
+  test('harakat kamaytirilganda effektlar o‘chadi', /prefers-reduced-motion:reduce\)\{\s*\.n-yuz \*/.test(css));
+
+  // ── Galereyaga saqlash: imzolangan havola ──
+  const nh = await import('../src/lib/natija-havola.js');
+  const hav = nh.natijaHavolasi(41, 7, 1_000_000);
+  const [, yuk, imzo] = /^\/api\/natija-rasm\/([A-Za-z0-9_-]+)\.png\?i=(.+)$/.exec(hav) || [];
+  test('havola imzolangan', Boolean(yuk && imzo), hav);
+  test('to‘g‘ri havola ochiladi', nh.natijaHavolasiniOch(yuk, imzo, 1_000_100).analysisId === 41);
+  test('muddati o‘tgan havola ochilmaydi', nh.natijaHavolasiniOch(yuk, imzo, 1_000_000 + 16 * 60_000).sabab === 'muddat');
+  const soxta = Buffer.from('42~7~9999999999999').toString('base64url');
+  test('o‘zgartirilgan havola ochilmaydi', nh.natijaHavolasiniOch(soxta, imzo).ok === false);
+
+  // Yo'l: kim egasi bo'lsa o'shaniki
+  const { seansOch } = await import('../src/services/ilova-kirish.js');
+  await sorov(`delete from users where telegram_id in ('816901','816902')`);
+  const u1 = await qator(`insert into users (telegram_id, full_name, phone, agreed_at) values ('816901','Galereya','+998935550901', now()) returning id`);
+  const u2 = await qator(`insert into users (telegram_id, full_name, phone, agreed_at) values ('816902','Begona','+998935550902', now()) returning id`);
+  const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex');
+  const md = await qator(`insert into media (tur, mime, bayt, hajm) values ('natija', 'image/png', $1, $2) returning id`, [png, png.length]);
+  const an = await qator(`insert into analyses (user_id, score, problems, natija_rasm_id) values ($1, 60, '[]', $2) returning id`, [u1.id, md.id]);
+  const t1 = (await seansOch(u1.id, 'sinov')).token, t2 = (await seansOch(u2.id, 'sinov')).token;
+  const h1 = await chaqirIlova('/api/natija-havola', 'POST', { analysis_id: an.id }, t1);
+  test('egasi havola oladi', h1.kod === 200 && /^\/api\/natija-rasm\//.test(h1.tana.url) && /\.png$/.test(h1.tana.fayl), JSON.stringify(h1.tana));
+  const h2 = await chaqirIlova('/api/natija-havola', 'POST', { analysis_id: an.id }, t2);
+  test('BOSHQA odam havola ololmaydi', h2.kod === 404);
+  const h0 = await chaqirIlova('/api/natija-havola', 'POST', { analysis_id: an.id }, null);
+  test('kirmagan odam havola ololmaydi', h0.kod === 401);
+
+  const xom = (yol) => new Promise((res) => {
+    const req = Object.assign(new Readable({ read() { this.push(null); } }), {
+      url: yol, method: 'GET', headers: {}, socket: { remoteAddress: '127.0.0.9' } });
+    const bol = [];
+    const javob = { statusCode: 200, sarlavha: {}, headersSent: false,
+      writeHead(k, h) { this.statusCode = k; Object.assign(this.sarlavha, h || {}); return this; }, setHeader() {},
+      end(x) { if (x) bol.push(Buffer.from(x)); res({ kod: this.statusCode, sarlavha: this.sarlavha, bayt: Buffer.concat(bol) }); } };
+    apiRoutes(req, javob, yol.split('?')[0]).catch((e) => res({ kod: 500, xato: e.message }));
+  });
+  const r1 = await xom(h1.tana.url);
+  test('havola rasmni FAYL qilib beradi (galereyaga tushadi)', r1.kod === 200 && r1.sarlavha['Content-Type'] === 'image/png'
+    && /^attachment; filename="kiovo-teri-tahlili-\d+\.png"$/.test(r1.sarlavha['Content-Disposition'])
+    && r1.bayt.equals(png), `${r1.kod} ${r1.sarlavha['Content-Disposition']}`);
+  const r2 = await xom(h1.tana.url.replace(/i=.*/, 'i=' + 'x'.repeat(32)));
+  test('imzosiz havola — 403', r2.kod === 403);
+  test('ilovada «Saqlash» galereyaga yuklaydi', /async function natijaniSaqla\(/.test(js) && /a\.download = fayl/.test(js)
+    && /tg\.downloadFile\(\{ url: toliq, file_name: fayl \}/.test(js));
+  await sorov('delete from analyses where id = $1', [an.id]);
+  await sorov('delete from media where id = $1', [md.id]);
+  await sorov(`delete from users where telegram_id in ('816901','816902')`);
 }
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);

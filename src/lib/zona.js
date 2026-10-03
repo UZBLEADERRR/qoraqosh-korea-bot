@@ -99,3 +99,41 @@ export function joylarniHisobla(muammolar, yuz = null) {
       return { ...m, joy };
     });
 }
+
+/* ZONA VA NUQTA MOSMI.
+ *
+ * AI ikki narsa aytadi: matnda zona («yonoqlar») va rasmda nuqta. Ular
+ * ba'zan bir-biriga zid: zona «iyak», nuqta esa peshonada. Bunday nuqta
+ * ishonchsiz — uni tashlab, belgini zona matni bo'yicha qo'yamiz.
+ *
+ * Nuqta yuz qutisiga nisbatan (u — chapdan, v — tepadan, 0..1) olinadi.
+ * Chegaralar ataylab KENG: maqsad aniq zid holatni ushlash, ozgina
+ * chetga chiqqan to'g'ri nuqtani tashlash emas. Zona matnida bir nechta
+ * joy bo'lsa («yonoqlar va burun») — birortasiga mos kelsa yetarli.
+ */
+const ZONA_SOHA = [
+  [/peshona|peshana/i,                        (u, v) => v <= 0.45],
+  [/t-?zona/i,                                (u, v) => v <= 0.75 && u >= 0.25 && u <= 0.75],
+  [/burun/i,                                  (u, v) => v >= 0.25 && v <= 0.8 && u >= 0.25 && u <= 0.75],
+  [/chakka/i,                                 (u, v) => v <= 0.6 && (u <= 0.35 || u >= 0.65)],
+  [/qosh/i,                                   (u, v) => v >= 0.12 && v <= 0.5],
+  [/ko[‘'`ʻ]?z|qovoq|qora\s*doira/i,         (u, v) => v >= 0.2 && v <= 0.65],
+  [/yonoq|yuz\s*yon/i,                       (u, v) => v >= 0.3 && v <= 0.9 && (u <= 0.47 || u >= 0.53)],
+  [/lab|og[‘'`ʻ]?iz|dahan/i,                  (u, v) => v >= 0.55 && u >= 0.2 && u <= 0.8],
+  [/iyak|jag[‘'`ʻ]?|engak/i,                  (u, v) => v >= 0.6],
+  [/bo[‘'`ʻ]?yin/i,                           (u, v) => v >= 0.85],
+];
+
+/**
+ * @param {string} zona   AI yozgan zona matni
+ * @param {{x,y}} nuqta   rasm foizida
+ * @param {{x,y,en,boy}} yuz  yuz qutisi rasm foizida
+ * @returns {boolean} nuqta zonaga zid emas (yoki tekshirib bo'lmaydi)
+ */
+export function zonaMosmi(zona, nuqta, yuz) {
+  if (!nuqta || !yuz || !(yuz.en > 0) || !(yuz.boy > 0)) return true;
+  const sohalar = ZONA_SOHA.filter(([re]) => re.test(String(zona || '')));
+  if (!sohalar.length) return true;              // zona tanilmadi — tekshirmaymiz
+  const u = (nuqta.x - yuz.x) / yuz.en, v = (nuqta.y - yuz.y) / yuz.boy;
+  return sohalar.some(([, mos]) => mos(u, v));
+}

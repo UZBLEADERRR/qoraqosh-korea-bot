@@ -23,6 +23,7 @@ import { natijaRasminiYarat, saqlanganRasm, kanalgaTahlil, yuzniSaqla } from '..
 import { rasmYubor } from '../bot/tg.js';
 import { hisobniOchir, meningMalumotlarim } from '../services/hisob.js';
 import { ochiqKalit, obunaSaqla, obunaOchir, foydalanuvchigaPush } from '../services/push.js';
+import { natijaHavolasi, natijaHavolasiniOch } from '../lib/natija-havola.js';
 
 // Kuniga minglab foydalanuvchi bo'lganda katalog eng ko'p so'raladigan yo'l.
 // 30 soniyalik kesh bazaga ketadigan bir xil so'rovlarni yig'ib bitta qiladi.
@@ -152,6 +153,29 @@ export async function apiRoutes(req, res, yol) {
       qurilma: String(req.headers['user-agent'] || '').slice(0, 120) });
     if (r.xato) return xato(res, 400, r.xato);
     return ok(res, r);
+  }
+
+  // --- Natija rasmini yuklab olish (imzolangan havola, sarlavhasiz) ---
+  // Ilovadagi «Saqlash» shu havolani ochadi: Android faylni «Download»
+  // albomiga qo'yadi va u galereyada ko'rinadi.
+  const nr = /^\/api\/natija-rasm\/([A-Za-z0-9_-]{8,120})\.png$/.exec(yol);
+  if (nr && req.method === 'GET') {
+    const c = cheklov('nrasm:' + ipOl(req), 30, 10 * 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: 'Juda ko‘p so‘rov.' });
+    const imzo = new URL(req.url, 'http://x').searchParams.get('i');
+    const h = natijaHavolasiniOch(nr[1], imzo);
+    if (!h.ok) return xato(res, h.sabab === 'muddat' ? 410 : 403,
+      h.sabab === 'muddat' ? 'Havola eskirgan. Ilovada «Saqlash» ni qayta bosing.' : 'Havola noto‘g‘ri.');
+    const bayt = await saqlanganRasm(h.analysisId, h.userId);
+    if (!bayt) return xato(res, 404, 'Bu tahlilning rasmi saqlanmagan.');
+    res.writeHead(200, {
+      'Content-Type': 'image/png',
+      'Content-Length': bayt.length,
+      'Content-Disposition': `attachment; filename="kiovo-teri-tahlili-${h.analysisId}.png"`,
+      'Cache-Control': 'private, max-age=600',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return res.end(bayt);
   }
 
   // --- Bundan keyingi hammasi imzo talab qiladi ---
@@ -729,6 +753,19 @@ export async function apiRoutes(req, res, yol) {
     await hodisa(user.id, 'receipt', { order_no: buyurtma.order_no });
     kanalgaChek(buyurtma.id).catch(() => {});
     return ok(res, { ok: true });
+  }
+
+  // --- Natija rasmining yuklab olish havolasi («Saqlash» → galereya) ---
+  if (yol === '/api/natija-havola' && req.method === 'POST') {
+    const b = await tana(req);
+    const t = b.analysis_id
+      ? await qator('select id, natija_rasm_id from analyses where id = $1 and user_id = $2', [Number(b.analysis_id), user.id])
+      : await qator('select id, natija_rasm_id from analyses where user_id = $1 order by created_at desc limit 1', [user.id]);
+    if (!t) return xato(res, 404, 'Tahlil topilmadi.');
+    if (!t.natija_rasm_id) return xato(res, 404, 'Bu tahlilning rasmi hali tayyor emas. Birozdan keyin qayta urining.');
+    const d = new Date();
+    return ok(res, { url: natijaHavolasi(t.id, user.id),
+      fayl: `kiovo-teri-tahlili-${d.toISOString().slice(0, 10)}.png` });
   }
 
   // --- Natija rasmini Telegram orqali yuborish ---

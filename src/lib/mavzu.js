@@ -13,13 +13,13 @@
  * edi — ilova oq ko'rinardi va brendning yashili faqat logotipda qolardi. */
 export const MAVZU_STANDART = {
   asosiy: '#AB0A0C',   // sarlavha foni (logotip qizili)
-  fon:    '#EDF5E1',   // ilova va rasm foni (och yashil)
+  fon:    '#E1EDCF',   // ilova va rasm foni (och yashil)
   urgu:   '#AB0A0C',   // tugmalar va narx
 };
 
 /** Tayyor to'plamlar — admin bir bosishda tanlaydi. Birinchisi BREND. */
 export const TOPLAMLAR = [
-  { kalit: 'kiovo',    nom: 'KiOVO · brend',      asosiy: '#AB0A0C', fon: '#EDF5E1', urgu: '#AB0A0C' },
+  { kalit: 'kiovo',    nom: 'KiOVO · brend',      asosiy: '#AB0A0C', fon: '#E1EDCF', urgu: '#AB0A0C' },
   { kalit: 'krem',     nom: 'KiOVO · krem',       asosiy: '#AB0A0C', fon: '#FBF8F3', urgu: '#AB0A0C' },
   { kalit: 'oq',       nom: 'KiOVO · oq',         asosiy: '#AB0A0C', fon: '#F6F6F7', urgu: '#AB0A0C' },
   { kalit: 'qizil',    nom: 'Qizil · och yashil', asosiy: '#AB0A0C', fon: '#F0F7DF', urgu: '#AB0A0C' },
@@ -162,7 +162,9 @@ export function palitra(xom = {}) {
     matn:   fonOch ? '#1F1D1B' : '#F2F0EE',
     kul:    fonOch ? '#4C4943' : '#B3ADA8',
     och:    fonOch ? '#625E57' : '#8A847E',
-    karta:  fonOch ? '#FFFFFF' : qoraytirish(fon, 0.35),
+    // Kartochka OQ emas — fonning ochroq tusi: ilova och yashil va
+    // qizildan iborat bo'lsin, oppoq dog'lar ko'zga tashlanmasin
+    karta:  fonOch ? yoritish(fon, 0.5) : qoraytirish(fon, 0.35),
     chiziq: fonOch ? qoraytirish(fon, 0.1) : yoritish(fon, 0.12),
     // Mahsulot kartochkasining foni — fondan biroz to'qroq
     plitka: fonOch ? qoraytirish(fon, 0.05) : yoritish(fon, 0.06),
