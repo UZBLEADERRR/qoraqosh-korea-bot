@@ -1416,10 +1416,29 @@ async function sharhlarniYukla(id) {
 
   const meniki = j.sharhlar.find((x) => x.meniki);
   const boshqalar = j.sharhlar.filter((x) => !x.meniki);
+  // Mijozlar suratlari — hammasi bitta lentada, sharhlar ustida
+  const hammaRasm = j.sharhlar.flatMap((x) => x.rasmlar || []);
+  const rasmlarHtml = (r) => r?.length ? `<div class="sharh-rasmlar">${r.map((id) =>
+    `<button class="sharh-rasm" data-rasm-kor="${esc(id)}" aria-label="Rasmni ko‘rish">
+       <img src="/media/${esc(id)}?w=200" alt="" loading="lazy"></button>`).join('')}</div>` : '';
+  const ortacha = j.sharhlar.length
+    ? j.sharhlar.reduce((a, x) => a + x.baho, 0) / j.sharhlar.length : 0;
 
   quti.innerHTML = `
     <div class="bolim-bosh">${ik('yulduz', 16)}Sharhlar
       <span class="ozgina" style="margin-left:auto">${j.sharhlar.length} ta</span></div>
+
+    ${j.sharhlar.length ? `
+      <div class="sharh-xulosa">
+        <b>${ortacha.toFixed(1)}</b>
+        <div><span class="yulduzlar">${YULDUZLAR(Math.round(ortacha))}</span>
+          <span class="ozgina">${j.sharhlar.length} ta haqiqiy xaridor bahosi</span></div>
+      </div>` : ''}
+    ${hammaRasm.length ? `
+      <div class="sharh-galereya-bosh">${ik('rasm', 15)}Mijozlar suratlari · ${hammaRasm.length}</div>
+      <div class="sharh-galereya">${hammaRasm.map((id) =>
+        `<button class="sharh-rasm katta" data-rasm-kor="${esc(id)}" aria-label="Rasmni ko‘rish">
+           <img src="/media/${esc(id)}?w=400" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
 
     ${meniki ? `
       <div class="sharh meniki">
@@ -1428,6 +1447,7 @@ async function sharhlarniYukla(id) {
           <span class="ozgina">Sizning sharhingiz</span>
         </div>
         ${meniki.matn ? `<p>${esc(meniki.matn)}</p>` : ''}
+        ${rasmlarHtml(meniki.rasmlar)}
         <div class="sharh-amal">
           <button class="matn-tugma" data-sharh-tahrir="1">${ik('tahrir', 15)}O‘zgartirish</button>
           <button class="matn-tugma xavf" data-sharh-ochir="1">${ik('ochirish', 15)}O‘chirish</button>
@@ -1446,9 +1466,11 @@ async function sharhlarniYukla(id) {
           <span class="ozgina">${sanaQisqa(x.created_at)}</span>
         </div>
         ${x.matn ? `<p>${esc(x.matn)}</p>` : ''}
+        ${rasmlarHtml(x.rasmlar)}
       </div>`).join('')
       : (meniki ? '' : `<p class="ozgina" style="margin:0">Hali sharh yo‘q — birinchi bo‘ling.</p>`)}`;
 
+  $$('[data-rasm-kor]', quti).forEach((b) => b.onclick = () => rasmKorish(b.dataset.rasmKor));
   const yoz = $('#t-sharh-yoz');
   if (yoz) yoz.onclick = () => sharhOyna(id, null);
   const th = $('[data-sharh-tahrir]', quti);
@@ -1466,7 +1488,11 @@ async function sharhlarniYukla(id) {
 function sharhOyna(id, joriy) {
   const p = holat.mahsulotlar.find((x) => x.id === id);
   let baho = joriy?.baho || 5;
+  // Rasmlar: eskisi {id} yoki yangisi {data} (telefonning o'zida kichraytiriladi)
+  let rasmlar = (joriy?.rasmlar || []).map((x) => ({ id: x }));
+  const MAKS = 3;
   const chiz = () => {
+    const matnEski = $('#sharh-matn')?.value;
     $('#modal-tan').innerHTML = `
       <div style="padding:18px 18px 0">
         <h2 style="margin-bottom:4px">${joriy ? 'Sharhni o‘zgartirish' : 'Sharh yozish'}</h2>
@@ -1481,7 +1507,19 @@ function sharhOyna(id, joriy) {
 
         <label for="sharh-matn">Fikringiz (ixtiyoriy)</label>
         <textarea id="sharh-matn" maxlength="600" rows="4"
-          placeholder="Nima yoqdi, nima yoqmadi? Qancha vaqt ishlatdingiz?">${esc(joriy?.matn || '')}</textarea>
+          placeholder="Nima yoqdi, nima yoqmadi? Qancha vaqt ishlatdingiz?">${esc(matnEski ?? joriy?.matn ?? '')}</textarea>
+
+        <label>Rasm <span class="yordam">Mahsulotni yoki natijani ko‘rsating — ${MAKS} tagacha</span></label>
+        <div class="sharh-yuklash">
+          ${rasmlar.map((r, i) => `
+            <span class="sharh-yuk-rasm">
+              <img src="${r.id ? `/media/${esc(r.id)}?w=200` : esc(r.data)}" alt="">
+              <button data-rasm-olib="${i}" aria-label="Olib tashlash">${ik('yopish', 14)}</button>
+            </span>`).join('')}
+          ${rasmlar.length < MAKS ? `
+            <button class="sharh-yuk-qosh" id="t-sharh-rasm">${ik('kamera', 22)}<span>Qo‘shish</span></button>` : ''}
+        </div>
+        <input id="sharh-fayl" type="file" accept="image/*" multiple hidden>
 
         <button class="asosiy" id="t-sharh-saqla" style="margin-top:16px">Yuborish</button>
         <button class="ikkilamchi" id="t-sharh-bekor" style="margin-top:9px">Bekor</button>
@@ -1491,21 +1529,53 @@ function sharhOyna(id, joriy) {
     $$('#baho-tanlov [data-baho]').forEach((b) => b.onclick = () => {
       baho = Number(b.dataset.baho); titra(); chiz();
     });
+    const qosh = $('#t-sharh-rasm');
+    if (qosh) qosh.onclick = () => $('#sharh-fayl').click();
+    $('#sharh-fayl').onchange = async (e) => {
+      const fayllar = [...(e.target.files || [])].slice(0, MAKS - rasmlar.length);
+      for (const f of fayllar) {
+        try { rasmlar.push({ data: await kichiklashtir(f, 1280, 0.82) }); }
+        catch (err) { ogohlantir(err.message); }
+      }
+      titra(); chiz();
+    };
+    $$('[data-rasm-olib]').forEach((b) => b.onclick = () => {
+      rasmlar.splice(Number(b.dataset.rasmOlib), 1); titra(); chiz();
+    });
     $('#t-sharh-bekor').onclick = () =>
       (holat.mahsulotlar.some((x) => x.id === id) && holat.tab !== 'profil')
         ? mahsulotOyna(id) : modalYop();
     $('#t-sharh-saqla').onclick = async () => {
       try {
+        const t = $('#t-sharh-saqla');
+        t.disabled = true; t.innerHTML = `<span class="aylana kichik"></span>Yuborilmoqda…`;
         await api('/api/sharh', { method: 'POST', body: JSON.stringify({
-          product_id: id, baho, matn: $('#sharh-matn').value }) });
+          product_id: id, baho, matn: $('#sharh-matn').value,
+          rasmlar: rasmlar.map((r) => (r.id ? { id: r.id } : { data: r.data })) }) });
         titra('medium');
         await katalogniYangila();
         if (holat.tab === 'profil') { modalYop(); buyurtmalarniChiz({ majburiy: true }); }
         else mahsulotOyna(id);
-      } catch (e) { ogohlantir(e.message); }
+      } catch (e) {
+        ogohlantir(e.message);
+        const t = $('#t-sharh-saqla');
+        if (t) { t.disabled = false; t.textContent = 'Yuborish'; }
+      }
     };
   };
   chiz();
+}
+
+/** Rasmni butun ekranda ko'rish — bosilsa yopiladi. */
+function rasmKorish(id) {
+  const q = document.createElement('div');
+  q.className = 'rasm-korish';
+  q.innerHTML = `<img src="/media/${esc(id)}" alt="">
+    <button aria-label="Yopish">${ik('yopish', 20)}</button>`;
+  const yop = () => { q.classList.add('ketdi'); setTimeout(() => q.remove(), 180); };
+  q.onclick = yop;
+  document.body.appendChild(q);
+  titra();
 }
 
 /** Reyting o'zgargach katalogni yangilaymiz — kartadagi ★ ham yangilansin. */

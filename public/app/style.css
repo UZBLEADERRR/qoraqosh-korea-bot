@@ -2245,3 +2245,37 @@ body:has(#tab-natija:not(.yashirin)){background:#0d0205}
 .tarix-yukl .aylana{width:24px;height:24px;margin:0}
 #tab-natija .n-olch{grid-template-columns:28px 1fr auto}
 #tab-natija .n-olch>em{white-space:nowrap;min-width:64px}
+
+/* ════════ SHARHLAR: rasmlar bilan ════════ */
+.sharh-xulosa{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:12px 14px;
+  border-radius:18px;background:var(--fon)}
+.sharh-xulosa>b{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.sharh-xulosa>div{display:flex;flex-direction:column;gap:3px}
+.sharh-galereya-bosh{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:750;
+  color:var(--kul);margin:0 0 8px}
+.sharh-galereya{display:flex;gap:8px;overflow-x:auto;margin:0 -18px 14px;padding:0 18px;
+  scrollbar-width:none;scroll-padding-inline:18px}
+.sharh-galereya::-webkit-scrollbar{display:none}
+.sharh-rasmlar{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
+.sharh-rasm{flex:0 0 auto;width:68px;height:68px;padding:0;border-radius:14px;overflow:hidden;
+  background:var(--chiziq-och);border:0}
+.sharh-rasm.katta{width:104px;height:104px;border-radius:16px}
+.sharh-rasm img{width:100%;height:100%;object-fit:cover;display:block}
+.sharh-yuklash{display:flex;gap:9px;flex-wrap:wrap}
+.sharh-yuk-rasm{position:relative;width:84px;height:84px;border-radius:16px;overflow:hidden;
+  background:var(--chiziq-och)}
+.sharh-yuk-rasm img{width:100%;height:100%;object-fit:cover;display:block}
+.sharh-yuk-rasm button{position:absolute;top:5px;right:5px;width:28px;height:28px;padding:0;
+  border-radius:99px;background:rgba(20,6,6,.62);color:#fff;display:grid;place-items:center}
+.sharh-yuk-rasm button::after{content:'';position:absolute;inset:-8px}
+.sharh-yuk-qosh{width:84px;height:84px;border-radius:16px;border:2px dashed var(--chiziq);
+  background:var(--fon);color:var(--urgu);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:4px;font-size:12px;font-weight:750}
+.aylana.kichik{width:16px;height:16px;border-width:2px;margin:0 8px 0 0;display:inline-block;
+  border-color:rgba(255,255,255,.4);border-top-color:#fff}
+.rasm-korish{position:fixed;inset:0;z-index:90;background:rgba(8,2,4,.92);display:grid;
+  place-items:center;padding:20px;animation:k-sochil var(--k-orta) ease both}
+.rasm-korish.ketdi{opacity:0;transition:opacity .18s ease}
+.rasm-korish img{max-width:100%;max-height:86vh;border-radius:18px;object-fit:contain}
+.rasm-korish button{position:absolute;top:calc(14px + env(safe-area-inset-top));right:14px;width:44px;height:44px;
+  border-radius:99px;background:rgba(255,255,255,.14);color:#fff;display:grid;place-items:center}

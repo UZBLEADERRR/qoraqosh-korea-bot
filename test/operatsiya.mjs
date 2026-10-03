@@ -5435,6 +5435,61 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     mz.kontrast(mz.palitra({}).och, '#EDF5E1').toFixed(2));
 }
 
+
+console.log('\n── SHARH RASMLARI ──');
+{
+  const { seansOch } = await import('../src/services/ilova-kirish.js');
+  const { Resvg } = await import('@resvg/resvg-js');
+  await sorov(`delete from users where telegram_id = '816888'`);
+  const u = await qator(`insert into users (telegram_id, full_name, phone, agreed_at) values ('816888','Sharh Rasm','+998935558888', now()) returning id`);
+  const p = await qator('select id from products where is_active order by id limit 1');
+  await sorov(`insert into orders (order_no, user_id, customer_name, customer_phone, customer_address, items, subtotal, delivery_fee, total, status)
+    values ('KV-SHR-1', $1, 'Sharh', '+998935558888', 'T', $2::jsonb, 1, 0, 1, 'yetkazildi')`,
+    [u.id, JSON.stringify([{ product_id: p.id, name: 'X', quantity: 1, price: 1 }])]);
+  const { token } = await seansOch(u.id, 'sinov');
+  const png = new Resvg('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#bddb7d"/></svg>').render().asPng();
+  const rasm = { data: `data:image/png;base64,${png.toString('base64')}` };
+
+  const r1 = await chaqirIlova('/api/sharh', 'POST', { product_id: p.id, baho: 5, matn: 'Zo‘r', rasmlar: [rasm, rasm] }, token);
+  test('sharh 2 ta rasm bilan saqlandi', r1.kod === 200 && r1.tana.sharh.rasmlar.length === 2, JSON.stringify(r1.tana).slice(0, 120));
+  const ids = r1.tana.sharh.rasmlar || [];
+  const m = await qatorlar(`select tur from media where id = any($1::uuid[])`, [ids]);
+  test('rasmlar «sharh» turida (ochiq)', m.length === 2 && m.every((x) => x.tur === 'sharh'));
+  const ro = await chaqirIlova(`/api/sharhlar?product_id=${p.id}`, 'GET', null, token);
+  test('sharhlar ro‘yxatida rasmlar bor', ro.tana.sharhlar.find((x) => x.meniki)?.rasmlar?.length === 2);
+
+  const r2 = await chaqirIlova('/api/sharh', 'POST', { product_id: p.id, baho: 4, rasmlar: [{ id: ids[0] }] }, token);
+  test('bittasi olib tashlansa — bazadan ham o‘chadi', r2.tana.sharh?.rasmlar?.length === 1
+    && !(await qator(`select 1 from media where id = $1`, [ids[1]])));
+  const begona = await qator(`select id from media where tur <> 'sharh' limit 1`);
+  if (begona) {
+    const r3 = await chaqirIlova('/api/sharh', 'POST', { product_id: p.id, baho: 4, rasmlar: [{ id: String(begona.id) }] }, token);
+    test('BEGONA rasm id si sharhga ulanmaydi', r3.kod === 200 && (r3.tana.sharh.rasmlar || []).length === 0);
+  }
+  const yolg = await chaqirIlova('/api/sharh', 'POST', { product_id: p.id, baho: 4,
+    rasmlar: [{ data: 'data:image/png;base64,' + Buffer.from('<script>alert(1)</script>'.repeat(20)).toString('base64') }] }, token);
+  test('rasm bo‘lmagan fayl rad etiladi', yolg.kod === 400);
+  const svgYuk = await chaqirIlova('/api/sharh', 'POST', { product_id: p.id, baho: 4,
+    rasmlar: [{ data: 'data:image/svg+xml;base64,' + Buffer.from('<svg/>'.repeat(60)).toString('base64') }] }, token);
+  test('SVG (skript bo‘lishi mumkin) qabul qilinmaydi', svgYuk.kod === 400);
+  const kop = await chaqirIlova('/api/sharh', 'POST', { product_id: p.id, baho: 4, rasmlar: [rasm, rasm, rasm, rasm] }, token);
+  test('3 tadan ko‘p rasm rad etiladi', kop.kod === 400);
+
+  const r4 = await chaqirIlova('/api/sharh', 'POST', { product_id: p.id, baho: 5, rasmlar: [rasm] }, token);
+  const qolgan = r4.tana.sharh.rasmlar[0];
+  await chaqirIlova('/api/sharh', 'DELETE', { product_id: p.id }, token);
+  test('sharh o‘chirilsa rasmi ham o‘chadi', !(await qator(`select 1 from media where id = $1`, [qolgan])));
+
+  const r5 = await chaqirIlova('/api/sharh', 'POST', { product_id: p.id, baho: 5, rasmlar: [rasm] }, token);
+  const H = await import('../src/services/hisob.js');
+  await H.hisobniOchir(u.id);
+  test('hisob o‘chirilsa sharh rasmlari ham o‘chadi', !(await qator(`select 1 from media where id = $1`, [r5.tana.sharh.rasmlar[0]])));
+  await sorov(`delete from orders where order_no = 'KV-SHR-1'`);
+
+  const js = (await import('node:fs')).readFileSync('public/app/app.js', 'utf8');
+  test('ilovada rasm tanlash va to‘liq ekranda ko‘rish', /id="sharh-fayl"/.test(js) && /function rasmKorish/.test(js));
+}
+
 console.log('\n── REKLAMA: FAQAT TELEGRAMI BORLARGA ──');
 {
   const fsR = await import('node:fs');

@@ -49,6 +49,28 @@ async function kim(req) {
   return token ? seansdanUser(token) : null;
 }
 
+// ── Sharh rasmlari ──
+const SHARH_RASM_MAKS = 3;
+const SHARH_RASM_BAYT = 2 * 1024 * 1024;
+const RASM_IMZO = {                       // faylning birinchi baytlari
+  'image/jpeg': (b) => b[0] === 0xff && b[1] === 0xd8,
+  'image/png':  (b) => b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47,
+  'image/webp': (b) => b.subarray(0, 4).toString() === 'RIFF' && b.subarray(8, 12).toString() === 'WEBP',
+};
+/** Yangi sharh rasmini tekshiradi: turi va hajmi, va u HAQIQATAN rasmmi. */
+function sharhRasminiTekshir(r) {
+  const xom = String(r?.data || '');
+  const mos = xom.match(/^data:(image\/[\w+.-]+);base64,(.+)$/s);
+  const mime = String(mos ? mos[1] : r?.mime || 'image/jpeg').toLowerCase();
+  const tekshir = RASM_IMZO[mime];
+  if (!tekshir) return { xato: 'Faqat JPG, PNG yoki WEBP rasm.' };
+  const bayt = Buffer.from(mos ? mos[2] : xom, 'base64');
+  if (bayt.length < 60) return { xato: 'Rasm o‘qilmadi.' };
+  if (bayt.length > SHARH_RASM_BAYT) return { xato: 'Rasm juda katta (2 MB gacha).' };
+  if (!tekshir(bayt)) return { xato: 'Bu fayl rasm emas.' };
+  return { mime, bayt };
+}
+
 export async function apiRoutes(req, res, yol) {
   // --- Ochiq: katalog ---
   if (yol === '/api/catalog' && req.method === 'GET') {
@@ -398,7 +420,7 @@ export async function apiRoutes(req, res, yol) {
     const id = Number(new URL(req.url, 'http://x').searchParams.get('product_id'));
     if (!id) return xato(res, 400, 'Mahsulot tanlanmadi.');
     const royxat = await qatorlar(
-      `select s.id, s.baho, s.matn, s.created_at, s.user_id,
+      `select s.id, s.baho, s.matn, s.created_at, s.user_id, s.rasmlar,
               coalesce(u.full_name, '') as ism
          from sharhlar s join users u on u.id = s.user_id
         where s.product_id = $1
@@ -413,6 +435,7 @@ export async function apiRoutes(req, res, yol) {
     return ok(res, {
       sharhlar: royxat.map((r) => ({
         id: r.id, baho: r.baho, matn: r.matn || '', created_at: r.created_at,
+        rasmlar: (r.rasmlar || []).map(String),
         ism: qisqaIsm(r.ism), meniki: Number(r.user_id) === Number(user.id),
       })),
       // Shu odam sharh yozishi mumkinmi
@@ -442,23 +465,57 @@ export async function apiRoutes(req, res, yol) {
       return xato(res, 403, 'Sharhni faqat shu mahsulotni sotib olgan mijoz yoza oladi.');
     }
 
+    // Rasmlar: eskisidan qoldirilganlari ({id}) va yangilari ({data, mime}).
+    // Ko'pi bilan 3 ta. Yangilari tekshiriladi: haqiqiy rasm, 2 MB gacha.
+    const eski = await qator('select rasmlar from sharhlar where user_id = $1 and product_id = $2', [user.id, id]);
+    const eskiIdlar = (eski?.rasmlar || []).map(String);
+    const kelgan = Array.isArray(b.rasmlar) ? b.rasmlar.slice(0, SHARH_RASM_MAKS + 1) : null;
+    if (kelgan && kelgan.length > SHARH_RASM_MAKS) return xato(res, 400, `Ko‘pi bilan ${SHARH_RASM_MAKS} ta rasm.`);
+    let rasmlar = eskiIdlar;
+    if (kelgan) {
+      const yangiRasm = [];
+      for (const r of kelgan) {
+        if (r && typeof r.id === 'string') {
+          if (eskiIdlar.includes(r.id)) yangiRasm.push({ id: r.id });   // faqat O'ZINIKI qoladi
+          continue;
+        }
+        const t = sharhRasminiTekshir(r);
+        if (t.xato) return xato(res, 400, t.xato);
+        yangiRasm.push(t);
+      }
+      rasmlar = [];
+      for (const r of yangiRasm) {
+        if (r.id) { rasmlar.push(r.id); continue; }
+        const m = await qator(
+          `insert into media (tur, mime, bayt, hajm, product_id, goya)
+           values ('sharh', $1, $2, $3, $4, 'Mijoz sharhi') returning id`,
+          [r.mime, r.bayt, r.bayt.length, id]);
+        rasmlar.push(String(m.id));
+      }
+      const olib = eskiIdlar.filter((x) => !rasmlar.includes(x));
+      if (olib.length) await sorov(`delete from media where id = any($1::uuid[]) and tur = 'sharh'`, [olib]);
+    }
+
     const s = await qator(
-      `insert into sharhlar (user_id, product_id, baho, matn)
-       values ($1,$2,$3,$4)
+      `insert into sharhlar (user_id, product_id, baho, matn, rasmlar)
+       values ($1,$2,$3,$4,$5::uuid[])
        on conflict (user_id, product_id) do update
-         set baho = excluded.baho, matn = excluded.matn, updated_at = now()
+         set baho = excluded.baho, matn = excluded.matn, rasmlar = excluded.rasmlar,
+             updated_at = now()
        returning *`,
-      [user.id, id, baho, String(b.matn || '').trim().slice(0, 600) || null]);
+      [user.id, id, baho, String(b.matn || '').trim().slice(0, 600) || null, rasmlar]);
     keshniTashla('katalog');
     const p = await qator('select reyting, sharh_soni from products where id = $1', [id]);
-    return ok(res, { sharh: { id: s.id, baho: s.baho, matn: s.matn || '' },
+    return ok(res, { sharh: { id: s.id, baho: s.baho, matn: s.matn || '', rasmlar: (s.rasmlar || []).map(String) },
                      reyting: p?.reyting ?? null, sharh_soni: p?.sharh_soni ?? 0 });
   }
 
   if (yol === '/api/sharh' && req.method === 'DELETE') {
     const id = Number((await tana(req)).product_id);
     if (!id) return xato(res, 400, 'Mahsulot tanlanmadi.');
+    const sh = await qator('select rasmlar from sharhlar where user_id = $1 and product_id = $2', [user.id, id]);
     await sorov('delete from sharhlar where user_id = $1 and product_id = $2', [user.id, id]);
+    if (sh?.rasmlar?.length) await sorov(`delete from media where id = any($1::uuid[]) and tur = 'sharh'`, [sh.rasmlar]);
     keshniTashla('katalog');
     return ok(res, { ochirildi: true });
   }
