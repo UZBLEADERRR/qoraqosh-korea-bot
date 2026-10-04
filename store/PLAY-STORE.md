@@ -40,7 +40,8 @@ Tekshiring:
 
 | O'zgaruvchi | Nima uchun |
 |---|---|
-| `GOOGLE_CLIENT_ID` | «Google bilan kirish» tugmasi (1-bo'lim) |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | «Google (Gmail) bilan kirish» — Supabase orqali (1-bo'lim, tavsiya) |
+| `GOOGLE_CLIENT_ID` | Google tugmasining eski yo'li — Supabase sozlanmasa ishlaydi (1-B) |
 | `ESKIZ_EMAIL`, `ESKIZ_PAROL` | SMS kod bilan kirish (2-bo'lim) |
 | `DEMO_TELEFON`, `DEMO_KOD` | Google tekshiruvchisi uchun sinov raqami (7-bo'lim) |
 
@@ -54,7 +55,38 @@ Admin panel → **Sozlamalar**:
 Tekshirish: https://www.kiovo.shop/maxfiylik va https://www.kiovo.shop/oferta
 ochilib, sizning ismingiz yozilgan bo'lishi kerak.
 
-## 1. Google bilan kirish (OAuth)
+## 1. Google (Gmail) bilan kirish — Supabase orqali (tavsiya)
+
+Ma'lumotlar bazangiz allaqachon Supabase'da, shuning uchun kirish ham
+shu yerdan. Odam «Google (Gmail) bilan kirish» ni bosadi → Google'da
+hisobini tanlaydi → ilovaga qaytadi. Server tokenni Supabase'ning
+o'zidan tekshiradi; Google bilan oldin kirgan odam o'sha hisobiga tushadi.
+
+1. **Google Cloud** (https://console.cloud.google.com) → loyiha «KiOVO» →
+   **APIs & Services → OAuth consent screen** — pastdagi 1-B dagi 2-qadam
+   bilan bir xil (nom, logotip, havolalar, `email profile openid`, Publish).
+2. **Credentials → Create credentials → OAuth client ID → Web application**:
+   - Authorized JavaScript origins: `https://www.kiovo.shop`
+   - Authorized redirect URIs: `https://<loyiha-kodi>.supabase.co/auth/v1/callback`
+     (aniq manzil Supabase'ning Google sahifasida «Callback URL» deb yozilgan)
+   - Chiqqan **Client ID** va **Client secret** ni nusxalang.
+3. **Supabase** → loyihangiz → **Authentication → Sign In / Providers →
+   Google** → *Enable* → Client ID va Client secret ni qo'ying → **Save**.
+4. **Authentication → URL Configuration**:
+   - Site URL: `https://www.kiovo.shop`
+   - Redirect URLs → *Add URL*: `https://www.kiovo.shop/kirish/supabase`
+5. **Project Settings → API** (yoki *API Keys*): **Project URL** va
+   **anon public** kalitni Railway → Variables ga qo'ying:
+   `SUPABASE_URL`, `SUPABASE_ANON_KEY`. Railway qayta ishga tushadi.
+6. Tekshirish: telefonda https://www.kiovo.shop/app/ → «Google (Gmail)
+   bilan kirish» → hisob tanlang → ilova ochiladi.
+
+> `anon` kalit maxfiy emas (u brauzerga ham chiqishi mumkin), lekin
+> **service_role** kalitini hech qayerga qo'ymang — u kerak emas.
+
+## 1-B. Google bilan kirish — eski yo'l (Supabase'siz)
+
+Supabase sozlanmasa, kirish ekranida Google'ning o'z tugmasi chiqadi.
 
 1. https://console.cloud.google.com → yangi loyiha «KiOVO».
 2. **APIs & Services → OAuth consent screen**: External; ilova nomi

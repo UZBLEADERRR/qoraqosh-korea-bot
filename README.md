@@ -1422,7 +1422,8 @@ hech birida yo'q:
 | Usul | Qanday | Yoqish |
 |---|---|---|
 | **Telegram** | Botga o'tadi, «Start» bosiladi — ilovaga qaytganda kirgan bo'lasiz | Doim yoqiq |
-| **Google** | Google hisobini tanlash (qayta yo'naltirish, server tokenni tekshiradi) | `GOOGLE_CLIENT_ID` |
+| **Gmail (Supabase)** | Supabase Auth → Google; server tokenni Supabase'dan tekshiradi (`/kirish/supabase`) | `SUPABASE_URL`, `SUPABASE_ANON_KEY` |
+| **Google (eski yo'l)** | Google hisobini tanlash (qayta yo'naltirish, server tokenni tekshiradi) | `GOOGLE_CLIENT_ID` |
 | **Telefon** | 6 xonali SMS kod (Eskiz.uz). SMS yoqilmagan bo'lsa — botdagi tasdiq | `ESKIZ_EMAIL`, `ESKIZ_PAROL` |
 
 Telefon raqami botdagi foydalanuvchiga mos kelsa, kirish **o'sha
@@ -1578,6 +1579,7 @@ Ixtiyoriy o'zgaruvchilar:
 | `DB_POOL_MAX` | Baza ulanish hovuzi hajmi. Oshirishdan oldin Supabase limitini tekshiring | `12` |
 | `DB_QUERY_TIMEOUT_MS` | Bitta so'rovning eng uzun vaqti — osilgan so'rov hovuzni band qilmasin | `15000` |
 | `SLOW_QUERY_MS` | Shundan sekin so'rovlar logga yoziladi | `1000` |
+| `SUPABASE_URL`, `SUPABASE_ANON_KEY` | «Google (Gmail) bilan kirish» Supabase orqali. Yo'riqnoma: `store/PLAY-STORE.md`, 1-bo'lim | — |
 | `GOOGLE_CLIENT_ID` | «Google bilan kirish». Yo'riqnoma: `store/PLAY-STORE.md` | — |
 | `ESKIZ_EMAIL` / `ESKIZ_PAROL` | SMS kod bilan kirish (Eskiz.uz, shablon tasdiqlangan bo'lishi shart) | — |
 | `ESKIZ_FROM` | SMS jo'natuvchi nomi | `4546` |

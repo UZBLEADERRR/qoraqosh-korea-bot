@@ -167,7 +167,8 @@ quyidagilarga uzatiladi:</p>
   <li>${b('Brauzer push xizmati')} (Android’da Google Firebase) — bildirishnomani
     qurilmangizga yetkazish; xabar matni shifrlangan holda o‘tadi;</li>
   <li>${b('Pochta / kuryer xizmati')} — buyurtmani yetkazish uchun ism, telefon va manzil;</li>
-  <li>${b('Bulutli server va baza')} (Railway, Supabase) — ma’lumotlar shu yerda saqlanadi.</li>
+  <li>${b('Bulutli server va baza')} (Railway, Supabase) — ma’lumotlar shu yerda saqlanadi;
+    Gmail bilan kirsangiz kirishni Supabase Auth tasdiqlaydi (email va ism).</li>
 </ul>
 <p>Qonun talab qilganda — vakolatli davlat organlariga.</p>
 
@@ -216,7 +217,7 @@ your face photo and its analysis. Face photos are sent to Google (Gemini) solely
 to produce your skin analysis, are visible only to you and store staff, are
 never used for advertising and never sold. Data is shared only with service
 providers needed to run the service (Google, Telegram, Eskiz.uz SMS, the delivery
-service, Railway/Supabase hosting). You can download your data as JSON or delete
+service, Railway/Supabase hosting; Supabase Auth also handles Google sign-in). You can download your data as JSON or delete
 your account at any time in the app: <em>Profile → Account &amp; my data</em>,
 or via <a href="/hisobni-ochirish">this page</a>. Order records are kept for
 accounting with personal details removed. The service is intended for users

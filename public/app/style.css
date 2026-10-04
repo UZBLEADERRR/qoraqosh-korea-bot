@@ -47,7 +47,7 @@
   --chiziq:#45151f; --chiziq-och:#341019;
   --urgu:#f0475f; --urgu-och:#3a0f18; --urgu-tim:#f77a8b;
   --asosiy:#6d0a10; --asosiy-matn:#fff;
-  --qidiruv-fon:#3a121b; --qidiruv-matn:#fff; --qidiruv-och:#d6a3ae;
+  --qidiruv-fon:#d6ecae; --qidiruv-matn:#1f2d07; --qidiruv-och:#4f6e1f;
   --lime:#bddb7d; --lime-och:#25300f; --lime-tim:#bddb7d;
   --yashil:#3cd88b; --yashil-och:#0f2a1c; --qizil:#f0475f; --qizil-och:#3a0f18;
   --sariq:#e0b45a; --sariq-och:#2a2112;
@@ -61,7 +61,7 @@
   --chiziq:#45151f; --chiziq-och:#341019;
   --urgu:#f0475f; --urgu-och:#3a0f18; --urgu-tim:#f77a8b;
   --asosiy:#6d0a10; --asosiy-matn:#fff;
-  --qidiruv-fon:#3a121b; --qidiruv-matn:#fff; --qidiruv-och:#d6a3ae;
+  --qidiruv-fon:#d6ecae; --qidiruv-matn:#1f2d07; --qidiruv-och:#4f6e1f;
   --lime:#bddb7d; --lime-och:#25300f; --lime-tim:#bddb7d;
   --yashil:#3cd88b; --yashil-och:#0f2a1c; --qizil:#f0475f; --qizil-och:#3a0f18;
   --sariq:#e0b45a; --sariq-och:#2a2112;
@@ -1877,7 +1877,7 @@ body.kam-yorug .menyu button{color:#7a7a82}
 
 /* ── Sarlavhalar QIZIL: har bo'limning tepasi bir xil ── */
 .shapka{border-radius:0 0 28px 28px;padding-bottom:16px}
-.shapka .qidiruv{background:rgba(255,255,255,.96);border-radius:16px;height:50px}
+.shapka .qidiruv{background:var(--qidiruv-fon);border-radius:16px;height:50px}
 .shapka .uch-nuqta{border-radius:16px;height:50px;width:50px;background:rgba(255,255,255,.16)}
 .suhbat-bosh{background:var(--asosiy);color:var(--asosiy-matn);border-bottom:0;
   border-radius:0 0 24px 24px;padding:calc(10px + env(safe-area-inset-top)) 16px 14px;
@@ -2717,3 +2717,38 @@ details.n-yigma[open] .n-ochish::before{transform:rotate(225deg) translate(-3px,
 .n-ajratgich em{bottom:auto;top:calc(50% + 26px)}
 @media (max-width:420px){#tab-natija .n-muammo-izoh{display:none}}
 #tab-natija .n-qatlam small{text-align:left}
+
+/* ═════════════ TUZATISHLAR: oyna, narx, iPhone ═════════════ */
+
+/* Mahsulot oynasi TO'LIQ ekranda: tepasi oxirigacha ko'tariladi,
+   orqada xira sarlavha qolmaydi */
+.modal .oyna.pastli{max-height:100dvh;height:100dvh;border-radius:0;
+  padding-top:env(safe-area-inset-top);display:flex;flex-direction:column}
+.modal .oyna.pastli #modal-tan{flex:1 0 auto;display:flex;flex-direction:column}
+.modal .oyna.pastli .oyna-rasm{border-radius:0;max-height:52vh}
+.modal .oyna.pastli .oyna-pastki{margin-top:auto}
+.modal .oyna.pastli .oyna-yop{top:calc(14px + env(safe-area-inset-top))}
+.modal .oyna.pastli .dasta{top:calc(8px + env(safe-area-inset-top))}
+
+/* Narx va «Savatga» hech qachon ustma-ust tushmaydi: narx o'z
+   kengligini oladi (qisqarmaydi), tugma qolgan joyni */
+.oyna-pastki-narx{flex:0 0 auto;max-width:52%}
+.oyna-pastki .asosiy{flex:1 1 0;min-width:0}
+.oyna-pastki .asosiy .qisqa{display:none}
+.oyna-pastki.uzun .oyna-pastki-narx b{font-size:16.5px}
+.oyna-pastki.uzun .asosiy .toliq{display:none}
+.oyna-pastki.uzun .asosiy .qisqa{display:inline}
+@media (max-width:380px){
+  .oyna-pastki .asosiy .toliq{display:none}
+  .oyna-pastki .asosiy .qisqa{display:inline}
+}
+
+/* iPhone: qisqa bo'limda (savat, profil, maslahat) sahifa surilmaydi va
+   Safari pastki panelini ochiq qoldiradi — menyu tepaga ko'tarilib
+   ko'rinardi. Har bo'lim kamida bir ekran bo'lsa panel holati bir xil. */
+@supports (height:100lvh){ body{min-height:calc(100lvh + 1px)} }
+
+/* Gmail tugmasi */
+.kirish-usul.google{text-decoration:none;background:#fff;color:#1f1f1f;border-color:#dadce0}
+.kirish-usul-belgi.g{background:#fff}
+.kirish-usul.google.yuklanmoqda{opacity:.6;pointer-events:none}

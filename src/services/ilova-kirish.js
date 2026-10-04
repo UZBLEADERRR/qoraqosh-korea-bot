@@ -20,6 +20,7 @@ import { config } from '../config.js';
 import { botNomi } from '../lib/ilova-havola.js';
 import { smsYoqilganmi, smsGaYaroqlimi, smsYubor, KIRISH_MATNI } from './sms.js';
 import { googleTokeniniTekshir } from './google-kirish.js';
+import { supabaseYoqilganmi, supabaseTokeniniTekshir } from './supabase-kirish.js';
 
 const SOROV_MS  = 3 * 60_000;              // tasdiqlashga 3 daqiqa
 const SEANS_KUN = 60;                      // brauzer seansi 60 kun
@@ -220,6 +221,8 @@ export async function kirishUsullari() {
   const bot = await botNomi().catch(() => null);
   return {
     google: config.googleClientId || '',
+    // Supabase orqali Gmail — sozlangan bo'lsa asosiy Google tugmasi shu
+    supabase: supabaseYoqilganmi(),
     sms: smsYoqilganmi() || Boolean(config.demoTelefon && config.demoKod),
     telegram: Boolean(bot),
   };
@@ -370,3 +373,7 @@ export async function googleBilanKir(credential, { qurilma = '', tekshir = googl
   const { token } = await seansOch(u.id, qurilma);
   return { token, user: { id: u.id, full_name: u.full_name, phone: u.phone } };
 }
+
+/** Supabase (Gmail) bilan kirish — hisob Google bilan kirish bilan bir xil topiladi. */
+export const supabaseBilanKir = (token, { qurilma = '', tekshir = supabaseTokeniniTekshir } = {}) =>
+  googleBilanKir(token, { qurilma, tekshir });

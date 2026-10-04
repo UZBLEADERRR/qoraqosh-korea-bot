@@ -393,9 +393,17 @@ async function kirishUsullariniYukla() {
   try { u = await api('/api/kirish/usullar'); } catch { /* tarmoq — standart */ }
   holat.kirishUsul = u;
   const xato = new URLSearchParams(location.search).get('kirish_xato')
-    ? 'Google bilan kirib bo‘lmadi. Qayta urining yoki boshqa usulni tanlang.' : '';
+    ? 'Google (Gmail) bilan kirib bo‘lmadi. Qayta urining yoki boshqa usulni tanlang.' : '';
   kirishQadam1(xato);
 }
+
+/** Google «G» belgisi — rasmiy to'rt rang (Supabase orqali kirish tugmasi uchun). */
+const GOOGLE_G = `<svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true">
+  <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/>
+  <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.7 6c4.5-4.2 6.9-10.4 6.9-17.7z"/>
+  <path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.8-3-.8-4.6s.3-3.2.8-4.6l-7.9-6.1C1 16.6 0 20.2 0 24s1 7.4 2.7 10.7l7.9-6.1z"/>
+  <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.7-6c-2.2 1.5-5 2.3-8.2 2.3-6.2 0-11.5-4.1-13.4-9.9l-7.9 6.1C6.6 42.6 14.6 48 24 48z"/>
+</svg>`;
 
 /** Google tugmasi — Google'ning o'z tugmasi (brend qoidasi shuni talab qiladi). */
 function googleTugmasi(clientId) {
@@ -429,7 +437,9 @@ function kirishQadam1(xato = '') {
     ${xato ? `<div class="kirish-xato" role="alert">${esc(xato)}</div>` : ''}
 
     <div class="kirish-usullar">
-      ${u.google ? '<div id="g-tugma" class="g-tugma"></div>' : ''}
+      ${u.supabase ? `<a class="kirish-usul google" id="k-gmail" href="/kirish/supabase/boshla">
+        <span class="kirish-usul-belgi g">${GOOGLE_G}</span>Google (Gmail) bilan kirish</a>`
+        : u.google ? '<div id="g-tugma" class="g-tugma"></div>' : ''}
       ${u.telegram ? `<button class="kirish-usul" id="k-telegram">
         <span class="kirish-usul-belgi tg">${ik('telegram', 20)}</span>Telegram orqali kirish</button>` : ''}
     </div>
@@ -450,7 +460,9 @@ function kirishQadam1(xato = '') {
   inp.oninput = () => { inp.value = raqamFormat(inp.value); };
   inp.onkeydown = (e) => { if (e.key === 'Enter') $('#k-yubor').click(); };
 
-  googleTugmasi(u.google);
+  if (!u.supabase) googleTugmasi(u.google);
+  const gm = $('#k-gmail');
+  if (gm) gm.onclick = () => { gm.classList.add('yuklanmoqda'); titra(); };
   $('#k-telegram') && ($('#k-telegram').onclick = kirishTelegram);
 
   $('#k-yubor').onclick = async () => {
@@ -1426,14 +1438,14 @@ function mahsulotOyna(id) {
 
     <!-- Savatga tugmasi DOIM ko'rinib turadi: odam uni topish uchun
          tavsif, tarkib va ogohlantirishlarni oxirigacha surmasin -->
-    <div class="oyna-pastki">
+    <div class="oyna-pastki${narx(p.price).length > 12 ? ' uzun' : ''}">
       <div class="oyna-pastki-narx">
         <b>${narx(p.price)}</b>
         ${p.old_price && p.old_price > p.price ? `<s>${narx(p.old_price)}</s>` : `<small>${esc(p.volume || '')}</small>`}
       </div>
       <button class="asosiy" id="t-savatga" ${p.stock > 0 ? '' : 'disabled'}>
         ${p.stock > 0
-          ? `${ik('savat', 18)}<span>${savatda ? `Savatda ${savatda} · yana` : 'Savatga qo‘shish'}</span>`
+          ? `${ik('savat', 18)}<span class="toliq">${savatda ? `Savatda ${savatda} · yana` : 'Savatga qo‘shish'}</span><span class="qisqa">${savatda ? `Yana (${savatda})` : 'Savatga'}</span>`
           : 'Omborda yo‘q'}
       </button>
     </div>`;

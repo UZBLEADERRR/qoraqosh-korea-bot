@@ -214,6 +214,23 @@ export function soxtaServer(port = 4444) {
         return res.end();
       }
 
+      // ---- Supabase Auth (Gmail bilan kirish) ----
+      // Token bo'yicha javob: tasdiqlangan Google hisobi, tasdiqlanmagan
+      // email yoki 401 (yaroqsiz token / noto'g'ri anon kalit).
+      if (yol === '/sb/auth/v1/user') {
+        const t = String(req.headers.authorization || '').replace(/^Bearer /, '');
+        if (req.headers.apikey !== 'anon-sinov') { res.writeHead(401); return res.end('{}'); }
+        const google = (sub, email, tasdiq) => ({ provider: 'google', id: sub,
+          identity_data: { sub, email, email_verified: tasdiq } });
+        if (t === 'sb.yaxshi.token.12345678') return j({ id: 'uuid-1', email: 'Malika.Gmail@gmail.com',
+          email_confirmed_at: '2026-10-01T00:00:00Z', user_metadata: { full_name: 'Malika Gmail' },
+          identities: [google('g-sub-777', 'malika.gmail@gmail.com', true)] });
+        if (t === 'sb.tasdiqsiz.token.1234567') return j({ id: 'uuid-2', email: 'x@gmail.com',
+          email_confirmed_at: null, identities: [google('g-sub-888', 'x@gmail.com', false)] });
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        return res.end('{"msg":"invalid JWT"}');
+      }
+
       // ---- Eskiz SMS ----
       // Haqiqiy Eskiz multipart forma qabul qiladi; biz maydonlarni
       // matndan ajratib olamiz (fayl yo'q, faqat oddiy qiymatlar).

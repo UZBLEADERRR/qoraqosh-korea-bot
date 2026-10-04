@@ -5639,7 +5639,7 @@ console.log('\n── EKRANLAR, SHARHLAR, BELGILAR, GALEREYA ──');
   test('bildirishnoma — almashtirgich (switch)', /role="switch"/.test(js) && /\.almash\.yoqiq/.test(css));
 
   // ── Mahsulot oynasi ──
-  test('savatga tugmasi DOIM ko‘rinadi (pastga yopishgan)', /class="oyna-pastki"/.test(js)
+  test('savatga tugmasi DOIM ko‘rinadi (pastga yopishgan)', /class="oyna-pastki\$\{/.test(js)
     && /\.oyna-pastki\{position:sticky;bottom:0/.test(css));
   test('reyting tepada va bosiladi', /id="oyna-baho">\$\{bahoQatori\(p\)\}/.test(js)
     && /class="baho-tugma[^"]*" data-sharhlar=/.test(js));
@@ -5820,6 +5820,43 @@ console.log('\n── KLINIK QATLAMLAR VA NATIJA BO‘LIMLARI ──');
   const q = parhezQisqart(uzun, 60);
   test('parhez so‘z o‘rtasida kesilmaydi', /…\)$/.test(q) && q.length <= 63 && !/sog‘lig‘ini y…/.test(q), q);
   test('qisqa band o‘zgarmaydi', parhezQisqart('Suv', 90) === 'Suv');
+}
+
+console.log('\n── OYNA, NARX, IPHONE, TUNGI QIDIRUV, GMAIL ──');
+{
+  const fsU = await import('node:fs');
+  const js = fsU.readFileSync('public/app/app.js', 'utf8');
+  const css = fsU.readFileSync('public/app/style.css', 'utf8');
+  test('mahsulot oynasi to‘liq ekranda', /\.modal \.oyna\.pastli\{max-height:100dvh;height:100dvh;border-radius:0/.test(css));
+  test('narx qisqarmaydi, tugma qolgan joyni oladi', /\.oyna-pastki-narx\{flex:0 0 auto/.test(css)
+    && /\.oyna-pastki \.asosiy\{flex:1 1 0;min-width:0\}/.test(css));
+  test('katta summada tugma yozuvi qisqaradi', /narx\(p\.price\)\.length > 12 \? ' uzun'/.test(js)
+    && /\.oyna-pastki\.uzun \.asosiy \.qisqa\{display:inline\}/.test(css));
+  test('iPhone: har bo‘lim kamida bir ekran (menyu bir joyda)', /body\{min-height:calc\(100lvh \+ 1px\)\}/.test(css));
+  const tun = [...css.matchAll(/--qidiruv-fon:(#[0-9a-f]{6})/g)].map((m) => m[1]);
+  test('tungi mavzuda qidiruv och yashil', tun.length === 3 && tun.slice(1).every((x) => x === '#d6ecae'), tun.join());
+  test('qidiruv maydoni oq emas', !/\.shapka \.qidiruv\{background:rgba\(255,255,255/.test(css));
+  test('Gmail tugmasi Supabase orqali', /href="\/kirish\/supabase\/boshla"/.test(js) && /u\.supabase \?/.test(js));
+
+  const { config } = await import('../src/config.js');
+  const { supabaseTokeniniTekshir } = await import('../src/services/supabase-kirish.js');
+  const eski = [config.supabaseUrl, config.supabaseAnonKey];
+  config.supabaseUrl = 'https://sb.example'; config.supabaseAnonKey = 'anon';
+  let sorovlar = [];
+  const javob = (kod, tana) => async (url, o) => { sorovlar.push({ url, o }); return { ok: kod < 300, status: kod, json: async () => tana }; };
+  const g = await supabaseTokeniniTekshir('a'.repeat(30), { fetchFn: javob(200, { id: 'u1', email: 'A@Gmail.com',
+    email_confirmed_at: 'x', user_metadata: { name: 'Ali' },
+    identities: [{ provider: 'google', id: 'gs1', identity_data: { sub: 'gs1', email_verified: true } }] }) });
+  test('Supabase tokeni o‘zidan tekshiriladi', sorovlar[0].url === 'https://sb.example/auth/v1/user'
+    && sorovlar[0].o.headers.apikey === 'anon' && /^Bearer a+$/.test(sorovlar[0].o.headers.Authorization));
+  test('Google sub — Google tugmasi bilan BIR hisob', g.sub === 'gs1' && g.email === 'a@gmail.com' && g.ism === 'Ali');
+  const rad = async (f, t = 'a'.repeat(30)) => { try { await supabaseTokeniniTekshir(t, { fetchFn: f }); return false; } catch { return true; } };
+  test('401 — rad etiladi', await rad(javob(401, {})));
+  test('tasdiqlanmagan email — rad etiladi', await rad(javob(200, { id: 'u', email: 'x@y.z', identities: [] })));
+  sorovlar = [];
+  test('token shakli buzuq — so‘rov ham ketmaydi', await rad(javob(200, {}), 'a b<'), sorovlar.length === 0);
+  [config.supabaseUrl, config.supabaseAnonKey] = eski;
+  test('sozlanmagan bo‘lsa — rad etiladi', await rad(javob(200, {})));
 }
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);

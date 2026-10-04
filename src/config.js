@@ -79,6 +79,10 @@ export const config = {
   // Google tugmasi ko'rsatilmaydi.
   googleClientId: opt('GOOGLE_CLIENT_ID'),
   googleJwks:     opt('GOOGLE_JWKS', 'https://www.googleapis.com/oauth2/v3/certs'),
+  // Supabase orqali Google (Gmail) bilan kirish — src/services/supabase-kirish.js.
+  // Supabase → Project Settings → API: «Project URL» va «anon public» kalit.
+  supabaseUrl:     opt('SUPABASE_URL').replace(/\/+$/, ''),
+  supabaseAnonKey: opt('SUPABASE_ANON_KEY'),
   // SMS bilan kirish — Eskiz.uz. Ikkalasi ham bo'lsa SMS yoqiladi.
   eskizEmail:  opt('ESKIZ_EMAIL'),
   eskizParol:  opt('ESKIZ_PAROL'),

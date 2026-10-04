@@ -15,6 +15,7 @@ import crypto from 'node:crypto';
 import { config } from './config.js';
 import { statik, ok, xato, tana, sorovniEsla, formaTana, cookieOl } from './lib/http.js';
 import { googleBilanKir } from './services/ilova-kirish.js';
+import { supabaseYoqilganmi, supabaseKirishManzili } from './services/supabase-kirish.js';
 import { apiRoutes } from './api/routes.js';
 import { ochiqRoutes } from './api/ochiq.js';
 import { adminRoutes } from './api/admin.js';
@@ -247,6 +248,22 @@ const server = http.createServer(async (req, res) => {
     if (yol.startsWith('/api/admin/')) return await adminRoutes(req, res, yol);
     if (yol.startsWith('/api/'))       return await apiRoutes(req, res, yol);
 
+    // ---------- Supabase orqali Gmail bilan kirish ----------
+    // 1) /kirish/supabase/boshla — Supabase → Google hisob tanlash.
+    // 2) Google → Supabase → /kirish/supabase#access_token=… — token
+    //    FRAGMENTDA keladi (serverga yetmaydi), sahifa uni o'zi oladi
+    //    va /api/kirish/supabase ga yuboradi; u yerda tekshiriladi.
+    if (yol === '/kirish/supabase/boshla' && req.method === 'GET') {
+      if (!supabaseYoqilganmi()) return redirect(res, '/app/?kirish_xato=1');
+      const asos = config.saytUrl || `http://${req.headers.host}`;
+      return redirect(res, supabaseKirishManzili(`${asos}/kirish/supabase`));
+    }
+    if (yol === '/kirish/supabase' && req.method === 'GET') {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
+                           'Referrer-Policy': 'no-referrer' });
+      return res.end(supabaseQaytishSahifasi());
+    }
+
     // ---------- Google bilan kirish (qayta yo'naltirish rejimi) ----------
     // Google tugmasi `ux_mode: redirect` da: Google bu manzilga forma
     // yuboradi. Popup o'rniga shu yo'l tanlangan, chunki Play'dagi
@@ -476,6 +493,39 @@ const rasmniBer = (res, bayt, mime) => {
   });
   res.end(bayt);
 };
+
+/** Supabase'dan qaytgan sahifa: tokenni serverda tekshirtiradi, seansni yozadi. */
+function supabaseQaytishSahifasi() {
+  return `<!doctype html><html lang="uz"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>KiOVO</title>
+<meta name="theme-color" content="#ab0a0c"></head>
+<body style="margin:0;display:grid;place-items:center;min-height:100vh;background:#ab0a0c;
+  color:#fff;font:600 16px system-ui,sans-serif;text-align:center;padding:24px">
+<p id="m">Kirilmoqda…</p>
+<script>
+(function () {
+  var h = new URLSearchParams(location.hash.slice(1));
+  var q = new URLSearchParams(location.search);
+  // Token manzil satrida qolmasin (tarix, skrinshot)
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  var t = h.get('access_token');
+  var xato = function () {
+    document.getElementById('m').textContent = 'Gmail bilan kirib bo‘lmadi. Boshqa usulni tanlang.';
+    setTimeout(function () { location.replace('/app/?kirish_xato=1'); }, 2200);
+  };
+  if (!t || h.get('error') || q.get('error')) return xato();
+  fetch('/api/kirish/supabase', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ access_token: t }) })
+    .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+    .then(function (x) {
+      if (!x.ok || !x.j.token) return xato();
+      try { localStorage.setItem('kiovo_seans', x.j.token); } catch (e) {}
+      location.replace('/app/');
+    })
+    .catch(xato);
+})();
+</script></body></html>`;
+}
 
 /** Google'dan qaytgan sahifa: seansni qurilmaga yozadi va ilovaga qaytaradi. */
 function googleJavobSahifasi(token, xatoMatn) {

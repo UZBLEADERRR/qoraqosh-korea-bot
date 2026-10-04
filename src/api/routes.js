@@ -24,6 +24,7 @@ import { rasmYubor } from '../bot/tg.js';
 import { hisobniOchir, meningMalumotlarim } from '../services/hisob.js';
 import { ochiqKalit, obunaSaqla, obunaOchir, foydalanuvchigaPush } from '../services/push.js';
 import { natijaHavolasi, natijaHavolasiniOch } from '../lib/natija-havola.js';
+import { supabaseBilanKir } from '../services/ilova-kirish.js';
 
 // Kuniga minglab foydalanuvchi bo'lganda katalog eng ko'p so'raladigan yo'l.
 // 30 soniyalik kesh bazaga ketadigan bir xil so'rovlarni yig'ib bitta qiladi.
@@ -150,6 +151,17 @@ export async function apiRoutes(req, res, yol) {
     if (!c.ruxsat) return json(res, 429, { error: 'Juda ko‘p urinish. Birozdan keyin qayta urining.' });
     const b = await tana(req);
     const r = await googleBilanKir(b.credential, {
+      qurilma: String(req.headers['user-agent'] || '').slice(0, 120) });
+    if (r.xato) return xato(res, 400, r.xato);
+    return ok(res, r);
+  }
+
+  // --- Supabase orqali Gmail: /kirish/supabase sahifasi tokenni shu yerga yuboradi ---
+  if (yol === '/api/kirish/supabase' && req.method === 'POST') {
+    const c = cheklov('kirsb:' + ipOl(req), 20, 15 * 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: 'Juda ko‘p urinish. Birozdan keyin qayta urining.' });
+    const b = await tana(req);
+    const r = await supabaseBilanKir(b.access_token, {
       qurilma: String(req.headers['user-agent'] || '').slice(0, 120) });
     if (r.xato) return xato(res, 400, r.xato);
     return ok(res, r);

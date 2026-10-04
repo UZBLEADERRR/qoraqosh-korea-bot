@@ -26,6 +26,7 @@ const server = spawn(process.execPath, ['src/server.js'], {
     BOT_TOKEN: '111111:TEST', ADMIN_LOGIN: 'sinov', ADMIN_PASSWORD: 'parol12345',
     ADMIN_JWT_SECRET: 'x'.repeat(30), TELEGRAM_API: `http://127.0.0.1:${SOXTA}`,
     GEMINI_API: `http://127.0.0.1:${SOXTA}/models`, GEMINI_API_KEY: 'soxta',
+    SUPABASE_URL: `http://127.0.0.1:${SOXTA}/sb/`, SUPABASE_ANON_KEY: 'anon-sinov',
     // Bittasi to'g'ri, bittasi buzuq — buzug'i chiqmasligi kerak
     ANDROID_SHA256: `${SHA.toLowerCase()}, buzuq:barmoq:izi` },
   stdio: ['ignore', 'pipe', 'pipe'],
@@ -146,6 +147,35 @@ try {
     body: 'credential=soxta.token.bu&g_csrf_token=abc' })).text();
   test('soxta token bilan — kirilmaydi, ilovaga xato bilan qaytaradi',
     !/localStorage\.setItem/.test(g2) && /kirish_xato=1/.test(g2));
+
+  console.log('\n── SUPABASE ORQALI GMAIL ──');
+  const us = await (await fetch(`${ASOS}/api/kirish/usullar`)).json();
+  test('kirish ekrani Gmail tugmasini ko‘rsatadi', us.supabase === true);
+  const sbBosh = await fetch(`${ASOS}/kirish/supabase/boshla`, { redirect: 'manual' });
+  const joy = sbBosh.headers.get('location') || '';
+  test('«Gmail bilan kirish» Supabase → Google ga yo‘naltiradi', sbBosh.status === 302
+    && joy.startsWith(`http://127.0.0.1:${SOXTA}/sb/auth/v1/authorize?`)
+    && new URL(joy).searchParams.get('provider') === 'google', joy);
+  test('qaytish manzili saytning www manzili', new URL(joy).searchParams.get('redirect_to') === `${SAYT}/kirish/supabase`,
+    new URL(joy).searchParams.get('redirect_to'));
+  const qs = await fetch(`${ASOS}/kirish/supabase`);
+  const qsHtml = await qs.text();
+  test('qaytish sahifasi tokenni serverga tekshirishga yuboradi', qs.status === 200
+    && /fetch\('\/api\/kirish\/supabase'/.test(qsHtml) && /access_token/.test(qsHtml));
+  test('qaytish sahifasi keshlanmaydi va referer yubormaydi', qs.headers.get('cache-control') === 'no-store'
+    && qs.headers.get('referrer-policy') === 'no-referrer');
+  test('token manzil satridan o‘chiriladi', /history\.replaceState\(null, '', location\.pathname\)/.test(qsHtml));
+  const sb = (t) => fetch(`${ASOS}/api/kirish/supabase`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ access_token: t }) });
+  const k1 = await sb('sb.yaxshi.token.12345678'); const j1 = await k1.json();
+  test('haqiqiy Supabase tokeni bilan kirildi', k1.status === 200 && Boolean(j1.token), JSON.stringify(j1).slice(0, 80));
+  const k2 = await (await sb('sb.yaxshi.token.12345678')).json();
+  test('qayta kirganda o‘sha hisob', k2.user?.id === j1.user?.id);
+  const me = await fetch(`${ASOS}/api/me`, { headers: { Authorization: `Bearer ${j1.token}` } });
+  test('seans ishlaydi (/api/me)', me.status === 200);
+  test('soxta token — kirilmaydi', (await sb('sb.soxta.token.123456789')).status === 400);
+  test('tasdiqlanmagan email — kirilmaydi', (await sb('sb.tasdiqsiz.token.1234567')).status === 400);
+  test('token shakli buzuq — kirilmaydi', (await sb('<script>')).status === 400);
 
   const sw = await (await fetch(`${ASOS}/app/sw.js`)).text();
   test('service worker versiyalangan', !/__VERSIYA__/.test(sw));
