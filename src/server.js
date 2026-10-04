@@ -51,7 +51,7 @@ const UMUMIY = ['../umumiy/brend.css'];
 const SAHIFA_FAYL = {
   app:   { yol: 'app/index.html',   papka: 'app',
            fayllar: ['index.html', 'app.js', 'style.css', 'ikon.js', 'hududlar.js',
-                     'sifat.js', 'yuz.js', ...UMUMIY] },
+                     'sifat.js', 'yuz.js', 'qatlam.js', ...UMUMIY] },
   admin: { yol: 'admin/index.html', papka: 'admin',
            fayllar: ['index.html', 'admin.js', 'style.css', ...UMUMIY] },
   skan:  { yol: 'skan/index.html',  papka: 'skan',

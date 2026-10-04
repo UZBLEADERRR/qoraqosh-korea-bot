@@ -43,6 +43,18 @@ export async function rasmChizaOlamizmi() {
 }
 
 /**
+ * SVG ni PIKSELLARGA chizadi (PNG ga emas). Tahlil qatlamlari suratning
+ * piksellaridan hisoblanadi — serverda JPEG ochuvchi yo'q, resvg esa
+ * suratni o'zi ochib beradi.
+ * @returns {Promise<{piksel:Uint8Array, en:number, boy:number}>} RGBA
+ */
+export async function svgdanPiksel(svg, eni) {
+  const R = await motor();
+  const r = new R(svg, { fitTo: { mode: 'width', value: eni }, font: { loadSystemFonts: false } }).render();
+  return { piksel: r.pixels, en: r.width, boy: r.height };
+}
+
+/**
  * @param {string} svg
  * @param {number} eni  chiqish rasmining kengligi (piksel)
  * @returns {Promise<Buffer>} PNG

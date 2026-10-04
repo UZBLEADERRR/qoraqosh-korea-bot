@@ -4024,7 +4024,7 @@ console.log('\n── NATIJA EKRANI ──');
     /filter:\$\{r\.css\}/.test(js)
       && !/dall-e|midjourney|generate/i.test(js));
   test('bosilganda asosiy surat ham o‘zgaradi',
-    /data-filtr/.test(js) && /media\.style\.filter = r\.css/.test(js));
+    /data-filtr/.test(js) && /function ustniQoy|const ustniQoy/.test(js) && /class="n-qatlam-ust"/.test(js));
   test('qaysi qatlam yoqilgani surat ustida yozilib turadi',
     /n-qatlam-teg/.test(js) && /\.n-qatlam-teg\{position:absolute/.test(css));
   {
@@ -4032,9 +4032,10 @@ console.log('\n── NATIJA EKRANI ──');
     // shunday kalitlar bor va ular hisobga qo'shilib ketardi
     const rentgenKod = js.slice(js.indexOf('const RENTGEN = ['),
       js.indexOf('const KALIT_QISQA'));
-    test('olti ko‘rinish — UV va namlik ham bor',
-      (rentgenKod.match(/kalit: '(asl|uv|qizarish|pigment|tekstura|namlik)'/g) || [])
-        .length === 6);
+    const qKod = fs.readFileSync('public/app/qatlam.js', 'utf8');
+    test('olti ko‘rinish — asl + klinik qatlamlar (umumiy fayldan)',
+      /kalit: 'asl'/.test(rentgenKod) && /window\.Qatlam\?\.QATLAMLAR/.test(rentgenKod)
+        && (qKod.match(/kalit: '(pigment|qizarish|bakteriya|uv|tekstura)'/g) || []).length === 5);
   }
 
   // ── Sahifa QISQA: hammasi bitta ekranda ──
@@ -4782,9 +4783,9 @@ console.log('\n── KARTOCHKA SHABLONI ──');
   test('bo‘sh yorliq yozilmaydi', !sababsiz.includes('SABABI'));
 
   // Qatlamlar ilova bilan bir xil — oltita
-  const ilovaJs = fs5.readFileSync('public/app/app.js', 'utf8');
-  const ilovaQ = [...ilovaJs.slice(ilovaJs.indexOf('const RENTGEN = ['),
-    ilovaJs.indexOf('const KALIT_QISQA')).matchAll(/kalit: '(\w+)'/g)].map((m) => m[1]);
+  // Ilova: «asl» + umumiy fayldagi qatlamlar (public/app/qatlam.js)
+  const qatlamJs = fs5.readFileSync('public/app/qatlam.js', 'utf8');
+  const ilovaQ = ['asl', ...[...qatlamJs.matchAll(/kalit: '(\w+)'/g)].map((m) => m[1])];
   const rasmKod = fs5.readFileSync('src/rasm/natija-kartochka.js', 'utf8');
   const rasmQ = [...rasmKod.slice(rasmKod.indexOf('const RENTGEN = ['),
     rasmKod.indexOf('const OYLAR')).matchAll(/kalit: '(\w+)'/g)].map((m) => m[1]);
@@ -4824,7 +4825,7 @@ console.log('\n── KARTOCHKA SHABLONI ──');
     // joy qaytib ketardi.
     // «Pigment» va «Namlik» pastda, ko'rsatkichlar ro'yxatida ham
     // uchraydi — shuning uchun faqat surat sohasidagisini olamiz
-    const yozuvY = [...svg.matchAll(/<text [^>]*?y="(\d+)"[^>]*>(Asl|UV|Pigment|Namlik)</g)]
+    const yozuvY = [...svg.matchAll(/<text [^>]*?y="(\d+)"[^>]*>(Asl|UV|Pigment|Bakteriya)</g)]
       .map((m) => ({ nom: m[2], y: +m[1] }))
       .filter((t) => t.y <= surat.y + surat.boy);
     test('oltala yozuvdan to‘rttasi topildi', yozuvY.length === 4, JSON.stringify(yozuvY));
@@ -5727,6 +5728,98 @@ console.log('\n── EKRANLAR, SHARHLAR, BELGILAR, GALEREYA ──');
   await sorov('delete from analyses where id = $1', [an.id]);
   await sorov('delete from media where id = $1', [md.id]);
   await sorov(`delete from users where telegram_id in ('816901','816902')`);
+}
+
+console.log('\n── KLINIK QATLAMLAR VA NATIJA BO‘LIMLARI ──');
+{
+  const fsK = await import('node:fs');
+  const js = fsK.readFileSync('public/app/app.js', 'utf8');
+  const css = fsK.readFileSync('public/app/style.css', 'utf8');
+  const html = fsK.readFileSync('public/app/index.html', 'utf8');
+
+  // ── Umumiy hisob moduli (DOM siz) ──
+  const m = {};
+  new Function('globalThis', fsK.readFileSync('public/app/qatlam.js', 'utf8'))(m);
+  const Q = m.Qatlam;
+  test('besh klinik qatlam: pigment, qizarish, bakteriya, UV, tekstura',
+    Q.QATLAMLAR.map((x) => x.kalit).join() === 'pigment,qizarish,bakteriya,uv,tekstura');
+  // Sinov surati: kulrang fon, o'rtada teri rangli doira, ichida qora dog'
+  const W = 120, H = 150, rgba = new Uint8ClampedArray(W * H * 4);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 4;
+    const teri = ((x - 60) / 42) ** 2 + ((y - 72) / 56) ** 2 <= 1;
+    const dog = (x - 48) ** 2 + (y - 70) ** 2 <= 9;
+    const [r, g, b] = !teri ? [128, 128, 128] : dog ? [120, 78, 60] : [224, 172, 150];
+    rgba[i] = r; rgba[i + 1] = g; rgba[i + 2] = b; rgba[i + 3] = 255;
+  }
+  const t = Q.tayyorla(rgba, W, H, { x: 15, y: 9, en: 70, boy: 76 });
+  const px = (a, x, y) => [...a.slice((y * W + x) * 4, (y * W + x) * 4 + 3)];
+  const yorq = (c) => c[0] + c[1] + c[2];
+  const pig = t.chiz('pigment');
+  test('pigment: dog‘ terining o‘zidan TO‘Q', yorq(px(pig, 48, 70)) < yorq(px(pig, 72, 80)) - 60,
+    `${px(pig, 48, 70)} / ${px(pig, 72, 80)}`);
+  test('pigment: fon OQ (teri ajratildi)', yorq(px(pig, 2, 2)) > 740, String(px(pig, 2, 2)));
+  const bak = t.chiz('bakteriya');
+  test('bakteriya: fon QORA, teri YASHIL', yorq(px(bak, 2, 2)) < 20
+    && px(bak, 72, 80)[1] > px(bak, 72, 80)[0] + 40, `${px(bak, 2, 2)} / ${px(bak, 72, 80)}`);
+  const uv = t.chiz('uv');
+  test('UV: teri KO‘K', px(uv, 72, 80)[2] > px(uv, 72, 80)[0] + 40, String(px(uv, 72, 80)));
+  const qz = t.chiz('qizarish');
+  test('qizarish: teri qizil tusda', px(qz, 72, 80)[0] > px(qz, 72, 80)[1] + 25, String(px(qz, 72, 80)));
+  test('noma’lum qatlam — null', t.chiz('yoq') === null);
+
+  // ── Ilova ──
+  test('modul ilovaga ulangan (app.js dan oldin)', html.indexOf('src="qatlam.js"') > 0
+    && html.indexOf('src="qatlam.js"') < html.indexOf('src="app.js"'));
+  const srv = fsK.readFileSync('src/server.js', 'utf8');
+  test('modul ilova versiyasiga kiradi (kesh yangilanadi)', /'yuz\.js', 'qatlam\.js'/.test(srv));
+  test('qatlam piksellardan hisoblanadi (CSS faqat zaxira)', /Qatlam\.tayyorla\(x\.getImageData/.test(js));
+  test('surat ustida ajratgich bilan solishtirish', /class="n-ajratgich"/.test(js)
+    && /clipPath = `inset\(0 0 0 \$\{f\}%\)`/.test(js) && /\.n-ajratgich\{/.test(css));
+  test('qatlamlar 3 ustunli to‘r', /#tab-natija \.n-qatlamlar\{display:grid;grid-template-columns:repeat\(3,1fr\)/.test(css));
+  test('halol: «UV apparat tekshiruvi emas» deb yozilgan', /UV apparat tekshiruvi emas/.test(js));
+
+  // ── Server: natija rasmidagi qatlamlar ham shu hisobdan ──
+  const { qatlamRasmlari, pngKodla, QATLAMLAR } = await import('../src/rasm/qatlam.js');
+  const png = pngKodla(rgba, W, H);
+  test('PNG kodlovchi to‘g‘ri sarlavha yozadi', png.slice(1, 4).toString() === 'PNG'
+    && png.readUInt32BE(16) === W && png.readUInt32BE(20) === H);
+  const b64 = fsK.readFileSync('test/namuna-yuz.b64', 'utf8').trim().replace(/^data:[^,]*,/, '');
+  const t0 = Date.now();
+  const ql = await qatlamRasmlari(b64, 'image/jpeg', { x: 20, y: 10, en: 60, boy: 75 });
+  const vaqt = Date.now() - t0;
+  test('serverda besh qatlam PNG bo‘lib chiqdi', QATLAMLAR.every((q) =>
+    Buffer.from(ql?.[q.kalit] || '', 'base64').slice(1, 4).toString() === 'PNG'), Object.keys(ql || {}).join());
+  test('hisob tez (AI chaqiruvi yonida sezilmaydi)', vaqt < 1500, `${vaqt} ms`);
+  const { natijaSvg } = await import('../src/rasm/natija-kartochka.js');
+  const svgQ = natijaSvg({ rasmBase64: b64, mime: 'image/jpeg', brend: 'KiOVO', qatlamlar: ql,
+    tahlil: { ball: 70, muammolar: [] } });
+  test('kartochka hisoblangan qatlamlarni qo‘yadi',
+    (svgQ.match(/<image href="data:image\/png;base64,/g) || []).length >= 5);
+  const nrKod = fsK.readFileSync('src/services/natija-rasm.js', 'utf8');
+  test('natija rasmi qatlamlarni hisoblaydi, xato bo‘lsa to‘xtamaydi',
+    /await qatlamRasmlari\(/.test(nrKod) && /QATLAMLAR HISOBLANMADI/.test(nrKod));
+  test('natijada AI rasm CHIZMAYDI (pul ketmaydi)', !/aiRasm|rasmModeli/.test(nrKod)
+    && !/aiRasm/.test(fsK.readFileSync('src/services/analysis.js', 'utf8')));
+
+  // ── Natija bo'limlari ──
+  test('«Mening rejam» tugmasi yo‘q', !/Mening rejam/.test(js) && !/t-rejam/.test(js));
+  test('muammolar yopiq turadi', !/data-muammo="\$\{m\.tartib\}"\$\{i === 0 \? ' open'/.test(js));
+  test('parvarish, prognoz, ovqatlanish — yig‘ma kartalar',
+    /yigmaKarta\('n-kok', 'soat', 'Har kuni shunday qiling'/.test(js)
+      && /yigmaKarta\('n-sariq', 'ogoh', 'E’tibor bermasangiz'/.test(js)
+      && /yigmaKarta\('n-ovqat-karta', 'barg', 'Ovqatlanish'/.test(js)
+      && !/<details class="n-yigma[^"]*" open/.test(js));
+  const tartib = (k) => js.indexOf(k);
+  test('ovqatlanish ENG PASTDA', tartib('${natijaOvqat(parhez)}') > tartib('class="n-karta n-oxir"')
+    && tartib('${natijaOvqat(parhez)}') < tartib('<p class="n-eslatma">'));
+  test('ovqat ustma-ust: tepada «yeng», ostida «kamaytiring»', /qism\(foydali, 'yaxshi'[\s\S]{0,80}qism\(cheklang, 'yomon'/.test(js)
+    && !/class="n-panellar"/.test(js));
+  const { parhezQisqart } = await import('../src/ai/faceAnalysis.js');
+  const uzun = 'Yong‘oqlar va urug‘lar (sink, E vitamini, teri sog‘lig‘ini yaxshilaydi va yallig‘lanishni kamaytiradi)';
+  const q = parhezQisqart(uzun, 60);
+  test('parhez so‘z o‘rtasida kesilmaydi', /…\)$/.test(q) && q.length <= 63 && !/sog‘lig‘ini y…/.test(q), q);
+  test('qisqa band o‘zgarmaydi', parhezQisqart('Suv', 90) === 'Suv');
 }
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);

@@ -1,6 +1,7 @@
 // Tahlil natijasining rasmini chizadi, saqlaydi va yuboradi.
 // Bot ham, Mini App ham shu yerdan foydalanadi — natija ikkalasida bir xil.
 import { qator, qatorlar, sorov, sozlama } from '../db.js';
+import { qatlamRasmlari } from '../rasm/qatlam.js';
 import { natijaSvg } from '../rasm/natija-kartochka.js';
 import { joylarniHisobla } from '../lib/zona.js';
 import { toldir } from '../rasm/shablon.js';
@@ -107,7 +108,15 @@ export async function natijaRasminiYarat({ analysisId, userId, rasmBase64, mime,
     }
   }
 
+  // Tahlil qatlamlari — suratdan hisoblanadi (ilovadagi bilan bir xil).
+  // Chiqmasa kartochka SVG filtrga qaytadi — rasm baribir chiziladi.
+  const qatlamlar = mos
+    ? await qatlamRasmlari(rasmBase64, mime, bilanJoy.yuz_quti || bilanJoy.raw?.yuz_quti || null)
+        .catch((e) => { console.error('QATLAMLAR HISOBLANMADI:', e.message); return null; })
+    : null;
+
   const svg = natijaSvg({
+    qatlamlar,
     rasmBase64: mos ? rasmBase64 : null,
     mime: mos ? mime : 'image/jpeg',
     tahlil: bilanJoy,

@@ -64,42 +64,27 @@ const T = {
   qizil:   '#FF6B5A',
 };
 
-/* Teri «rentgeni» — SVG filtrlari bilan.
- *
- * `feColorMatrix` — resvg to'liq qo'llab-quvvatlaydigan standart
- * filtr. Rasmning o'zi o'zgarmaydi: faqat rang kanallari boshqacha
- * aralashtiriladi, xuddi dermatolog lampasi ostida ko'rgandek.
- */
-/* Teri «rentgeni» — ILOVADAGI qatlamlar bilan aynan bir xil
-   ro'yxat va tartib. Rasm bilan ilova boshqa-boshqa narsa
-   ko'rsatsa, odam qaysi biriga ishonishni bilmaydi. */
+/* Teri «rentgeni» — ILOVADAGI qatlamlar bilan aynan bir xil ro'yxat va
+   tartib (src/rasm/qatlam.js → public/app/qatlam.js). Asosiy yo'l —
+   suratdan hisoblangan PNG (`qatlamlar`). SVG filtri faqat zaxira:
+   qatlam hisoblanmagan bo'lsa (masalan sinovda) kartochka bo'sh qolmasin. */
+const L_MATRITSA = '<feColorMatrix type="saturate" values="0"/>';
+const jadval = (r, g, b) => `<feComponentTransfer><feFuncR type="table" tableValues="${r}"/>`
+  + `<feFuncG type="table" tableValues="${g}"/><feFuncB type="table" tableValues="${b}"/></feComponentTransfer>`;
 const RENTGEN = [
   { kalit: 'asl', nom: 'Asl', filtr: '' },
-  { kalit: 'uv', nom: 'UV',
-    filtr: '<feColorMatrix type="saturate" values="0"/>'
-         + '<feComponentTransfer><feFuncR type="linear" slope="1.5" intercept="-0.22"/>'
-         + '<feFuncG type="linear" slope="1.5" intercept="-0.22"/>'
-         + '<feFuncB type="linear" slope="1.5" intercept="-0.22"/></feComponentTransfer>' },
-  { kalit: 'qizarish', nom: 'Qizarish',
-    filtr: '<feColorMatrix type="saturate" values="2.2"/>'
-         + '<feColorMatrix type="hueRotate" values="-14"/>' },
   { kalit: 'pigment', nom: 'Pigment',
-    filtr: '<feColorMatrix type="matrix" values="'
-         + '-1 0 0 0 1  0 -1 0 0 1  0 0 -1 0 1  0 0 0 1 0"/>'
-         + '<feColorMatrix type="hueRotate" values="165"/>'
-         + '<feColorMatrix type="saturate" values="1.5"/>' },
+    filtr: L_MATRITSA + jadval('0.24 0.55 0.75 0.93 1', '0.09 0.32 0.52 0.78 0.98', '0.02 0.12 0.3 0.55 0.95') },
+  { kalit: 'qizarish', nom: 'Qizarish',
+    filtr: L_MATRITSA + jadval('0.33 0.62 0.86 0.95 1', '0.02 0.09 0.4 0.75 0.97', '0.06 0.18 0.5 0.8 0.97') },
+  { kalit: 'bakteriya', nom: 'Bakteriya',
+    filtr: L_MATRITSA + jadval('0 0.01 0.03 0.2 0.48', '0 0.14 0.5 0.8 1', '0 0.03 0.12 0.3 0.5') },
+  { kalit: 'uv', nom: 'UV',
+    filtr: L_MATRITSA + jadval('0 0.04 0.12 0.4 0.78', '0.01 0.1 0.35 0.6 0.86', '0.05 0.38 0.85 1 1') },
   { kalit: 'tekstura', nom: 'Tekstura',
-    filtr: '<feColorMatrix type="saturate" values="0"/>'
-         + '<feComponentTransfer><feFuncR type="linear" slope="2.4" intercept="-0.6"/>'
+    filtr: L_MATRITSA + '<feComponentTransfer><feFuncR type="linear" slope="2.4" intercept="-0.6"/>'
          + '<feFuncG type="linear" slope="2.4" intercept="-0.6"/>'
          + '<feFuncB type="linear" slope="2.4" intercept="-0.6"/></feComponentTransfer>' },
-  { kalit: 'namlik', nom: 'Namlik',
-    // Ko'k tomon MO‘TADIL suriladi. Kuchli koeffitsientda butun
-    // kadr bir tekis ko'k bo'lib qolar va teri ko'rinmay ketardi —
-    // rentgen emas, rangli filtr bo'lib chiqardi.
-    filtr: '<feColorMatrix type="saturate" values="0"/>'
-         + '<feColorMatrix type="matrix" values="'
-         + '0.58 0 0 0 0  0.78 0 0 0 0.03  1 0 0 0 0.10  0 0 0 1 0"/>' },
 ];
 
 const OYLAR = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
@@ -201,7 +186,7 @@ function qoplash(qx, qy, qen, qboy, rEn, rBoy) {
  */
 export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar = [],
                             brend, logoBase64 = null, logoMime = 'image/png', mavzu = {},
-                            sozlama = null }) {
+                            sozlama = null, qatlamlar = null }) {
   // Kartochka ko'rinishi admin paneldan (yordamchi orqali) sozlanadi.
   const S = sozlama && typeof sozlama === 'object'
     ? sozlama : kartochkaSozlamasi({}, tahlil?.jins || '');
@@ -301,9 +286,12 @@ export function natijaSvg({ rasmBase64, mime = 'image/jpeg', tahlil, tavsiyalar 
       const ky = y + (i % 3) * (ESKIZ + ESKIZ_ORALIQ);
       q.push(`<clipPath id="rk${i}"><rect x="${kx}" y="${ky}" width="${ESKIZ}" height="${ESKIZ}" rx="18"/></clipPath>
         <g clip-path="url(#rk${i})">
-          <image href="data:${mime};base64,${rasmBase64}" x="${kx}" y="${ky}"
-            width="${ESKIZ}" height="${ESKIZ}"
-            preserveAspectRatio="xMidYMid slice"${r.filtr ? ` filter="url(#f-${r.kalit})"` : ''}/>
+          ${qatlamlar?.[r.kalit]
+            ? `<image href="data:image/png;base64,${qatlamlar[r.kalit]}" x="${kx}" y="${ky}"
+                width="${ESKIZ}" height="${ESKIZ}" preserveAspectRatio="xMidYMid slice"/>`
+            : `<image href="data:${mime};base64,${rasmBase64}" x="${kx}" y="${ky}"
+                width="${ESKIZ}" height="${ESKIZ}"
+                preserveAspectRatio="xMidYMid slice"${r.filtr ? ` filter="url(#f-${r.kalit})"` : ''}/>`}
           <rect x="${kx}" y="${ky + ESKIZ - 46}" width="${ESKIZ}" height="46" fill="${T.fon}" opacity="0.72"/>
         </g>`);
       q.push(matn(r.nom, ky + ESKIZ - 16, { x: kx + ESKIZ / 2, markaz: true,

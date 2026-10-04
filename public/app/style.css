@@ -2634,3 +2634,86 @@ body.sahifa-ochiq .tost{bottom:calc(96px + env(safe-area-inset-bottom))}
   .oyna-pastki .asosiy>i[data-ik]{display:none}
   .oyna-pastki-narx b{font-size:17.5px}
 }
+
+/* ═════════════ TAHLIL QATLAMLARI — KLINIK SKANER ═════════════
+   3 ustunli to'r (namunadagidek): har qatlam suratning o'z nisbatida,
+   qora ramkada. Tanlansa — tepadagi suratda ajratgich bilan ochiladi. */
+#tab-natija .n-qatlam-bolim{margin-bottom:16px}
+#tab-natija .n-qatlamlar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;overflow:visible;padding:2px 0 0}
+#tab-natija .n-qatlam{width:auto;display:flex;flex-direction:column;align-items:stretch;gap:3px;
+  animation:k-paydo .4s calc(var(--k) * .06s) var(--k-egri) both}
+#tab-natija .n-qatlam-rasm{position:relative;height:auto;aspect-ratio:3/4;border-radius:14px;
+  border:2px solid rgba(255,255,255,.08);background:#000;overflow:hidden}
+#tab-natija .n-qatlam-rasm img{transition:opacity .4s ease}
+#tab-natija .n-qatlam-rasm.hisoblanmoqda img{opacity:.35}
+#tab-natija .n-qatlam-rasm.hisoblanmoqda::after{content:'';position:absolute;left:0;right:0;top:0;height:2px;
+  background:#bddb7d;box-shadow:0 0 12px 3px rgba(189,219,125,.7);animation:n-lazer-intro 1.1s linear infinite}
+#tab-natija .n-qatlam.tanlangan .n-qatlam-rasm{border-color:var(--k-lime);
+  box-shadow:0 0 0 3px rgba(189,219,125,.18),0 8px 22px -10px rgba(189,219,125,.6)}
+#tab-natija .n-qatlam b{font-size:13px;color:#fff;margin-top:2px;text-align:left;padding-left:2px}
+#tab-natija .n-qatlam small{font-size:11px;color:var(--och);line-height:1.2;padding-left:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tab-natija .n-qatlam.tanlangan b{color:var(--k-lime)}
+.n-qatlam-izoh{display:flex;gap:6px;align-items:flex-start;margin:10px 2px 0;font-size:12px;
+  line-height:1.4;color:var(--och)}
+.n-qatlam-izoh i[data-ik]{margin-top:1px}
+
+/* Asl surat ustidagi qatlam va ajratgich */
+.n-qatlam-ust{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;
+  clip-path:inset(0 0 0 50%)}
+.n-ajratgich{position:absolute;top:0;bottom:0;left:50%;z-index:2;width:44px;margin-left:-22px;
+  touch-action:none;cursor:ew-resize;display:flex;justify-content:center}
+.n-ajratgich[hidden]{display:none}
+.n-ajratgich>i{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;background:#fff;
+  box-shadow:0 0 10px rgba(0,0,0,.6)}
+.n-ajratgich>span{position:absolute;top:50%;left:50%;width:36px;height:36px;margin:-18px 0 0 -18px;
+  border-radius:50%;display:grid;place-items:center;background:#fff;color:#2a0a12;
+  box-shadow:0 4px 16px rgba(0,0,0,.5);transition:transform .15s ease}
+.n-ajratgich.surilmoqda>span{transform:scale(1.15)}
+.n-ajratgich em{position:absolute;bottom:52px;font-style:normal;font-size:11px;font-weight:800;
+  letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:7px;white-space:nowrap;
+  background:rgba(0,0,0,.6);color:#fff;pointer-events:none}
+.n-ajratgich em.chap{right:28px}
+.n-ajratgich em.ong{left:28px;background:rgba(189,219,125,.92);color:#1f2d07}
+
+/* ═════════════ YIG'MA NATIJA KARTALARI ═════════════ */
+#tab-natija details.n-yigma{margin:0 0 12px;border-radius:20px;background:var(--panel);
+  border:1px solid var(--chiziq);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);overflow:hidden}
+details.n-yigma>summary{list-style:none;display:flex;align-items:center;gap:12px;padding:15px 16px;cursor:pointer}
+details.n-yigma>summary::-webkit-details-marker{display:none}
+details.n-yigma>summary::marker{content:''}
+.n-yigma-belgi{flex:0 0 auto;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;
+  background:rgba(255,255,255,.08);color:#fff}
+.n-yigma-nom{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.n-yigma-nom b{font-size:16px;font-weight:800;color:#fff}
+.n-yigma-nom small{font-size:12.5px;color:var(--och)}
+details.n-yigma[open] .n-ochish::before{transform:rotate(225deg) translate(-3px,-3px)}
+.n-yigma-ich{padding:0 16px 16px;animation:k-paydo .3s var(--k-egri) both}
+#tab-natija .n-yigma.n-kok .n-yigma-belgi{background:rgba(96,184,255,.14);color:#8cc8ff}
+#tab-natija .n-yigma.n-sariq .n-yigma-belgi{background:rgba(246,163,56,.14);color:#ffc069}
+#tab-natija .n-yigma.n-ovqat-karta .n-yigma-belgi{background:rgba(60,216,139,.14);color:#6fe3a8}
+#tab-natija .n-yigma.n-kok,#tab-natija .n-yigma.n-sariq{background:var(--panel);border-color:var(--chiziq)}
+
+/* Ovqatlanish: bitta karta, ustma-ust */
+.n-ovqat{padding:12px 14px;border-radius:16px}
+.n-ovqat+.n-ovqat{margin-top:10px}
+.n-ovqat h4{display:flex;align-items:center;gap:7px;margin:0 0 10px;font-size:14.5px;font-weight:800;
+  letter-spacing:.02em}
+.n-ovqat ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.n-ovqat li{display:flex;gap:10px;align-items:flex-start}
+.n-ovqat li>i{flex:0 0 auto;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;margin-top:1px}
+.n-ovqat li>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.n-ovqat li b{font-size:15px;font-weight:700;line-height:1.35}
+.n-ovqat li small{font-size:13px;line-height:1.4;opacity:.8}
+.n-ovqat.yaxshi{background:rgba(60,216,139,.1);color:#c9f7df}
+.n-ovqat.yaxshi h4{color:#6fe3a8}
+.n-ovqat.yaxshi li>i{background:#2fbf7a;color:#fff}
+.n-ovqat.yomon{background:rgba(240,71,95,.1);color:#ffd6dd}
+.n-ovqat.yomon h4{color:#ff7b8e}
+.n-ovqat.yomon li>i{background:#e5394f;color:#fff}
+.n-ovqat-izoh{display:flex;gap:8px;align-items:flex-start;margin:12px 2px 0;font-size:13px;line-height:1.45;color:var(--kul)}
+/* Muammolar sarlavhasi tor ekranda ikki qatorga bo'linmasin */
+#tab-natija .n-bolim-bosh{flex-wrap:wrap;row-gap:4px}
+.n-ajratgich em{bottom:auto;top:calc(50% + 26px)}
+@media (max-width:420px){#tab-natija .n-muammo-izoh{display:none}}
+#tab-natija .n-qatlam small{text-align:left}

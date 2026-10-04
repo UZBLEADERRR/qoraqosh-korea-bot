@@ -2831,7 +2831,8 @@ const KALIT_IKON = {
  *  bo'lib ekranni to'ldirar va hech kim o'qimasdi. */
 function ovqatBandi(matn) {
   const s = String(matn || '').trim();
-  const m = s.match(/^(.+?)\s*[（(]\s*(.+?)\s*[)）]\s*$/);
+  // Qavs yopilmagan bo'lsa ham (eski, kesilgan javob) — sabab alohida
+  const m = s.match(/^(.+?)\s*[（(]\s*(.+?)\s*[)）]?\s*$/);
   return m ? { nom: m[1], sabab: m[2] } : { nom: s, sabab: '' };
 }
 
@@ -2846,20 +2847,67 @@ function ovqatBandi(matn) {
  * («butun yuz bo'ylab»). Shunda ham odam o'z terisini boshqacha
  * ko'radi va tahlil quruq matn bo'lib qolmaydi.
  */
+/* TAHLIL QATLAMLARI — klinik skaner (VISIA) ko'rinishida.
+ *
+ * Har qatlam suratning PIKSELLARIDAN shu telefonda hisoblanadi
+ * (public/app/qatlam.js — server natija rasmida ham AYNAN shu fayl).
+ * AI ham, server ham ishlatilmaydi — pul ketmaydi. Hisoblanguncha
+ * eskizda CSS filtri turadi. */
+const QATLAM_CSS = {
+  pigment:   'sepia(1) contrast(1.4) brightness(1.05)',
+  qizarish:  'sepia(1) hue-rotate(-38deg) saturate(4) contrast(1.1)',
+  bakteriya: 'grayscale(1) sepia(1) hue-rotate(70deg) saturate(6) brightness(.8)',
+  uv:        'grayscale(1) sepia(1) hue-rotate(185deg) saturate(5) brightness(.8)',
+  tekstura:  'grayscale(1) contrast(2) brightness(1.05)',
+};
 const RENTGEN = [
-  { kalit: 'asl',      nom: 'Asl',       izoh: 'filtrsiz',
-    css: 'none' },
-  { kalit: 'uv',       nom: 'UV',        izoh: 'yashirin dog‘lar',
-    css: 'grayscale(1) contrast(1.45) brightness(.9)' },
-  { kalit: 'qizarish', nom: 'Qizarish',  izoh: 'yallig‘lanish',
-    css: 'sepia(1) hue-rotate(-38deg) saturate(4.2) contrast(1.05)' },
-  { kalit: 'pigment',  nom: 'Pigment',   izoh: 'pigment dog‘lari',
-    css: 'sepia(.9) contrast(1.35) brightness(.95)' },
-  { kalit: 'tekstura', nom: 'Tekstura',  izoh: 'poralar va relef',
-    css: 'grayscale(1) contrast(1.95) brightness(1.05)' },
-  { kalit: 'namlik',   nom: 'Namlik',    izoh: 'teri namligi',
-    css: 'grayscale(1) sepia(1) hue-rotate(168deg) saturate(5) brightness(.85)' },
+  { kalit: 'asl', nom: 'Asl', izoh: 'filtrsiz', css: 'none' },
+  ...((window.Qatlam?.QATLAMLAR) || []).map((q) => ({ ...q, css: QATLAM_CSS[q.kalit] || 'none' })),
 ];
+
+const qatlamKesh = new Map();       // rasm manzili → {kalit: dataURL}
+
+/**
+ * Hamma qatlamni bir marta hisoblaydi. ~640 px: telefonda bitta qatlam
+ * o'nlab millisekund. Bo'laklab ishlaydi — ekran qotmaydi.
+ * @param {HTMLImageElement} im
+ * @param {{x,y,en,boy}|null} yuz  yuz qutisi rasm foizida
+ * @param {(kalit:string, url:string)=>void} tayyor  har qatlam tayyor bo'lganda
+ */
+function qatlamlarniYasa(im, yuz, tayyor) {
+  const kalitM = im.currentSrc || im.src;
+  const bor = qatlamKesh.get(kalitM);
+  if (bor) { Object.entries(bor).forEach(([k, u]) => tayyor(k, u)); return; }
+  const natija = {};
+  qatlamKesh.set(kalitM, natija);
+  let W, H, tayyor_;
+  try {
+    const k = Math.min(1, 640 / Math.max(im.naturalWidth, im.naturalHeight));
+    W = Math.max(1, Math.round(im.naturalWidth * k)); H = Math.max(1, Math.round(im.naturalHeight * k));
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(im, 0, 0, W, H);
+    tayyor_ = Qatlam.tayyorla(x.getImageData(0, 0, W, H).data, W, H, yuz);
+  } catch { return; }                  // rasm o'qilmadi — CSS filtr qoladi
+
+  const qatlamlar = RENTGEN.filter((r) => r.q);
+  let n = 0;
+  const keyingi = () => {
+    const r = qatlamlar[n++];
+    if (!r) return;
+    try {
+      const c = document.createElement('canvas'); c.width = W; c.height = H;
+      const x = c.getContext('2d');
+      const o = x.createImageData(W, H);
+      o.data.set(tayyor_.chiz(r.kalit));
+      x.putImageData(o, 0, 0);
+      natija[r.kalit] = c.toDataURL('image/jpeg', 0.88);
+      tayyor(r.kalit, natija[r.kalit]);
+    } catch {}
+    setTimeout(keyingi, 16);           // har qatlamdan keyin ekran nafas oladi
+  };
+  setTimeout(keyingi, 30);
+}
 
 /** Katakka sig'adigan qisqa nom (to'liq nomi ro'yxatda qoladi). */
 const KALIT_QISQA = {
@@ -2994,6 +3042,13 @@ function natijaniChiz() {
     <div class="n-yuz${intro ? ' intro' : ''}" data-yuz='${t.raw?.yuz_quti ? esc(JSON.stringify(t.raw.yuz_quti)) : ''}'>
       <div class="n-yuz-media" id="n-yuz-media">
         <img src="/media/${esc(t.yuz_rasm_id)}" alt="Tahlil qilingan surat">
+        <!-- Tanlangan qatlam asl surat USTIDA: ajratgichni surib solishtiriladi -->
+        <img class="n-qatlam-ust" alt="" hidden>
+      </div>
+      <div class="n-ajratgich" hidden role="slider" aria-label="Asl surat bilan solishtirish"
+        aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" tabindex="0">
+        <i></i><span>${ik('almash', 15)}</span>
+        <em class="chap">Asl</em><em class="ong"></em>
       </div>
       <!-- SKANER QATLAMI: to'r, lazer chizig'i, yuz ramkasi va o'lchov
            yozuvlari. Hammasi bezak (aria-hidden), lekin yozuvlar HAQIQIY:
@@ -3041,18 +3096,21 @@ function natijaniChiz() {
   <!-- ══ TAHLIL QATLAMLARI ══
        Hammasi SHU suratdan chiqadi: rang kanallari boshqacha
        aralashtiriladi, xuddi dermatolog lampasi ostida ko'rgandek. -->
-  <section class="n-bolim">
-    <div class="n-bolim-bosh"><h3>Tahlil qatlamlari</h3></div>
+  <section class="n-bolim n-qatlam-bolim">
+    <div class="n-bolim-bosh"><h3>Tahlil qatlamlari</h3>
+      <span class="n-bolim-izoh">bosing — suratda ochiladi</span></div>
     <div class="n-qatlamlar" role="tablist">
       ${RENTGEN.map((r, i) => `
-        <button role="tab" class="n-qatlam${i === 0 ? ' tanlangan' : ''}"
+        <button role="tab" class="n-qatlam${i === 0 ? ' tanlangan' : ''}" style="--k:${i}"
           data-filtr="${r.kalit}" aria-selected="${i === 0}">
-          <span class="n-qatlam-rasm">
+          <span class="n-qatlam-rasm${r.q ? ' hisoblanmoqda' : ''}">
             <img src="/media/${esc(t.yuz_rasm_id)}" alt="" loading="lazy"
-              style="filter:${r.css}"></span>
-          <b>${r.nom}</b>
+              style="filter:${r.css}" data-qatlam-rasm="${r.kalit}"></span>
+          <b>${r.nom}</b><small>${esc(r.izoh)}</small>
         </button>`).join('')}
     </div>
+    <p class="n-qatlam-izoh">${ik('ogoh', 13)}Qatlamlar suratingizdan telefonda hisoblanadi —
+      bu vizualizatsiya, UV apparat tekshiruvi emas.</p>
   </section>` : ''}
 
   <section class="n-bolim">
@@ -3090,18 +3148,17 @@ function natijaniChiz() {
       </svg>
       <span>28 kun ichida<br>ko‘rinadigan natija</span>
     </div>
-    ${tavsiyalar.length ? `<button class="n-banner-tugma" id="t-rejam">Mening rejam ${ik('keyingi', 15)}</button>` : ''}
   </section>
 
   ${muammolar.length ? `
   <section class="n-bolim">
     <div class="n-bolim-bosh">
       <h3>Aniqlangan muammolar</h3>
-      <span class="n-bolim-izoh">bosing — tafsiloti</span>
+      <span class="n-bolim-izoh n-muammo-izoh">bosing — tafsiloti</span>
       <button id="t-hammasini-och">Hammasi</button>
     </div>
     ${muammolar.map((m, i) => `
-      <details class="n-muammo" id="muammo-${m.tartib}" data-muammo="${m.tartib}"${i === 0 ? ' open' : ''}>
+      <details class="n-muammo" id="muammo-${m.tartib}" data-muammo="${m.tartib}">
         <summary>
           <span class="n-raqam d${Math.min(3, m.daraja || 1)}">${m.tartib}</span>
           <span class="n-muammo-nom">${esc(KALIT_NOM[m.kalit] || m.nom)}
@@ -3128,7 +3185,6 @@ function natijaniChiz() {
     <span>Terini shu holatda saqlash uchun quyidagi parvarish yetarli.</span>
   </section>`}
 
-  ${natijaOvqat(parhez)}
   ${natijaTavsiya(tavsiyalar, jami, tejash, arzonBor)}
   ${natijaParvarish(tavsiyalar)}
   ${natijaPrognoz(t)}
@@ -3145,6 +3201,9 @@ function natijaniChiz() {
   <div class="n-karta n-oxir">
     <button class="ikkilamchi" id="t-qayta">${ik('kamera',18)}Qayta tahlil qilish</button>
   </div>
+
+  <!-- Ovqatlanish — ENG PASTDA, bitta kartada -->
+  ${natijaOvqat(parhez)}
 
   <p class="n-eslatma">Bu tibbiy tashxis emas — kosmetologik tavsiya.<br>
     KiOVO · Better Skin, Brighter You</p>`;
@@ -3189,11 +3248,70 @@ function natijaniChiz() {
     titra();
   };
 
+  // Qatlamlar: suratdan hisoblanadi, tayyor bo'lgani darhol ko'rinadi
+  const qatlamUrl = {};
+  const ust = $('.n-qatlam-ust', el), ajr = $('.n-ajratgich', el);
+  const asosRasm = $('#n-yuz-media img', el);
+  let tanlanganQatlam = 'asl';
+  const ustniQoy = (r) => {
+    if (!ust || !ajr) return;
+    if (r.kalit === 'asl') { ust.hidden = true; ajr.hidden = true; return; }
+    ust.hidden = false; ajr.hidden = false;
+    if (qatlamUrl[r.kalit]) { ust.src = qatlamUrl[r.kalit]; ust.style.filter = ''; }
+    else { ust.src = asosRasm.src; ust.style.filter = r.css; }
+    $('.ong', ajr).textContent = r.nom;
+  };
+  if (asosRasm) {
+    const boshla = () => qatlamlarniYasa(asosRasm, t.raw?.yuz_quti || null, (kalit, url) => {
+      qatlamUrl[kalit] = url;
+      const im = el.querySelector(`[data-qatlam-rasm="${kalit}"]`);
+      if (im) { im.src = url; im.style.filter = ''; im.parentElement.classList.remove('hisoblanmoqda'); }
+      if (kalit === tanlanganQatlam) ustniQoy(RENTGEN.find((x) => x.kalit === kalit));
+    });
+    if (asosRasm.complete && asosRasm.naturalWidth) boshla();
+    else asosRasm.addEventListener('load', boshla, { once: true });
+  }
+  // Ajratgich: chapda asl surat, o'ngda qatlam — barmoq bilan suriladi
+  const ajratQoy = (foiz) => {
+    const f = Math.max(0, Math.min(100, foiz));
+    if (ust) ust.style.clipPath = `inset(0 0 0 ${f}%)`;
+    if (ajr) { ajr.style.left = `${f}%`; ajr.setAttribute('aria-valuenow', String(Math.round(f))); }
+  };
+  if (ajr) {
+    ajratQoy(50);
+    const quti = $('.n-yuz', el);
+    const sur = (e) => {
+      const q = quti.getBoundingClientRect();
+      ajratQoy(((e.clientX - q.left) / q.width) * 100);
+    };
+    ajr.addEventListener('pointerdown', (e) => {
+      e.preventDefault(); ajr.setPointerCapture(e.pointerId); ajr.classList.add('surilmoqda');
+      const qimir = (ev) => sur(ev);
+      const tug = () => { ajr.classList.remove('surilmoqda'); ajr.removeEventListener('pointermove', qimir); };
+      ajr.addEventListener('pointermove', qimir);
+      ajr.addEventListener('pointerup', tug, { once: true });
+      ajr.addEventListener('pointercancel', tug, { once: true });
+    });
+    ajr.addEventListener('keydown', (e) => {
+      const f = parseFloat(ajr.style.left) || 50;
+      if (e.key === 'ArrowLeft') ajratQoy(f - 5);
+      if (e.key === 'ArrowRight') ajratQoy(f + 5);
+    });
+  }
+
   $$('[data-filtr]', el).forEach((b) => b.onclick = () => {
     const r = RENTGEN.find((x) => x.kalit === b.dataset.filtr);
     if (!r) return;
-    const media = $('#n-yuz-media', el);
-    if (media) media.style.filter = r.css;
+    tanlanganQatlam = r.kalit;
+    ustniQoy(r);
+    // Yangi qatlam ochilganda ajratgich chapdan o'rtaga «ochiladi»
+    if (r.kalit !== 'asl' && ust) {
+      ust.animate?.([{ clipPath: 'inset(0 0 0 100%)' }, { clipPath: 'inset(0 0 0 50%)' }],
+        { duration: 650, easing: 'cubic-bezier(.3,.7,.3,1)' });
+      ajratQoy(50);
+    }
+    // Surat ko'rinib tursin — qatlam pastda tanlanadi, natija tepada
+    $('.n-yuz', el)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     // Qatlam almashganda lazer yana bir o'tadi — «qayta skanerlandi»
     const qt = $('.n-yuz', el);
     if (qt) { qt.classList.remove('qayta'); void qt.offsetWidth; qt.classList.add('qayta'); }
@@ -3222,8 +3340,6 @@ function natijaniChiz() {
   const a = $('#t-arzon');
   if (a) a.onclick = () => { holat.arzon = !holat.arzon; titra(); natijaniChiz(); };
   $('#t-qayta').onclick = () => { holat.natijaKorish = null; tabOch('skaner'); };
-  const rejam = $('#t-rejam');
-  if (rejam) rejam.onclick = () => { titra(); $('#n-reja', el)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   const oxirgiga = $('#t-oxirgiga');
   if (oxirgiga) oxirgiga.onclick = () => { holat.natijaKorish = null; titra(); natijaniChiz(); scrollTo({ top: 0 }); };
 
@@ -3472,22 +3588,40 @@ function joyniAjrat(joy, olingan, eng_kam = 9) {
 }
 
 /** Ovqat: ikki qarama-qarshi panel — yashil «mumkin», qizil «yo'q». */
+/**
+ * Yig'ma natija kartasi — sarlavha qatori ko'rinadi, ichi bosilganda
+ * ochiladi. Natija sahifasi uzun edi: hamma bo'lim ochiq turgani uchun
+ * odam eng muhimini (ko'rsatkichlar, muammolar) topish uchun uzoq surardi.
+ */
+const yigmaKarta = (sinf, ikon, sarlavha, izoh, ich) => `
+  <details class="n-yigma ${sinf}">
+    <summary>
+      <span class="n-yigma-belgi">${ik(ikon, 18)}</span>
+      <span class="n-yigma-nom"><b>${sarlavha}</b>${izoh ? `<small>${izoh}</small>` : ''}</span>
+      <i class="n-ochish" aria-hidden="true"></i>
+    </summary>
+    <div class="n-yigma-ich">${ich}</div>
+  </details>`;
+
+/** Ovqatlanish — BITTA karta, eng pastda: tepada «yeng», ostida «kamaytiring». */
 function natijaOvqat(parhez) {
   const foydali = (parhez.foydali || []).slice(0, 5);
   const cheklang = (parhez.cheklang || []).slice(0, 5);
   if (!foydali.length && !cheklang.length) return '';
-  const panel = (band, tur, sarlavha, belgi) => band.length ? `
-    <div class="n-panel ${tur}">
-      <h3>${belgi}${sarlavha}</h3>
-      <ul>
-        ${band.map((b) => `<li><i>${ik(tur === 'yaxshi' ? 'tasdiq' : 'yopish', 13)}</i>
-          <span>${esc(ovqatBandi(b).nom)}</span></li>`).join('')}
-      </ul>
+  const qism = (band, tur, sarlavha, belgi) => band.length ? `
+    <div class="n-ovqat ${tur}">
+      <h4>${ik(belgi, 16)}${sarlavha}</h4>
+      <ul>${band.map((b) => {
+        const o = ovqatBandi(b);
+        return `<li><i>${ik(tur === 'yaxshi' ? 'tasdiq' : 'yopish', 13)}</i>
+          <span><b>${esc(o.nom)}</b>${o.sabab ? `<small>${esc(o.sabab)}</small>` : ''}</span></li>`;
+      }).join('')}</ul>
     </div>` : '';
-  return `<div class="n-panellar">
-    ${panel(foydali, 'yaxshi', 'Yeng', ik('barg', 17))}
-    ${panel(cheklang, 'yomon', 'Kamaytiring', ik('ogoh', 17))}
-  </div>`;
+  return yigmaKarta('n-ovqat-karta', 'barg', 'Ovqatlanish',
+    `${foydali.length} ta foydali · ${cheklang.length} ta cheklang`, `
+    ${qism(foydali, 'yaxshi', 'Ko‘proq yeng', 'tasdiq')}
+    ${qism(cheklang, 'yomon', 'Kamaytiring', 'ogoh')}
+    ${parhez.izoh ? `<p class="n-ovqat-izoh">${ik('tomchi', 14)}${esc(parhez.izoh)}</p>` : ''}`);
 }
 
 /** Mahsulotlar: tartib raqami bilan, yon tomonga siriladi. */
@@ -3536,22 +3670,19 @@ function natijaParvarish(tavsiyalar) {
         <span>${esc(nomi(r.p))}</span></li>`).join('')}</ol>
     </div>`;
   };
-  return `<section class="n-karta n-kok" id="n-reja">
-    <h3 class="n-karta-bosh">Har kuni shunday qiling</h3>
+  return yigmaKarta('n-kok', 'soat', 'Har kuni shunday qiling', 'ertalab va kechqurun tartibi', `
     <div class="n-vaqtlar">
       ${ustun(ERTALAB, 'Ertalab', ik('quyosh', 16))}
       ${ustun(KECHASI, 'Kechqurun', ik('oy', 16))}
     </div>
-    <p class="n-oyoq">Natija 4-8 haftada ko‘rinadi.</p>
-  </section>`;
+    <p class="n-oyoq">Natija 4-8 haftada ko‘rinadi.</p>`);
 }
 
 /** E'tibor bermasangiz nima bo'ladi — sariq panel. */
 function natijaPrognoz(t) {
   const prognoz = [...(t.forecast || [])].sort((a, b) => b.ehtimol - a.ehtimol).slice(0, 3);
   if (!prognoz.length) return '';
-  return `<section class="n-karta n-sariq">
-    <h3 class="n-karta-bosh">${ik('ogoh', 17)}E’tibor bermasangiz</h3>
+  return yigmaKarta('n-sariq', 'ogoh', 'E’tibor bermasangiz', `${prognoz.length} ta ehtimol`, `
     ${prognoz.map((p) => `
       <div class="n-prognoz">
         <span class="n-prognoz-nom">${esc(p.muammo)}</span>
@@ -3559,8 +3690,7 @@ function natijaPrognoz(t) {
         <span class="n-chiziq"><i class="yomon" style="width:${p.ehtimol}%"></i></span>
         <em>${esc(p.muddat || '')}${p.muddat ? ' — ' : ''}${esc(p.natija)}</em>
       </div>`).join('')}
-    <p class="n-oyoq">Bu ehtimollik bahosi, tibbiy tashxis emas.</p>
-  </section>`;
+    <p class="n-oyoq">Bu ehtimollik bahosi, tibbiy tashxis emas.</p>`);
 }
 
 /**

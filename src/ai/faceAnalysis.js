@@ -440,6 +440,18 @@ function kasallikniOlib(matn) {
 }
 
 /**
+ * Parhez bandini qisqartiradi — so'z o'rtasida KESMAYDI. Ilgari 60
+ * belgida «sog'lig'ini y» bo'lib qolardi. Uzun bo'lsa oxirgi butun
+ * so'zgacha olinadi, yopilmagan qavs yopiladi.
+ */
+export function parhezQisqart(x, n = 90) {
+  if (x.length <= n) return x;
+  let k = x.slice(0, n).replace(/\s+\S*$/, '').replace(/[\s,;:–—-]+$/, '');
+  k += (k.match(/\(/g) || []).length > (k.match(/\)/g) || []).length ? '…)' : '…';
+  return k;
+}
+
+/**
  * Yuz qutisi (model 0..1000 da beradi) → rasm FOIZIDA {x, y, en, boy}.
  * Ma'nosiz quti (teskari, juda kichik, rasmdan tashqarida) — null:
  * kartochka u holda eski taxminiy joyga qaytadi.
@@ -545,7 +557,7 @@ function tozala(javob, products) {
 
   // Parhez: qisqa bandlar, dori-darmon va ochlik maslahatisiz
   const parhezBand = (r) => (Array.isArray(r) ? r : [])
-    .map((x) => String(x || '').replace(/\s+/g, ' ').trim().slice(0, 60))
+    .map((x) => parhezQisqart(String(x || '').replace(/\s+/g, ' ').trim(), 90))
     .filter(Boolean)
     .filter((x) => !PARHEZ_TAQIQ.test(x))
     .slice(0, 5);
