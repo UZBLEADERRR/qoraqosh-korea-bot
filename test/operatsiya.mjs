@@ -2284,7 +2284,7 @@ console.log('\n── ADMIN YORDAMCHISI ──');
     { fikr: 'yana', amal: 'vosita', vosita: 'mahsulotlar',
       argumentlar_json: '{"chegara":1}', javob: '', reja_izoh: '', takliflar: [] }));
   const a3 = await agentSora({ savol: 'Cheksiz aylana' });
-  test('QADAM SONI cheklangan', (a3.tana.qadamlar || []).length <= 12,
+  test('QADAM SONI cheklangan', (a3.tana.qadamlar || []).length <= 16,
     `${a3.tana.qadamlar?.length} qadam`);
   test('cheklovda ham tushunarli javob', /bo‘laklarga/.test(a3.tana.javob || ''),
     a3.tana.javob?.slice(0, 60));
@@ -2818,7 +2818,7 @@ console.log('\n── YORDAMCHI EKRANI ──');
   // Bo'lim EMAS, alohida ekran
   test('yordamchi bo‘limlar ro‘yxatida yo‘q', !/yordamchi:\s*\{\s*nom:/.test(js));
   test('alohida ekran sifatida ochiladi', js.includes('function yordamchiOch'));
-  test('«Ko‘proq» menyusidan ochiladi', js.includes("id === 't-yordamchi'"));
+  test('«Menyu» oynasidan ochiladi', js.includes("closest('#t-yordamchi')"));
 
   // Pastki menyu ko'rinmasin: ekran butun sahifani qoplaydi
   test('ekran fixed va to‘liq', /\.y-ekran\{[^}]*position:fixed[^}]*inset:0/.test(css),
@@ -2855,12 +2855,14 @@ console.log('\n── YORDAMCHI EKRANI ──');
   test('maydon o‘zi o‘sadi va chegarasi bor',
     /Math\.min\(132, m\.scrollHeight\)/.test(js) && /max-height:132px/.test(css));
 
-  // Suhbat BIR MARTALIK
-  test('yopilganda suhbat tozalanadi',
-    /function yordamchiYop[\s\S]{0,400}yordamchiSuhbat = \[\]/.test(js));
-  test('hech qayerga saqlanmaydi',
-    !/localStorage[^\n]*yordamchi/i.test(js) && !/yordamchi[^\n]*localStorage/i.test(js));
-  test('sarlavhada shu aytilgan', js.includes('Suhbat saqlanmaydi'));
+  // Suhbat bo'lim almashganda yo'qolmaydi — faqat SHU oynada (sessionStorage)
+  test('yopilganda suhbat saqlanadi',
+    /function yordamchiYop[\s\S]{0,400}suhbatniSaqla\(\)/.test(js)
+      && !/function yordamchiYop[\s\S]{0,400}yordamchiSuhbat = \[\]/.test(js));
+  test('faqat shu oynada (localStorage emas)', /sessionStorage\.setItem\(AI_KALIT/.test(js)
+    && !/localStorage[^\n]*(AI_KALIT|yordamchi)/i.test(js));
+  test('eski tasdiq kartasi qayta ochilmaydi', /eskirgan: true/.test(js) && /x\.reja && !x\.reja\.eskirgan/.test(js));
+  test('«Yangi suhbat» tozalaydi', /t-y-tozala[\s\S]{0,200}yordamchiSuhbat = \[\]/.test(js));
   test('telefonda «orqaga» ekranni yopadi', js.includes('popstate'));
 
   // JONLI JARAYON: «nima qilayotgani ko'rinsin»
@@ -5857,6 +5859,129 @@ console.log('\n── OYNA, NARX, IPHONE, TUNGI QIDIRUV, GMAIL ──');
   test('token shakli buzuq — so‘rov ham ketmaydi', await rad(javob(200, {}), 'a b<'), sorovlar.length === 0);
   [config.supabaseUrl, config.supabaseAnonKey] = eski;
   test('sozlanmagan bo‘lsa — rad etiladi', await rad(javob(200, {})));
+}
+
+
+// ═══════════ AI BIZNES VOSITALARI va TAVSIYALAR ═══════════
+// Admin AI ga «bugun nima qilay», «kim sotib olmadi — yoz», «aksiya
+// qil» kabi ishlar uchun vositalar. O'qish vositalari erkin ishlaydi,
+// yozish vositalari faqat tasdiq bilan — bu qoida ham tekshiriladi.
+console.log('\n── AI BIZNES VOSITALARI ──');
+{
+  const { VOSITALAR, vositaniBajar, yozishmi, oldindanSoni } = await import('../src/services/admin-vositalar.js');
+  const B = await import('../src/services/admin-vositalar-biznes.js');
+  const yangiVositalar = ['hisobot', 'kam_qolgan', 'segmentlar', 'lidlar', 'sharhlar', 'katalog_audit',
+    'mahsulot_tahlili', 'buyurtma_holati', 'mijozga_xabar', 'ommaviy_xabar', 'mahsulot_qosh',
+    'chegirma', 'chegirma_olib_tashla'];
+  test('hamma yangi vosita ro‘yxatda', yangiVositalar.every((n) => VOSITALAR[n]),
+    yangiVositalar.filter((n) => !VOSITALAR[n]).join());
+  test('o‘qish vositalari tasdiqsiz', ['hisobot', 'kam_qolgan', 'segmentlar', 'lidlar', 'sharhlar',
+    'katalog_audit', 'mahsulot_tahlili'].every((n) => !yozishmi(n)));
+  test('yozish vositalari TASDIQ bilan', ['buyurtma_holati', 'mijozga_xabar', 'ommaviy_xabar',
+    'mahsulot_qosh', 'chegirma', 'chegirma_olib_tashla'].every((n) => yozishmi(n)));
+
+  // Sinov ma'lumotlari: tahlil qilib sotib olmagan lid + yangi mahsulot
+  // (oldingi uzilgan sinovdan qolgan bo'lsa — avval tozalanadi)
+  await sorov(`delete from users where telegram_id = '880001'`);
+  await sorov(`delete from products where name in ('Biznes Sinov Krem', 'Rasmdan Sinov Serum')`);
+  const lid = await qator(`insert into users (telegram_id, full_name, phone, agreed_at)
+    values ('880001', 'Lid Sinov', '+998901110011', now()) returning id`);
+  await sorov(`insert into analyses (user_id, problems) values ($1, '[{"kalit":"akne","nom":"Akne"}]')`, [lid.id]);
+  const mah = await qator(`insert into products (name, brand, price, cost_price, stock, is_active)
+    values ('Biznes Sinov Krem', 'SinovBrend', 100000, 40000, 2, true) returning id`);
+
+  const h = await vositaniBajar('hisobot', { davr: 'hafta' });
+  test('hisobot: joriy va oldingi davr', h.hozir && h.oldingi && 'daromad' in h.ozgarish_foiz, h.davr);
+  test('hisobot: konversiya 0..100%', h.konversiya_foiz === null || (h.konversiya_foiz >= 0 && h.konversiya_foiz <= 100),
+    String(h.konversiya_foiz));
+  const k = await vositaniBajar('kam_qolgan', { kun: 30 });
+  test('kam qolgan: 2 donali mahsulot ro‘yxatda', k.mahsulotlar.some((x) => x.id === mah.id));
+  const sg = await vositaniBajar('segmentlar', { kun: 14 });
+  test('segmentlar: issiq lid sanaldi', JSON.stringify(sg).includes('tahlil_xaridsiz'));
+  test('lid segmentida sinov mijozi bor', (await B.segmentIdlar('tahlil_xaridsiz', 14)).some((x) => Number(x.id) === Number(lid.id)));
+  const l = await vositaniBajar('lidlar', { tur: 'tahlil', kun: 14 });
+  test('lidlar: ism bilan', JSON.stringify(l).includes('Lid Sinov'));
+  const au = await vositaniBajar('katalog_audit', { chegara: 2 });
+  test('katalog auditi: sifat foizi', typeof au.sifat_foiz === 'number' && au.kamchiliklar?.rasmsiz);
+  const mt = await vositaniBajar('mahsulot_tahlili', { id: mah.id });
+  test('mahsulot tahlili: marja 60%', JSON.stringify(mt).includes('60'), JSON.stringify(mt).slice(0, 80));
+  test('sharhlar: xatosiz', (await vositaniBajar('sharhlar', { kun: 30 })) != null);
+
+  // Chegirma: eski narx saqlanadi, olib tashlansa qaytadi
+  const ch = await vositaniBajar('chegirma', { idlar: [mah.id], foiz: 20 });
+  const ch1 = await qator(`select price, old_price from products where id = $1`, [mah.id]);
+  test('chegirma: 20% — 80 000, eski narx saqlandi', ch.ozgardi === 1 && ch1.price === 80000 && ch1.old_price === 100000,
+    `${ch1.price}/${ch1.old_price}`);
+  await vositaniBajar('chegirma', { idlar: [mah.id], foiz: 50 });
+  const ch2 = await qator(`select price, old_price from products where id = $1`, [mah.id]);
+  test('qayta chegirma ASL narxdan hisoblanadi', ch2.price === 50000 && ch2.old_price === 100000);
+  test('filtrsiz chegirma rad etiladi', (await vositaniBajar('chegirma', { foiz: 10 })).ozgardi === 0);
+  test('noto‘g‘ri foiz rad etiladi', (await vositaniBajar('chegirma', { idlar: [mah.id], foiz: 95 })).ozgardi === 0);
+  test('oldindan son: faqat chegirmalilar', await oldindanSoni('chegirma_olib_tashla', { idlar: [mah.id] }) === 1);
+  await vositaniBajar('chegirma_olib_tashla', { idlar: [mah.id] });
+  const ch3 = await qator(`select price, old_price from products where id = $1`, [mah.id]);
+  test('chegirma olib tashlandi — asl narx', ch3.price === 100000 && ch3.old_price === null);
+
+  // Xabarlar
+  yuborilgan.length = 0;
+  const mx = await vositaniBajar('mijozga_xabar', { telefon: '90 111 00 11', matn: 'Salom! <b>sinov</b>' });
+  test('mijozga xabar: telefon bo‘yicha topildi va yetdi', mx.yuborildi === 1 && mx.kanallar.includes('telegram'));
+  test('xabar HTML sifatida emas, matn sifatida', yuborilgan.some((x) => String(x.chat_id) === '880001'
+    && /&lt;b&gt;sinov/.test(x.text || '')));
+  test('topilmagan mijoz — tushunarli javob', (await vositaniBajar('mijozga_xabar', { telefon: '000', matn: 'x y' })).yuborildi === 0);
+  const ox = await vositaniBajar('ommaviy_xabar', { segment: 'tahlil_xaridsiz', kun: 14, matn: 'Sizga mos krem bor!' });
+  const yb = await qator(`select jami from yuborishlar where id = $1`, [ox.yuborish_id]);
+  test('ommaviy xabar FAQAT segmentga', ox.yuborildi >= 1 && yb.jami === ox.yuborildi
+    && ox.yuborildi < Number(await qiymat(`select count(*) from users where telegram_id ~ '^[0-9]+$'`)),
+    `${ox.yuborildi} kishi`);
+  test('noto‘g‘ri segment rad etiladi', (await vositaniBajar('ommaviy_xabar', { segment: 'yoq', matn: 'salom hammaga' })).yuborildi === 0);
+  test('oldindan son: segment hajmi', await oldindanSoni('ommaviy_xabar', { segment: 'tahlil_xaridsiz', kun: 14 }) >= 1);
+
+  // Mahsulot qo'shish
+  const mq = await vositaniBajar('mahsulot_qosh', { name: 'Rasmdan Sinov Serum', price: 155500, brand: 'X', stock: 3, yopiq: true });
+  const mq1 = await qator(`select price, is_active, stock from products where id = $1`, [mq.mahsulot?.id]);
+  test('mahsulot qo‘shildi (yopiq holda)', mq.qoshildi === 1 && mq1?.is_active === false && mq1.stock === 3);
+  test('narxsiz mahsulot qo‘shilmaydi', (await vositaniBajar('mahsulot_qosh', { name: 'Narxsiz' })).qoshildi === 0);
+  test('yo‘q bo‘lim — rad', (await vositaniBajar('mahsulot_qosh', { name: 'A B', price: 1000, bolim: 'yoqbolim' })).qoshildi === 0);
+
+  // Buyurtma holati: noto'g'ri holat va topilmagan raqam
+  test('noto‘g‘ri holat rad etiladi', (await vositaniBajar('buyurtma_holati', { holat: 'uchdi', id: 1 })).ozgardi === 0);
+  test('topilmagan raqam — o‘zgarish yo‘q', (await vositaniBajar('buyurtma_holati', { holat: 'bekor', raqam: 'KQ-YOQ' })).ozgardi === 0);
+
+  // Panel endpointlari
+  const tv = await chaqirAdmin('/api/admin/tavsiyalar', 'GET');
+  test('tavsiyalar endpoint', tv.kod === 200 && Array.isArray(tv.tana.tavsiyalar));
+  test('har tavsiyada amal bor', tv.tana.tavsiyalar.every((x) => x.sarlavha && (x.amal?.tur === 'ai' ? x.amal.savol : x.amal?.bolim)));
+  test('xavfli tavsiyalar birinchi', tv.tana.tavsiyalar.map((x) => ['xavf', 'ogoh', 'imkon', 'info'].indexOf(x.daraja))
+    .every((v, i, a) => !i || a[i - 1] <= v));
+  test('issiq lid tavsiyasi chiqdi', tv.tana.tavsiyalar.some((x) => x.kalit === 'lid_tahlil'));
+  const hs = await chaqirAdmin('/api/admin/hisobot?davr=oy', 'GET');
+  test('hisobot endpoint', hs.kod === 200 && hs.tana.davr === '30 kun');
+
+  await sorov(`delete from products where id = any($1)`, [[mah.id, mq.mahsulot?.id].filter(Boolean)]);
+  await sorov(`delete from users where id = $1`, [lid.id]);
+}
+
+// ═══════════ ADMIN KARKASI ═══════════
+console.log('\n── ADMIN KARKASI ──');
+{
+  const fs = await import('node:fs');
+  const html = fs.readFileSync('public/admin/index.html', 'utf8');
+  const js = fs.readFileSync('public/admin/admin.js', 'utf8');
+  const css = fs.readFileSync('public/admin/style.css', 'utf8');
+  test('menyuda emoji yo‘q — SVG ikonlar', !/<button data-b="[^"]+"[^>]*>\s*[^\s<]*\p{Extended_Pictographic}/u.test(html)
+    && /data-ik="uy"/.test(html));
+  test('har ikon chiziladi', [...html.matchAll(/data-ik="([a-z]+)"/g)].every((m) => new RegExp(`\\b${m[1]}: '`).test(js)));
+  test('Ctrl+K qidiruv va «/» — AI', /e\.key\.toLowerCase\(\) === 'k'/.test(js) && /e\.key === '\/'/.test(js));
+  test('telefonda pastki menyu o‘rtasida AI', /class="past-ai" data-ai/.test(html));
+  test('kompyuterda AI yonma-yon (dok)', /@media \(min-width:1100px\)\{[^@]*\.y-ekran\{left:auto;width:var\(--ai-en\)/.test(css)
+    && /body\.y-ochiq \.ish-joyi\{margin-right:var\(--ai-en\)\}/.test(css));
+  test('dokda tarix yozilmaydi', /if \(!dokmi\(\)\) \{\s*history\.pushState/.test(js));
+  test('menyu yig‘iladi va eslab qolinadi', /yon-yigiq/.test(css) && /localStorage\.setItem\('qq_yon'/.test(js));
+  test('mayda izohlar ⓘ ostida', /izoh-yigiq/.test(js) && /\.karta\.izoh-yigiq>p\.mayda/.test(css));
+  test('maydon kengligiga moslashadi (container)', /container:ish\/inline-size/.test(css) && /@container ish/.test(css));
+  test('AI ga bo‘lim konteksti ketadi', /bolim: BOLIMLAR\[holat\.bolim\]\?\.nom/.test(js));
+  test('qidiruvda katalog keshlanadi', /qidirKatalog\.vaqt > 60_000/.test(js));
 }
 
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);

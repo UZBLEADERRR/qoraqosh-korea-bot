@@ -20,6 +20,7 @@ import { palitra, rangTozala, kontrast, MAVZU_STANDART } from '../lib/mavzu.js';
 import { TAVSIF as SHABLON_TAVSIF } from '../bot/shablonlar-standart.js';
 import { eksportHajmi, BOLIMLAR as EKSPORT_BOLIMLAR } from './eksport.js';
 import { sqlOqi, sqlYoz, sxema } from './admin-sql.js';
+import { BIZNES_VOSITALAR, biznesOldindanSoni } from './admin-vositalar-biznes.js';
 import { kartochkaSozlamasi, kartochkaniQosh, BLOKLAR, BLOK_NOMI,
          KARTOCHKA_STANDART } from '../lib/kartochka.js';
 
@@ -868,6 +869,33 @@ function grafik(a) {
   };
 }
 
+/* CHEGIRMA — eski narx saqlanadi (ilovada ustidan chizilgan narx va
+   «−20%» nishoni chiqadi), yangi narx 1000 so'mga yaxlitlanadi. Qayta
+   chegirma qo'yilsa ASL narxdan hisoblanadi, chegirma ustiga chegirma emas. */
+async function chegirmaQoy(a) {
+  const foiz = son(a.foiz, 0);
+  if (!(foiz > 0 && foiz < 90)) return { ozgardi: 0, xabar: 'Foiz 1 dan 89 gacha bo‘lsin.' };
+  const f = await narxFiltri(a);
+  if (f.xato) return { ozgardi: 0, xabar: f.xato };
+  const r = await qatorlar(
+    `update products set old_price = coalesce(old_price, price),
+            price = greatest(1000, round(coalesce(old_price, price) * ${1 - foiz / 100} / 1000) * 1000)::int,
+            updated_at = now()
+      where ${f.shart.join(' and ')}
+      returning id, name, old_price, price`, f.p);
+  return { ozgardi: r.length, mahsulotlar: r.slice(0, 30) };
+}
+
+async function chegirmaOlib(a) {
+  const f = await narxFiltri(a);
+  if (f.xato) return { ozgardi: 0, xabar: f.xato };
+  const r = await qatorlar(
+    `update products set price = old_price, old_price = null, updated_at = now()
+      where ${f.shart.join(' and ')} and old_price is not null
+      returning id, name, price`, f.p);
+  return { ozgardi: r.length, mahsulotlar: r.slice(0, 30) };
+}
+
 // ─────────────────────────── RO'YXAT ───────────────────────────
 
 export const VOSITALAR = {
@@ -1075,6 +1103,18 @@ export const VOSITALAR = {
           + 'uchun AVVAL «sozlamalar» bilan aniq nomi va hozirgi qiymatini ko‘r.',
     parametrlar: 'kalit, qiymat',
   },
+  chegirma: {
+    oqish: false, ishla: chegirmaQoy,
+    tavsif: 'CHEGIRMA (aksiya) qo‘yadi: eski narx saqlanadi va ilovada ustidan chiziladi, '
+          + 'yangi narx foiz bo‘yicha. Filtr: id lar, brend, bo‘lim yoki nom bo‘yicha qidiruv.',
+    parametrlar: 'foiz, + idlar / brend / bolim / qidiruv / hammasi',
+  },
+  chegirma_olib_tashla: {
+    oqish: false, ishla: chegirmaOlib,
+    tavsif: 'Chegirmani olib tashlaydi — narx eski (asl) narxga qaytadi.',
+    parametrlar: 'idlar / brend / bolim / qidiruv / hammasi',
+  },
+  ...BIZNES_VOSITALAR,
   mavzu_ozgartir: {
     oqish: false, ishla: mavzuOzgartir,
     tavsif: 'Ilova ranglarini o‘zgartiradi. Avval «mavzu» bilan kontrastni '
@@ -1108,11 +1148,15 @@ export const yozishmi = (nom) => Boolean(VOSITALAR[nom]) && !VOSITALAR[nom].oqis
  */
 export async function oldindanSoni(nom, a = {}) {
   try {
-    if (nom === 'narxlarni_ozgartir') {
+    const biznes = await biznesOldindanSoni(nom, a);
+    if (biznes !== undefined) return biznes;
+    if (nom === 'narxlarni_ozgartir' || nom === 'chegirma' || nom === 'chegirma_olib_tashla') {
       const f = await narxFiltri(a);
       if (f.xato) return 0;
+      // Chegirmani olish faqat chegirmasi BORlarga tegadi
+      const shart = nom === 'chegirma_olib_tashla' ? [...f.shart, 'old_price is not null'] : f.shart;
       return son(await qiymat(
-        `select count(*) from products where ${f.shart.join(' and ')}`, f.p), 0);
+        `select count(*) from products where ${shart.join(' and ')}`, f.p), 0);
     }
     if (nom === 'toifa_ozgartir' && a.manba_bolim && !(a.idlar || []).length) {
       const b = await bolimniTop(a.manba_bolim);

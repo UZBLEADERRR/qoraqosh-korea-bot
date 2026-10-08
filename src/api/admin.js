@@ -1,4 +1,6 @@
 // Admin API. Kirish: login/parol -> muddati cheklangan token (8 soat).
+import { tavsiyalar } from '../services/admin-tavsiya.js';
+import { hisobot } from '../services/admin-vositalar-biznes.js';
 import { qator, qatorlar, sorov, qiymat, sozlama, tranzaksiya } from '../db.js';
 import { issueAdminToken, verifyAdminToken, loginBloklanganmi, loginXato, loginTozala } from '../lib/auth.js';
 import { ok, xato, tana, ipOl, javob } from '../lib/http.js';
@@ -167,7 +169,8 @@ export async function adminRoutes(req, res, yol) {
     // ishlayotganini ko'rsatadi. Ilgari so'rov javob kelguncha
     // osilib turar, admin esa faqat aylanayotgan nuqtalarni ko'rardi.
     const ish = ishBoshla();
-    agentJavobi(savol, tarix, rasmlar, (h) => ishYangila(ish, h))
+    const kontekst = String(b.bolim || '').slice(0, 60);
+    agentJavobi(savol, tarix, rasmlar, (h) => ishYangila(ish, h), kontekst)
       .then((j) => ishTugat(ish, { natija: j }))
       .catch((e) => {
         const x = xatoniTushuntir(e);
@@ -262,6 +265,15 @@ export async function adminRoutes(req, res, yol) {
 
   // ================= BOSHQARUV =================
   if (yol === '/api/admin/dashboard' && req.method === 'GET') return ok(res, await boshqaruvPaneli());
+
+  // «Bugun nima qilish kerak» — bazadan hisoblanadi, AI emas (bepul, tez)
+  if (yol === '/api/admin/tavsiyalar' && req.method === 'GET') return ok(res, await tavsiyalar());
+
+  // Davr hisoboti (bugun/kecha/hafta/oy) — oldingi teng davr bilan
+  if (yol === '/api/admin/hisobot' && req.method === 'GET') {
+    const davr = new URL(req.url, 'http://x').searchParams.get('davr') || 'hafta';
+    return ok(res, await hisobot({ davr }));
+  }
 
   // ================= XARID RO'YXATI =================
   // «Koreyadan nimadan nechta olaman» va «qaysi viloyatga qancha
@@ -1988,7 +2000,7 @@ const karuselSaqla = (royxat) => sorov(
  *
  * @returns {{ok:true}|{xato:string, kod:number}}
  */
-async function holatniQoy(id, yangiHolat, b = {}) {
+export async function holatniQoy(id, yangiHolat, b = {}) {
   if (!HOLATLAR.includes(String(yangiHolat))) {
     return { xato: 'Noto‘g‘ri holat.', kod: 400 };
   }

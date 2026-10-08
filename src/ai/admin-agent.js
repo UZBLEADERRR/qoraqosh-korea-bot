@@ -104,6 +104,30 @@ berishing mumkin. Ma'lumot yetarli bo'lsa CHO'ZMA — javob ber.
   yerdagi «ai_qoshimcha» maydoniga yoz. U jinsga bo'linmaydi, chunki
   jins tahlildan KEYIN ma'lum bo'ladi.
 
+═══ BIZNES TAHLILCHI ═══
+Sen shunchaki savolga javob bermaysan — do'kon egasining TAHLILCHISI va
+YORDAMCHISISAN. Natijadan xulosa chiqar va KEYINGI QADAMNI taklif qil.
+- «Qanday ketyapti?», «hisobot» → «hisobot» (davr bilan), o'sish/
+  tushishni foizda ayt, sababini qisqa izohla, grafik chiz.
+- «Nima qilay?», «maslahat ber», «o'sish uchun» → hisobot, kam_qolgan,
+  lidlar va katalog_audit ni ko'r va 3-5 ta ANIQ ishni MUHIMLIK tartibida
+  yoz: nima, nega (raqam bilan), qanday. Har biriga takliflar ichida
+  tayyor buyruq ber (masalan «Tahlil qilib olmaganlarga xabar yoz»).
+- Ombor → «kam_qolgan»: nimani va QANCHA buyurtma qilish kerakligini ayt.
+- Lidlar va xabarlar: avval «segmentlar» bilan hajmni ko'r. Xabar
+  matnini O'ZING yoz: o'zbekcha, samimiy, 2-4 jumla, bitta aniq taklif
+  (bepul tahlil, chegirma, mos mahsulot), www.kiovo.shop havolasi bilan.
+  Spam, ko'p undov va qo'rqitish yo'q. Keyin «ommaviy_xabar» yoki
+  «mijozga_xabar» ni taklif qil.
+- Aksiya → «chegirma» (eski narx saqlanadi). Bekor qilish —
+  «chegirma_olib_tashla».
+- Buyurtma holati → «buyurtma_holati»: mijozga xabar o'zi ketadi.
+- Mahsulot qo'shish → «mahsulot_qosh». Rasm biriktirilgan bo'lsa nom,
+  brend, hajm, tavsifni rasmdan o'qib to'ldir.
+- Katalogni boyitish (tavsif, o'zbekcha nom, ishlatish tartibi) →
+  «katalog_audit» bilan kamchilikni top, matnni O'ZING yoz va har biriga
+  «mahsulot_tahrir» ni navbatga qo'y (bir xabarda bir nechta mahsulot).
+
 ═══ VIZUAL JAVOB ═══
 Raqam ko'p bo'lsa GRAFIK chiz — «grafik» vositasi bilan. Taqqoslash
 uchun «ustun», vaqt bo'yicha o'zgarish uchun «chiziq», ulush uchun
@@ -137,7 +161,7 @@ const q = (v, n) => String(v ?? '').slice(0, n);
  * @param {Array} qadamlar  [{vosita, argumentlar, natija}]
  * @param {Array} tarix     [{kim, matn}]
  */
-export async function keyingiQadam(savol, qadamlar = [], tarix = [], rasmlar = []) {
+export async function keyingiQadam(savol, qadamlar = [], tarix = [], rasmlar = [], kontekst = '') {
   if (!aiBormi()) throw Object.assign(new Error('AI kaliti yo‘q'), { turkum: 'kalit' });
 
   const oldingi = tarix.length
@@ -156,7 +180,10 @@ export async function keyingiQadam(savol, qadamlar = [], tarix = [], rasmlar = [
 
   // Admin surat biriktirgan bo'lsa model uni KO'RADI: «bu qanaqa
   // mahsulot», «shu skrinshotdagi narxni qo'y» kabi ishlar uchun.
-  const parts = [{ text: `${KORSATMA()}${oldingi}${bajarilgan}\n\nADMIN SAVOLI: ${savol}` }];
+  // Admin panelning qaysi bo'limida turibdi — «shularni» degani shu yerdagilar
+  const joy = kontekst ? `\n\nADMIN HOZIR: «${q(kontekst, 60)}» bo'limida.` : '';
+  const bugun = new Date().toLocaleDateString('uz-UZ', { timeZone: 'Asia/Tashkent' });
+  const parts = [{ text: `${KORSATMA()}\n\nBUGUN: ${bugun}${joy}${oldingi}${bajarilgan}\n\nADMIN SAVOLI: ${savol}` }];
   for (const r of (rasmlar || []).slice(0, 4)) {
     if (r?.base64) parts.push(rasmPart(r.base64, r.mime || 'image/jpeg'));
   }

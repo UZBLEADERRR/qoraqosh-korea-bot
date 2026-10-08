@@ -37,40 +37,56 @@
 </div>
 
 <!-- ============ PANEL ============ -->
+<!-- Karkas: chapda menyu (kompyuter), tepada sarlavha + qidiruv + AI,
+     pastda tab menyu (telefon). Ikonlar SVG — JS `data-ik` dan chizadi. -->
 <div id="panel" class="karkas yashirin">
 
-  <aside class="yon">
-    <div class="brend">__LOGO__</div>
-    <button data-b="boshqaruv" class="faol"><span>📊</span> Boshqaruv</button>
-    <button data-b="buyurtma"><span>📦</span> Buyurtmalar<i id="yon-nishon" class="yor qizil yashirin" style="margin-left:auto">0</i></button>
-    <button data-b="xarid"><span>🧾</span> Xarid ro‘yxati</button>
-    <button data-b="mahsulot"><span>🛍</span> Mahsulotlar</button>
-    <button data-b="mijoz"><span>👥</span> Mijozlar</button>
-    <button data-b="sotuv"><span>💰</span> Sotuvlar</button>
-    <button data-b="ombor"><span>🏬</span> Omborlar</button>
-    <button data-b="sozlama"><span>⚙️</span> Sozlamalar</button>
-    <button data-b="xabar"><span>✍️</span> Xabarlar</button>
-    <button data-b="tizim"><span>🩺</span> Tizim holati</button>
-    <button data-b="qollanma"><span>📖</span> Qo‘llanma</button>
-    <button class="chiq" id="t-chiq-yon"><span>↩︎</span> Chiqish</button>
+  <aside class="yon" aria-label="Menyu">
+    <div class="yon-bosh">
+      <span class="brend">__LOGO__</span>
+      <button class="yon-kichik" id="t-yon-kichik" aria-label="Menyuni yig‘ish"><i data-ik="panel"></i></button>
+    </div>
+    <button class="ai-katta" data-ai><i data-ik="ai"></i><span>AI yordamchi</span><kbd>/</kbd></button>
+    <nav class="yon-nav">
+      <div class="yon-guruh">Asosiy</div>
+      <button data-b="boshqaruv" class="faol"><i data-ik="uy"></i><span>Boshqaruv</span></button>
+      <button data-b="buyurtma"><i data-ik="quti"></i><span>Buyurtmalar</span><em id="yon-nishon" class="nishon yashirin">0</em></button>
+      <button data-b="mahsulot"><i data-ik="teg"></i><span>Mahsulotlar</span></button>
+      <button data-b="mijoz"><i data-ik="odamlar"></i><span>Mijozlar</span></button>
+      <div class="yon-guruh">Savdo</div>
+      <button data-b="sotuv"><i data-ik="osish"></i><span>Sotuvlar</span></button>
+      <button data-b="xarid"><i data-ik="royxat"></i><span>Xarid ro‘yxati</span></button>
+      <button data-b="ombor"><i data-ik="ombor"></i><span>Omborlar</span></button>
+      <button data-b="market"><i data-ik="globus"></i><span>Marketplace</span></button>
+      <div class="yon-guruh">Do‘kon</div>
+      <button data-b="bolim"><i data-ik="papka"></i><span>Bo‘limlar</span></button>
+      <button data-b="xabar"><i data-ik="xat"></i><span>Xabarlar</span></button>
+      <button data-b="sozlama"><i data-ik="sozlama"></i><span>Sozlamalar</span></button>
+      <button data-b="tizim"><i data-ik="puls"></i><span>Tizim holati</span></button>
+      <button data-b="qollanma"><i data-ik="kitob"></i><span>Qo‘llanma</span></button>
+    </nav>
+    <button class="chiq" id="t-chiq-yon"><i data-ik="chiqish"></i><span>Chiqish</span></button>
   </aside>
 
-  <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+  <div class="ish-joyi">
     <header class="tepa">
-      <span class="brend"><span class="tepa-belgi">__BELGI__</span><span id="tepa-nom">Boshqaruv</span></span>
+      <span class="tepa-belgi">__BELGI__</span>
+      <h1 id="tepa-nom">Boshqaruv</h1>
       <span class="oraliq"></span>
-      <button id="t-yangila" aria-label="Yangilash">↻</button>
-      <button id="t-kop" aria-label="Ko‘proq">⋯</button>
+      <button class="qidir-tugma" id="t-qidir" aria-label="Qidirish"><i data-ik="qidir"></i><span>Qidirish…</span><kbd>Ctrl K</kbd></button>
+      <button class="ik-tugma" id="t-yangila" aria-label="Yangilash"><i data-ik="yangila"></i></button>
+      <button class="ai-mini" data-ai aria-label="AI yordamchi"><i data-ik="ai"></i><span>AI</span></button>
+      <button class="ik-tugma yashirin" id="t-kop" aria-label="Ko‘proq"><i data-ik="menyu"></i></button>
     </header>
     <main id="tan"></main>
   </div>
 
-  <nav class="past-menyu">
-    <button data-b="boshqaruv" class="faol"><span class="ikon">📊</span>Boshqaruv</button>
-    <button data-b="buyurtma"><span class="ikon">📦</span>Buyurtma<i id="past-nishon" class="nishon yashirin">0</i></button>
-    <button data-b="mahsulot"><span class="ikon">🛍</span>Mahsulot</button>
-    <button data-b="xarid"><span class="ikon">🧾</span>Xarid</button>
-    <button id="t-kop2"><span class="ikon">⋯</span>Ko‘proq</button>
+  <nav class="past-menyu" aria-label="Asosiy bo‘limlar">
+    <button data-b="boshqaruv" class="faol"><i data-ik="uy"></i>Boshqaruv</button>
+    <button data-b="buyurtma"><i data-ik="quti"></i>Buyurtma<em id="past-nishon" class="nishon yashirin">0</em></button>
+    <button class="past-ai" data-ai aria-label="AI yordamchi"><span><i data-ik="ai"></i></span></button>
+    <button data-b="mahsulot"><i data-ik="teg"></i>Mahsulot</button>
+    <button id="t-kop2"><i data-ik="menyu"></i>Menyu</button>
   </nav>
 </div>
 

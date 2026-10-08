@@ -15,6 +15,60 @@ const OYLAR = ['yanvar','fevral','mart','aprel','may','iyun',
                'iyul','avgust','sentabr','oktabr','noyabr','dekabr'];
 const bugun = () => { const d = new Date(); return `${d.getDate()}-${OYLAR[d.getMonth()]}`; };
 
+// ═══════════ IKONLAR ═══════════
+// Bitta chiziqli to'plam (24×24, currentColor). Emoji o'rniga: emoji
+// har telefonda boshqacha chiziladi va panel «o'yinchoq» ko'rinardi.
+const IK = {
+  uy: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+  quti: '<path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/>',
+  teg: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  odamlar: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.3-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18.5 14.8c1.7.8 2.8 2.5 3 5.2"/>',
+  osish: '<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+  pastga: '<path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/>',
+  royxat: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4h6v3H9zM9 11h6M9 15h4"/>',
+  ombor: '<path d="M3 21V9l9-5 9 5v12"/><path d="M7 21v-8h10v8M7 17h10"/>',
+  globus: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z"/>',
+  papka: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  xat: '<path d="M21 3 10 14"/><path d="M21 3l-7 18-4-7-7-4z"/>',
+  sozlama: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
+  puls: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  kitob: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7"/>',
+  chiqish: '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 16l-4-4 4-4M6 12h10"/>',
+  ai: '<path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z"/>',
+  qidir: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+  yangila: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+  menyu: '<rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/>',
+  panel: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/>',
+  yop: '<path d="M6 6l12 12M18 6 6 18"/>',
+  orqaga: '<path d="M15 18l-6-6 6-6"/>',
+  keyingi: '<path d="M9 18l6-6-6-6"/>',
+  yubor: '<path d="M12 19V5M5 12l7-7 7 7"/>',
+  klip: '<path d="M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8.5-8.5"/>',
+  soat: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  karta: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/>',
+  ogoh: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/>',
+  skaner: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="3"/>',
+  savat: '<path d="M5 8h14l-1.5 11a2 2 0 0 1-2 1.7h-7a2 2 0 0 1-2-1.7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  barg: '<path d="M5 19c0-8 5-13 15-14-1 10-6 15-14 15"/><path d="M5 19c3-3 6-5 9-7"/>',
+  yulduz: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  pul: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
+  hujjat: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  plyus: '<path d="M12 5v14M5 12h14"/>',
+  tasdiq: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  havola: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+};
+const ik = (nom, olcham = 18) => `<svg class="ik" viewBox="0 0 24 24" width="${olcham}" height="${olcham}" fill="none"
+  stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IK[nom] || IK.info}</svg>`;
+/** `<i data-ik="…">` — HTML dagi joy egallovchilarni SVG ga aylantiradi. */
+function ikonlarniQoy(ildiz = document) {
+  $$('i[data-ik]:not([data-chizildi])', ildiz).forEach((i) => {
+    i.innerHTML = ik(i.dataset.ik, Number(i.dataset.olcham) || 18);
+    i.dataset.chizildi = '1';
+  });
+}
+ikonlarniQoy();
+
 const tg = window.Telegram?.WebApp;
 try { tg?.ready(); tg?.expand(); } catch {}
 
@@ -186,26 +240,156 @@ window.addEventListener('hashchange', () => {
 });
 $('#t-yangila').onclick = () => { holat.kesh = {}; bolimOch(holat.bolim); tost('Yangilandi'); };
 
-const KOP_MENYU = ['mijoz', 'market', 'havola', 'bolim', 'sotuv', 'ombor', 'sozlama', 'xabar', 'tizim', 'qollanma'];
-const kopMenyu = () => modal('Ko‘proq', `
-  <div style="display:grid;gap:8px">
-    <!-- Yordamchi bo'lim emas, alohida ekran: u ochilganda pastki
-         menyu ham, sarlavha ham ko'rinmaydi — suhbatga xalaqit
-         bermasin. -->
-    <button class="tug asos keng" id="t-yordamchi"
-      style="justify-content:flex-start">💬 Yordamchi</button>
-    ${KOP_MENYU.map((k) => `<button class="tug keng" data-kop="${k}"
-      style="justify-content:flex-start">${esc(BOLIMLAR[k].nom)}</button>`).join('')}
-    <button class="tug xavf keng" id="t-chiq" style="margin-top:8px">↩︎ Chiqish</button>
-  </div>`);
+// Bo'lim ikonlari — menyu, qidiruv va «Menyu» oynasi uchun bitta joy
+const BOLIM_IK = { boshqaruv: 'uy', buyurtma: 'quti', xarid: 'royxat', mahsulot: 'teg', market: 'globus',
+  havola: 'havola', bolim: 'papka', mijoz: 'odamlar', sotuv: 'osish', ombor: 'ombor', sozlama: 'sozlama',
+  xabar: 'xat', tizim: 'puls', qollanma: 'kitob' };
+const KOP_MENYU = ['mijoz', 'sotuv', 'xarid', 'ombor', 'market', 'bolim', 'havola', 'xabar', 'sozlama', 'tizim', 'qollanma'];
+// Telefondagi «Menyu» — ikonli to'r, ro'yxat emas
+const kopMenyu = () => modal('Menyu', `
+  <button class="ai-banner" id="t-yordamchi"><span>${ik('ai', 22)}</span>
+    <b>AI yordamchi<small>Hisobot, xabar, aksiya, katalog — so‘rang, bajaradi</small></b>${ik('keyingi')}</button>
+  <div class="menyu-tor">
+    ${KOP_MENYU.map((k) => `<button data-kop="${k}"><span>${ik(BOLIM_IK[k], 22)}</span>${esc(BOLIMLAR[k].nom)}</button>`).join('')}
+  </div>
+  <button class="tug xavf keng" id="t-chiq" style="margin-top:14px">${ik('chiqish')}Chiqish</button>`);
 $('#t-kop').onclick = kopMenyu;
 $('#t-kop2').onclick = kopMenyu;
+
+// Kompyuterda menyu yig'iladi (faqat ikonlar) — tanlov eslab qolinadi
+const yonKichik = (ha) => { document.body.classList.toggle('yon-yigiq', ha);
+  try { localStorage.setItem('qq_yon', ha ? '1' : ''); } catch {} };
+try { yonKichik(localStorage.getItem('qq_yon') === '1'); } catch {}
+$('#t-yon-kichik').onclick = () => yonKichik(!document.body.classList.contains('yon-yigiq'));
+// Yig'ilgan menyuda faqat ikon qoladi — nomi ustiga olib borganda chiqadi
+$$('.yon-nav button, .yon .chiq, .ai-katta').forEach((b) => { b.title = b.textContent.replace('/', '').trim(); });
+
+// AI tugmalari hamma joyda bitta
+document.addEventListener('click', (e) => {
+  if (e.target.closest('[data-ai]')) { e.preventDefault(); yordamchiOch(); }
+});
+$('#t-qidir').onclick = () => qidirOyna();
+
+// Klaviatura: Ctrl/⌘+K — qidiruv, «/» — AI (yozayotgan bo'lmasa)
+document.addEventListener('keydown', (e) => {
+  if ($('#panel').classList.contains('yashirin')) return;
+  const yozmoqda = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); qidirOyna(); }
+  else if (e.key === '/' && !yozmoqda) { e.preventDefault(); yordamchiOch(); }
+  else if (e.key === 'Escape' && !$('#modal').classList.contains('yashirin')) modalYop();
+});
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-kop]');
   if (b) { modalYop(); bolimOch(b.dataset.kop); }
-  if (e.target.id === 't-yordamchi') { modalYop(); yordamchiOch(); }
-  if (e.target.id === 't-chiq') { modalYop(); chiqish(); }
+  if (e.target.closest('#t-yordamchi')) { modalYop(); yordamchiOch(); }
+  if (e.target.closest('#t-chiq')) { modalYop(); chiqish(); }
 });
+
+// ═══════════ KERAKSIZ MAYDA YOZUVLAR ═══════════
+// Har kartada tushuntiruvchi xatboshilar bor edi va panel «matn
+// devori» bo'lib qolardi. Endi ular YASHIRIN: kartaning sarlavhasida
+// kichik ⓘ chiqadi, bosilsa ochiladi. Matnlar o'chirilmagan — kerak
+// bo'lganda bir bosishda. Har bo'lim innerHTML bilan chiziladi,
+// shuning uchun bitta kuzatuvchi hammasini qamraydi.
+function izohlarniYigish(ildiz) {
+  $$('.karta', ildiz).forEach((k) => {
+    if (k.dataset.izohli) return;
+    const izohlar = $$(':scope > p.mayda, :scope > p.ozgina, :scope > div.mayda, :scope > div.ozgina, label .yordam, .izoh', k);
+    if (!izohlar.length) return;
+    k.dataset.izohli = '1';
+    k.classList.add('izoh-yigiq');
+    const bosh = $(':scope > .karta-bosh, :scope > .qator-bosh', k) || $(':scope > h2, :scope > h3', k);
+    const t = document.createElement('button');
+    t.type = 'button'; t.className = 'izoh-tugma'; t.setAttribute('aria-label', 'Izoh');
+    t.innerHTML = ik('info', 17);
+    t.onclick = (e) => { e.stopPropagation(); k.classList.toggle('izoh-yigiq'); };
+    if (bosh?.matches('.karta-bosh, .qator-bosh')) bosh.appendChild(t);
+    else if (bosh) bosh.insertAdjacentElement('afterend', t), t.classList.add('suzuvchi');
+    else k.prepend(t), t.classList.add('suzuvchi');
+  });
+}
+new MutationObserver(() => izohlarniYigish($('#tan'))).observe($('#tan'), { childList: true, subtree: true });
+// Sahifa boshidagi tushuntirish qutisi — bitta qator, bosilsa to'liq
+document.addEventListener('click', (e) => e.target.closest('.izoh-quti')?.classList.toggle('ochiq'));
+
+// ═══════════ QIDIRUV / BUYRUQ PANELI (Ctrl+K) ═══════════
+// Bitta joydan: bo'limga o'tish, tez amallar, mahsulot va buyurtma
+// qidirish — topilmasa savol AI ga ketadi.
+const TEZ_AMAL = [
+  { nom: 'Haftalik hisobot', ik: 'osish', ai: 'Bu haftaning hisobotini o‘tgan hafta bilan solishtirib tayyorla, grafik bilan.' },
+  { nom: 'Nima tugayapti va qancha buyurtma qilay?', ik: 'quti', ai: 'Tugagan va tez orada tugaydigan mahsulotlarni ko‘rsat, har biridan qancha buyurtma qilishni ayt.' },
+  { nom: 'Issiq lidlar: tahlil qilib sotib olmaganlar', ik: 'skaner', ai: 'Oxirgi 14 kunda tahlil qilib sotib olmaganlarni ko‘rsat va ularga xabar matnini tayyorla.' },
+  { nom: 'Aksiya e’lon qilish', ik: 'teg', ai: 'Qaysi mahsulotlarga aksiya qilish foydali? Taklif qil va chegirma qo‘yishni tayyorla.' },
+  { nom: 'Katalog auditi', ik: 'hujjat', ai: 'Katalog auditini qil: nimalar yetishmaydi va qaysilarini birinchi tuzatish kerak?' },
+  { nom: 'Yangi mahsulot qo‘shish', ik: 'plyus', bolim: 'mahsulot' },
+];
+let qidirTimer = null;
+let qidirKatalog = null;
+function qidirOyna() {
+  modal('Qidirish', `
+    <div class="qidir-maydon">${ik('qidir')}<input id="q-matn" placeholder="Bo‘lim, mahsulot, buyurtma yoki AI ga savol…"
+      autocomplete="off"></div>
+    <div id="q-natija" class="qidir-natija"></div>`);
+  const inp = $('#q-matn'), quti = $('#q-natija');
+  let tanlov = 0;
+  const chiz = (mahs = []) => {
+    const m = inp.value.trim().toLowerCase();
+    const bolim = Object.entries(BOLIMLAR).filter(([, b]) => !m || b.nom.toLowerCase().includes(m))
+      .map(([k, b]) => ({ tur: 'bolim', k, nom: b.nom, ik: BOLIM_IK[k] || 'uy' }));
+    const amal = TEZ_AMAL.filter((a) => !m || a.nom.toLowerCase().includes(m)).map((a) => ({ tur: 'amal', ...a }));
+    const qator = [
+      ...(m ? [{ tur: 'ai', nom: `AI dan so‘rash: «${inp.value.trim()}»`, ik: 'ai', ai: inp.value.trim() }] : []),
+      ...mahs.map((p) => ({ tur: 'mahs', nom: p.name, izoh: `${p.brand || ''} · ${narx(p.price)} · ${p.stock ?? 0} dona`, ik: 'teg', p })),
+      ...amal, ...bolim,
+    ];
+    tanlov = Math.min(tanlov, Math.max(0, qator.length - 1));
+    quti.innerHTML = qator.map((x, i) => `<button class="${i === tanlov ? 'tanlangan' : ''}" data-q="${i}">
+      <span class="qi">${ik(x.ik)}</span><span class="qn">${esc(x.nom)}${x.izoh ? `<small>${esc(x.izoh)}</small>` : ''}</span>
+      <em>${x.tur === 'bolim' ? 'Bo‘lim' : x.tur === 'mahs' ? 'Mahsulot' : x.tur === 'ai' ? 'Enter' : 'Amal'}</em></button>`).join('')
+      || '<p class="bosh-holat" style="padding:24px">Hech narsa topilmadi</p>';
+    const bajar = (x) => {
+      modalYop();
+      if (x.tur === 'bolim') bolimOch(x.k);
+      else if (x.tur === 'mahs') { bolimOch('mahsulot'); setTimeout(() => mahsulotOyna(x.p), 600); }
+      else if (x.ai) aiSora(x.ai);
+      else if (x.bolim) bolimOch(x.bolim);
+    };
+    $$('[data-q]', quti).forEach((b) => b.onclick = () => bajar(qator[Number(b.dataset.q)]));
+    inp.onkeydown = (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault(); tanlov = (tanlov + (e.key === 'ArrowDown' ? 1 : -1) + qator.length) % Math.max(1, qator.length); chiz(mahs);
+      } else if (e.key === 'Enter' && qator[tanlov]) { e.preventDefault(); bajar(qator[tanlov]); }
+    };
+  };
+  inp.oninput = () => {
+    tanlov = 0; chiz();
+    clearTimeout(qidirTimer);
+    const m = inp.value.trim();
+    if (m.length < 2) return;
+    qidirTimer = setTimeout(async () => {
+      try {
+        // Katalog bir marta yuklanadi (1 daqiqa keshda) — har harfda emas
+        if (!qidirKatalog || Date.now() - qidirKatalog.vaqt > 60_000) {
+          const j = await api('/api/admin/products');
+          qidirKatalog = { vaqt: Date.now(), r: j.mahsulotlar || [] };
+        }
+        const k = m.toLowerCase();
+        const r = qidirKatalog.r.filter((p) =>
+          `${p.name} ${p.nom_uz || ''} ${p.brand || ''}`.toLowerCase().includes(k)).slice(0, 6);
+        if (inp.value.trim() === m) chiz(r);
+      } catch { /* qidiruv bo'lmasa ham bo'limlar ishlaydi */ }
+    }, 200);
+  };
+  chiz();
+  setTimeout(() => inp.focus(), 50);
+}
+
+/** AI ga tayyor topshiriq: panel ochiladi va savol darrov yuboriladi. */
+function aiSora(savol) {
+  yordamchiOch();
+  const m = $('#y-matn');
+  if (m) { m.value = savol; yordamchiYubor(); }
+}
 
 // ═══════════ UMUMIY CHIZISH ═══════════
 const yuklanmoqda = (n = 3) => {
@@ -239,70 +423,118 @@ async function nishonlarniYangila() {
 }
 
 // ═══════════ 1. BOSHQARUV ═══════════
+// SaaS uslubi: tepada davr bo'yicha 4 ta asosiy raqam (o'tgan davrga
+// nisbatan o'zgarish bilan), keyin «bugun nima qilish kerak» va grafik.
+// Hamma narsa bitta qarashda — tushuntiruvchi matnsiz.
+const DAVRLAR = [['bugun', 'Bugun'], ['hafta', '7 kun'], ['oy', '30 kun']];
+const TAVSIYA_RANG = { xavf: 'qizil', ogoh: 'sariq', imkon: 'yashil', info: 'kok' };
+
+const ozgarishBelgi = (f) => (f === null || f === undefined ? ''
+  : `<span class="delta ${f > 0 ? 'osdi' : f < 0 ? 'tushdi' : ''}">${f > 0 ? '↑' : f < 0 ? '↓' : '→'} ${Math.abs(f)}%</span>`);
+
+function kpiKarta(nom, qiymat, f, ikon) {
+  return `<div class="kpi"><div class="kpi-bosh"><span>${esc(nom)}</span>${ik(ikon, 16)}</div>
+    <div class="v">${qiymat}</div>${ozgarishBelgi(f)}</div>`;
+}
+
+function salom() {
+  const s = new Date().getHours();
+  return s < 5 ? 'Xayrli tun' : s < 12 ? 'Xayrli tong' : s < 18 ? 'Xayrli kun' : 'Xayrli kech';
+}
+
 async function boshqaruv() {
+  holat.davr = holat.davr || 'hafta';
   try {
-    const d = await api('/api/admin/dashboard');
-    const k = d.kpi, p = d.prognoz;
+    const [d, h, t] = await Promise.all([
+      api('/api/admin/dashboard'),
+      api(`/api/admin/hisobot?davr=${holat.davr}`),
+      api('/api/admin/tavsiyalar').catch(() => ({ tavsiyalar: [] })),
+    ]);
+    const p = d.prognoz;
     const maxKun = Math.max(1, ...d.kunlar.map((x) => x.daromad));
+    const hz = h.hozir, oz = h.ozgarish_foiz;
+    // Brauzerlar o'zbekcha hafta kunini bilmaydi («Thu» chiqardi)
+    const kunNom = ['yakshanba', 'dushanba', 'seshanba', 'chorshanba', 'payshanba', 'juma', 'shanba'][new Date().getDay()];
 
     $('#tan').innerHTML = `
-      <div class="bosh"><h1>Boshqaruv</h1>
-        <span class="ozgina">${bugun()}</span></div>
-
-      ${k.yangi_buyurtma ? `<div class="xabar-quti ogoh">
-        📦 <b>${k.yangi_buyurtma} ta yangi buyurtma</b> ko‘rib chiqilmagan
-        <button class="tug kichik" data-b2="buyurtma" style="margin-left:8px">Ochish</button></div>` : ''}
-      ${d.ombor.tugagan ? `<div class="xabar-quti xato">
-        ⚠️ <b>${d.ombor.tugagan} ta mahsulot tugagan</b> — mijoz sotib ololmaydi</div>` : ''}
+      <div class="sahifa-bosh">
+        <div><h1 class="salom">${salom()}</h1><p class="sana">${bugun()}, ${esc(kunNom)}</p></div>
+        <div class="davr" role="tablist">${DAVRLAR.map(([k, n]) =>
+          `<button role="tab" data-davr="${k}" class="${holat.davr === k ? 'faol' : ''}">${n}</button>`).join('')}</div>
+      </div>
 
       <div class="kpi-tor">
-        ${kpi('Jami daromad', narx(k.jami_daromad), `${k.buyurtma_soni} ta buyurtma`)}
-        ${kpi('Yalpi foyda', narx(k.yalpi_foyda), `marja ${k.marja_foiz}%`)}
-        ${kpi("O‘rtacha chek", narx(k.ortacha_chek))}
-        ${kpi('Bu oy', narx(k.oy_daromadi), `kuniga ~${som(p.kunlik_ortacha)}`)}
-        ${kpi('Mijozlar', som(k.foydalanuvchi), `${som(k.royxatdan_otgan)} ro‘yxatdan o‘tgan`)}
-        ${kpi('Yangi buyurtma', som(k.yangi_buyurtma))}
-        ${kpi('Omborda tugagan', som(d.ombor.tugagan), `${som(d.ombor.kam)} ta kam qolgan`)}
-        ${kpi('Ombor qiymati', narx(d.ombor.qiymat), 'tannarx bo‘yicha')}
+        ${kpiKarta('Daromad', narx(hz.daromad), oz.daromad, 'pul')}
+        ${kpiKarta('Buyurtmalar', som(hz.buyurtma), oz.buyurtma, 'quti')}
+        ${kpiKarta('O‘rtacha chek', narx(hz.ortacha_chek), oz.ortacha_chek, 'savat')}
+        ${kpiKarta('Yangi mijozlar', som(hz.yangi_mijoz), oz.yangi_mijoz, 'odamlar')}
       </div>
 
-      <div class="karta">
-        <div class="karta-bosh"><h2>💰 Daromad prognozi</h2>
-          <span class="yor kok">${p.tugallanish_ehtimoli}%</span></div>
-        <div class="qator-satr"><span class="k">Yo‘lda (kutilayotgan)</span>
-          <span class="v">${narx(p.kutilayotgan_summa)}</span></div>
-        <div class="qator-satr"><span class="k">Shundan kutilma</span>
-          <span class="v">${narx(p.kutilayotgan_kutilma)}</span></div>
-        <div class="qator-satr"><span class="k">Oy oxiri prognozi</span>
-          <span class="v" style="color:var(--urgu)">${narx(p.oy_oxiri_prognoz)}</span></div>
-        <p class="ozgina" style="margin-top:10px">${esc(p.izoh)} ${p.qolgan_kunlar} kun qoldi.</p>
+      <div class="ustunlar">
+        <section class="karta">
+          <div class="karta-bosh"><h2>Bugun nima qilish kerak</h2>
+            ${t.tavsiyalar.length ? `<span class="yor kul">${t.tavsiyalar.length}</span>` : ''}</div>
+          ${t.tavsiyalar.length ? `<div class="tavsiyalar">${t.tavsiyalar.map((x, i) => `
+            <div class="tavsiya">
+              <span class="tavsiya-belgi ${TAVSIYA_RANG[x.daraja] || 'kul'}">${ik(x.ikon, 18)}</span>
+              <div class="tavsiya-matn"><b>${esc(x.sarlavha)}</b><span>${esc(x.matn)}</span></div>
+              <button class="tug kichik ${x.amal.tur === 'ai' ? 'ai-tug' : ''}" data-tavsiya="${i}"
+                aria-label="${x.amal.tur === 'ai' ? 'Bajarish' : 'Ochish'}">
+                ${x.amal.tur === 'ai' ? `${ik('ai', 15)}<span>Bajarish</span>` : `<span>Ochish</span>${ik('keyingi', 15)}`}</button>
+            </div>`).join('')}</div>`
+          : `<div class="hammasi-joyida">${ik('tasdiq', 22)}<b>Hammasi joyida</b><span>Shoshilinch ish yo‘q</span></div>`}
+        </section>
+
+        <section class="karta">
+          <div class="karta-bosh"><h2>Daromad · 14 kun</h2><span class="yor kul">${narx(d.kpi.oy_daromadi)} bu oy</span></div>
+          <div class="grafik">${d.kunlar.map((x) => `<div style="--h:${Math.max(2, Math.round(x.daromad / maxKun * 100))}%"
+            data-tip="${esc(x.kun.slice(5))} · ${narx(x.daromad)}"></div>`).join('')}</div>
+          <div class="grafik-x">${d.kunlar.map((x, i) => `<span>${i % 2 ? '' : x.kun.slice(8)}</span>`).join('')}</div>
+          <div class="mini-stat">
+            <div><span>Foyda</span><b>${narx(hz.foyda)}</b></div>
+            <div><span>Tahlillar</span><b>${som(hz.tahlil)}</b></div>
+            <div><span>Konversiya</span><b>${h.konversiya_foiz ?? '—'}${h.konversiya_foiz != null ? '%' : ''}</b></div>
+            <div><span>Oy prognozi</span><b>${narx(p.oy_oxiri_prognoz)}</b></div>
+          </div>
+        </section>
       </div>
 
-      <div class="karta">
-        <div class="karta-bosh"><h2>📈 So‘nggi 14 kun</h2>
-          <span class="ozgina">eng yuqori ${narx(maxKun)}</span></div>
-        <div class="grafik">${d.kunlar.map((x) => `<div style="height:${Math.round(x.daromad / maxKun * 100)}%"
-          title="${x.kun}: ${narx(x.daromad)}"></div>`).join('')}</div>
-        <div class="grafik-x">${d.kunlar.map((x) => `<span>${x.kun.slice(8)}</span>`).join('')}</div>
+      <div class="ustunlar">
+        <section class="karta">
+          <div class="karta-bosh"><h2>Eng ko‘p sotilgan</h2><span class="yor kul">${esc(h.davr)}</span></div>
+          ${h.eng_kop_daromad.length ? `<div class="top-royxat">${h.eng_kop_daromad.map((x, i) => `
+            <div><i>${i + 1}</i><span>${esc(x.nom)}</span><em>${som(x.dona)} dona</em><b>${narx(x.summa)}</b></div>`).join('')}</div>`
+          : '<p class="bosh-matn">Bu davrda sotuv yo‘q</p>'}
+        </section>
+        <section class="karta voronka">
+          <div class="karta-bosh"><h2>Voronka · 30 kun</h2></div>
+          ${voronkaQator('Botni ochgan', d.voronka.start, d.voronka.start)}
+          ${voronkaQator('Ro‘yxatdan o‘tgan', d.voronka.register, d.voronka.start)}
+          ${voronkaQator('Tahlil qilgan', d.voronka.scan, d.voronka.start)}
+          ${voronkaQator('Savatga solgan', d.voronka.add_cart, d.voronka.start)}
+          ${voronkaQator('Buyurtma bergan', d.voronka.order, d.voronka.start)}
+        </section>
       </div>
 
-      <div class="karta voronka">
-        <div class="karta-bosh"><h2>🔻 Voronka (30 kun)</h2></div>
-        ${voronkaQator('Botni ochgan', d.voronka.start, d.voronka.start)}
-        ${voronkaQator('Ro‘yxatdan o‘tgan', d.voronka.register, d.voronka.start)}
-        ${voronkaQator('Skaner ishlatgan', d.voronka.scan, d.voronka.start)}
-        ${voronkaQator('Savatga qo‘shgan', d.voronka.add_cart, d.voronka.start)}
-        ${voronkaQator('Buyurtma bergan', d.voronka.order, d.voronka.start)}
-        <p class="ozgina" style="margin-top:8px">
-          Rad etilgan skanerlar: ${som(d.voronka.scan_rejected)} ta</p>
-      </div>`;
-    $$('[data-b2]').forEach((b) => b.onclick = () => bolimOch(b.dataset.b2));
+      <section class="ai-chaqiriq">
+        <div class="ai-chaqiriq-bosh">${ik('ai', 20)}<b>AI dan so‘rang</b></div>
+        <div class="ai-chiplar">${TEZ_AMAL.filter((x) => x.ai).map((x, i) =>
+          `<button data-tez="${i}">${ik(x.ik, 15)}${esc(x.nom)}</button>`).join('')}</div>
+      </section>`;
+
+    $$('[data-davr]').forEach((b) => b.onclick = () => { holat.davr = b.dataset.davr; boshqaruv(); });
+    $$('[data-tavsiya]').forEach((b) => b.onclick = () => {
+      const x = t.tavsiyalar[Number(b.dataset.tavsiya)];
+      if (x.amal.tur === 'ai') aiSora(x.amal.savol); else bolimOch(x.amal.bolim);
+    });
+    const tezlar = TEZ_AMAL.filter((x) => x.ai);
+    $$('[data-tez]').forEach((b) => b.onclick = () => aiSora(tezlar[Number(b.dataset.tez)].ai));
   } catch (e) { xatoChiz(e); }
 }
 
 const voronkaQator = (nom, son, asos) => `
   <div class="q"><div class="nom">${esc(nom)}</div>
-    <div class="chiziq"><i style="width:${asos ? Math.round(son / asos * 100) : 0}%"></i></div>
+    <div class="chiziq"><i style="width:${asos ? Math.min(100, Math.round(son / asos * 100)) : 0}%"></i></div>
     <div class="son">${som(son)}${asos ? ` · ${Math.round(son / asos * 100)}%` : ''}</div></div>`;
 
 // ═══════════ 2. BUYURTMALAR ═══════════
@@ -351,25 +583,24 @@ async function mahsulotlar(qidiruv = '') {
       .map(([k, v]) => [k, hammasi.filter(v.f).length]));
 
     $('#tan').innerHTML = `
-      <div class="bosh"><h1>Mahsulotlar</h1><span class="ozgina">${royxat.length} ta</span></div>
-      <div style="padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="tug asos" id="t-toplam" style="flex:1 1 100%">
-          📦 Ko‘p rasmdan birdan qo‘shish</button>
-        <button class="tug" id="t-skrin" style="flex:1">📷 Bitta rasmdan</button>
-        <button class="tug" id="t-yangi" style="flex:1">+ Qo‘lda</button>
-        ${nomsiz ? `<button class="tug" id="t-nomuz" style="flex:1 1 100%">
-          🇺🇿 ${nomsiz} ta nomni o‘zbekchaga o‘girish</button>` : ''}
+      <!-- Asboblar satri: qidiruv + qo'shish. Bitta qatorda, matnsiz -->
+      <div class="asbob">
+        <label class="qidir-joy">${ik('qidir')}<input id="m-qidiruv" placeholder="Nom yoki brend"
+          value="${esc(qidiruv)}" autocomplete="off"><em>${royxat.length}</em></label>
+        <div class="asbob-tug">
+          <button class="tug" id="t-skrin" title="Bitta rasmdan">${ik('skaner')}<span>Rasmdan</span></button>
+          <button class="tug" id="t-toplam" title="Ko‘p rasmdan birdan">${ik('papka')}<span>Ko‘p rasm</span></button>
+          <button class="tug asos" id="t-yangi">${ik('plyus')}<span>Qo‘shish</span></button>
+        </div>
       </div>
-      <div style="padding:0 16px 12px">
-        <input id="m-qidiruv" placeholder="🔍 Nom yoki brend" value="${esc(qidiruv)}">
-      </div>
+      ${nomsiz ? `<div class="karta ogoh"><div><b>${nomsiz} ta mahsulot nomi inglizcha</b></div>
+        <button class="tug kichik" id="t-nomuz">${ik('ai', 15)}O‘zbekchaga o‘girish</button></div>` : ''}
       <!-- Filtr: katalogni ko'z bilan tekshirib chiqish uchun -->
       <div class="chip-satr">
         ${Object.entries(MAH_FILTR).map(([k, v]) => `<button
-          class="chip${mf.tur === k ? ' faol' : ''}" data-mf="${k}">${esc(v.n)}
-          <i style="font-style:normal;opacity:.6"> ${sanoq[k]}</i></button>`).join('')}
+          class="chip${mf.tur === k ? ' faol' : ''}" data-mf="${k}">${esc(v.n)}<i>${sanoq[k]}</i></button>`).join('')}
       </div>
-      ${royxat.length ? royxat.map(mahsulotKarta).join('') : boshHolat('🔍', 'Topilmadi')}`;
+      ${royxat.length ? `<div class="mah-tor">${royxat.map(mahsulotKarta).join('')}</div>` : boshHolat('🔍', 'Topilmadi')}`;
 
     let t; $('#m-qidiruv').oninput = (e) => {
       clearTimeout(t); const v = e.target.value;
@@ -463,16 +694,14 @@ function mahsulotKarta(p) {
       </div>
       <span class="yor ${omborYor}">${p.stock} dona</span>
     </div>
-    <div style="margin-top:9px">
-      <div class="qator-satr"><span class="k">Narx / tannarx</span>
-        <span class="v">${som(p.price)} / ${som(p.cost_price)}</span></div>
-      <div class="qator-satr"><span class="k">Marja</span>
-        <span class="v"><span class="yor ${marja >= 35 ? 'yashil' : marja >= 20 ? 'sariq' : 'qizil'}">${marja}%</span></span></div>
-      <div class="qator-satr"><span class="k">Sotilgan</span><span class="v">${p.sold_count} dona</span></div>
+    <div class="mah-stat">
+      <div><span>Narx</span><b>${som(p.price)}</b></div>
+      <div><span>Marja</span><b class="${marja >= 35 ? 'yashil' : marja >= 20 ? 'sariq' : 'qizil'}">${marja}%</b></div>
+      <div><span>Sotildi</span><b>${som(p.sold_count)}</b></div>
     </div>
     <div class="amallar">
-      <button class="tug kichik" data-mah="${p.id}">✏️ Tahrirlash</button>
-      <button class="tug kichik" data-poster="${p.id}">📢 Poster</button>
+      <button class="tug kichik" data-mah="${p.id}">${ik('hujjat', 15)}Tahrirlash</button>
+      <button class="tug kichik" data-poster="${p.id}">${ik('xat', 15)}Poster</button>
       ${p.poster_turi === 'skrinshot' ? `<button class="tug kichik asos"
         data-yasa="${p.id}">🎨 Skrinshotdan poster</button>` : ''}
     </div>
@@ -1066,11 +1295,10 @@ async function mijozlar(yangiFiltr = null) {
     holat.kesh.mijozlar = j.users;
 
     $('#tan').innerHTML = `
-      <div class="bosh"><h1>Mijozlar</h1>
-        <button class="tug kichik" id="u-csv">⬇️ CSV</button></div>
-
-      <div style="padding:0 16px 12px">
-        <input id="u-qidiruv" placeholder="🔍 Ism, telefon yoki username" value="${esc(F.q)}">
+      <div class="asbob">
+        <label class="qidir-joy">${ik('qidir')}<input id="u-qidiruv" placeholder="Ism, telefon yoki username"
+          value="${esc(F.q)}" autocomplete="off"><em>${x.soni ?? 0}</em></label>
+        <div class="asbob-tug"><button class="tug" id="u-csv">${ik('hujjat')}<span>CSV</span></button></div>
       </div>
 
       <div class="segment-lenta">
@@ -1079,9 +1307,10 @@ async function mijozlar(yangiFiltr = null) {
         <button class="tug kichik" data-seg="tozala">✕ Tozalash</button>
       </div>
 
-      <div class="karta tor">
-        <div class="karta-bosh"><h2>🎯 Filtr</h2>
-          <button class="tug kichik" id="u-qolla">Qo‘llash</button></div>
+      <!-- Filtr yig'ilgan turadi — faqat ishlatilganda ochiq -->
+      <details class="karta tor filtr" ${[F.xarid_dan, F.xarid_gacha, F.buyurtma_dan, F.oxirgi_dan, F.oxirgi_gacha, F.xaridor]
+        .some(Boolean) ? 'open' : ''}>
+        <summary>${ik('sozlama')}<b>Filtr</b>${ik('keyingi', 16)}</summary>
         <div class="forma-tor">
           <div><label>Xarid summasi — dan</label>
             <input id="f-xarid-dan" type="number" inputmode="numeric" value="${esc(F.xarid_dan)}"></div>
@@ -1104,17 +1333,14 @@ async function mijozlar(yangiFiltr = null) {
         <label class="belgi-qator" style="margin-top:12px">
           <input type="checkbox" id="f-xaridor" ${F.xaridor ? 'checked' : ''}>
           Faqat sotib olganlar</label>
-      </div>
+        <button class="tug asos keng" id="u-qolla" style="margin-top:12px">Qo‘llash</button>
+      </details>
 
-      <div class="karta tor">
-        <div class="qator-satr"><span class="k">Topildi</span>
-          <span class="v">${x.soni ?? 0} ta</span></div>
-        <div class="qator-satr"><span class="k">Shundan xaridor</span>
-          <span class="v">${x.xaridorlar ?? 0} ta</span></div>
-        <div class="qator-satr"><span class="k">Segment aylanmasi</span>
-          <span class="v">${som(x.jami_xarid || 0)}</span></div>
-        <div class="qator-satr"><span class="k">Bir mijozga o‘rtacha</span>
-          <span class="v">${som(x.ortacha || 0)}</span></div>
+      <div class="kpi-tor">
+        ${kpi('Topildi', `${som(x.soni ?? 0)}`)}
+        ${kpi('Xaridor', `${som(x.xaridorlar ?? 0)}`)}
+        ${kpi('Aylanma', som(x.jami_xarid || 0))}
+        ${kpi('O‘rtacha', som(x.ortacha || 0))}
       </div>
 
       ${j.users.length ? j.users.map((u) => `
@@ -2299,7 +2525,7 @@ async function omborlar() {
     $('#tan').innerHTML = `
       <div class="bosh"><h1>Omborlar</h1>
         <button class="tug asos" id="t-ombor-yangi">+ Qo‘shish</button></div>
-      <div class="xabar-quti ogoh" style="background:var(--kok-och);color:var(--kok)">
+      <div class="xabar-quti izoh-quti">
         🏬 Buyurtma «Omborda» holatiga o‘tganda mijozga eng yaqin ombor manzili,
         telefoni va ish vaqti avtomatik yuboriladi.</div>
       ${j.omborlar.length ? j.omborlar.map((o) => `
@@ -3370,7 +3596,7 @@ async function xabarlar() {
     $('#tan').innerHTML = `
       <div class="bosh"><h1>Bot xabarlari</h1>
         <button class="tug asos" id="x-saqla">Saqlash</button></div>
-      <div class="xabar-quti ogoh" style="background:var(--kok-och);color:var(--kok)">
+      <div class="xabar-quti izoh-quti">
         ✍️ Bu matnlar botda mijozga ko‘rinadi. O‘zgartirsangiz darhol kuchga kiradi.
         <b>{qavs}</b> ichidagilar avtomatik to‘ldiriladi.</div>
       <div id="x-holat"></div>
@@ -3407,7 +3633,7 @@ function shablonMaydoni(kalit) {
         ${ozgargan ? '<span class="yor sariq">o‘zgartirilgan</span>' : ''}
         <button class="tug kichik" data-tiklash="${esc(kalit)}" style="margin-left:auto">↺</button>
       </div>
-      ${t.izoh ? `<p class="ozgina" style="margin:4px 0 0">${esc(t.izoh)}</p>` : ''}
+      ${t.izoh ? `<p class="ozgina izoh" style="margin:4px 0 0">${esc(t.izoh)}</p>` : ''}
       <textarea data-shablon="${esc(kalit)}" rows="${Math.min(12, qiymat.split('\n').length + 1)}"
         style="margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:13px">${esc(qiymat)}</textarea>
       ${t.orin.length ? `<p class="ozgina" style="margin:6px 0 0">
@@ -3792,39 +4018,63 @@ function rasmlarniChiz() {
 let yordamchiSuhbat = [];
 let yordamchiBand = false;
 
+// Bosh ekrandagi imkoniyatlar — har biri tayyor topshiriq
 const YORDAMCHI_NAMUNA = [
-  'Do‘konda nechta mahsulot bor?',
-  'Bir xil tovarlar bormi?',
-  'Oxirgi 7 kunda nechta buyurtma tushdi?',
-  'Ombori tugagan mahsulotlar',
+  { ik: 'osish', nom: 'Hisobot', savol: 'Bu haftaning hisobotini o‘tgan hafta bilan solishtirib ber.' },
+  { ik: 'quti', nom: 'Ombor', savol: 'Nima tugayapti va har biridan qancha buyurtma qilay?' },
+  { ik: 'skaner', nom: 'Issiq lidlar', savol: 'Tahlil qilib sotib olmaganlar va savatini tashlab ketganlar kim?' },
+  { ik: 'xat', nom: 'Xabar yozish', savol: 'Tahlil qilib sotib olmaganlarga shaxsiy xabar matnini yoz va yuborishni taklif qil.' },
+  { ik: 'teg', nom: 'Aksiya', savol: 'Qaysi mahsulotlarga aksiya qilish foydali? Chegirma qo‘yishni taklif qil.' },
+  { ik: 'hujjat', nom: 'Katalog auditi', savol: 'Katalog auditini qil va nimani birinchi tuzatishni ayt.' },
+  { ik: 'yulduz', nom: 'Sharhlar', savol: 'Mijozlar sharhlarini tahlil qil: nima yoqadi, nima yoqmaydi?' },
+  { ik: 'plyus', nom: 'Rasmdan mahsulot', savol: 'Biriktirgan rasmimdagi mahsulotni katalogga qo‘sh.' },
 ];
 
+// Suhbat sahifa almashganda ham, yangilanganda ham saqlanadi (shu
+// brauzer oynasida). «Yangi suhbat» — tozalaydi.
+const AI_KALIT = 'qq_ai_suhbat';
+function suhbatniSaqla() {
+  try {
+    sessionStorage.setItem(AI_KALIT, JSON.stringify(yordamchiSuhbat
+      .filter((x) => x.kim !== 'kutish').slice(-40)
+      .map((x) => ({ ...x, rasmlar: undefined, reja: x.reja ? { ...x.reja, eskirgan: true } : null }))));
+  } catch { /* xotira to'lsa — saqlamaymiz */ }
+}
+function suhbatniOl() {
+  try { return JSON.parse(sessionStorage.getItem(AI_KALIT) || '[]'); } catch { return []; }
+}
+const dokmi = () => matchMedia('(min-width: 1100px)').matches;
+
 function yordamchiOch() {
-  if ($('#y-ekran')) return;
-  const el = document.createElement('div');
+  if ($('#y-ekran')) { $('#y-matn')?.focus(); return; }
+  if (!yordamchiSuhbat.length) yordamchiSuhbat = suhbatniOl();
+  const el = document.createElement('aside');
   el.id = 'y-ekran';
   el.className = 'y-ekran';
+  el.setAttribute('aria-label', 'AI yordamchi');
   el.innerHTML = `
     <header class="y-tepa">
-      <button class="y-orqaga" id="t-y-yop" aria-label="Yopish">←</button>
-      <div class="y-nom"><b>Yordamchi</b><span>Suhbat saqlanmaydi</span></div>
-      <button class="y-tozala" id="t-y-tozala" hidden>Tozalash</button>
+      <span class="y-belgi">${ik('ai', 20)}</span>
+      <div class="y-nom"><b>AI yordamchi</b><span>Do‘koningiz ma’lumotlari bilan ishlaydi</span></div>
+      <button class="y-ik" id="t-y-tozala" title="Yangi suhbat" aria-label="Yangi suhbat">${ik('plyus')}</button>
+      <button class="y-ik" id="t-y-yop" title="Yopish" aria-label="Yopish">${ik('yop')}</button>
     </header>
     <div class="y-oqim" id="y-oqim"></div>
     <div class="y-rasmlar" id="y-rasmlar" hidden></div>
     <div class="y-yozish">
-      <button class="y-biriktir" id="t-y-biriktir" aria-label="Rasm biriktirish">📎</button>
-      <textarea id="y-matn" rows="1" placeholder="Savol yoki topshiriq…"
-        autocomplete="off"></textarea>
-      <button class="y-yubor" id="t-y-yubor" aria-label="Yuborish">↑</button>
+      <button class="y-biriktir" id="t-y-biriktir" aria-label="Rasm biriktirish">${ik('klip', 20)}</button>
+      <textarea id="y-matn" rows="1" placeholder="Topshiriq yoki savol…" autocomplete="off"></textarea>
+      <button class="y-yubor" id="t-y-yubor" aria-label="Yuborish">${ik('yubor', 20)}</button>
       <input id="y-fayl" type="file" accept="image/*" multiple hidden>
     </div>`;
   document.body.appendChild(el);
   document.body.classList.add('y-ochiq');
 
-  $('#t-y-yop').onclick = yordamchiYop;
+  $('#t-y-yop').onclick = () => yordamchiYop();
   $('#t-y-tozala').onclick = () => {
-    yordamchiSuhbat = []; yordamchiRasmlar = []; rasmlarniChiz(); yordamchiChiz();
+    if (yordamchiBand) return;
+    yordamchiSuhbat = []; yordamchiRasmlar = []; suhbatniSaqla(); rasmlarniChiz(); yordamchiChiz();
+    $('#y-matn')?.focus();
   };
   $('#t-y-yubor').onclick = yordamchiYubor;
   $('#t-y-biriktir').onclick = () => $('#y-fayl').click();
@@ -3850,15 +4100,19 @@ function yordamchiOch() {
     // Enter — yuborish, Shift+Enter — yangi qator. Telefonda
     // klaviatura «yuborish» tugmasi ham shu yo'l bilan ishlaydi.
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); yordamchiYubor(); }
+    if (e.key === 'Escape') yordamchiYop();
   };
 
-  // Telefonda «orqaga» tugmasi ekranni yopsin, panelni emas
-  history.pushState({ yordamchi: true }, '');
-  window.addEventListener('popstate', yordamchiOrqaga);
+  // Telefonda panel butun ekran: «orqaga» uni yopsin, panelni emas.
+  // Kompyuterda u yon panel — tarixga yozilmaydi.
+  if (!dokmi()) {
+    history.pushState({ yordamchi: true }, '');
+    window.addEventListener('popstate', yordamchiOrqaga);
+  }
 
   yordamchiChiz();
-  // Klaviaturani o'zi ochib yubormaymiz: birinchi ko'rinishda namuna
-  // savollar o'qilishi kerak
+  pastga(true);
+  if (dokmi()) m.focus();
 }
 
 function yordamchiOrqaga() { if ($('#y-ekran')) yordamchiYop(true); }
@@ -3869,10 +4123,9 @@ function yordamchiYop(orqadan = false) {
   window.removeEventListener('popstate', yordamchiOrqaga);
   el.remove();
   document.body.classList.remove('y-ochiq');
-  // Suhbat bir martalik — yopilgach qoldiq qolmaydi
-  yordamchiSuhbat = [];
+  // Suhbat SAQLANADI — keyin ochilganda davom etadi
+  suhbatniSaqla();
   yordamchiRasmlar = [];
-  yordamchiBand = false;
   if (!orqadan && history.state?.yordamchi) history.back();
 }
 
@@ -3896,14 +4149,12 @@ function yordamchiChiz() {
   if (!yordamchiSuhbat.length) {
     oqim.innerHTML = `
       <div class="y-bosh">
-        <div class="y-halqa">💬</div>
-        <h2>Nima bilmoqchisiz?</h2>
-        <p>Do‘kon ma’lumotlarini o‘qiyman va aniq javob beraman.
-          O‘zgartirish kerak bo‘lsa avval <b>taklif</b> ko‘rsataman —
-          siz tasdiqlaganingizdan keyin bajaraman.</p>
+        <div class="y-halqa">${ik('ai', 28)}</div>
+        <h2>Nima qilamiz?</h2>
+        <p>Hisobot, xabar, aksiya, katalog — yozing, bajaraman. O‘zgarishni tasdiqlaganingizdan keyingina qilaman.</p>
         <div class="y-namunalar">
-          ${YORDAMCHI_NAMUNA.map((x) => `<button data-y-namuna="${esc(x)}">
-            <span>${esc(x)}</span><i>→</i></button>`).join('')}
+          ${YORDAMCHI_NAMUNA.map((x) => `<button data-y-namuna="${esc(x.savol)}">
+            <span class="yn-ik">${ik(x.ik, 18)}</span><span>${esc(x.nom)}</span></button>`).join('')}
         </div>
       </div>`;
     namunalarniUla();
@@ -3940,7 +4191,8 @@ function yordamchiChiz() {
             ${x.qadamlar.map((k) => `<div>
               <code>${esc(k.vosita)}</code> ${esc(k.qisqa || '')}</div>`).join('')}
           </details>` : ''}
-        ${x.reja ? rejaHtml(x.reja) : ''}
+        ${x.reja && !x.reja.eskirgan ? rejaHtml(x.reja) : ''}
+        ${x.reja?.eskirgan ? '<p class="y-eski">Bu taklifning muddati o‘tdi — kerak bo‘lsa qayta so‘rang.</p>' : ''}
       </div>
       ${(x.takliflar || []).length ? `
         <div class="y-takliflar">
@@ -3956,11 +4208,18 @@ function yordamchiChiz() {
     yordamchiChiz();
   });
   pastga();
+  suhbatniSaqla();
 }
 
 const namunalarniUla = () => $$('[data-y-namuna]').forEach((b) => b.onclick = () => {
   const m = $('#y-matn');
   m.value = b.dataset.yNamuna;
+  // «Rasmdan mahsulot» — avval rasm kerak: tanlash oynasi ochiladi,
+  // matn tayyor turadi, admin rasmni tanlab yuboradi
+  if (/rasm/i.test(b.dataset.yNamuna) && !yordamchiRasmlar.length) {
+    $('#y-fayl')?.click(); m.focus(); tost('Rasmni tanlang va yuboring');
+    return;
+  }
   yordamchiYubor();
 });
 
@@ -4155,7 +4414,7 @@ async function yordamchiYubor() {
     // Agent orqada ishlaydi: so'rov darrov ish raqamini qaytaradi,
     // biz esa holatini so'rab turib jarayonni jonli ko'rsatamiz.
     const { ish } = await api('/api/admin/agent', { method: 'POST',
-      body: JSON.stringify({ savol, tarix, rasmlar }) });
+      body: JSON.stringify({ savol, tarix, rasmlar, bolim: BOLIMLAR[holat.bolim]?.nom || '' }) });
     const j = await agentniKuzat(ish);
     yordamchiSuhbat.pop();
     yordamchiSuhbat.push({ kim: 'ai', matn: j.javob, qadamlar: j.qadamlar,

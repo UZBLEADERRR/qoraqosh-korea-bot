@@ -23,14 +23,19 @@ const kut = (ms) => new Promise((r) => setTimeout(r, ms));
 /**
  * @returns {Promise<{id:number, jami:number}>}
  */
-export async function broadcastBoshla({ matn, fileId, adminId, chatId }) {
+export async function broadcastBoshla({ matn, fileId, adminId, chatId, userIdlar = null }) {
+  // `userIdlar` — faqat shu segmentga (AI yordamchi «tahlil qilib sotib
+  // olmaganlarga yoz» deganda). Berilmasa — hammaga.
+  const segment = Array.isArray(userIdlar);
   const oluvchilar = await qatorlar(
     // Faqat HAQIQIY Telegram id (raqam). Google/telefon bilan kirganlar,
     // ochiq skaner mehmonlari va o'chirilgan hisoblar (`google:…`,
     // `tel:…`, `mehmon:…`, `ochirilgan:…`) botdan xabar ola olmaydi —
     // ular «xato» bo'lib sanalib, yuborishni sekinlatardi.
     `select telegram_id from users
-      where not is_blocked and telegram_id ~ '^[0-9]+$' order by id`);
+      where not is_blocked and telegram_id ~ '^[0-9]+$'
+        ${segment ? 'and id = any($1::bigint[])' : ''} order by id`,
+    segment ? [userIdlar.map(Number).filter(Number.isFinite)] : []);
 
   const y = await qator(
     `insert into yuborishlar (matn, holat, jami, created_by)

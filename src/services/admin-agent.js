@@ -19,7 +19,7 @@ import { vositaniBajar, yozishmi, oldindanSoni, VOSITALAR } from './admin-vosita
 // KICHIK bo'lsa ham yomon: admin bir xabarda uchta ish so'rasa
 // («toifasini o'zgartir, takrorlarni tozala, narxni ko'tar») agent
 // birinchisidayoq to'xtab qolardi.
-const MAKS_QADAM = 12;
+const MAKS_QADAM = 16;
 
 // Tasdiq kutayotgan rejalar. Xotirada — server qayta ko'tarilsa
 // bekor bo'ladi va bu TO'G'RI: eski taklifni ko'r-ko'rona bajarish
@@ -52,7 +52,7 @@ const DAVO = /(o[‘'`ʻ]?chir|yop|o[‘'`ʻ]?zgartir|bajar|qo[‘'`ʻ]?sh|saqla
  * @param {Array}  tarix  [{kim:'admin'|'ai', matn}]
  * @param {Array}  [rasmlar] [{base64, mime}] — admin biriktirgan suratlar
  */
-export async function agentJavobi(savol, tarix = [], rasmlar = [], kuzat = null) {
+export async function agentJavobi(savol, tarix = [], rasmlar = [], kuzat = null, kontekst = '') {
   // `kuzat` — har qadamda chaqiriladi. Admin agent NIMA ustida
   // ishlayotganini jonli ko'rsin: ilgari u faqat aylanayotgan
   // nuqtalarni ko'rar va necha soniya kutishini bilmasdi.
@@ -70,7 +70,7 @@ export async function agentJavobi(savol, tarix = [], rasmlar = [], kuzat = null)
 
   for (let i = 0; i < MAKS_QADAM; i++) {
     xabarBer({ qadam: i + 1, holat: 'oylayapti', matn: 'O‘ylayapti…' });
-    const q = await keyingiQadam(savol, qadamlar, tarix, rasmlar);
+    const q = await keyingiQadam(savol, qadamlar, tarix, rasmlar, kontekst);
 
     if (q.amal === 'javob') { javob = q.javob; takliflar = q.takliflar; break; }
 
@@ -94,7 +94,8 @@ export async function agentJavobi(savol, tarix = [], rasmlar = [], kuzat = null)
         // Son TAXMIN qilinmaydi — bazadan sanaladi. Ilgari har qanday
         // ommaviy amal «1 ta yozuv» bo'lib ko'rinardi.
         soni: await oldindanSoni(q.vosita, q.argumentlar),
-        qaytarib_bolmaydi: q.vosita === 'mahsulot_ochir',
+        // Yuborilgan xabarni ham qaytarib bo'lmaydi
+        qaytarib_bolmaydi: ['mahsulot_ochir', 'ommaviy_xabar', 'mijozga_xabar'].includes(q.vosita),
       });
       // Modelga aytamiz: bu HALI bajarilmadi, davom et
       qadamlar.push({
