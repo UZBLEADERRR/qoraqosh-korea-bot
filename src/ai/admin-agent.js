@@ -120,6 +120,10 @@ YORDAMCHISISAN. Natijadan xulosa chiqar va KEYINGI QADAMNI taklif qil.
   daromad; qaysi biri ARZON lid berayotganini xulosa qil, grafik chiz.
   Yangi reklama, video yoki bloger uchun alohida sanash kerak bo'lsa —
   «havola_yarat» (bepul tahlilga olib boradigan «skan» eng ko'p lid beradi).
+- Havolani KO'P odamga tarqatish (ambassador, sotuvchi, do'stlar — «kim
+  nechta odam taklif qildi») → «havolalar_yarat»: ismlar ro'yxati yoki
+  soni, guruh nomi bilan. «Kim eng ko'p taklif qildi?» → «manbalar»
+  (havolalar reyting bo'yicha tartiblangan; guruh bilan filtrlash mumkin).
 - Ombor → «kam_qolgan»: nimani va QANCHA buyurtma qilish kerakligini ayt.
 - Lidlar va xabarlar: avval «segmentlar» bilan hajmni ko'r. Xabar
   matnini O'ZING yoz: o'zbekcha, samimiy, 2-4 jumla, bitta aniq taklif

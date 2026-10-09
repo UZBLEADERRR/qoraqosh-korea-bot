@@ -38,7 +38,7 @@ import { brendNomi } from './lib/brend.js';
 import { verifyAdminToken } from './lib/auth.js';
 import { versiyaOl, versiyalaHtml, versiyalanganmi } from './lib/versiya.js';
 import { logoSvg } from './lib/logo.js';
-import { havolaBosildi, avtoTashrif } from './services/manba.js';
+import { havolaBosildi, avtoTashrif, taklifchiNatijasi } from './services/manba.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -416,6 +416,15 @@ const server = http.createServer(async (req, res) => {
       return res.end();
     }
 
+    // ---------- Taklifchining o'z natijasi: /taklif/<kod>?s=<sir> ----------
+    // Havola tarqatilgan odam nechta odam olib kelganini O'ZI ko'radi.
+    if (yol.startsWith('/taklif/') && req.method === 'GET') {
+      const n = await taklifchiNatijasi(yol.slice(8).replace(/\/+$/, ''), url.searchParams.get('s'));
+      res.writeHead(n ? 200 : 404, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store',
+        'X-Robots-Tag': 'noindex' });
+      return res.end(taklifSahifasi(n, config.saytUrl));
+    }
+
     // Havolasiz, lekin Instagram/TikTok ichidan ochilgan tashrif ham sanaladi
     if (yol === '/' || yol === '/skan/' || yol === '/app/') await avtoTashrif(req, res, url);
 
@@ -558,6 +567,36 @@ ${token ? "location.replace('/app/');"
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 const notFound = (res) => { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('404 — topilmadi'); };
+/** Taklifchi sahifasi: o'z havolasi va natijasi, boshqa hech narsa. */
+function taklifSahifasi(n, asos) {
+  const e = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const havola = n ? `${String(asos || '').replace(/\/+$/, '')}/h/${n.kod}` : '';
+  const quti = (son, nom) => `<div class="q"><b>${Number(son || 0).toLocaleString('uz-UZ').replace(/,/g, ' ')}</b><span>${nom}</span></div>`;
+  return `<!doctype html><html lang="uz"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>Taklif natijasi — KiOVO</title><link rel="stylesheet" href="/umumiy/brend.css">
+<style>body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:20px;background:#e1edcf;
+font-family:var(--k-shrift);color:#1d1514}.k{background:#f0f6e7;border-radius:22px;padding:26px 22px;max-width:420px;width:100%;
+box-shadow:0 10px 40px rgba(60,40,20,.12)}.logo{color:#ab0a0c;line-height:0;margin-bottom:14px}.logo svg{height:30px;width:auto}
+h1{font-size:22px;margin:0 0 4px}p{margin:0 0 18px;color:#605b52;font-size:14.5px}
+.t{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 18px}.q{background:#fff;border-radius:14px;padding:14px 8px;text-align:center}
+.q b{display:block;font-size:26px;color:#ab0a0c}.q span{font-size:12.5px;color:#605b52}
+.h{display:flex;gap:8px;align-items:center;background:#fff;border-radius:12px;padding:10px 12px;font-weight:700;color:#ab0a0c;
+word-break:break-all}.h span{flex:1}button,a.tg{border:0;border-radius:12px;padding:12px 14px;font:inherit;font-weight:700;cursor:pointer}
+button{background:#ab0a0c;color:#fff}a.tg{display:block;text-align:center;margin-top:10px;background:#229ed9;color:#fff;text-decoration:none}
+.y{font-size:12.5px;color:#605b52;margin-top:14px}</style></head><body><div class="k">
+<div class="logo">${LOGO_INLINE}</div>
+${n ? `<h1>Salom, ${e(n.nom)}!</h1><p>Sizning taklif havolangiz va natijangiz.</p>
+<div class="t">${quti(n.unikal, 'odam kirdi')}${quti(n.royxat, 'ro‘yxatdan o‘tdi')}${quti(n.xaridor, 'xarid qildi')}</div>
+<div class="h"><span id="h">${e(havola)}</span><button id="n">Nusxa</button></div>
+<a class="tg" href="https://t.me/share/url?url=${encodeURIComponent(havola)}&text=${encodeURIComponent('Yuzingizni bepul tahlil qiling — KiOVO')}">Telegramda ulashish</a>
+${n.faol ? '' : '<p class="y">Bu havola hozir o‘chirilgan.</p>'}
+<p class="y">Havolani do‘stlaringizga yuboring. Kim u orqali ro‘yxatdan o‘tsa — sizning hisobingizga yoziladi.</p>
+<script>document.getElementById('n').onclick=function(){navigator.clipboard&&navigator.clipboard.writeText(${JSON.stringify(havola)}).then(function(){document.getElementById('n').textContent='Nusxalandi'})}</script>`
+  : '<h1>Havola topilmadi</h1><p>Havola noto‘g‘ri yoki eskirgan. Sizga havola bergan odamdan qayta so‘rang.</p>'}
+</div></body></html>`;
+}
+
 const redirect = (res, joy) => { res.writeHead(302, { Location: joy }); res.end(); };
 
 // ============================================================

@@ -287,6 +287,11 @@ export async function adminRoutes(req, res, yol) {
     const r = b.id ? await manba.havolaOzgartir(b) : await manba.havolaYarat(b, config.saytUrl);
     return r.xato ? xato(res, 400, r.xato) : ok(res, r);
   }
+  // Ko'p havola birdaniga: har taklifchiga o'z havolasi
+  if (yol === '/api/admin/havolalar' && req.method === 'POST') {
+    const r = await manba.havolalarniYarat(await tana(req), config.saytUrl);
+    return r.xato ? xato(res, 400, r.xato) : ok(res, r);
+  }
   if (yol === '/api/admin/havola' && req.method === 'DELETE') {
     const b = await tana(req);
     return ok(res, await manba.havolaOchir(b.id));

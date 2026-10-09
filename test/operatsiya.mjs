@@ -6192,6 +6192,61 @@ console.log('\n── MANBALAR (Instagram, TikTok) ──');
   const app = fs.readFileSync('public/app/app.js', 'utf8');
   test('ilova: ?h= va startapp=h_ belgisi eslab qolinadi', /start_param/.test(app) && /'X-Manba': manbaBelgisi\(\)/.test(app));
 
+
+  // ── KO'P HAVOLA: har taklifchiga o'z havolasi ──
+  await sorov(`delete from havolalar where guruh = 'Sinov ambassadorlari'`);
+  test('ro‘yxat ajratiladi (ism, telefon)', JSON.stringify(M.ismlarniAjrat("Madina Karimova, +998 90 123 45 67\nSardor\n\nBloger Nilufar - 935554433"))
+    === JSON.stringify([{ nom: 'Madina Karimova', telefon: '+998901234567' }, { nom: 'Sardor', telefon: null },
+      { nom: 'Bloger Nilufar', telefon: '+998935554433' }]));
+  const kop = await chaqirAdmin('/api/admin/havolalar', 'POST', { ismlar: "Madina Karimova, +998901234567\nSardor O'ktamov\nАзиз Раҳимов",
+    guruh: 'Sinov ambassadorlari' });
+  test('ro‘yxatdan 3 ta havola', kop.kod === 200 && kop.tana.soni === 3, JSON.stringify(kop.tana).slice(0, 100));
+  test('kod ismdan (kirill ham lotinga)', /^madina-karimova-[0-9a-f]{3,}$/.test(kop.tana.havolalar[0].kod)
+    && /^sardor-oktamov-/.test(kop.tana.havolalar[1].kod) && /^aziz-rahimov-/.test(kop.tana.havolalar[2].kod),
+    kop.tana.havolalar.map((x) => x.kod).join(' '));
+  test('har biriga natija sahifasi', kop.tana.havolalar.every((x) => /\/taklif\/[a-z0-9-]+\?s=[0-9a-f]{12}$/.test(x.natija_url)));
+  const sonli = await M.havolalarniYarat({ soni: 25, prefiks: 'Sotuvchi', guruh: 'Sinov ambassadorlari' }, 'https://www.kiovo.shop');
+  test('shunchaki soni bo‘yicha 25 ta', sonli.soni === 25 && sonli.havolalar[24].nom === 'Sotuvchi 25'
+    && new Set(sonli.havolalar.map((x) => x.kod)).size === 25);
+  test('500 dan ko‘p — rad', Boolean((await M.havolalarniYarat({ soni: 0, ismlar: Array.from({ length: 501 }, (_, i) => `Odam ${i}`) })).xato));
+  test('bo‘sh — rad', Boolean((await M.havolalarniYarat({})).xato));
+
+  // Madina 2 kishini taklif qildi: biri sotib oldi
+  const mad = kop.tana.havolalar[0];
+  await M.havolaBosildi(sorovYasa(), javobYasa(), mad.kod);
+  await M.havolaBosildi(sorovYasa(), javobYasa(), mad.kod);
+  await sorov(`delete from users where telegram_id in ('882001','882002')`);
+  const t1 = await qator(`insert into users (telegram_id, full_name) values ('882001', 'T1') returning id`);
+  const t2 = await qator(`insert into users (telegram_id, full_name) values ('882002', 'T2') returning id`);
+  await M.manbaBelgila(t1.id, mad.kod); await M.manbaBelgila(t2.id, `h_${mad.kod}`);
+  await sorov(`insert into orders (order_no, user_id, items, subtotal, total, status) values ('KQ-TAKLIF-1', $1, '[]', 99000, 99000, 'yangi')`, [t1.id]);
+  const rep = await M.manbaHisoboti({ kun: 30 }, 'https://www.kiovo.shop');
+  const guruhi = rep.havolalar.filter((x) => x.guruh === 'Sinov ambassadorlari');
+  test('reyting: eng ko‘p taklif qilgan birinchi', guruhi[0].kod === mad.kod && guruhi[0].royxat === 2 && guruhi[0].xaridor === 1,
+    `${guruhi[0].nom} ${guruhi[0].royxat}`);
+  test('guruhlar ro‘yxati', rep.guruhlar.includes('Sinov ambassadorlari'));
+  const ai = await vositaniBajar('manbalar', { guruh: 'Sinov ambassadorlari', chegara: 5 });
+  test('AI: guruh reytingi ixcham', ai.havolalar.length === 5 && ai.havolalar_soni === 28 && ai.havolalar[0].nom === 'Madina Karimova');
+  test('AI: ko‘p havola yaratish (tasdiq bilan)', yozishmi('havolalar_yarat'));
+  const { oldindanSoni } = await import('../src/services/admin-vositalar.js');
+  test('tasdiq kartasida aniq son', await oldindanSoni('havolalar_yarat', { ismlar: 'A a\nB b\nC c' }) === 3
+    && await oldindanSoni('havolalar_yarat', { soni: 40 }) === 40);
+
+  // Taklifchining o'z sahifasi: faqat sir bilan
+  const sir = mad.natija_url.split('?s=')[1];
+  const tn = await M.taklifchiNatijasi(mad.kod, sir);
+  test('taklifchi o‘z natijasini ko‘radi', tn && tn.royxat === 2 && tn.xaridor === 1 && tn.unikal >= 1, JSON.stringify(tn));
+  test('sirsiz — ko‘rinmaydi', await M.taklifchiNatijasi(mad.kod, 'boshqa') === null && await M.taklifchiNatijasi(mad.kod, '') === null);
+  const srvM = fs.readFileSync('src/server.js', 'utf8');
+  test('server: /taklif/ sahifasi', /yol\.startsWith\('\/taklif\/'\)/.test(srvM) && /X-Robots-Tag/.test(srvM));
+  const adm = fs.readFileSync('public/admin/admin.js', 'utf8');
+  test('panel: ko‘p havola, CSV, reyting qidiruvi', /function kopHavolaOyna/.test(adm) && /function havolalarCsv/.test(adm)
+    && /id="hv-q"/.test(adm));
+
+  await sorov(`delete from orders where order_no = 'KQ-TAKLIF-1'`);
+  await sorov(`delete from users where telegram_id in ('882001','882002')`);
+  await sorov(`delete from havolalar where guruh = 'Sinov ambassadorlari'`);
+
   await sorov(`delete from orders where order_no = 'KQ-MANBA-1'`);
   await sorov(`delete from users where telegram_id in ('881001','881002','881003','881004')`);
   await sorov(`delete from havolalar where kod like 'sinov-%'`);

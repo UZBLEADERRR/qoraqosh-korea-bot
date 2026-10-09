@@ -908,3 +908,24 @@ details.filtr label:first-child{margin-top:0}
   .hv-tan{flex:1 1 calc(100% - 100px)}
   .hv-stat{order:3;flex:1 1 100%;grid-template-columns:repeat(4,1fr);text-align:left;padding-left:48px}
 }
+
+/* Taklifchilar reytingi */
+.hv-guruhlar{padding:0 0 10px}
+.hv-qidir{margin:0 0 6px;height:42px}
+.hv-orin{flex:0 0 32px;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;
+  background:var(--fon);color:var(--kul);font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+.hv-orin.top{background:var(--urgu-och);color:var(--urgu)}
+.hv-tan b small{font-weight:500;color:var(--och);font-size:12px;margin-left:4px}
+.hv-stat .asosiy b{color:var(--urgu)}
+#hv-yana{margin-top:10px}
+@media (max-width:700px){ .hv-stat{padding-left:44px} .tor-yashir{display:none} }
+
+.kh-yoki{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 0;font-size:13.5px;color:var(--och)}
+.kh-yoki input{width:auto;flex:0 0 92px;padding:9px 11px}
+.kh-yoki input#kh-pref{flex:1 1 140px}
+.kn-royxat{display:flex;flex-direction:column;max-height:52dvh;overflow:auto;border:1px solid var(--chiziq);border-radius:12px}
+.kn-qator{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-top:1px solid var(--chiziq)}
+.kn-qator:first-child{border-top:0}
+.kn-qator b{flex:1 1 140px;font-size:14px}
+.kn-natija{border:0;background:none;color:var(--och);font-size:12.5px;cursor:pointer;display:inline-flex;gap:5px;align-items:center}
+.kn-natija:hover{color:var(--matn)}

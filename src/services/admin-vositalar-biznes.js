@@ -388,7 +388,16 @@ export async function mahsulotQosh(a = {}) {
 // ── Manbalar: Instagram, TikTok… ──
 async function manbalarVosita(a = {}) {
   const [{ manbaHisoboti }, { config }] = await Promise.all([import('./manba.js'), import('../config.js')]);
-  return manbaHisoboti({ kun: a.kun ?? 30 }, config.saytUrl);
+  const h = await manbaHisoboti({ kun: a.kun ?? 30 }, config.saytUrl);
+  // Yuzlab taklifchi bo'lsa — reytingning boshi yetadi (javob ixcham qolsin)
+  const g = a.guruh ? h.havolalar.filter((x) => x.guruh === a.guruh) : h.havolalar;
+  return { ...h, havolalar_soni: g.length, havolalar: g.slice(0, a.chegara ?? 30) };
+}
+async function havolalarYaratVosita(a = {}) {
+  const [{ havolalarniYarat }, { config }] = await Promise.all([import('./manba.js'), import('../config.js')]);
+  const r = await havolalarniYarat(a, config.saytUrl);
+  return r.xato ? { yaratildi: 0, xabar: r.xato } : { yaratildi: r.soni, guruh: r.guruh, havolalar: r.havolalar,
+    izoh: 'Har odamga o‘z havolasi va natija sahifasi (natija_url) — u o‘zi nechta odam olib kelganini ko‘radi.' };
 }
 async function havolaYaratVosita(a = {}) {
   const [{ havolaYarat }, { config }] = await Promise.all([import('./manba.js'), import('../config.js')]);
@@ -403,7 +412,15 @@ export const BIZNES_VOSITALAR = {
     tavsif: 'MIJOZ QAYERDAN KELDI: Instagram, TikTok, Telegram… har manba va har havola bo‘yicha '
           + 'bosish, unikal odam, ro‘yxatdan o‘tgan, tahlil qilgan, xarid qilgan, daromad, konversiya; '
           + 'manbasi noma’lumlar soni; 14 kunlik bosishlar. «Instagramdan nechta odam keldi?» uchun.',
-    parametrlar: 'kun (standart 30, 0 — butun davr)',
+    parametrlar: 'kun (standart 30, 0 — butun davr), guruh (bitta tarqatish), chegara (reytingdan nechta)',
+  },
+  havolalar_yarat: {
+    oqish: false, ishla: havolalarYaratVosita,
+    tavsif: 'BIR URINISHDA KO‘P TAKLIF HAVOLASI: ambassador, bloger, sotuvchi, do‘stlar — har odamga o‘z '
+          + 'havolasi, kim nechta odam olib kelgani alohida sanaladi. Ismlar ro‘yxati (har qatorga «Ism, telefon») '
+          + 'yoki shunchaki soni. Har biriga taklifchi o‘z natijasini ko‘radigan sahifa ham beriladi.',
+    parametrlar: 'ismlar (matn yoki ro‘yxat) YOKI soni + prefiks; guruh (masalan «Oktabr ambassadorlari»), '
+               + 'maqsad (skan|sayt|ilova|bot|miniapp), manba (standart taklif)',
   },
   havola_yarat: {
     oqish: false, ishla: havolaYaratVosita,
@@ -494,5 +511,10 @@ export async function biznesOldindanSoni(nom, a = {}) {
     return n || 0;
   }
   if (nom === 'mijozga_xabar' || nom === 'mahsulot_qosh' || nom === 'havola_yarat') return 1;
+  if (nom === 'havolalar_yarat') {
+    const { ismlarniAjrat } = await import('./manba.js');
+    const n = Array.isArray(a.ismlar) ? a.ismlar.length : ismlarniAjrat(a.ismlar).length;
+    return Math.min(500, n || Math.round(Number(a.soni) || 0));
+  }
   return undefined;
 }

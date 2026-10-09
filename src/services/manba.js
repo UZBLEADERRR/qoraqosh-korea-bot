@@ -21,6 +21,7 @@ import { qator, qatorlar, sorov } from '../db.js';
 import { cookieOl } from '../lib/http.js';
 
 export const MANBALAR = {
+  taklif: 'Taklif (odam orqali)',
   instagram: 'Instagram', tiktok: 'TikTok', telegram: 'Telegram', youtube: 'YouTube',
   facebook: 'Facebook', google: 'Google', boshqa: 'Boshqa',
 };
@@ -192,19 +193,97 @@ export async function havolaYarat({ nom, manba, maqsad = 'skan', kod } = {}, aso
   try {
     const h = await qator(
       `insert into havolalar (kod, nom, manba, maqsad) values ($1,$2,$3,$4) returning *`, [k, n, m, q]);
-    return { havola: { ...h, url: toliq(asos, h.kod) } };
+    return { havola: { ...h, url: toliq(asos, h.kod), natija_url: natijaUrl(asos, h) } };
   } catch (e) {
     if (/duplicate key/.test(e.message)) return { xato: `«${k}» kodi band — boshqasini tanlang.` };
     throw e;
   }
 }
 
-export async function havolaOzgartir({ id, nom, maqsad, faol } = {}) {
+// Taklifchining o'z natijasini ko'radigan sahifasi
+const natijaUrl = (asos, h) => `${String(asos || '').replace(/\/+$/, '')}/taklif/${h.kod}?s=${h.sir}`;
+
+/** O'zbekcha ismdan kod uchun so'z: «Sardor O'ktamov» → «sardor-oktamov». */
+const lotin = (t) => String(t || '').toLowerCase()
+  .replace(/[‘’'`ʻʼ]/g, '')
+  .replace(/[ая]/g, 'a').replace(/[бв]/g, (c) => (c === 'б' ? 'b' : 'v')).replace(/[гғ]/g, 'g')
+  .replace(/д/g, 'd').replace(/[её]/g, 'e').replace(/ж/g, 'j').replace(/з/g, 'z').replace(/[иий]/g, 'i')
+  .replace(/[кқ]/g, 'k').replace(/л/g, 'l').replace(/м/g, 'm').replace(/н/g, 'n').replace(/[оў]/g, 'o')
+  .replace(/п/g, 'p').replace(/р/g, 'r').replace(/с/g, 's').replace(/т/g, 't').replace(/у/g, 'u')
+  .replace(/ф/g, 'f').replace(/[хҳ]/g, 'h').replace(/ц/g, 's').replace(/ч/g, 'ch').replace(/ш/g, 'sh')
+  .normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+/**
+ * Ro'yxatdan qatorlar: «Ism Familiya, +998 90 123 45 67» yoki faqat ism.
+ * Telefon ixtiyoriy — vergul, tire yoki tab bilan ajratiladi.
+ */
+export function ismlarniAjrat(matn) {
+  return String(matn || '').split(/\r?\n/).map((q) => q.trim()).filter(Boolean).map((q) => {
+    const tel = (q.match(/\+?\d[\d\s()-]{6,}\d/) || [''])[0];
+    const nom = q.replace(tel, '').replace(/[,;\t|—–-]+\s*$/, '').replace(/^\s*[,;\t|—–-]+/, '').trim();
+    let t = tel.replace(/[^\d+]/g, '');
+    if (/^998\d{9}$/.test(t)) t = `+${t}`;
+    else if (/^\d{9}$/.test(t)) t = `+998${t}`;
+    return { nom: (nom || tel).slice(0, 80), telefon: t || null };
+  }).filter((x) => x.nom.length >= 2);
+}
+
+/**
+ * BIR URINISHDA KO'P HAVOLA: har odamga o'z havolasi.
+ * `ismlar` — ro'yxat matni yoki [{nom, telefon}]; berilmasa `soni` ta
+ * «<prefiks> 1, 2, 3…» yasaladi. Eng ko'pi 500 ta.
+ */
+export async function havolalarniYarat({ ismlar, soni, prefiks, manba = 'taklif', maqsad = 'skan', guruh } = {}, asos = '') {
+  let royxat = Array.isArray(ismlar) ? ismlar.map((x) => (typeof x === 'string' ? { nom: x } : x))
+    : ismlarniAjrat(ismlar);
+  royxat = royxat.map((x) => ({ nom: String(x.nom || '').trim().slice(0, 80), telefon: x.telefon || null }))
+    .filter((x) => x.nom.length >= 2);
+  if (!royxat.length) {
+    const n = Math.max(0, Math.min(500, Math.round(Number(soni) || 0)));
+    const p = String(prefiks || 'Taklifchi').trim().slice(0, 60) || 'Taklifchi';
+    royxat = Array.from({ length: n }, (_, i) => ({ nom: `${p} ${i + 1}`, telefon: null }));
+  }
+  if (!royxat.length) return { xato: 'Ismlar ro‘yxatini yozing (har qatorga bitta) yoki nechta havola kerakligini kiriting.' };
+  if (royxat.length > 500) return { xato: 'Bir urinishda eng ko‘pi 500 ta havola.' };
+  const m = MANBALAR[manba] ? manba : 'taklif';
+  const q = MAQSADLAR[maqsad] ? maqsad : 'skan';
+  const g = String(guruh || '').trim().slice(0, 60)
+    || `Taklif ${new Date().toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
+
+  const natija = [];
+  for (const x of royxat) {
+    // Kod ismdan: www.kiovo.shop/h/sardor-7f3 — odam o'zinikini taniydi
+    for (let urinish = 0; urinish < 5; urinish++) {
+      const kod = `${(lotin(x.nom) || 'taklif').slice(0, 20).replace(/-+$/, '')}-${crypto.randomBytes(2).toString('hex').slice(0, 3 + urinish)}`;
+      const h = await qator(
+        `insert into havolalar (kod, nom, manba, maqsad, guruh, telefon) values ($1,$2,$3,$4,$5,$6)
+         on conflict (kod) do nothing returning *`, [kod, x.nom, m, q, g, x.telefon]);
+      if (h) { natija.push({ id: h.id, nom: h.nom, telefon: h.telefon, kod: h.kod, url: toliq(asos, h.kod), natija_url: natijaUrl(asos, h) }); break; }
+    }
+  }
+  return { guruh: g, soni: natija.length, havolalar: natija };
+}
+
+/** Taklifchining O'Z natijasi (sahifa uchun): faqat sir to'g'ri bo'lsa. */
+export async function taklifchiNatijasi(kod, sir) {
+  const h = await qator(`select * from havolalar where kod = $1`, [String(kod || '').toLowerCase()]);
+  if (!h || !sir || h.sir !== String(sir)) return null;
+  const b = await qator(`select count(*)::int as bosish, count(distinct coalesce(mehmon, id::text))::int as unikal
+      from havola_bosishlar where havola_id = $1`, [h.id]);
+  const u = await qator(`select count(*) filter (where telegram_id not like 'mehmon:%')::int as royxat,
+      count(*) filter (where exists (select 1 from orders o where o.user_id = users.id and o.status <> 'bekor'))::int as xaridor
+      from users where havola_id = $1`, [h.id]);
+  return { nom: h.nom, kod: h.kod, faol: h.faol, ...b, ...u };
+}
+
+export async function havolaOzgartir({ id, nom, maqsad, faol, telefon, guruh } = {}) {
   const h = await qator(
-    `update havolalar set nom = coalesce($2, nom), maqsad = coalesce($3, maqsad), faol = coalesce($4, faol)
+    `update havolalar set nom = coalesce($2, nom), maqsad = coalesce($3, maqsad), faol = coalesce($4, faol),
+            telefon = coalesce($5, telefon), guruh = coalesce($6, guruh)
       where id = $1 returning *`,
     [Number(id), nom ? String(nom).slice(0, 80) : null, MAQSADLAR[maqsad] ? maqsad : null,
-     typeof faol === 'boolean' ? faol : null]);
+     typeof faol === 'boolean' ? faol : null, telefon ? String(telefon).slice(0, 20) : null,
+     guruh ? String(guruh).slice(0, 60) : null]);
   return h ? { havola: h } : { xato: 'Havola topilmadi.' };
 }
 
@@ -276,7 +355,11 @@ export async function manbaHisoboti({ kun = 30 } = {}, asos = '') {
     manbalar: Object.values(manbalar).map(konv).sort((a, b) => b.royxat - a.royxat || b.bosish - a.bosish),
     havolalar: havolalar.map((h) => konv({ id: h.id, kod: h.kod, nom: h.nom, manba: h.manba,
       manba_nom: MANBALAR[h.manba] || h.manba, maqsad: h.maqsad, maqsad_nom: MAQSADLAR[h.maqsad] || h.maqsad,
-      faol: h.faol, url: toliq(asos, h.kod), ...havolaHisob[h.id] })),
+      faol: h.faol, guruh: h.guruh, telefon: h.telefon, url: toliq(asos, h.kod), natija_url: natijaUrl(asos, h),
+      created_at: h.created_at, ...havolaHisob[h.id] }))
+      // Reyting: kim ko'p odam olib keldi — birinchi
+      .sort((a, b) => b.royxat - a.royxat || b.xaridor - a.xaridor || b.unikal - a.unikal || a.id - b.id),
+    guruhlar: [...new Set(havolalar.map((h) => h.guruh).filter(Boolean))],
     kunlar: Object.entries(seriya).map(([kun, x]) => ({ kun, ...x })),
   };
 }

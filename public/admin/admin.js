@@ -540,9 +540,9 @@ async function boshqaruv() {
 // ═══════════ MANBALAR: Instagram, TikTok… ═══════════
 // Qaysi reklama joyi odam olib kelyapti va ulardan nechtasi sotib
 // oladi. Har joyga o'z qisqa havolasi: www.kiovo.shop/h/ig.
-const MANBA_RANG = { instagram: '#d62976', tiktok: '#111111', telegram: '#229ed9', youtube: '#e62117',
+const MANBA_RANG = { taklif: '#2c7a51', instagram: '#d62976', tiktok: '#111111', telegram: '#229ed9', youtube: '#e62117',
   facebook: '#1877f2', google: '#34a853', boshqa: '#8c8881' };
-const MANBA_QISQA = { instagram: 'IG', tiktok: 'TT', telegram: 'TG', youtube: 'YT', facebook: 'FB', google: 'G', boshqa: '•' };
+const MANBA_QISQA = { taklif: 'TK', instagram: 'IG', tiktok: 'TT', telegram: 'TG', youtube: 'YT', facebook: 'FB', google: 'G', boshqa: '•' };
 const manbaBelgi = (m) => `<span class="mb-belgi" style="--mb:${MANBA_RANG[m] || MANBA_RANG.boshqa}">${MANBA_QISQA[m] || '•'}</span>`;
 const MANBA_DAVR = [[7, '7 kun'], [30, '30 kun'], [90, '90 kun'], [0, 'Hammasi']];
 
@@ -600,25 +600,18 @@ async function manbalarBolimi() {
         </section>
       </div>
 
+      <!-- Taklifchilar reytingi: havola tarqatilgan har odam — kim nechta odam olib keldi -->
       <section class="karta">
-        <div class="karta-bosh"><h2>Havolalar</h2>
-          <button class="tug kichik asos" id="t-havola-yangi">${ik('plyus', 15)}Yangi havola</button></div>
-        <div class="hv-royxat">${d.havolalar.map((h) => `
-          <div class="hv-qator ${h.faol ? '' : 'ochiq-emas'}">
-            ${manbaBelgi(h.manba)}
-            <div class="hv-tan">
-              <b>${esc(h.nom)}</b>
-              <button class="hv-url" data-nusxa="${esc(h.url)}" title="Nusxa olish">${esc(h.url.replace(/^https?:\/\//, ''))}${ik('nusxa', 14)}</button>
-              <span class="hv-izoh">${esc(h.maqsad_nom)}${h.faol ? '' : ' · o‘chirilgan'}</span>
-            </div>
-            <div class="hv-stat">
-              <div><b>${som(h.bosish)}</b><span>bosish</span></div>
-              <div><b>${som(h.royxat)}</b><span>ro‘yxat</span></div>
-              <div><b>${som(h.xaridor)}</b><span>xarid</span></div>
-              <div><b>${narx(h.daromad)}</b><span>daromad</span></div>
-            </div>
-            <button class="ik-tugma" data-havola="${h.id}" aria-label="Sozlash">${ik('sozlama')}</button>
-          </div>`).join('')}</div>
+        <div class="karta-bosh"><h2>Havolalar va taklifchilar</h2>
+          <button class="tug kichik" id="t-havola-csv" title="CSV">${ik('hujjat', 15)}<span class="tor-yashir">CSV</span></button>
+          <button class="tug kichik" id="t-havola-yangi">${ik('plyus', 15)}<span class="tor-yashir">Bitta</span></button>
+          <button class="tug kichik asos" id="t-havola-kop">${ik('odamlar', 15)}Ko‘p havola</button></div>
+        ${d.guruhlar.length ? `<div class="chip-satr hv-guruhlar">
+          <button class="chip ${holat.hvGuruh ? '' : 'faol'}" data-hvg="">Hammasi</button>
+          ${d.guruhlar.map((g) => `<button class="chip ${holat.hvGuruh === g ? 'faol' : ''}" data-hvg="${esc(g)}">${esc(g)}</button>`).join('')}
+        </div>` : ''}
+        <label class="qidir-joy hv-qidir">${ik('qidir')}<input id="hv-q" placeholder="Ism, telefon yoki kod" value="${esc(holat.hvQ || '')}" autocomplete="off"><em id="hv-soni"></em></label>
+        <div class="hv-royxat" id="hv-royxat"></div>
       </section>
 
       <section class="ai-chaqiriq">
@@ -626,16 +619,128 @@ async function manbalarBolimi() {
         <div class="ai-chiplar">
           <button data-mai="Qaysi manba eng yaxshi ishlayapti? Instagram va TikTokni solishtir: kelgan, ro‘yxatdan o‘tgan, sotib olgan, daromad. Grafik chiz va nima qilishni ayt.">${ik('osish', 15)}Qaysi manba yaxshi ishlayapti?</button>
           <button data-mai="Yangi TikTok videosi uchun alohida havola yarat (bepul tahlilga olib borsin).">${ik('plyus', 15)}TikTok video uchun havola</button>
+          <button data-mai="Kim eng ko‘p odam taklif qildi? Taklifchilar reytingini ko‘rsat: kirgan, ro‘yxatdan o‘tgan, sotib olgan, daromad. Eng yaxshilarini ajrat.">${ik('odamlar', 15)}Kim ko‘p taklif qildi?</button>
         </div>
       </section>`;
 
     $$('[data-mkun]').forEach((b) => b.onclick = () => { holat.mkun = Number(b.dataset.mkun); manbalarBolimi(); });
     $$('[data-mai]').forEach((b) => b.onclick = () => aiSora(b.dataset.mai));
-    $$('[data-nusxa]').forEach((b) => b.onclick = () => nusxaOl(b.dataset.nusxa));
-    $$('[data-havola]').forEach((b) => b.onclick = () =>
-      havolaOyna(d.havolalar.find((h) => h.id === Number(b.dataset.havola))));
+    havolalarniChiz(d);
+    $('#hv-q').oninput = (e) => { holat.hvQ = e.target.value; holat.hvKor = 30; havolalarniChiz(d); };
+    $$('[data-hvg]').forEach((b) => b.onclick = () => {
+      holat.hvGuruh = b.dataset.hvg; holat.hvKor = 30;
+      $$('[data-hvg]').forEach((x) => x.classList.toggle('faol', x === b)); havolalarniChiz(d);
+    });
     $('#t-havola-yangi').onclick = () => havolaOyna(null);
+    $('#t-havola-kop').onclick = () => kopHavolaOyna();
+    $('#t-havola-csv').onclick = () => havolalarCsv(havolaFiltr(d), `taklif-havolalari-${new Date().toISOString().slice(0, 10)}.csv`, true);
   } catch (e) { xatoChiz(e); }
+}
+
+/** Guruh va qidiruv bo'yicha (reyting tartibi serverdan keladi). */
+function havolaFiltr(d) {
+  const q = String(holat.hvQ || '').trim().toLowerCase();
+  return d.havolalar.filter((h) => (!holat.hvGuruh || h.guruh === holat.hvGuruh)
+    && (!q || `${h.nom} ${h.telefon || ''} ${h.kod}`.toLowerCase().includes(q)));
+}
+
+function havolalarniChiz(d) {
+  const quti = $('#hv-royxat'); if (!quti) return;
+  const r = havolaFiltr(d);
+  const kor = holat.hvKor || 30;
+  $('#hv-soni').textContent = r.length;
+  quti.innerHTML = r.slice(0, kor).map((h, i) => `
+    <div class="hv-qator ${h.faol ? '' : 'ochiq-emas'}">
+      <span class="hv-orin ${i < 3 && h.royxat ? 'top' : ''}">${i + 1}</span>
+      <div class="hv-tan">
+        <b>${esc(h.nom)}${h.telefon ? ` <small>${esc(h.telefon)}</small>` : ''}</b>
+        <button class="hv-url" data-nusxa="${esc(h.url)}" title="Nusxa olish">${esc(h.url.replace(/^https?:\/\//, ''))}${ik('nusxa', 14)}</button>
+        <span class="hv-izoh">${esc(h.guruh || h.manba_nom)}${h.faol ? '' : ' · o‘chirilgan'}</span>
+      </div>
+      <div class="hv-stat">
+        <div><b>${som(h.unikal)}</b><span>kirdi</span></div>
+        <div class="asosiy"><b>${som(h.royxat)}</b><span>taklif qildi</span></div>
+        <div><b>${som(h.xaridor)}</b><span>xarid</span></div>
+        <div><b>${narx(h.daromad)}</b><span>daromad</span></div>
+      </div>
+      <button class="ik-tugma" data-havola="${h.id}" aria-label="Sozlash">${ik('sozlama')}</button>
+    </div>`).join('')
+    + (r.length > kor ? `<button class="tug keng" id="hv-yana">Yana ${Math.min(30, r.length - kor)} ta (jami ${r.length})</button>` : '')
+    || '<p class="bosh-matn">Hech narsa topilmadi</p>';
+  $$('[data-nusxa]', quti).forEach((b) => b.onclick = () => nusxaOl(b.dataset.nusxa));
+  $$('[data-havola]', quti).forEach((b) => b.onclick = () =>
+    havolaOyna(d.havolalar.find((h) => h.id === Number(b.dataset.havola))));
+  $('#hv-yana') && ($('#hv-yana').onclick = () => { holat.hvKor = kor + 30; havolalarniChiz(d); });
+}
+
+/** CSV: ism, telefon, havola, natija sahifasi (va bo'lsa raqamlar) — Excel'da ochiladi. */
+function havolalarCsv(royxat, fayl, raqamlar = false) {
+  const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const bosh = ['Ism', 'Telefon', 'Havola', 'Natija sahifasi', 'Guruh',
+    ...(raqamlar ? ['Kirdi', 'Taklif qildi', 'Xarid', 'Daromad'] : [])];
+  const satr = royxat.map((h) => [h.nom, h.telefon, h.url, h.natija_url, h.guruh,
+    ...(raqamlar ? [h.unikal, h.royxat, h.xaridor, h.daromad] : [])].map(q).join(','));
+  const blob = new Blob(['\uFEFF' + [bosh.map(q).join(','), ...satr].join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = fayl; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  tost(`${royxat.length} ta havola yuklandi`);
+}
+
+/** Ko'p odamga havola: ro'yxatdan yoki shunchaki soni bo'yicha. */
+function kopHavolaOyna() {
+  const d = holat.kesh.manba || { maqsadlar: {}, turlar: {} };
+  const tanlov = (obj, joriy) => Object.entries(obj).map(([k, n]) =>
+    `<option value="${k}" ${k === joriy ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  modal('Ko‘p havola yaratish', `
+    <p class="mayda" style="margin:0 0 4px">Har odamga o‘z havolasi — kim nechta odam olib kelgani alohida sanaladi.
+      Har biriga o‘z natijasini ko‘radigan sahifa ham beriladi.</p>
+    <label>Kimlarga<span class="yordam">Har qatorga bitta: «Ism Familiya, +998 90 123 45 67». Telefon shart emas.</span></label>
+    <textarea id="kh-ism" rows="7" placeholder="Madina Karimova, +998901234567&#10;Sardor&#10;Bloger Nilufar"></textarea>
+    <div class="kh-yoki"><span>yoki shunchaki</span>
+      <input id="kh-soni" type="number" min="1" max="500" inputmode="numeric" placeholder="50">
+      <span>ta havola, nomi</span><input id="kh-pref" placeholder="Taklifchi" value="Taklifchi"></div>
+    <div class="ikki">
+      <div><label>Guruh nomi</label><input id="kh-guruh" placeholder="Oktabr ambassadorlari" maxlength="60"></div>
+      <div><label>Qayerga olib boradi</label><select id="kh-maqsad">${tanlov(d.maqsadlar, 'skan')}</select></div>
+    </div>
+    <label>Manba</label><select id="kh-manba">${tanlov(d.turlar, 'taklif')}</select>
+    <div id="kh-xato" class="xato"></div>
+    <button class="tug asos keng" id="kh-yarat" style="margin-top:16px">${ik('odamlar', 16)}<span id="kh-tugma">Havolalarni yaratish</span></button>`);
+  const sanoq = () => {
+    const n = $('#kh-ism').value.split('\n').filter((x) => x.trim().length >= 2).length || Number($('#kh-soni').value) || 0;
+    $('#kh-tugma').textContent = n ? `${Math.min(n, 500)} ta havola yaratish` : 'Havolalarni yaratish';
+  };
+  $('#kh-ism').oninput = sanoq; $('#kh-soni').oninput = sanoq;
+  $('#kh-yarat').onclick = async () => {
+    const t = $('#kh-yarat'); t.disabled = true;
+    try {
+      const r = await api('/api/admin/havolalar', { method: 'POST', body: JSON.stringify({
+        ismlar: $('#kh-ism').value, soni: Number($('#kh-soni').value) || 0, prefiks: $('#kh-pref').value,
+        guruh: $('#kh-guruh').value, maqsad: $('#kh-maqsad').value, manba: $('#kh-manba').value }) });
+      holat.hvGuruh = r.guruh;
+      kopHavolaNatija(r);
+      manbalarBolimi();
+    } catch (e) { $('#kh-xato').textContent = e.message; t.disabled = false; }
+  };
+}
+
+function kopHavolaNatija(r) {
+  const matn = r.havolalar.map((h) => `${h.nom} — ${h.url}`).join('\n');
+  modal(`${r.soni} ta havola tayyor`, `
+    <p class="mayda" style="margin:0 0 12px">Guruh: <b>${esc(r.guruh)}</b>. Har odamga o‘z havolasini yuboring.
+      «Natija» havolasi — o‘sha odam o‘zi nechta odam olib kelganini ko‘radi.</p>
+    <div class="amallar" style="margin:0 0 12px">
+      <button class="tug asos" id="kn-hammasi">${ik('nusxa', 16)}Hammasini nusxalash</button>
+      <button class="tug" id="kn-csv">${ik('hujjat', 16)}CSV (Excel)</button>
+    </div>
+    <div class="kn-royxat">${r.havolalar.map((h) => `
+      <div class="kn-qator"><b>${esc(h.nom)}</b>
+        <button class="hv-url" data-nusxa="${esc(h.url)}">${esc(h.url.replace(/^https?:\/\//, ''))}${ik('nusxa', 14)}</button>
+        <button class="kn-natija" data-nusxa="${esc(h.natija_url)}">natija sahifasi${ik('nusxa', 13)}</button></div>`).join('')}</div>`, { keng: true });
+  $('#kn-hammasi').onclick = () => nusxaOl(matn);
+  $('#kn-csv').onclick = () => havolalarCsv(r.havolalar, `havolalar-${String(r.guruh).replace(/[^\w-]+/g, '-')}.csv`);
+  $$('#modal-tan [data-nusxa]').forEach((b) => b.onclick = () => nusxaOl(b.dataset.nusxa));
 }
 
 async function nusxaOl(matn) {
@@ -651,6 +756,11 @@ function havolaOyna(h) {
     <label>Nomi<span class="yordam">Qayerga qo‘yasiz: «Instagram bio», «TikTok — 12-oktabr video», «Bloger Madina»</span></label>
     <input id="hv-nom" value="${esc(h?.nom || '')}" maxlength="80" placeholder="TikTok — aksiya videosi">
     ${h ? '' : `<label>Manba</label><select id="hv-manba">${tanlov(d.turlar, 'instagram')}</select>`}
+    ${h ? `<label>Telefon (ixtiyoriy)</label><input id="hv-tel" value="${esc(h.telefon || '')}" inputmode="tel">
+      <div class="amallar" style="margin-top:12px">
+        <button class="tug kichik" data-nusxa="${esc(h.url)}">${ik('nusxa', 14)}Havola</button>
+        <button class="tug kichik" data-nusxa="${esc(h.natija_url)}">${ik('nusxa', 14)}Natija sahifasi</button>
+      </div>` : ''}
     <label>Qayerga olib boradi<span class="yordam">«Bepul yuz tahlili» eng ko‘p lid beradi</span></label>
     <select id="hv-maqsad">${tanlov(d.maqsadlar, h?.maqsad || 'skan')}</select>
     ${h ? `<label class="belgi-qator" style="margin-top:14px"><input type="checkbox" id="hv-faol" ${h.faol ? 'checked' : ''}>Faol</label>`
@@ -664,7 +774,8 @@ function havolaOyna(h) {
   $('#hv-saqla').onclick = async () => {
     try {
       const tana = h
-        ? { id: h.id, nom: $('#hv-nom').value, maqsad: $('#hv-maqsad').value, faol: $('#hv-faol').checked }
+        ? { id: h.id, nom: $('#hv-nom').value, maqsad: $('#hv-maqsad').value, faol: $('#hv-faol').checked,
+            telefon: $('#hv-tel').value }
         : { nom: $('#hv-nom').value, manba: $('#hv-manba').value, maqsad: $('#hv-maqsad').value, kod: $('#hv-kod').value };
       const r = await api('/api/admin/havola', { method: 'POST', body: JSON.stringify(tana) });
       modalYop();
@@ -672,6 +783,7 @@ function havolaOyna(h) {
       manbalarBolimi();
     } catch (e) { $('#hv-xato').textContent = e.message; }
   };
+  $$('#modal-tan [data-nusxa]').forEach((b) => b.onclick = () => nusxaOl(b.dataset.nusxa));
   if (h) $('#hv-ochir').onclick = () => tasdiqla('Havolani o‘chirish',
     'Havola ishlamay qoladi va uning bosishlar tarixi o‘chadi. Foydalanuvchilarning manbasi (masalan «Instagram») saqlanadi.',
     async () => { await api('/api/admin/havola', { method: 'DELETE', body: JSON.stringify({ id: h.id }) }); modalYop(); manbalarBolimi(); },
