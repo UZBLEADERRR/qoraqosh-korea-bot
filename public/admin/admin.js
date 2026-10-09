@@ -658,8 +658,9 @@ function havolalarniChiz(d) {
         <span class="hv-izoh">${esc(h.guruh || h.manba_nom)}${h.faol ? '' : ' · o‘chirilgan'}</span>
       </div>
       <div class="hv-stat">
-        <div><b>${som(h.unikal)}</b><span>kirdi</span></div>
-        <div class="asosiy"><b>${som(h.royxat)}</b><span>taklif qildi</span></div>
+        <div title="${h.maqsad === 'bot' ? 'Botda start bosgan odamlar' : 'Havolani bosgan odamlar'}"><b>${som(h.unikal)}</b><span>${h.maqsad === 'bot' ? 'start' : 'kirdi'}</span></div>
+        <div class="asosiy" title="Shu havola bilan birinchi marta kelgan yangi odamlar"><b>${som(h.yangi)}</b><span>yangi</span></div>
+        <div title="Telefon qoldirib ro‘yxatdan o‘tganlar"><b>${som(h.royxat)}</b><span>ro‘yxat</span></div>
         <div><b>${som(h.xaridor)}</b><span>xarid</span></div>
         <div><b>${narx(h.daromad)}</b><span>daromad</span></div>
       </div>
@@ -702,7 +703,7 @@ function kopHavolaOyna() {
       <span>ta havola, nomi</span><input id="kh-pref" placeholder="Taklifchi" value="Taklifchi"></div>
     <div class="ikki">
       <div><label>Guruh nomi</label><input id="kh-guruh" placeholder="Oktabr ambassadorlari" maxlength="60"></div>
-      <div><label>Qayerga olib boradi</label><select id="kh-maqsad">${tanlov(d.maqsadlar, 'skan')}</select></div>
+      <div><label>Qayerga olib boradi</label><select id="kh-maqsad">${tanlov(d.maqsadlar, 'bot')}</select></div>
     </div>
     <label>Manba</label><select id="kh-manba">${tanlov(d.turlar, 'taklif')}</select>
     <div id="kh-xato" class="xato"></div>
@@ -761,8 +762,8 @@ function havolaOyna(h) {
         <button class="tug kichik" data-nusxa="${esc(h.url)}">${ik('nusxa', 14)}Havola</button>
         <button class="tug kichik" data-nusxa="${esc(h.natija_url)}">${ik('nusxa', 14)}Natija sahifasi</button>
       </div>` : ''}
-    <label>Qayerga olib boradi<span class="yordam">«Bepul yuz tahlili» eng ko‘p lid beradi</span></label>
-    <select id="hv-maqsad">${tanlov(d.maqsadlar, h?.maqsad || 'skan')}</select>
+    <label>Qayerga olib boradi<span class="yordam">Telegram bot — odam start bosganda kimdan kelgani aniqlanadi</span></label>
+    <select id="hv-maqsad">${tanlov(d.maqsadlar, h?.maqsad || 'bot')}</select>
     ${h ? `<label class="belgi-qator" style="margin-top:14px"><input type="checkbox" id="hv-faol" ${h.faol ? 'checked' : ''}>Faol</label>`
         : `<label>Qisqa kod (ixtiyoriy)<span class="yordam">www.kiovo.shop/h/<b>kod</b> — bo‘sh qolsa o‘zi yasaladi</span></label>
            <input id="hv-kod" maxlength="32" placeholder="tt-aksiya" autocapitalize="off">`}

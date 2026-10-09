@@ -6134,6 +6134,7 @@ console.log('\n── MANBALAR (Instagram, TikTok) ──');
   const yangi = await qator(`insert into users (telegram_id, full_name) values ('881001', 'Manba Yangi') returning id`);
   const eski = await qator(`insert into users (telegram_id, full_name, created_at) values ('881002', 'Manba Eski', now() - interval '60 days') returning id`);
   test('yangi hisobga manba yozildi', await M.manbaBelgila(yangi.id, 'sinov-tt') === true);
+  await sorov(`update users set agreed_at = now() where id = $1`, [yangi.id]);   // ro'yxatni tugatdi
   test('eski mijoz Instagramdan kelgan bo‘lib qolmaydi', await M.manbaBelgila(eski.id, 'sinov-tt') === false);
   test('birinchi manba almashmaydi', await M.manbaBelgila(yangi.id, 'auto-instagram') === false
     && (await qator(`select manba from users where id = $1`, [yangi.id])).manba === 'tiktok');
@@ -6158,6 +6159,16 @@ console.log('\n── MANBALAR (Instagram, TikTok) ──');
   const bu = await qator(`select manba from users where telegram_id = '881004'`);
   test('botga havola bilan kelgan — manba yozildi', bu?.manba === 'tiktok');
   test('bot odatdagidek javob berdi', yuborilgan.length > 0);
+  // Avvaldan botda bo'lgan odam do'stining havolasini bosdi — do'stga o'tib ketmaydi
+  await sorov(`delete from users where telegram_id = '881005'`);
+  await sorov(`insert into users (telegram_id, full_name, created_at) values ('881005', 'Eski bot', now() - interval '2 hours')`);
+  await yoz('881005', '/start h_sinov-tt');
+  test('eski bot foydalanuvchisi boshqa taklifchiga yozilmaydi',
+    (await qator(`select manba from users where telegram_id = '881005'`)).manba === null);
+  test('lekin start bosgani sanaldi', Number(await qiymat(
+    `select count(*) from havola_bosishlar where mehmon = 'tg:881005'`)) === 1);
+  await sorov(`delete from havola_bosishlar where mehmon = 'tg:881005'`);
+  await sorov(`delete from users where telegram_id = '881005'`);
 
   // Xarid: hisobotda daromad ko'rinadi
   await sorov(`insert into orders (order_no, user_id, items, subtotal, total, status)
@@ -6165,9 +6176,10 @@ console.log('\n── MANBALAR (Instagram, TikTok) ──');
   const hs = await M.manbaHisoboti({ kun: 30 }, 'https://www.kiovo.shop');
   const tt = hs.manbalar.find((x) => x.manba === 'tiktok');
   const hv = hs.havolalar.find((x) => x.kod === 'sinov-tt');
-  test('hisobot: TikTok bosish va unikal odam', tt && tt.bosish >= 2 && hv.bosish === 2 && hv.unikal === 1, JSON.stringify(hv));
-  test('hisobot: havoladan ro‘yxat va xarid', hv.royxat === 2 && hv.xaridor === 1 && hv.daromad === 150000,
-    `${hv.royxat}/${hv.xaridor}/${hv.daromad}`);
+  // 2 ta sayt bosishi (bitta brauzer) + 1 ta botda start
+  test('hisobot: TikTok bosish va unikal odam', tt && tt.bosish >= 3 && hv.bosish === 3 && hv.unikal === 2, JSON.stringify(hv));
+  test('hisobot: yangi odam, ro‘yxat va xarid', hv.yangi === 2 && hv.royxat === 1 && hv.xaridor === 1 && hv.daromad === 150000,
+    `${hv.yangi}/${hv.royxat}/${hv.xaridor}/${hv.daromad}`);
   test('hisobot: nom raqam bilan buzilmaydi', tt.nom === 'TikTok');
   test('hisobot: 14 kunlik qatori', hs.kunlar.length === 14);
 
@@ -6222,8 +6234,10 @@ console.log('\n── MANBALAR (Instagram, TikTok) ──');
   await sorov(`insert into orders (order_no, user_id, items, subtotal, total, status) values ('KQ-TAKLIF-1', $1, '[]', 99000, 99000, 'yangi')`, [t1.id]);
   const rep = await M.manbaHisoboti({ kun: 30 }, 'https://www.kiovo.shop');
   const guruhi = rep.havolalar.filter((x) => x.guruh === 'Sinov ambassadorlari');
-  test('reyting: eng ko‘p taklif qilgan birinchi', guruhi[0].kod === mad.kod && guruhi[0].royxat === 2 && guruhi[0].xaridor === 1,
-    `${guruhi[0].nom} ${guruhi[0].royxat}`);
+  test('reyting: eng ko‘p taklif qilgan birinchi', guruhi[0].kod === mad.kod && guruhi[0].yangi === 2 && guruhi[0].xaridor === 1,
+    `${guruhi[0].nom} ${guruhi[0].yangi}`);
+  test('taklif havolasi to‘g‘ridan-to‘g‘ri botga (t.me ?start=h_)', /^https:\/\/t\.me\/[^?]+\?start=h_madina-karimova-/.test(guruhi[0].url)
+    && /\/h\/madina-karimova-/.test(guruhi[0].qisqa_url), guruhi[0].url);
   test('guruhlar ro‘yxati', rep.guruhlar.includes('Sinov ambassadorlari'));
   const ai = await vositaniBajar('manbalar', { guruh: 'Sinov ambassadorlari', chegara: 5 });
   test('AI: guruh reytingi ixcham', ai.havolalar.length === 5 && ai.havolalar_soni === 28 && ai.havolalar[0].nom === 'Madina Karimova');
@@ -6235,7 +6249,8 @@ console.log('\n── MANBALAR (Instagram, TikTok) ──');
   // Taklifchining o'z sahifasi: faqat sir bilan
   const sir = mad.natija_url.split('?s=')[1];
   const tn = await M.taklifchiNatijasi(mad.kod, sir);
-  test('taklifchi o‘z natijasini ko‘radi', tn && tn.royxat === 2 && tn.xaridor === 1 && tn.unikal >= 1, JSON.stringify(tn));
+  test('taklifchi o‘z natijasini ko‘radi', tn && tn.yangi === 2 && tn.xaridor === 1 && tn.unikal >= 1
+    && /^https:\/\/t\.me\//.test(tn.url), JSON.stringify(tn));
   test('sirsiz — ko‘rinmaydi', await M.taklifchiNatijasi(mad.kod, 'boshqa') === null && await M.taklifchiNatijasi(mad.kod, '') === null);
   const srvM = fs.readFileSync('src/server.js', 'utf8');
   test('server: /taklif/ sahifasi', /yol\.startsWith\('\/taklif\/'\)/.test(srvM) && /X-Robots-Tag/.test(srvM));

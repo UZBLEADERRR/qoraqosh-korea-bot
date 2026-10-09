@@ -26,10 +26,10 @@ export const MANBALAR = {
   facebook: 'Facebook', google: 'Google', boshqa: 'Boshqa',
 };
 export const MAQSADLAR = {
+  bot:     'Telegram bot (start bosganda aniqlanadi)',
   skan:    'Bepul yuz tahlili (/skan/)',
   sayt:    'Bosh sahifa',
   ilova:   'Ilova (/app/)',
-  bot:     'Telegram bot',
   miniapp: 'Telegram ilova (Mini App)',
 };
 
@@ -155,6 +155,28 @@ export async function manbaBelgila(userId, belgi) {
   return Boolean(r);
 }
 
+/**
+ * BOTDA /start: `t.me/bot?start=h_<kod>`. Har bosish «kirdi» bo'lib
+ * sanaladi (bitta odam — bitta Telegram id), va odam AYNAN shu start
+ * bilan botga birinchi marta kelgan bo'lsa — kimdan kelgani yoziladi.
+ * Avvaldan botda bo'lgan odam do'stining havolasini bossa, u do'stga
+ * o'tib ketmaydi.
+ */
+export async function botStart(user, belgi) {
+  const kod = String(belgi || '').toLowerCase().replace(/^h_/, '');
+  if (!user?.id || !KOD_RE.test(kod)) return null;
+  const h = await qator(`select id, manba, faol from havolalar where kod = $1`, [kod]);
+  if (!h || !h.faol) return null;
+  await sorov(`insert into havola_bosishlar (havola_id, manba, mehmon, qurilma) values ($1,$2,$3,'telegram')`,
+    [h.id, h.manba, `tg:${user.telegram_id}`]);
+  if (user.manba) return { yangi: false };
+  const r = await qator(
+    `update users set manba = $2, havola_id = $3
+      where id = $1 and manba is null and created_at > now() - interval '1 hour'
+      returning id`, [user.id, h.manba, h.id]);
+  return { yangi: Boolean(r) };
+}
+
 /** So'rovdan manba belgisi: ilova sarlavhasi yoki brauzer cookie si. */
 export function sorovBelgisi(req) {
   const x = String(req.headers['x-manba'] || cookieOl(req, 'kq_h') || '').slice(0, 40);
@@ -175,6 +197,13 @@ export async function manbaKochir(mehmonId, userId) {
 
 const toliq = (asos, kod) => `${String(asos || '').replace(/\/+$/, '')}/h/${kod}`;
 
+/** Botga olib boradigan havola — to'g'ridan-to'g'ri t.me (oraliq sahifasiz). */
+async function botNomiOl() {
+  const { botNomi } = await import('../lib/ilova-havola.js');
+  return botNomi().catch(() => null);
+}
+const tarqatish = (asos, h, bot) => (h.maqsad === 'bot' && bot ? `https://t.me/${bot}?start=h_${h.kod}` : toliq(asos, h.kod));
+
 function kodYasa(manba, nom) {
   const bosh = { instagram: 'ig', tiktok: 'tt', telegram: 'tg', youtube: 'yt', facebook: 'fb', google: 'gg' }[manba] || 'h';
   const soz = String(nom || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-')
@@ -182,10 +211,10 @@ function kodYasa(manba, nom) {
   return `${bosh}-${soz ? soz + '-' : ''}${crypto.randomBytes(2).toString('hex')}`.slice(0, 32);
 }
 
-export async function havolaYarat({ nom, manba, maqsad = 'skan', kod } = {}, asos = '') {
+export async function havolaYarat({ nom, manba, maqsad = 'bot', kod } = {}, asos = '') {
   const n = String(nom || '').trim().slice(0, 80);
   const m = MANBALAR[manba] ? manba : 'boshqa';
-  const q = MAQSADLAR[maqsad] ? maqsad : 'skan';
+  const q = MAQSADLAR[maqsad] ? maqsad : 'bot';
   if (n.length < 2) return { xato: 'Havola nomini yozing (masalan «TikTok — aksiya videosi»).' };
   let k = String(kod || '').toLowerCase().trim();
   if (k && !KOD_RE.test(k)) return { xato: 'Kod faqat lotin harf, raqam va «-» (2–32 belgi).' };
@@ -193,7 +222,7 @@ export async function havolaYarat({ nom, manba, maqsad = 'skan', kod } = {}, aso
   try {
     const h = await qator(
       `insert into havolalar (kod, nom, manba, maqsad) values ($1,$2,$3,$4) returning *`, [k, n, m, q]);
-    return { havola: { ...h, url: toliq(asos, h.kod), natija_url: natijaUrl(asos, h) } };
+    return { havola: { ...h, url: tarqatish(asos, h, await botNomiOl()), qisqa_url: toliq(asos, h.kod), natija_url: natijaUrl(asos, h) } };
   } catch (e) {
     if (/duplicate key/.test(e.message)) return { xato: `«${k}» kodi band — boshqasini tanlang.` };
     throw e;
@@ -233,7 +262,7 @@ export function ismlarniAjrat(matn) {
  * `ismlar` — ro'yxat matni yoki [{nom, telefon}]; berilmasa `soni` ta
  * «<prefiks> 1, 2, 3…» yasaladi. Eng ko'pi 500 ta.
  */
-export async function havolalarniYarat({ ismlar, soni, prefiks, manba = 'taklif', maqsad = 'skan', guruh } = {}, asos = '') {
+export async function havolalarniYarat({ ismlar, soni, prefiks, manba = 'taklif', maqsad = 'bot', guruh } = {}, asos = '') {
   let royxat = Array.isArray(ismlar) ? ismlar.map((x) => (typeof x === 'string' ? { nom: x } : x))
     : ismlarniAjrat(ismlar);
   royxat = royxat.map((x) => ({ nom: String(x.nom || '').trim().slice(0, 80), telefon: x.telefon || null }))
@@ -246,7 +275,8 @@ export async function havolalarniYarat({ ismlar, soni, prefiks, manba = 'taklif'
   if (!royxat.length) return { xato: 'Ismlar ro‘yxatini yozing (har qatorga bitta) yoki nechta havola kerakligini kiriting.' };
   if (royxat.length > 500) return { xato: 'Bir urinishda eng ko‘pi 500 ta havola.' };
   const m = MANBALAR[manba] ? manba : 'taklif';
-  const q = MAQSADLAR[maqsad] ? maqsad : 'skan';
+  const q = MAQSADLAR[maqsad] ? maqsad : 'bot';
+  const bot = await botNomiOl();
   const g = String(guruh || '').trim().slice(0, 60)
     || `Taklif ${new Date().toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
 
@@ -258,7 +288,8 @@ export async function havolalarniYarat({ ismlar, soni, prefiks, manba = 'taklif'
       const h = await qator(
         `insert into havolalar (kod, nom, manba, maqsad, guruh, telefon) values ($1,$2,$3,$4,$5,$6)
          on conflict (kod) do nothing returning *`, [kod, x.nom, m, q, g, x.telefon]);
-      if (h) { natija.push({ id: h.id, nom: h.nom, telefon: h.telefon, kod: h.kod, url: toliq(asos, h.kod), natija_url: natijaUrl(asos, h) }); break; }
+      if (h) { natija.push({ id: h.id, nom: h.nom, telefon: h.telefon, kod: h.kod, url: tarqatish(asos, h, bot),
+        qisqa_url: toliq(asos, h.kod), natija_url: natijaUrl(asos, h) }); break; }
     }
   }
   return { guruh: g, soni: natija.length, havolalar: natija };
@@ -270,10 +301,11 @@ export async function taklifchiNatijasi(kod, sir) {
   if (!h || !sir || h.sir !== String(sir)) return null;
   const b = await qator(`select count(*)::int as bosish, count(distinct coalesce(mehmon, id::text))::int as unikal
       from havola_bosishlar where havola_id = $1`, [h.id]);
-  const u = await qator(`select count(*) filter (where telegram_id not like 'mehmon:%')::int as royxat,
+  const u = await qator(`select count(*) filter (where telegram_id not like 'mehmon:%')::int as yangi,
+      count(*) filter (where telegram_id not like 'mehmon:%' and agreed_at is not null)::int as royxat,
       count(*) filter (where exists (select 1 from orders o where o.user_id = users.id and o.status <> 'bekor'))::int as xaridor
       from users where havola_id = $1`, [h.id]);
-  return { nom: h.nom, kod: h.kod, faol: h.faol, ...b, ...u };
+  return { nom: h.nom, kod: h.kod, faol: h.faol, url: tarqatish('', h, await botNomiOl()), ...b, ...u };
 }
 
 export async function havolaOzgartir({ id, nom, maqsad, faol, telefon, guruh } = {}) {
@@ -294,7 +326,7 @@ export async function havolaOchir(id) {
 
 // ─────────────────────────── HISOBOT ───────────────────────────
 
-const bosh = () => ({ bosish: 0, unikal: 0, royxat: 0, tahlil: 0, xaridor: 0, buyurtma: 0, daromad: 0 });
+const bosh = () => ({ bosish: 0, unikal: 0, yangi: 0, royxat: 0, tahlil: 0, xaridor: 0, buyurtma: 0, daromad: 0 });
 const SONLAR = Object.keys(bosh());
 const qosh = (a, b) => { for (const k of SONLAR) a[k] += Number(b[k]) || 0; return a; };
 
@@ -306,12 +338,14 @@ const qosh = (a, b) => { for (const k of SONLAR) a[k] += Number(b[k]) || 0; retu
 export async function manbaHisoboti({ kun = 30 } = {}, asos = '') {
   const k = Math.max(0, Math.min(3650, Math.round(Number(kun) || 0)));
   const dan = k ? `now() - interval '${k} days'` : `'-infinity'::timestamptz`;
-  const [bos, foy, noma, havolalar, kunlar] = await Promise.all([
+  const [bos, foy, noma, havolalar, kunlar, bot] = await Promise.all([
     qatorlar(`select manba, havola_id, count(*)::int as bosish,
                      count(distinct coalesce(mehmon, id::text))::int as unikal
                 from havola_bosishlar where created_at >= ${dan} group by 1, 2`),
     qatorlar(`select u.manba, u.havola_id,
-                     count(*) filter (where u.telegram_id not like 'mehmon:%')::int as royxat,
+                     count(*) filter (where u.telegram_id not like 'mehmon:%')::int as yangi,
+                     -- Ro'yxatdan o'tdi — botda/ilovada rozilik berib, telefon qoldirgan
+                     count(*) filter (where u.telegram_id not like 'mehmon:%' and u.agreed_at is not null)::int as royxat,
                      count(*) filter (where exists (select 1 from analyses a where a.user_id = u.id))::int as tahlil,
                      count(*) filter (where o.soni > 0)::int as xaridor,
                      coalesce(sum(o.soni), 0)::int as buyurtma,
@@ -329,6 +363,7 @@ export async function manbaHisoboti({ kun = 30 } = {}, asos = '') {
                 from generate_series(date_trunc('day', now()) - interval '13 days', date_trunc('day', now()), '1 day') d
                 left join havola_bosishlar b on date_trunc('day', b.created_at) = d
                group by 1, 2 order by 1`),
+    botNomiOl(),
   ]);
 
   const manbalar = {};
@@ -355,10 +390,11 @@ export async function manbaHisoboti({ kun = 30 } = {}, asos = '') {
     manbalar: Object.values(manbalar).map(konv).sort((a, b) => b.royxat - a.royxat || b.bosish - a.bosish),
     havolalar: havolalar.map((h) => konv({ id: h.id, kod: h.kod, nom: h.nom, manba: h.manba,
       manba_nom: MANBALAR[h.manba] || h.manba, maqsad: h.maqsad, maqsad_nom: MAQSADLAR[h.maqsad] || h.maqsad,
-      faol: h.faol, guruh: h.guruh, telefon: h.telefon, url: toliq(asos, h.kod), natija_url: natijaUrl(asos, h),
+      faol: h.faol, guruh: h.guruh, telefon: h.telefon, url: tarqatish(asos, h, bot), qisqa_url: toliq(asos, h.kod),
+      natija_url: natijaUrl(asos, h),
       created_at: h.created_at, ...havolaHisob[h.id] }))
       // Reyting: kim ko'p odam olib keldi — birinchi
-      .sort((a, b) => b.royxat - a.royxat || b.xaridor - a.xaridor || b.unikal - a.unikal || a.id - b.id),
+      .sort((a, b) => b.yangi - a.yangi || b.royxat - a.royxat || b.xaridor - a.xaridor || b.unikal - a.unikal || a.id - b.id),
     guruhlar: [...new Set(havolalar.map((h) => h.guruh).filter(Boolean))],
     kunlar: Object.entries(seriya).map(([kun, x]) => ({ kun, ...x })),
   };

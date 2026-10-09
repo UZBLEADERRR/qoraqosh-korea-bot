@@ -13,7 +13,7 @@ import { esc } from './format.js';
 import { sorovJavobi, telegramKirishniTasdiqla } from '../services/ilova-kirish.js';
 import * as ochiq from '../services/ochiq-skan.js';
 import { hisobniOchir } from '../services/hisob.js';
-import { manbaBelgila } from '../services/manba.js';
+import { botStart } from '../services/manba.js';
 
 async function foydalanuvchi(from) {
   const telegramId = String(from.id);
@@ -39,9 +39,10 @@ export async function yangilanish(upd) {
   const chatId = msg.chat.id;
   const matn = (msg.text || '').trim();
 
-  // Manba havolasi: `t.me/bot?start=h_ig` — Instagram/TikTok dan kelgan yangi odam
+  // Taklif / manba havolasi: `t.me/bot?start=h_madina-5c1`. Start bosilgan
+  // zahoti sanaladi va yangi odam kimdan kelgani yoziladi (src/services/manba.js)
   const hMos = /^\/start (h_[a-z0-9-]{2,32})$/i.exec(matn);
-  if (hMos && !user.manba) await manbaBelgila(user.id, hMos[1]).catch(() => {});
+  if (hMos) await botStart(user, hMos[1]).catch(() => {});
 
   // ---- Ilovaga Telegram orqali kirish ----
   // `t.me/bot?start=kir_<kalit>`. Obuna va ro'yxatdan o'tish

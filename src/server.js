@@ -570,7 +570,7 @@ const notFound = (res) => { res.writeHead(404, { 'Content-Type': 'text/plain; ch
 /** Taklifchi sahifasi: o'z havolasi va natijasi, boshqa hech narsa. */
 function taklifSahifasi(n, asos) {
   const e = (v) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const havola = n ? `${String(asos || '').replace(/\/+$/, '')}/h/${n.kod}` : '';
+  const havola = n ? (n.url.startsWith('http') ? n.url : `${String(asos || '').replace(/\/+$/, '')}${n.url}`) : '';
   const quti = (son, nom) => `<div class="q"><b>${Number(son || 0).toLocaleString('uz-UZ').replace(/,/g, ' ')}</b><span>${nom}</span></div>`;
   return `<!doctype html><html lang="uz"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
@@ -587,7 +587,7 @@ button{background:#ab0a0c;color:#fff}a.tg{display:block;text-align:center;margin
 .y{font-size:12.5px;color:#605b52;margin-top:14px}</style></head><body><div class="k">
 <div class="logo">${LOGO_INLINE}</div>
 ${n ? `<h1>Salom, ${e(n.nom)}!</h1><p>Sizning taklif havolangiz va natijangiz.</p>
-<div class="t">${quti(n.unikal, 'odam kirdi')}${quti(n.royxat, 'ro‘yxatdan o‘tdi')}${quti(n.xaridor, 'xarid qildi')}</div>
+<div class="t">${quti(n.yangi, 'yangi odam')}${quti(n.royxat, 'ro‘yxatdan o‘tdi')}${quti(n.xaridor, 'xarid qildi')}</div>
 <div class="h"><span id="h">${e(havola)}</span><button id="n">Nusxa</button></div>
 <a class="tg" href="https://t.me/share/url?url=${encodeURIComponent(havola)}&text=${encodeURIComponent('Yuzingizni bepul tahlil qiling — KiOVO')}">Telegramda ulashish</a>
 ${n.faol ? '' : '<p class="y">Bu havola hozir o‘chirilgan.</p>'}
