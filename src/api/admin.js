@@ -2037,6 +2037,8 @@ export function posterXatoMatni(turkum, e) {
     vaqt:     'Rasm chizish juda uzoq davom etdi. Qayta bosing — odatda ikkinchi urinishda chiqadi.',
     tarmoq:   'Google serveriga ulanib bo‘lmadi. Bir daqiqadan keyin qayta bosing.',
     kvota:    'Rasm chizish limiti vaqtincha tugadi. 10–15 daqiqadan keyin urinib ko‘ring.',
+    hisob:    'AI hisobida kredit tugagan (Google ham, OpenRouter ham). Hisobni to‘ldiring yoki Railway → Variables ga '
+            + 'ishlaydigan GEMINI_API_KEY / OPENROUTER_API_KEY qo‘shing (vergul bilan bir nechta).',
     kvota_kunlik: 'Bugungi rasm chizish limiti tugadi — ertaga urinib ko‘ring.',
     kalit:    'Gemini API kaliti ishlamayapti — Railway → Variables dagi GEMINI_API_KEY ni tekshiring.',
     model:    'Rasm modeli topilmadi. Tizim holati → AI modellari bo‘limida rasm modelini tanlang.',

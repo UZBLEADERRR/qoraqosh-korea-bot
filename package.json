@@ -18,9 +18,10 @@
     "test:agent": "node test/agent.mjs",
     "test:maslahat": "node test/maslahat.mjs",
     "test:skrinshot": "node test/skrinshot.mjs",
-    "test": "npm run test:emu && npm run test:bot && npm run test:ops && npm run test:agent && npm run test:maslahat && npm run test:skrinshot && npm run test:sahifa",
+    "test": "npm run test:emu && npm run test:bot && npm run test:ops && npm run test:agent && npm run test:maslahat && npm run test:skrinshot && npm run test:sahifa && npm run test:ai",
     "test:sahifa": "node test/sahifalar.mjs",
-    "test:emu": "node test/emu-tarif.mjs"
+    "test:emu": "node test/emu-tarif.mjs",
+    "test:ai": "node test/ai-zaxira.mjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",

@@ -13,6 +13,7 @@
 //     hech bo'lmasa urinib ko'ramiz, «kalit yo'q» deb to'xtamaymiz.
 
 const DAM_MS = {
+  pul:     30 * 60_000,   // hisobda kredit tugadi (402) — to'ldirilsa 30 daqiqada qaytadi
   kvota:   10 * 60_000,   // kunlik/daqiqalik kvota tugadi
   notogri:  60 * 60_000,  // kalit noto'g'ri yoki bekor qilingan
   xato:      2 * 60_000,  // vaqtinchalik nosozlik
@@ -90,6 +91,7 @@ export function hovuz(royxat) {
  */
 export function sabab(e) {
   const m = String(e?.message || e || '');
+  if (/\b402\b|prepayment|credits? (are |is )?depleted|insufficient (credits|balance)|payment required/i.test(m)) return 'pul';
   if (/quota|resource[_ ]exhausted|billing|insufficient|credit/i.test(m)) return 'kvota';
   if (/\b429\b|rate limit|too many requests/i.test(m)) return 'kvota';
   if (/\b40[13]\b|api key|unauthorized|permission denied|invalid.{0,12}key/i.test(m)) return 'notogri';

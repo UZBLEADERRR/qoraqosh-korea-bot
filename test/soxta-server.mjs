@@ -491,6 +491,16 @@ export function soxtaServer(port = 4444) {
         // (Sxema yo'qligiga qarab bo'lmaydi: server 400 dan keyin sxemani
         // promptga ko'chirib, sxemasiz ham JSON so'raydi.)
         if ((b.generationConfig?.responseModalities || []).includes('IMAGE')) {
+          // Shu kalit hisobida kredit tugagan — haqiqiy Google 402
+          const kalit = new URL(req.url, 'http://x').searchParams.get('key');
+          if ((globalThis.AI_RASM_402_KALITLAR || []).includes(kalit)) {
+            (globalThis.RASM_KALITLAR ||= []).push(kalit);
+            res.writeHead(402, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: { code: 402,
+              message: 'Your prepayment credits are depleted. Please go to AI Studio at https://ai.studio/projects to manage your project and billing.',
+              status: 'FAILED_PRECONDITION' } }));
+          }
+          (globalThis.RASM_KALITLAR ||= []).push(kalit);
           // Rasm modeli band («model overloaded») — haqiqiy Google 503
           if (globalThis.AI_RASM_503 > 0) {
             globalThis.AI_RASM_503 -= 1;
@@ -526,6 +536,17 @@ export function soxtaServer(port = 4444) {
       // ---- OpenRouter ----
       if (yol.endsWith('/chat/completions')) {
         const b = JSON.parse(await tana(req) || '{}');
+        // OpenRouter orqali rasm chizish (modalities: image)
+        if ((b.modalities || []).includes('image')) {
+          globalThis.OR_RASM = (globalThis.OR_RASM || 0) + 1;
+          globalThis.OR_RASM_SOROV = b;
+          if (globalThis.OR_RASM_402) {
+            res.writeHead(402, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: { code: 402, message: 'Insufficient credits' } }));
+          }
+          return j({ choices: [{ message: { role: 'assistant', content: '',
+            images: [{ type: 'image_url', image_url: { url: `data:image/png;base64,${png().toString('base64')}` } }] } }] });
+        }
         const sxema = JSON.stringify(b.response_format?.json_schema?.schema || {});
         const prompt = (b.messages || []).map((m) => (typeof m.content === 'string' ? m.content
           : (m.content || []).map((c) => c.text || '').join(' '))).join(' ');

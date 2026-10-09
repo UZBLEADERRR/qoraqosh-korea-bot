@@ -44,6 +44,8 @@ export const config = {
   openrouterKey: kalitlar('OPENROUTER_API_KEY')[0] || '',
   openrouterApi:   opt('OPENROUTER_API', 'https://openrouter.ai/api/v1'),
   openrouterModel: opt('OPENROUTER_MODEL', 'google/gemini-2.5-flash'),
+  // Rasm chizish zaxirasi: Google kalitlari ishlamasa — shu model OpenRouter orqali
+  openrouterImageModel: opt('OPENROUTER_IMAGE_MODEL', 'google/gemini-2.5-flash-image'),
   // Matn/JSON modeli. Standart — eng yangi Flash.
   geminiModel:   opt('GEMINI_MODEL', 'gemini-3.8-flash'),
   // ZAXIRA MODELLAR. Har modelning O'Z kunlik kvotasi bor, shuning

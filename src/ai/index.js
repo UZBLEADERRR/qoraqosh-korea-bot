@@ -5,7 +5,7 @@
 // Ikkalasi ham bo'lsa: OpenRouter yiqilsa Google'ga o'tadi.
 import { config } from '../config.js';
 import { googleJson, googleRasm, geminiHovuz } from './google.js';
-import { openrouterJson, orHovuz } from './openrouter.js';
+import { openrouterJson, openrouterRasm, orHovuz } from './openrouter.js';
 import { navbatga, pauzaQil, kutishSoniyasi } from './navbat.js';
 import * as jurnal from './jurnal.js';
 
@@ -85,20 +85,43 @@ function cheklovmi(e) {
   }
 }
 
-/** Rasm chizish — faqat Google (OpenRouter'da Gemini image API yo'q). */
+/**
+ * Rasm chizish. Avval Google (barcha kalitlar navbat bilan), ular
+ * ishlamasa — OpenRouter orqali o'sha Gemini rasm modeli. Ilgari faqat
+ * Google edi: bitta kalitda kredit tugasa poster chizish to'xtardi,
+ * OpenRouter kaliti esa turgan bo'lsa ham ishlatilmasdi.
+ */
+// Google yiqilganda zaxiraga o'tish ma'noli xatolar (rasmning o'ziga
+// bog'liq emas — xavfsizlik rad etsa, OpenRouter'da ham rad etadi)
+const ZAXIRAGA = new Set(['hisob', 'kvota', 'kvota_kunlik', 'kalit', 'band', 'vaqt', 'tarmoq', 'model', 'nomalum']);
+
 export async function aiRasm(parts, opts = {}) {
-  if (!googleBormi()) {
-    throw Object.assign(
-      new Error('Rasm chizish uchun GEMINI_API_KEY kerak (OpenRouter buni qo‘llamaydi)'),
-      { turkum: 'kalit' });
+  if (!googleBormi() && !openrouterBormi()) {
+    throw Object.assign(new Error('Rasm chizish uchun GEMINI_API_KEY yoki OPENROUTER_API_KEY kerak'), { turkum: 'kalit' });
   }
-  // Rasm chizish eng qimmat chaqiruv — u ham navbatdan o'tadi
   return navbatga(async () => {
+    let gXato = null;
+    if (googleBormi()) {
+      try {
+        const r = await googleRasm(parts, opts);
+        jurnal.yaxshi();
+        return r;
+      } catch (e) {
+        gXato = e;
+        if (!openrouterBormi() || !ZAXIRAGA.has(e.turkum)) { cheklovmi(e); jurnal.yomon(e, opts.qayerda || 'rasm'); throw e; }
+        console.warn(`Google rasm yiqildi (${e.turkum}: ${String(e.message).slice(0, 120)}) → OpenRouter'ga o'tildi`);
+      }
+    }
     try {
-      const r = await googleRasm(parts, opts);
+      const r = await openrouterRasm(parts, opts);
       jurnal.yaxshi();
       return r;
-    } catch (e) { cheklovmi(e); jurnal.yomon(e, opts.qayerda || 'rasm'); throw e; }
+    } catch (e) {
+      jurnal.yomon(e, opts.qayerda || 'rasm');
+      // Ikkalasi ham yiqildi — admin ikkala sababni ham ko'rsin
+      if (gXato) e.message = `${e.message} | Google: ${String(gXato.message).slice(0, 160)}`;
+      throw e;
+    }
   }, { muhim: opts.muhim });
 }
 

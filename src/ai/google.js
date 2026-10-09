@@ -49,6 +49,7 @@ function tana(parts, schema, opts, rejim = 0) {
 function xatoTashla(kod, matn) {
   const e = new Error(`Google HTTP ${kod}: ${String(matn).slice(0, 400)}`);
   e.turkum = kod === 400 ? 'sorov'
+           : kod === 402 ? 'hisob'
            : kod === 401 || kod === 403 ? 'kalit'
            : kod === 404 ? 'model'
            : kod === 429 ? 'kvota'
@@ -150,10 +151,11 @@ export async function googleJson(parts, schema, opts = {}) {
       if (keyingi && keyingi !== model) { model = keyingi; continue; }
       break;
     }
-    if (res.status === 401 || res.status === 403) {
-      if (k) geminiHovuz.yomon(k.indeks, 'notogri');
+    if (res.status === 401 || res.status === 403 || res.status === 402) {
+      // 402 — shu kalitning hisobida kredit tugagan: boshqa kalitlar ishlayveradi
+      if (k) geminiHovuz.yomon(k.indeks, res.status === 402 ? 'pul' : 'notogri');
       if (geminiHovuz.tayyorSoni() > 0 && urinish < MAKS - 1) {
-        oxirgi = Object.assign(new Error(`Google HTTP ${res.status}`), { turkum: 'kalit' });
+        oxirgi = Object.assign(new Error(`Google HTTP ${res.status}`), { turkum: res.status === 402 ? 'hisob' : 'kalit' });
         continue;                       // boshqa kalit bilan urinamiz
       }
     }
@@ -221,11 +223,36 @@ export async function googleJson(parts, schema, opts = {}) {
   throw oxirgi || Object.assign(new Error('Google javob bermadi'), { turkum: 'nomalum' });
 }
 
-/** Rasm chizish (gemini-*-image). */
+/**
+ * Rasm chizish (gemini-*-image).
+ *
+ * Bir nechta kalit bo'lsa HAMMASI navbat bilan sinaladi: bittasining
+ * hisobida kredit tugasa (402), kvotasi tugasa (429) yoki kaliti bekor
+ * bo'lsa — keyingisi bilan. Ilgari birinchi kalit yiqilsa rasm chizish
+ * butunlay to'xtardi, qolgan kalitlar esa ishlatilmay turardi.
+ */
 export async function googleRasm(parts, { nisbat, model, timeoutMs = 120000 } = {}) {
   await modellarniTaminla();
   const m = model || rasmModeli();
-  const k = geminiHovuz.ol();
+  const sinalgan = new Set();
+  let oxirgi = null;
+  for (let i = 0; i < Math.max(1, geminiHovuz.soni()); i++) {
+    const k = geminiHovuz.ol();
+    if (k && sinalgan.has(k.indeks)) break;          // hammasi sinab bo'lindi
+    if (k) sinalgan.add(k.indeks);
+    try {
+      return await birKalitBilanRasm(parts, { nisbat, m, k, timeoutMs });
+    } catch (e) {
+      oxirgi = e;
+      // Kalitga bog'liq xato — keyingi kalit. Rasmning o'ziga bog'liq
+      // (xavfsizlik, matn qaytdi, so'rov) — boshqa kalit ham yordam bermaydi.
+      if (!['hisob', 'kvota', 'kalit', 'band'].includes(e.turkum)) throw e;
+    }
+  }
+  throw oxirgi || Object.assign(new Error('Rasm chizilmadi'), { turkum: 'nomalum' });
+}
+
+async function birKalitBilanRasm(parts, { nisbat, m, k, timeoutMs }) {
   const yuborXom = (imageConfigBilan) => {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -240,9 +267,7 @@ export async function googleRasm(parts, { nisbat, model, timeoutMs = 120000 } = 
       }),
     }).finally(() => clearTimeout(t));
   };
-  // Tarmoq uzilishi va kechikish ham TUSHUNARLI xato bo'lsin: ilgari
-  // «This operation was aborted» admin panelda «Kutilmagan xatolik»
-  // bo'lib chiqardi va nima qilishni bilib bo'lmasdi
+  // Tarmoq uzilishi va kechikish ham TUSHUNARLI xato bo'lsin
   const yubor = (b) => yuborXom(b).catch((e) => {
     if (e?.name === 'AbortError' || e?.name === 'TimeoutError') {
       throw Object.assign(new Error(`Rasm ${Math.round(timeoutMs / 1000)} soniyada chizilmadi`), { turkum: 'vaqt' });
@@ -250,23 +275,9 @@ export async function googleRasm(parts, { nisbat, model, timeoutMs = 120000 } = 
     throw Object.assign(new Error(`Google bilan aloqa uzildi: ${e?.message || e}`), { turkum: 'tarmoq' });
   });
 
-  // Nisbat SAQLANADI. Ilgari 400 yoki 429 da imageConfig tashlab
-  // yuborilardi va model o'z sukutini — keng gorizontal rasmni —
-  // qaytarardi. Endi qayta urinishda ham nisbat beriladi; faqat
-  // imageConfig ni MODEL tushunmagan holatdagina u olib tashlanadi
-  // (aks holda rasm umuman kelmaydi).
+  // Nisbat SAQLANADI: imageConfig faqat MODEL uni tushunmaganda olib tashlanadi
   let res = await yubor(true);
-  if (res.status === 429) {
-    // Kvota tugagan kalitni chetga qo'yib, boshqasi bilan urinamiz
-    if (k) geminiHovuz.yomon(k.indeks, 'kvota');
-    const k2 = geminiHovuz.ol();
-    if (k2 && k2.indeks !== k?.indeks) { k.kalit = k2.kalit; k.indeks = k2.indeks; }
-    await kut(k2 && k2.indeks !== k?.indeks ? 50 : 1200);
-    res = await yubor(true);
-  }
-  // 500/503 («model overloaded») — rasm modelida tez-tez bo'ladi va bir
-  // necha soniyada o'tadi. Kalit aybdor emas, shuning uchun chetga
-  // qo'yilmaydi; oraliq bilan yana ikki marta urinamiz.
+  // 500/503 («model overloaded») — bir necha soniyada o'tadi; kalit aybdor emas
   // (sinovda oraliqni qisqartirish mumkin — globalThis.RASM_KUTISH)
   for (const ms of globalThis.RASM_KUTISH || [2500, 6000]) {
     if (res.status < 500) break;
@@ -275,12 +286,19 @@ export async function googleRasm(parts, { nisbat, model, timeoutMs = 120000 } = 
   }
   if (res.status === 400 && nisbat) {
     const matn = await res.clone().text().catch(() => '');
-    // 400 imageConfig sababli bo'lsagina nisbatsiz urinamiz
     if (/imageConfig|aspectRatio|aspect_ratio/i.test(matn)) res = await yubor(false);
   }
   if (!res.ok) {
-    if (k && res.status < 500) geminiHovuz.yomon(k.indeks, sabab(new Error(`HTTP ${res.status}`)));
-    xatoTashla(res.status, await res.text().catch(() => ''));
+    const matn = await res.text().catch(() => '');
+    if (k && res.status < 500) {
+      geminiHovuz.yomon(k.indeks, res.status === 402 ? 'pul'
+        : res.status === 429 ? 'kvota' : sabab(new Error(`HTTP ${res.status} ${matn.slice(0, 200)}`)));
+    }
+    // Google kalit noto'g'ri bo'lsa 400 beradi — bu ham «kalit» xatosi
+    if (res.status === 400 && /API_KEY_INVALID|API key not valid|API key expired/i.test(matn)) {
+      throw Object.assign(new Error('Google: API kalit noto‘g‘ri yoki muddati tugagan'), { turkum: 'kalit', kod: 400 });
+    }
+    xatoTashla(res.status, matn);
   }
   if (k) geminiHovuz.yaxshi(k.indeks);
 
@@ -299,3 +317,4 @@ export async function googleRasm(parts, { nisbat, model, timeoutMs = 120000 } = 
   }
   return { base64: rasm.data, mime: rasm.mime_type || rasm.mimeType || 'image/png' };
 }
+

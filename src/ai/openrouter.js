@@ -171,3 +171,67 @@ export async function openrouterJson(parts, schema, opts = {}) {
   }
   throw oxirgi || Object.assign(new Error('OpenRouter javob bermadi'), { turkum: 'nomalum' });
 }
+
+/**
+ * Rasm chizish OpenRouter orqali — Google kalitlari ishlamay qolganda
+ * (kredit tugagan, kvota, bekor qilingan) ZAXIRA. Xuddi shu Gemini
+ * rasm modeli, faqat hisob OpenRouter'da. Natija Google bilan bir xil
+ * ko'rinishda: { base64, mime }.
+ */
+export async function openrouterRasm(parts, { nisbat, timeoutMs = 120000 } = {}) {
+  const model = config.openrouterImageModel;
+  let oxirgi = null;
+  const sinalgan = new Set();
+  for (let i = 0; i < Math.max(1, orHovuz.soni()); i++) {
+    const k = orHovuz.ol();
+    if (k && sinalgan.has(k.indeks)) break;
+    if (k) sinalgan.add(k.indeks);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    let res;
+    try {
+      res = await fetch(`${config.openrouterApi}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${k?.kalit || ''}`,
+          'HTTP-Referer': config.publicUrl || 'https://kiovo.shop',
+          'X-Title': 'KiOVO',
+        },
+        signal: ctrl.signal,
+        body: JSON.stringify({
+          model,
+          messages: xabarga(parts),
+          modalities: ['image', 'text'],
+          ...(nisbat ? { image_config: { aspect_ratio: nisbat } } : {}),
+        }),
+      });
+    } catch (e) {
+      clearTimeout(timer);
+      throw Object.assign(new Error(`OpenRouter: ${e.name === 'AbortError' ? 'rasm chizish juda uzoq davom etdi' : e.message}`),
+        { turkum: e.name === 'AbortError' ? 'vaqt' : 'tarmoq' });
+    }
+    clearTimeout(timer);
+    if (!res.ok) {
+      const matn = await res.text().catch(() => '');
+      if (k) orHovuz.yomon(k.indeks, res.status === 402 ? 'pul' : res.status === 429 ? 'kvota'
+        : res.status === 401 || res.status === 403 ? 'notogri' : 'xato');
+      try { xatoTashla(res.status, matn); } catch (e) { oxirgi = e; }
+      if ([401, 402, 403, 429].includes(res.status) || res.status >= 500) continue;   // keyingi kalit
+      throw oxirgi;
+    }
+    if (k) orHovuz.yaxshi(k.indeks);
+    const data = await res.json();
+    if (data?.error) xatoTashla(data.error.code || 500, data.error.message || 'xato');
+    const msg = data?.choices?.[0]?.message || {};
+    const url = (msg.images || []).map((x) => x?.image_url?.url || x?.url).find((u) => /^data:image\//.test(u || ''));
+    if (!url) {
+      throw Object.assign(new Error(msg.content ? `Rasm o‘rniga matn: ${String(msg.content).slice(0, 160)}` : 'Rasm qaytmadi (OpenRouter)'),
+        { turkum: 'bosh' });
+    }
+    const [, mime, base64] = url.match(/^data:(image\/[\w+.-]+);base64,(.+)$/s) || [];
+    if (!base64) throw Object.assign(new Error('Rasm formati tushunarsiz (OpenRouter)'), { turkum: 'bosh' });
+    return { base64, mime: mime || 'image/png' };
+  }
+  throw oxirgi || Object.assign(new Error('OpenRouter rasm chizmadi'), { turkum: 'nomalum' });
+}
