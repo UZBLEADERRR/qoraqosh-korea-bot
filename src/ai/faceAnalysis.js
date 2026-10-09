@@ -148,8 +148,23 @@ const SXEMA = {
 
 function katalogMatni(products) {
   return products.map((p) =>
-    `${p.id}|${p.brand ?? ''} ${p.nom_uz || p.name}|bosqich:${p.step ?? '-'}|muammo:${(p.concerns || []).join(',') || '-'}|teri:${(p.skin_types || []).join(',') || '-'}|faol:${(p.actives || []).join(',') || '-'}`
+    `${p.id}|${p.brand ?? ''} ${p.nom_uz || p.name}|bosqich:${p.step ?? '-'}|muammo:${(p.concerns || []).join(',') || '-'}|teri:${(p.skin_types || []).join(',') || '-'}|faol:${(p.actives || []).join(',') || '-'}${p.dona_soni > 1 ? `|toplam:${p.dona_soni} dona` : ''}`
   ).join('\n');
+}
+
+/* KATTA TO'PLAMLAR TAVSIYAGA KIRMAYDI.
+ *
+ * 100 donali niqob yoki paxta disk to'plami — do'kon uchun ulgurji
+ * tovar, bitta odamning parvarish to'plami emas. Skaner uni oddiy
+ * krem kabi tavsiya qilib yuborardi va «to'liq to'plam» narxi bir
+ * zumda ikki barobar oshib ketardi. Endi shu bosqichda boshqa (bittalik
+ * yoki kichik to'plam) mahsulot bo'lsa — katta to'plam ro'yxatdan
+ * olinadi. Faqat boshqa variant umuman yo'q bo'lsa qoladi. */
+export const KATTA_TOPLAM = 10;
+export function tavsiyaKatalogi(products) {
+  const kichikBor = new Set(products
+    .filter((p) => !(p.dona_soni > KATTA_TOPLAM) && p.stock > 0).map((p) => p.step));
+  return products.filter((p) => !(p.dona_soni > KATTA_TOPLAM) || !kichikBor.has(p.step));
 }
 
 /**
@@ -368,13 +383,16 @@ Butun javob o'zbek tilida (lotin alifbosida). Faqat JSON qaytar.
 // Katalog sarlavhasi ALOHIDA: do'kon egasining qo'shimcha ko'rsatmasi
 // undan OLDIN qo'yiladi. Uzun mahsulot ro'yxatidan keyin yozilgan gap
 // modelning ko'zidan qochadi.
-const KATALOG_SARLAVHA = '\nKATALOG (id|nom|bosqich|muammolar|teri turlari|faol moddalar):\n';
+const KATALOG_SARLAVHA = '\nKATALOG (id|nom|bosqich|muammolar|teri turlari|faol moddalar|toplam — '
+  + 'bir nechta dona bo‘lsa). To‘plamni faqat u aniq foydali bo‘lsa tanla (masalan haftalik niqob '
+  + 'kursi); bittalik mahsulot bo‘lsa — uni afzal ko‘r:\n';
 
 /**
  * @returns {{yaroqli:boolean, sabab?:string, izoh?:string, natija?:object}}
  */
-export async function yuzniTahlilQil(base64, mime, products, eskiTavsiyalar = [],
+export async function yuzniTahlilQil(base64, mime, hammaMahsulot, eskiTavsiyalar = [],
                                     qoshimcha = '') {
+  const products = tavsiyaKatalogi(hammaMahsulot);
   if (!aiBormi()) return { yaroqli: true, natija: oflaynTahlil(products), oflayn: true };
 
   const eski = eskiTavsiyalar.length

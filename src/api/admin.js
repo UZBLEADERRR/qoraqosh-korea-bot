@@ -824,6 +824,8 @@ export async function adminRoutes(req, res, yol) {
       manba_url: manbaUrl(b.manba_url),
       manba: manbaTuri(b.manba_url),
       ogirlik: Math.max(0, Math.min(50000, Number(b.ogirlik) || 0)),
+      // To'plamdagi dona: 1 yoki bo'sh — oddiy bitta mahsulot
+      dona_soni: Number(b.dona_soni) >= 2 ? Math.min(10000, Math.round(Number(b.dona_soni))) : null,
       ai_filled: Boolean(b.ai_filled),
       is_active: b.is_active !== false,
       ...variantMaydonlari(b),
@@ -834,7 +836,8 @@ export async function adminRoutes(req, res, yol) {
     const q = [m.name, m.brand, m.category_id, m.step, m.price, m.old_price, m.cost_price,
                m.stock, m.volume, m.country, m.description, m.usage_text, m.ingredients,
                m.actives, m.concerns, m.skin_types, m.warnings, m.emoji, m.ai_filled, m.is_active,
-               m.manba_url, m.manba, m.ogirlik, m.nom_uz, m.variant_nom, m.variant_tur, m.rang_hex];
+               m.manba_url, m.manba, m.ogirlik, m.nom_uz, m.variant_nom, m.variant_tur, m.rang_hex,
+               m.dona_soni];
     try {
       const natija = b.id
         ? await qator(
@@ -843,16 +846,16 @@ export async function adminRoutes(req, res, yol) {
                     ingredients=$13,actives=$14,concerns=$15,skin_types=$16,warnings=$17,
                     emoji=$18,ai_filled=$19,is_active=$20,manba_url=$21,manba=$22,
                     ogirlik=$23,nom_uz=$24,variant_nom=$25,variant_tur=$26,rang_hex=$27,
-                    updated_at=now()
-              where id=$28 returning *`, [...q, b.id])
+                    dona_soni=$28,updated_at=now()
+              where id=$29 returning *`, [...q, b.id])
         // nom_uz ustunlar ro'yxatida YO'Q edi: 24 qiymat 23 ustunga — yangi
         // mahsulotni formadan qo'shib bo'lmasdi
         : await qator(
             `insert into products (name,brand,category_id,step,price,old_price,cost_price,stock,
                     volume,country,description,usage_text,ingredients,actives,concerns,skin_types,
                     warnings,emoji,ai_filled,is_active,manba_url,manba,ogirlik,nom_uz,
-                    variant_nom,variant_tur,rang_hex)
-             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+                    variant_nom,variant_tur,rang_hex,dona_soni)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
              returning *`, q);
       katalogYangilandi();
       return ok(res, { mahsulot: natija });
@@ -1443,7 +1446,8 @@ export async function adminRoutes(req, res, yol) {
         krw: b.krw != null ? Number(b.krw) : undefined,
         tannarx: Number(b.tannarx) || 0,
         gramm: Number(b.gramm) || 0,
-      }, s.qoida),
+      // Panelda hali saqlanmagan qiymatlar ham namunada ko'rinsin
+      }, { ...s.qoida, ...Object.fromEntries(Object.entries(b).filter(([k]) => k in s.qoida)) }),
       qoida: s.qoida,
     });
   }

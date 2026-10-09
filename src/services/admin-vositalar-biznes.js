@@ -349,8 +349,18 @@ export async function ommaviyXabar(a = {}) {
 /** Yangi mahsulot. Rasm keyin admin paneldan qo'shiladi. */
 export async function mahsulotQosh(a = {}) {
   const nom = matn(a.name ?? a.nom, 160);
-  const narx = Math.round(son(a.price ?? a.narx, 0));
-  if (nom.length < 2 || narx <= 0) return { qoshildi: 0, xabar: 'Nom va narx (0 dan katta) kerak.' };
+  let narx = Math.round(son(a.price ?? a.narx, 0));
+  const tannarx = Math.max(0, Math.round(son(a.cost_price ?? a.tannarx, 0)));
+  const gramm = Math.max(0, Math.round(son(a.ogirlik ?? a.gramm, 0)));
+  // Narx aytilmagan, tannarx bor — DOIMIY QOIDA bo'yicha (yo'lkira + foyda chegarasi)
+  let hisob = null;
+  if (narx <= 0 && tannarx > 0) {
+    const { joriyQoida } = await import('./admin-marja.js');
+    const { narxHisobla, ogirlikTaxmini } = await import('../lib/narx.js');
+    hisob = narxHisobla({ tannarx, gramm: gramm || ogirlikTaxmini(a.volume ?? a.hajm) }, await joriyQoida());
+    narx = hisob.narx;
+  }
+  if (nom.length < 2 || narx <= 0) return { qoshildi: 0, xabar: 'Nom va narx (yoki tannarx) kerak.' };
   let toifa = null;
   if (a.bolim) {
     const b = matn(a.bolim, 60);
@@ -360,15 +370,16 @@ export async function mahsulotQosh(a = {}) {
   }
   const p = await qator(
     `insert into products (name, nom_uz, brand, price, cost_price, stock, volume, description,
-                           usage_text, category_id, is_active)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+                           usage_text, category_id, is_active, ogirlik, dona_soni)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
      returning id, name, price`,
     [nom, matn(a.nom_uz, 160) || null, matn(a.brand ?? a.brend, 80) || null, narx,
      // Tannarx bazada majburiy — noma'lum bo'lsa 0 (keyin panelda kiritiladi)
-     Math.max(0, Math.round(son(a.cost_price ?? a.tannarx, 0))), Math.max(0, Math.round(son(a.stock ?? a.ombor, 0))),
+     tannarx, Math.max(0, Math.round(son(a.stock ?? a.ombor, 0))),
      matn(a.volume ?? a.hajm, 40) || null, matn(a.description ?? a.tavsif, 2000) || null,
-     matn(a.usage_text, 1500) || null, toifa?.id ?? null, a.yopiq !== true]);
-  return { qoshildi: 1, mahsulot: p,
+     matn(a.usage_text, 1500) || null, toifa?.id ?? null, a.yopiq !== true,
+     gramm, son(a.dona_soni, 0) >= 2 ? Math.round(son(a.dona_soni)) : null]);
+  return { qoshildi: 1, mahsulot: p, ...(hisob ? { narx_hisobi: hisob } : {}),
     natija: `#${p.id} qo‘shildi. Rasmni admin panel → Mahsulotlar dan qo‘shing.` };
 }
 
@@ -441,8 +452,8 @@ export const BIZNES_VOSITALAR = {
     oqish: false, ishla: mahsulotQosh,
     tavsif: 'YANGI mahsulot qo‘shadi (rasm keyin panelda qo‘shiladi). Rasmdan yoki matndan '
           + 'ma’lumotni o‘zing to‘ldir: nom, brend, hajm, tavsif, ishlatish tartibi.',
-    parametrlar: 'name, price, + brand, nom_uz, cost_price, stock, volume, description, '
-               + 'usage_text, bolim, yopiq (true — sotuvga chiqarmasdan)',
+    parametrlar: 'name, price (aytilmasa cost_price dan narx qoidasi bilan), + brand, nom_uz, cost_price, '
+               + 'ogirlik (gramm), dona_soni, stock, volume, description, usage_text, bolim, yopiq (true — sotuvga chiqarmasdan)',
   },
 };
 

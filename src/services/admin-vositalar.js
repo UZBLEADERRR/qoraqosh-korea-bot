@@ -21,6 +21,7 @@ import { TAVSIF as SHABLON_TAVSIF } from '../bot/shablonlar-standart.js';
 import { eksportHajmi, BOLIMLAR as EKSPORT_BOLIMLAR } from './eksport.js';
 import { sqlOqi, sqlYoz, sxema } from './admin-sql.js';
 import { BIZNES_VOSITALAR, biznesOldindanSoni } from './admin-vositalar-biznes.js';
+import { MARJA_VOSITALAR, marjaOldindanSoni } from './admin-marja.js';
 import { kartochkaSozlamasi, kartochkaniQosh, BLOKLAR, BLOK_NOMI,
          KARTOCHKA_STANDART } from '../lib/kartochka.js';
 
@@ -401,8 +402,11 @@ const TAHRIR_MAYDON = {
   usage_text: 'text', warnings: 'text', volume: 'text', emoji: 'text',
   manba_url: 'text', step: 'text',
   price: 'int', cost_price: 'int', old_price: 'int', stock: 'int',
+  ogirlik: 'int', dona_soni: 'int',
   is_active: 'bool',
 };
+// 0 — «yo'q» degani: bazada bo'sh qoladi (chegirmasiz, to'plam emas)
+const BOSH_BOLSA_NULL = new Set(['old_price', 'dona_soni']);
 
 async function mahsulotTahrir(a) {
   const id = son(a.id, 0);
@@ -413,6 +417,7 @@ async function mahsulotTahrir(a) {
     if (a[maydon] === undefined) continue;
     let v = a[maydon];
     if (tur === 'int')  v = Math.max(0, Math.round(son(v, 0)));
+    if (tur === 'int' && BOSH_BOLSA_NULL.has(maydon) && (v === 0 || (maydon === 'dona_soni' && v < 2))) v = null;
     if (tur === 'bool') v = v === true || v === 'true';
     if (tur === 'text') v = matn(v, 2000) || null;
     p.push(v);
@@ -1091,9 +1096,10 @@ export const VOSITALAR = {
   mahsulot_tahrir: {
     oqish: false, ishla: mahsulotTahrir,
     tavsif: 'Mahsulot maydonlarini tahrirlaydi: nomi, o‘zbekcha nomi, brendi, '
-          + 'tavsifi, ishlatish tartibi, hajmi, havolasi, narxi, ombori.',
+          + 'tavsifi, ishlatish tartibi, hajmi, havolasi, narxi, tannarxi, ombori, og‘irligi (gramm — '
+          + 'yo‘lkira shundan), to‘plamdagi dona soni (10 ta niqob — 10; bitta bo‘lsa 0).',
     parametrlar: 'id + o‘zgartiriladigan maydonlar (name, nom_uz, brand, '
-               + 'description, usage_text, volume, manba_url, price, stock…)',
+               + 'description, usage_text, volume, manba_url, price, cost_price, stock, ogirlik, dona_soni…)',
   },
   sozlama_ozgartir: {
     oqish: false, ishla: sozlamaOzgartir,
@@ -1115,6 +1121,7 @@ export const VOSITALAR = {
     parametrlar: 'idlar / brend / bolim / qidiruv / hammasi',
   },
   ...BIZNES_VOSITALAR,
+  ...MARJA_VOSITALAR,
   mavzu_ozgartir: {
     oqish: false, ishla: mavzuOzgartir,
     tavsif: 'Ilova ranglarini o‘zgartiradi. Avval «mavzu» bilan kontrastni '
@@ -1150,6 +1157,8 @@ export async function oldindanSoni(nom, a = {}) {
   try {
     const biznes = await biznesOldindanSoni(nom, a);
     if (biznes !== undefined) return biznes;
+    const marja = await marjaOldindanSoni(nom, a);
+    if (marja !== undefined) return marja;
     if (nom === 'narxlarni_ozgartir' || nom === 'chegirma' || nom === 'chegirma_olib_tashla') {
       const f = await narxFiltri(a);
       if (f.xato) return 0;

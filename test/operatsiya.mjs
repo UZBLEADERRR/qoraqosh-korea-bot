@@ -753,7 +753,8 @@ console.log('\n── MARKETPLACE ──');
   test('narx hisoblandi', t.narx_izoh?.narx > 0,
     `narx ${t.narx_izoh?.narx} · tannarx ${t.narx_izoh?.tannarx} · foyda ${t.narx_izoh?.foyda}`);
   test('tannarx KRW dan o‘girildi', t.narx_izoh?.tannarx === Math.round(5000 * 9.5));
-  test('yetkazish 120 g uchun ikki bo‘lak', t.narx_izoh?.yetkazish === 2 * 15000,
+  // Yo'lkira og'irlikka mutanosib: 120 g × 150 so'm/g (ilgari «2 bo'lak» = 30 000)
+  test('yo‘lkira 120 g ga mutanosib', t.narx_izoh?.yetkazish === 18000,
     String(t.narx_izoh?.yetkazish));
   test('mahsulot rasmi saqlandi', Boolean(t.rasm_id));
 
@@ -5960,6 +5961,123 @@ console.log('\n── AI BIZNES VOSITALARI ──');
 
   await sorov(`delete from products where id = any($1)`, [[mah.id, mq.mahsulot?.id].filter(Boolean)]);
   await sorov(`delete from users where id = $1`, [lid.id]);
+}
+
+
+// ═══════════ MARJA: YO'LKIRA ALOHIDA, BUTUN KATALOG ═══════════
+// «Marjani 30 ga tushir» — har mahsulotga yo'lkirani og'irligidan
+// alohida hisoblab, SOF foydani 30% qilish. Qalam va lab bo'yog'i
+// kabi yengil tovarga yo'lkira 2–5 ming, foyda esa chegaradan oshmaydi.
+console.log('\n── MARJA VA NARX QOIDASI ──');
+{
+  const { narxHisobla, yolkira, ogirlikTaxmini } = await import('../src/lib/narx.js');
+  const { vositaniBajar, yozishmi, oldindanSoni } = await import('../src/services/admin-vositalar.js');
+  const { sozlamalarniUnut } = await import('../src/db.js');
+
+  test('qalam (8 g) — yo‘lkira eng kami 2 000', yolkira(8) === 2000);
+  test('lab bo‘yog‘i (15 g) — 2 500', yolkira(15) === 2500);
+  test('30 g — 4 500 (2–5 ming oralig‘ida)', yolkira(30) === 4500);
+  test('og‘ir krem (250 g) — mutanosib 37 500', yolkira(250) === 37500);
+  test('og‘irlik noma’lum — 100 g deb', yolkira(0) === 15000);
+  test('hajmdan og‘irlik taxmini (50 ml → 57 g, 10×20 g → 230 g)', ogirlikTaxmini('50 ml') === 57 && ogirlikTaxmini('10 x 20 g') === 230
+    && ogirlikTaxmini('') === null);
+
+  const sof = narxHisobla({ tannarx: 100000, gramm: 200 },
+    { foyda_foiz: 30, foyda_min: 0, foyda_max: 1e9, foyda_chegara_foiz: 30 });
+  test('foyda FAQAT tannarxdan (yo‘lkiraga foyda yo‘q)', sof.yetkazish === 30000 && sof.foyda === 30000 && sof.narx === 160000,
+    `${sof.narx} = ${sof.tannarx}+${sof.yetkazish}+${sof.foyda}`);
+  const qalam = narxHisobla({ tannarx: 25000, gramm: 8 }, { foyda_chegara_foiz: 30 });
+  test('chegara eng kam foydadan ustun (qalamga 30 000 foyda emas)', qalam.foyda <= 7500 && qalam.foyda_foiz <= 30,
+    `${qalam.narx} · foyda ${qalam.foyda} (${qalam.foyda_foiz}%)`);
+  test('yaxlitlash chegarani buzmaydi', narxHisobla({ tannarx: 68000, gramm: 23 },
+    { foyda_foiz: 30, foyda_min: 0, foyda_chegara_foiz: 30 }).foyda_foiz <= 30);
+
+  test('marja vositalari: o‘qish va yozish', !yozishmi('marja_rejasi') && !yozishmi('narx_qoidasi')
+    && yozishmi('marja_qoy') && yozishmi('narx_qoidasi_saqla'));
+
+  await sorov(`delete from products where name like 'MarjaSinov%'`);
+  const qosh = (nom, tannarx, gramm, narx, hajm = null) => qator(
+    `insert into products (name, brand, price, cost_price, ogirlik, volume, stock, is_active)
+     values ($1, 'MS', $2, $3, $4, $5, 5, true) returning id`, [nom, narx, tannarx, gramm, hajm]);
+  const pQalam = await qosh('MarjaSinov Qalam', 25000, 8, 60000);
+  const pKrem  = await qosh('MarjaSinov Krem', 90000, 0, 200000, '50 ml');
+  const pArzon = await qosh('MarjaSinov Arzon', 100000, 100, 120000);
+  const pTsiz  = await qosh('MarjaSinov Tannarxsiz', 0, 50, 90000);
+  const f = { qidiruv: 'MarjaSinov', foiz: 30 };
+  const foizi = async (id) => { const r = await qator(`select price, old_price, cost_price, ogirlik, volume from products where id = $1`, [id]);
+    return { ...r, foiz: (r.price - r.cost_price - yolkira(r.ogirlik || ogirlikTaxmini(r.volume))) / r.cost_price * 100 }; };
+
+  const rj = await vositaniBajar('marja_rejasi', { ...f, rejim: 'faqat_tushir' });
+  test('reja: 2 tasi tushadi, 30% dan pasti tegilmaydi', rj.ozgaradi === 2 && rj.tushadi === 2 && rj.ozgarmaydi === 1,
+    `${rj.ozgaradi}/${rj.ozgarmaydi}`);
+  test('reja: tannarxsiz alohida aytiladi', rj.tannarxsiz.soni === 1);
+  test('reja: og‘irlik hajmdan taxmin qilindi', rj.ogirlik.hajmdan_taxmin === 1);
+  test('reja bazaga yozmaydi', (await foizi(pQalam.id)).price === 60000);
+  test('filtrsiz — rad', Boolean((await vositaniBajar('marja_rejasi', { foiz: 30 })).xabar));
+  test('tasdiq kartasida aniq son', await oldindanSoni('marja_qoy', { ...f, rejim: 'faqat_tushir', usul: 'chegirma' }) === 2);
+
+  // AKSIYA usuli: asl narx chizilgan bo'lib qoladi
+  const ch = await vositaniBajar('marja_qoy', { ...f, rejim: 'faqat_tushir', usul: 'chegirma' });
+  const q1 = await foizi(pQalam.id), k1 = await foizi(pKrem.id);
+  test('chegirma usuli: eski narx saqlandi', ch.ozgardi === 2 && q1.old_price === 60000 && k1.old_price === 200000,
+    `${q1.price}/${q1.old_price} · ${k1.price}/${k1.old_price}`);
+  test('qalamda sof foyda ≤ 30% (yo‘lkira alohida)', q1.foiz <= 30 && q1.foiz > 20 && q1.price < 40000, `${q1.price} · ${q1.foiz.toFixed(1)}%`);
+  test('kremda sof foyda ≤ 30%', k1.foiz <= 30 && k1.foiz > 25, `${k1.price} · ${k1.foiz.toFixed(1)}%`);
+  test('arzon mahsulotga tegilmadi', (await foizi(pArzon.id)).price === 120000);
+  test('tannarxsiz o‘zgarmadi', (await foizi(pTsiz.id)).price === 90000);
+  const qayta = await vositaniBajar('marja_rejasi', { ...f, rejim: 'faqat_tushir', usul: 'chegirma' });
+  test('tekshiruv: qayta reja — o‘zgaradigan 0 ta', qayta.ozgaradi === 0, String(qayta.ozgaradi));
+
+  // ANIQ rejim, oddiy narx: hammasi aynan 30% atrofida, chegirma olib tashlanadi
+  await vositaniBajar('marja_qoy', { ...f, rejim: 'aniq', usul: 'narx' });
+  const q2 = await foizi(pQalam.id), a2 = await foizi(pArzon.id);
+  test('aniq rejim: past marjalisi ko‘tarildi', a2.price > 120000 && a2.foiz <= 30 && a2.foiz > 28, `${a2.price}`);
+  test('oddiy narx usulida chizilgan narx yo‘q', q2.old_price === null);
+
+  // Doimiy qoida: «kelasi safar ham shunday»
+  const eski = await qator(`select value from settings where key = 'narx_qoidasi'`);
+  await vositaniBajar('marja_qoy', { ...f, rejim: 'faqat_tushir', saqla: true });
+  sozlamalarniUnut();
+  const qd = await vositaniBajar('narx_qoidasi', {});
+  test('qoida saqlandi: chegara 30%', qd.qoida.foyda_chegara_foiz === 30 && qd.qoida.foyda_foiz === 30);
+  test('qoida misollarida qalam ham 30% dan oshmaydi', qd.misollar.every((m) => m.foyda_foiz <= 30));
+  const yangiM = await vositaniBajar('mahsulot_qosh', { name: 'MarjaSinov Yangi tint', cost_price: 40000, ogirlik: 15, yopiq: true });
+  test('yangi mahsulot narxi qoidadan (yo‘lkira + 30%)', yangiM.qoshildi === 1 && yangiM.mahsulot.price === 54000,
+    `${yangiM.mahsulot?.price}`);
+  const ns = await vositaniBajar('narx_qoidasi_saqla', { yetkazish_min: 3000 });
+  test('narx qoidasini alohida o‘zgartirish', ns.ozgardi === 1 && ns.qoida.yetkazish_min === 3000 && ns.qoida.foyda_chegara_foiz === 30);
+  if (eski) await sorov(`update settings set value = $1 where key = 'narx_qoidasi'`, [eski.value]);
+  else await sorov(`delete from settings where key = 'narx_qoidasi'`);
+  sozlamalarniUnut();
+
+  // To'plam (dona soni)
+  const t1 = await vositaniBajar('mahsulot_tahrir', { id: pKrem.id, dona_soni: 100, ogirlik: 60 });
+  const t1q = await qator(`select dona_soni, ogirlik from products where id = $1`, [pKrem.id]);
+  test('AI dona soni va og‘irlikni yozadi', t1.ozgardi === 1 && t1q.dona_soni === 100 && t1q.ogirlik === 60);
+  await vositaniBajar('mahsulot_tahrir', { id: pKrem.id, dona_soni: 0 });
+  test('dona 0 — bitta mahsulot (bo‘sh)', (await qator(`select dona_soni from products where id = $1`, [pKrem.id])).dona_soni === null);
+  const fp = await chaqirAdmin('/api/admin/product', 'POST', { name: 'MarjaSinov Niqob to‘plami', price: 120000, dona_soni: 10 });
+  test('panel formasi dona sonini saqlaydi', fp.kod === 200 && fp.tana.mahsulot?.dona_soni === 10, JSON.stringify(fp.tana).slice(0, 80));
+
+  const { tavsiyaKatalogi, KATTA_TOPLAM } = await import('../src/ai/faceAnalysis.js');
+  const kat = tavsiyaKatalogi([
+    { id: 1, step: 'qoshimcha', dona_soni: 100, stock: 5 }, { id: 2, step: 'qoshimcha', dona_soni: null, stock: 5 },
+    { id: 3, step: 'toner', dona_soni: 50, stock: 5 }, { id: 4, step: 'namlash', dona_soni: 10, stock: 5 }]);
+  test('skaner 100 donali to‘plamni tavsiya qilmaydi (bittaligi bor)', !kat.some((x) => x.id === 1) && kat.some((x) => x.id === 2));
+  test('boshqa variant yo‘q bo‘lsa — to‘plam qoladi', kat.some((x) => x.id === 3));
+  test(`${KATTA_TOPLAM} donagacha to‘plam oddiy`, kat.some((x) => x.id === 4));
+
+  const fs = await import('node:fs');
+  const app = fs.readFileSync('public/app/app.js', 'utf8');
+  test('ilova: natija kartasida eski narx chizilgan', /nm-narx">\$\{narx\(r\.p\.price\)\}\$\{eskiNarx\(r\.p\)\}/.test(app));
+  test('ilova: savatda ham', /eski-narx">\$\{qisqaNarx\(p\.old_price \* quantity\)\}/.test(app));
+  const ord = fs.readFileSync('src/services/orders.js', 'utf8');
+  test('savat API chegirma va donani beradi', /'old_price', p\.old_price, 'dona_soni', p\.dona_soni/.test(ord));
+  test('ilova: kartada «N dona»', /nishon-kichik dona">\$\{p\.dona_soni\} dona/.test(app) && /To‘plamda <b>\$\{p\.dona_soni\} dona/.test(app));
+  const prompt = fs.readFileSync('src/ai/admin-agent.js', 'utf8');
+  test('AI ga marja bosqichlari o‘rgatilgan', /═══ MARJA VA NARX ═══/.test(prompt) && /marja_rejasi/.test(prompt) && /"saqla":true/.test(prompt));
+
+  await sorov(`delete from products where name like 'MarjaSinov%'`);
 }
 
 // ═══════════ ADMIN KARKASI ═══════════

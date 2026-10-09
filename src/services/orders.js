@@ -82,7 +82,9 @@ export const savatniOl = (userId) => qatorlar(
                             'price', p.price, 'stock', p.stock, 'emoji', p.emoji,
                             'volume', p.volume, 'poster_id', p.poster_id,
                             'variant_of', p.variant_of, 'variant_nom', p.variant_nom,
-                            'rang_hex', p.rang_hex) as products
+                            'rang_hex', p.rang_hex, 'variant_tur', p.variant_tur, 'step', p.step,
+                            -- Chegirma savatda ham ko'rinsin (chizilgan eski narx), to'plam esa «N dona»
+                            'old_price', p.old_price, 'dona_soni', p.dona_soni) as products
      from cart_items c
      join products p on p.id = c.product_id
     where c.user_id = $1

@@ -688,6 +688,8 @@ function mahsulotKarta(p) {
             ${!p.poster_id ? '<span class="yor qizil">rasmsiz</span>' : ''}
             ${!p.nom_uz ? '<span class="yor sariq">nomi inglizcha</span>' : ''}
             ${!p.manba_url ? '<span class="yor kul">havolasiz</span>' : ''}
+            ${p.dona_soni > 1 ? `<span class="yor kok">${p.dona_soni} dona to‘plam</span>` : ''}
+            ${p.old_price > p.price ? `<span class="yor urgu">aksiya −${Math.round((1 - p.price / p.old_price) * 100)}%</span>` : ''}
             ${p.variant_nom ? `<span class="yor yashil">${p.rang_hex ? `<i class="rang-nuqta" style="background:${esc(p.rang_hex)}"></i>` : ''}${p.variant_of ? 'variant · ' : ''}${esc(p.variant_nom)}</span>` : ''}
           </div>
         </div>
@@ -695,7 +697,7 @@ function mahsulotKarta(p) {
       <span class="yor ${omborYor}">${p.stock} dona</span>
     </div>
     <div class="mah-stat">
-      <div><span>Narx</span><b>${som(p.price)}</b></div>
+      <div><span>Narx</span><b>${som(p.price)}${p.old_price > p.price ? ` <s class="eski">${som(p.old_price)}</s>` : ''}</b></div>
       <div><span>Marja</span><b class="${marja >= 35 ? 'yashil' : marja >= 20 ? 'sariq' : 'qizil'}">${marja}%</b></div>
       <div><span>Sotildi</span><b>${som(p.sold_count)}</b></div>
     </div>
@@ -743,6 +745,10 @@ function mahsulotOyna(p) {
         <span class="yordam">yetkazish narxi shunga qarab</span></label>
         <input id="m-ogirlik" type="number" inputmode="numeric" min="0"
           value="${p?.ogirlik || ''}" placeholder="150"></div>
+      <div><label>To‘plamda necha dona
+        <span class="yordam">10 ta niqob — 10. Bitta bo‘lsa bo‘sh</span></label>
+        <input id="m-dona" type="number" inputmode="numeric" min="0"
+          value="${p?.dona_soni || ''}" placeholder="1"></div>
       <div><label>Emoji</label><input id="m-emoji" value="${esc(p?.emoji || '🧴')}" maxlength="4"></div>
     </div>
     ${variantBolimi(p)}
@@ -791,6 +797,7 @@ function mahsulotOyna(p) {
       is_active: $('#m-faol').checked, ai_filled: Boolean(p?.ai_filled),
       manba_url: $('#m-manba').value.trim(),
       ogirlik: Math.max(0, Number($('#m-ogirlik').value) || 0),
+      dona_soni: Math.max(0, Number($('#m-dona').value) || 0),
       variant_nom: $('#m-vnom').value.trim(), variant_tur: $('#m-vtur').value,
       rang_hex: $('#m-vtur').value === 'rang' ? $('#m-vrang').value : '',
     };
@@ -1894,17 +1901,21 @@ async function marketplace() {
       <div class="karta tor">
         <div class="karta-bosh"><h2>💰 Narx qoidasi</h2></div>
         <p class="mayda" style="margin:0 0 10px">
-          Narx = <b>tannarx</b> + <b>yetkazish</b> + <b>sof foyda</b>.
-          Yetkazish har boshlangan 100 g uchun. Foyda foizda hisoblanadi,
-          lekin eng kam va eng ko‘p chegarasidan chiqmaydi — arzon kichik
-          tovarda mehnat qoplanishi, qimmat kremda esa narx haddan oshmasligi uchun.</p>
+          Narx = <b>tannarx</b> + <b>yo‘lkira</b> + <b>sof foyda</b>.
+          Yo‘lkira og‘irlikka qarab (qalam, lab bo‘yog‘iga 2–5 ming), eng kami belgilangan.
+          Sof foyda faqat tannarxdan foiz: eng kam va eng ko‘p summa bilan, «chegara» esa
+          hech bir mahsulotda undan oshirmaydi.</p>
         <div class="forma-tor">
           <div><label>1 KRW necha so‘m</label>
             <input id="mk-kurs" type="number" step="0.1" value="${q.krw_kurs ?? 9.5}"></div>
           <div><label>Har 100 g uchun (so‘m)</label>
             <input id="mk-yetkazish" type="number" value="${q.yetkazish_100g ?? 15000}"></div>
-          <div><label>Foyda foizi (%)</label>
+          <div><label>Eng kam yo‘lkira (so‘m)</label>
+            <input id="mk-yol-min" type="number" value="${q.yetkazish_min ?? 2000}"></div>
+          <div><label>Sof foyda (% tannarxdan)</label>
             <input id="mk-foiz" type="number" value="${q.foyda_foiz ?? 35}"></div>
+          <div><label>Foyda chegarasi (%) <span class="yordam">0 = cheklovsiz</span></label>
+            <input id="mk-chegara" type="number" value="${q.foyda_chegara_foiz ?? 0}"></div>
           <div><label>Yaxlitlash (so‘m)</label>
             <input id="mk-yaxlit" type="number" value="${q.yaxlitlash ?? 1000}"></div>
           <div><label>Eng kam sof foyda</label>
@@ -1945,7 +1956,7 @@ async function marketplace() {
     importChiz();
     $('#mk-api-sinov').onclick = marketApiSinov;
     $('#mk-qoida-saqla').onclick = marketQoidaSaqla;
-    ['mk-kurs','mk-yetkazish','mk-foiz','mk-yaxlit','mk-foyda-min','mk-foyda-max']
+    ['mk-kurs','mk-yetkazish','mk-foiz','mk-yaxlit','mk-foyda-min','mk-foyda-max','mk-yol-min','mk-chegara']
       .forEach((id) => { const el = $('#' + id); if (el) el.oninput = marketNamuna; });
     marketNamuna();
 
@@ -2013,6 +2024,7 @@ async function marketNamuna() {
   const el = $('#mk-namuna'); if (!el) return;
   const qoida = marketQoida();
   const misollar = [
+    ['Lab bo‘yog‘i · 2 000 KRW · 15 g', 2000, 15],
     ['Kichik tovar · 3 000 KRW · 50 g', 3000, 50],
     ['Krem · 12 000 KRW · 100 g',       12000, 100],
     ['Katta · 25 000 KRW · 250 g',      25000, 250],
@@ -2022,7 +2034,7 @@ async function marketNamuna() {
     for (const [nom, krw, gramm] of misollar) {
       const j = await api('/api/admin/marketplace/narx',
         { method: 'POST', body: JSON.stringify({ krw, gramm, ...qoida }) });
-      natijalar.push(`${nom} → <b>${som(j.narx.narx)}</b> (foyda ${som(j.narx.foyda)})`);
+      natijalar.push(`${nom} → <b>${som(j.narx.narx)}</b> (yo‘lkira ${som(j.narx.yetkazish)}, foyda ${som(j.narx.foyda)} · ${j.narx.foyda_foiz}%)`);
     }
     el.innerHTML = natijalar.join('<br>');
   } catch { el.innerHTML = ''; }
@@ -2031,7 +2043,9 @@ async function marketNamuna() {
 const marketQoida = () => ({
   krw_kurs:       Number($('#mk-kurs')?.value) || 9.5,
   yetkazish_100g: Number($('#mk-yetkazish')?.value) || 0,
+  yetkazish_min:  Number($('#mk-yol-min')?.value) || 0,
   foyda_foiz:     Number($('#mk-foiz')?.value) || 0,
+  foyda_chegara_foiz: Number($('#mk-chegara')?.value) || 0,
   foyda_min:      Number($('#mk-foyda-min')?.value) || 0,
   foyda_max:      Number($('#mk-foyda-max')?.value) || 0,
   yaxlitlash:     Number($('#mk-yaxlit')?.value) || 1000,

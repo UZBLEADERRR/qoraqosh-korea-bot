@@ -145,7 +145,9 @@ takliflar: odam keyin bosishi mumkin bo'lgan 2-3 ta qisqa savol
 
 Butun javob O'ZBEK tilida (lotin alifbosida). Faqat JSON qaytar.
 
-KATALOG (id|brend nom|bosqich|muammo|teri|faol modda|narx):
+KATALOG (id|brend nom|bosqich|muammo|teri|faol modda|narx|to'plamdagi dona — bo'sh bo'lsa bitta).
+Katta to'plamni (masalan 100 dona niqob) mijoz o'zi so'ramasa tavsiya qilma, so'rasa — necha dona
+ekanini ayt:
 `;
 
 // Bo'sh maydonga «-» yozish behuda: modelga hech nima bermaydi,
@@ -160,6 +162,7 @@ const katalogMatni = (products) => products.map((p) => [
   (p.skin_types || []).join(','),
   (p.actives || []).join(','),
   p.price,
+  p.dona_soni > 1 ? p.dona_soni : '',
 ].join('|')).join('\n');
 
 /** Foydalanuvchi haqida bilganimiz — tavsiya shunga moslashadi. */

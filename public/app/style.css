@@ -2752,3 +2752,16 @@ details.n-yigma[open] .n-ochish::before{transform:rotate(225deg) translate(-3px,
 .kirish-usul.google{text-decoration:none;background:#fff;color:#1f1f1f;border-color:#dadce0}
 .kirish-usul-belgi.g{background:#fff}
 .kirish-usul.google.yuklanmoqda{opacity:.6;pointer-events:none}
+
+/* Chegirma: eski narx hamma kartada ustidan chizilgan, yangi narx yonida */
+.eski-narx{font-weight:500;font-size:.82em;color:var(--och);margin-left:5px;text-decoration:line-through;
+  text-decoration-color:var(--urgu);white-space:nowrap}
+.nm-narx .eski-narx,.savat-narx .eski-narx{display:block;margin:1px 0 0}
+.savat-narx{text-align:right}
+/* To'plamdagi dona */
+.nishon-kichik.dona{background:#1f3a14;color:#d4eba3}
+.nm-dona{font-style:normal;font-size:11px;font-weight:700;color:var(--urgu);white-space:nowrap}
+.ai-m-dona{font-weight:700}
+.dona-satr{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 0;font-size:14px;color:var(--kul)}
+.dona-satr b{color:var(--matn)}
+.dona-satr span{color:var(--och);font-size:13px}

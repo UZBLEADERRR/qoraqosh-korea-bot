@@ -860,3 +860,4 @@ details.filtr label:first-child{margin-top:0}
   .asbob-tug:has(>:only-child) .tug{width:44px;padding:0}
   .asbob-tug:has(>:only-child) .tug span{display:none}
 }
+.mah-stat s.eski{font-weight:500;font-size:12px;color:var(--och)}

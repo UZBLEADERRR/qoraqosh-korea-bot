@@ -1,24 +1,36 @@
 // Sotuv narxini hisoblash qoidasi.
 //
-//   narx = tannarx + yetkazish + sof foyda
+//   narx = tannarx + yo'lkira + sof foyda
 //
-//   tannarx    — Koreyadagi narx (KRW) kursga ko'paytiriladi
-//   yetkazish  — har boshlangan 100 gramm uchun belgilangan summa
-//   sof foyda  — (tannarx + yetkazish) dan foiz, MIN va MAX bilan cheklangan
-//
-// Min va max nima uchun: arzon va kichik tovarda foiz juda kam chiqadi —
-// mahsulotni qidirish, buyurtma qilish va qadoqlash mehnati qoplanmaydi.
-// Qimmat kremda esa aksincha, foiz haddan tashqari ko'p chiqib, narx
-// raqobatbardosh bo'lmay qoladi.
+//   tannarx   — Koreyadagi narx (KRW) kursga ko'paytiriladi
+//   yo'lkira  — Koreyadan olib kelish: OG'IRLIKKA MUTANOSIB, eng kami
+//               `yetkazish_min`. Qalam, lab bo'yog'i kabi 5–30 grammlik
+//               tovarga 2 000–5 000 so'm tushadi. Ilgari har BOSHLANGAN
+//               100 g uchun to'liq 15 000 olinardi — 10 grammlik qalam
+//               ham 15 000 «yo'l haqi» to'lardi, bu esa narxni sun'iy
+//               oshirib, raqobatdan chiqarardi. Yuk butun posilka bo'lib
+//               kilolab to'lanadi, ya'ni har tovarga og'irligiga yarasha
+//               ulush tushadi — mutanosib hisob shuning uchun to'g'ri.
+//   sof foyda — FAQAT TANNARXDAN foiz (yo'lkira foydaga aralashmaydi),
+//               eng kam / eng ko'p summa bilan, ustidan esa
+//               `foyda_chegara_foiz` — «hech bir mahsulotda yo'lkiradan
+//               tashqari foyda 30% dan oshmasin» degan qat'iy chegara.
+//               Chegara MIN dan ham ustun: arzon tovarda eng kam foyda
+//               30 000 bo'lsa ham, chegara undan oshirishga yo'l qo'ymaydi.
 
 export const NARX_QOIDASI = {
-  krw_kurs:       9.5,     // 1 KRW necha so'm
-  yetkazish_100g: 15000,   // har boshlangan 100 g uchun
-  foyda_foiz:     35,      // tannarx + yetkazishdan
-  foyda_min:      30000,   // kichik tovarlar uchun
-  foyda_max:      50000,   // krem va shunga o'xshashlar uchun
-  yaxlitlash:     1000,    // yakuniy narx shu songacha yaxlitlanadi
+  krw_kurs:           9.5,     // 1 KRW necha so'm
+  yetkazish_100g:     15000,   // yo'lkira stavkasi: 100 g uchun
+  yetkazish_min:      2000,    // eng yengil tovarga ham shuncha
+  foyda_foiz:         35,      // sof foyda — tannarxdan
+  foyda_min:          30000,   // kichik tovarlar uchun (chegara undan ustun)
+  foyda_max:          50000,   // krem va shunga o'xshashlar uchun
+  foyda_chegara_foiz: 0,       // 0 — cheklovsiz; 30 — tannarxning 30% idan oshmaydi
+  yaxlitlash:         1000,    // yakuniy narx shu songacha yaxlitlanadi
 };
+
+// Og'irligi noma'lum tovar — o'rtacha kosmetika og'irligi deb olinadi
+export const TAXMINIY_GRAMM = 100;
 
 const son = (v, zaxira) => {
   const n = Number(v);
@@ -32,7 +44,31 @@ export function qoidaniTozala(xom = {}) {
   // Yaxlitlash 0 bo'lsa bo'lish xatosi chiqardi
   if (q.yaxlitlash < 1) q.yaxlitlash = 1;
   if (q.foyda_max < q.foyda_min) q.foyda_max = q.foyda_min;
+  if (q.foyda_chegara_foiz > 500) q.foyda_chegara_foiz = 500;
   return q;
+}
+
+/** Yo'lkira: og'irlikka mutanosib, 500 so'mgacha yaxlitlangan, eng kami `yetkazish_min`. */
+export function yolkira(gramm, qoida = NARX_QOIDASI) {
+  const q = qoidaniTozala(qoida);
+  const g = Number(gramm) > 0 ? Number(gramm) : TAXMINIY_GRAMM;
+  return Math.max(q.yetkazish_min, Math.ceil((g * q.yetkazish_100g) / 100 / 500) * 500);
+}
+
+/**
+ * «50 ml», «30g», «120 гр» — hajmdan og'irlikni taxmin qiladi (qadoq
+ * bilan ~15% og'irroq). Topilmasa null.
+ */
+export function ogirlikTaxmini(hajm) {
+  const t = String(hajm || '').toLowerCase().replace(',', '.');
+  const m = t.match(/(\d+(?:\.\d+)?)\s*(ml|мл|g|gr|г|гр|gramm|kg|кг|l|л)(?![a-zа-я])/);
+  if (!m) return null;
+  let n = Number(m[1]);
+  if (/^(kg|кг|l|л)$/.test(m[2])) n *= 1000;
+  // «10 x 20 g» — to'plam: o'nta yigirma grammlik
+  const k = t.match(/^\s*(\d{1,4})\s*[x×*]\s*\d/);
+  if (k) n *= Number(k[1]);
+  return n > 0 ? Math.round(n * 1.15) : null;
 }
 
 /**
@@ -45,7 +81,7 @@ export function qoidaniTozala(xom = {}) {
  * @param {number} p.gramm      mahsulot og'irligi (qadoqsiz)
  * @param {object} [qoida]
  * @returns {{narx:number, tannarx:number, yetkazish:number, foyda:number,
- *            marja:number, kg100:number}}
+ *            foyda_foiz:number, marja:number}}
  */
 export function narxHisobla({ krw, tannarx, gramm }, qoida = NARX_QOIDASI) {
   const q = qoidaniTozala(qoida);
@@ -54,24 +90,30 @@ export function narxHisobla({ krw, tannarx, gramm }, qoida = NARX_QOIDASI) {
     ? Math.round(Number(krw) * q.krw_kurs)
     : Math.max(0, Math.round(Number(tannarx) || 0));
 
-  // Har BOSHLANGAN 100 gramm: 130 g ham ikki bo'lakka to'lanadi,
-  // chunki pochta ham to'liq bosqichlar bilan hisoblaydi
-  const kg100 = Math.max(1, Math.ceil(Math.max(0, Number(gramm) || 0) / 100));
-  const yetkazish = kg100 * q.yetkazish_100g;
+  const yetkazish = yolkira(gramm, q);
 
-  const xomFoyda = Math.round((asos + yetkazish) * q.foyda_foiz / 100);
-  const foyda = Math.min(q.foyda_max, Math.max(q.foyda_min, xomFoyda));
+  let foyda = Math.min(q.foyda_max, Math.max(q.foyda_min, Math.round(asos * q.foyda_foiz / 100)));
+  const chegara = q.foyda_chegara_foiz > 0 ? Math.floor(asos * q.foyda_chegara_foiz / 100) : Infinity;
+  foyda = Math.min(foyda, chegara);
 
   const xomNarx = asos + yetkazish + foyda;
-  const narx = Math.ceil(xomNarx / q.yaxlitlash) * q.yaxlitlash;
+  let narx = Math.ceil(xomNarx / q.yaxlitlash) * q.yaxlitlash;
+  // Yaxlitlash ham chegarani buzmasin: pastga yaxlitlaymiz, lekin
+  // tannarx + yo'lkiradan pastga tushmaymiz
+  if (narx - asos - yetkazish > chegara) {
+    narx = Math.max(Math.floor(xomNarx / q.yaxlitlash) * q.yaxlitlash, asos + yetkazish);
+  }
 
+  const sof = narx - asos - yetkazish;
   return {
     narx,
     tannarx: asos,
     yetkazish,
     // Yaxlitlashdan chiqqan ortiqcha ham foydaga qo'shiladi
-    foyda: narx - asos - yetkazish,
-    marja: narx ? Math.round(((narx - asos) / narx) * 100) : 0,
-    kg100,
+    foyda: sof,
+    // Sof foyda tannarxga nisbatan — admin «marja 30%» deganda shuni nazarda tutadi
+    foyda_foiz: asos ? Math.round((sof / asos) * 1000) / 10 : 0,
+    // Sotuv narxidagi ulush (yo'lkirasiz)
+    marja: narx ? Math.round((sof / narx) * 100) : 0,
   };
 }

@@ -1183,6 +1183,9 @@ const reytingHtml = (p) => (p.sharh_soni > 0 && p.reyting > 0)
        <span class="soni">(${p.sharh_soni})</span></span>`
   : '';
 
+/** Chegirmadagi mahsulot: eski (asl) narx ustidan chizilgan holda. */
+const eskiNarx = (p) => (p?.old_price && p.old_price > p.price ? ` <s class="eski-narx">${narx(p.old_price)}</s>` : '');
+
 function kartaHtml(p) {
   const nishonlar = [];
   if (p.stock === 0) nishonlar.push('<span class="nishon-kichik yoq">Tugagan</span>');
@@ -1190,6 +1193,8 @@ function kartaHtml(p) {
   const chegirma = p.old_price && p.old_price > p.price
     ? Math.round((1 - p.price / p.old_price) * 100) : 0;
   if (chegirma >= 5) nishonlar.push(`<span class="nishon-kichik chegirma">−${chegirma}%</span>`);
+  // To'plam: 10 ta niqob bitta kartada — odam «bitta narxi shumi?» deb o'ylamasin
+  if (p.dona_soni > 1) nishonlar.push(`<span class="nishon-kichik dona">${p.dona_soni} dona</span>`);
 
   const sevimli = holat.sevimlilar?.has(p.id);
   const teg = moslikTegi(p);
@@ -1381,6 +1386,8 @@ function mahsulotOyna(id) {
           ? `<s>${narx(p.old_price)}</s>
              <span class="chegirma-nishon">−${Math.round((1 - p.price / p.old_price) * 100)}%</span>` : ''}
       </div>
+      ${p.dona_soni > 1 ? `<div class="dona-satr">${ik('savat', 15)}To‘plamda <b>${p.dona_soni} dona</b>
+        <span>· 1 donasi ≈ ${narx(Math.round(p.price / p.dona_soni / 100) * 100)}</span></div>` : ''}
 
       ${(() => {
         const t = moslikTegi(p);
@@ -1441,7 +1448,8 @@ function mahsulotOyna(id) {
     <div class="oyna-pastki${narx(p.price).length > 12 ? ' uzun' : ''}">
       <div class="oyna-pastki-narx">
         <b>${narx(p.price)}</b>
-        ${p.old_price && p.old_price > p.price ? `<s>${narx(p.old_price)}</s>` : `<small>${esc(p.volume || '')}</small>`}
+        ${p.old_price && p.old_price > p.price ? `<s>${narx(p.old_price)}</s>`
+          : `<small>${esc(p.dona_soni > 1 ? `${p.dona_soni} dona` : p.volume || '')}</small>`}
       </div>
       <button class="asosiy" id="t-savatga" ${p.stock > 0 ? '' : 'disabled'}>
         ${p.stock > 0
@@ -3652,8 +3660,8 @@ function natijaTavsiya(tavsiyalar, jami, tejash, arzonBor) {
                             : ik('shisha', 30)}
           </span>
           <span class="nm-bosqich">${esc(BOSQICH[r.bosqich] || r.bosqich)}</span>
-          <span class="nm-nom">${esc(nomi(r.p))}</span>
-          <span class="nm-narx">${narx(r.p.price)}</span>
+          <span class="nm-nom">${esc(nomi(r.p))}${r.p.dona_soni > 1 ? ` <em class="nm-dona">${r.p.dona_soni} dona</em>` : ''}</span>
+          <span class="nm-narx">${narx(r.p.price)}${eskiNarx(r.p)}</span>
         </button>`).join('')}
     </div>
     <div class="n-jami"><span>To‘liq to‘plam</span><b>${narx(jami)}</b></div>
@@ -3941,7 +3949,7 @@ function qoshimchaTavsiyaHtml() {
         <div class="savat-tan">
           <div class="savat-brend">${esc(t.p.brand || '')}</div>
           <div class="savat-nom">${esc(nomi(t.p))}</div>
-          <div class="savat-narx">${narx(t.p.price)}</div>
+          <div class="savat-narx">${narx(t.p.price)}${eskiNarx(t.p)}</div>
         </div>
         <button class="karta-qosh" data-taklif-qosh="${t.p.id}"
           aria-label="Savatga qo‘shish">${ik('plyus', 18)}</button>
@@ -3998,14 +4006,16 @@ function savatniChiz() {
         <div class="savat-tan">
           <div class="savat-nom">${esc(nomi(p))}</div>
           ${p.variant_nom ? `<span class="savat-variant">${p.rang_hex ? `<i style="background:${esc(p.rang_hex)}"></i>` : ''}${esc(p.variant_nom)}</span>` : ''}
-          <div class="savat-brend">${esc(p.brand || '')}${p.volume && p.variant_tur !== 'hajm' ? ' · ' + esc(p.volume) : ''}</div>
+          <div class="savat-brend">${esc(p.brand || '')}${p.volume && p.variant_tur !== 'hajm' ? ' · ' + esc(p.volume) : ''}${
+            p.dona_soni > 1 ? ` · ${p.dona_soni} dona` : ''}</div>
           <div class="savat-past">
             <span class="soni">
               <button data-kam="${p.id}" aria-label="Kamaytirish">−</button>
               <span>${quantity}</span>
               <button data-kop="${p.id}" aria-label="Ko‘paytirish">+</button>
             </span>
-            <span class="savat-narx">${qisqaNarx(p.price * quantity)} so‘m</span>
+            <span class="savat-narx">${qisqaNarx(p.price * quantity)} so‘m${p.old_price > p.price
+              ? `<s class="eski-narx">${qisqaNarx(p.old_price * quantity)}</s>` : ''}</span>
           </div>
         </div>
       </div>`).join('')}
@@ -5242,6 +5252,7 @@ function tavsiyaKartasi(t, tartibli = false) {
   const eski = p.old_price && p.old_price > p.price ? `<s>${qisqaNarx(p.old_price)}</s>` : '';
   const chiplar = [
     p.volume ? `<span>${ik('tomchi', 12)}${esc(p.volume)}</span>` : '',
+    p.dona_soni > 1 ? `<span class="ai-m-dona">${p.dona_soni} dona</span>` : '',
     Number(p.reyting) > 0 ? `<span>${ik('yulduz', 12)}${Number(p.reyting).toFixed(1)}</span>` : '',
   ].join('');
   return `
