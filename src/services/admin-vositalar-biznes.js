@@ -385,7 +385,32 @@ export async function mahsulotQosh(a = {}) {
 
 // ─────────────────────────── RO'YXAT ───────────────────────────
 
+// ── Manbalar: Instagram, TikTok… ──
+async function manbalarVosita(a = {}) {
+  const [{ manbaHisoboti }, { config }] = await Promise.all([import('./manba.js'), import('../config.js')]);
+  return manbaHisoboti({ kun: a.kun ?? 30 }, config.saytUrl);
+}
+async function havolaYaratVosita(a = {}) {
+  const [{ havolaYarat }, { config }] = await Promise.all([import('./manba.js'), import('../config.js')]);
+  const r = await havolaYarat(a, config.saytUrl);
+  return r.xato ? { yaratildi: 0, xabar: r.xato } : { yaratildi: 1, havola: r.havola,
+    izoh: 'Shu havolani Instagram bio / TikTok bio / post tagiga qo‘ying — kim bosgani va ro‘yxatdan o‘tgani shu nom bilan sanaladi.' };
+}
+
 export const BIZNES_VOSITALAR = {
+  manbalar: {
+    oqish: true, ishla: manbalarVosita,
+    tavsif: 'MIJOZ QAYERDAN KELDI: Instagram, TikTok, Telegram… har manba va har havola bo‘yicha '
+          + 'bosish, unikal odam, ro‘yxatdan o‘tgan, tahlil qilgan, xarid qilgan, daromad, konversiya; '
+          + 'manbasi noma’lumlar soni; 14 kunlik bosishlar. «Instagramdan nechta odam keldi?» uchun.',
+    parametrlar: 'kun (standart 30, 0 — butun davr)',
+  },
+  havola_yarat: {
+    oqish: false, ishla: havolaYaratVosita,
+    tavsif: 'Yangi MANBA HAVOLASI (www.kiovo.shop/h/kod): bitta reklama, video yoki bloger uchun alohida '
+          + 'sanash. maqsad: skan (bepul tahlil — eng ko‘p lid), sayt, ilova, bot, miniapp.',
+    parametrlar: 'nom, manba (instagram|tiktok|telegram|youtube|facebook|google|boshqa), maqsad, kod (ixtiyoriy)',
+  },
   hisobot: {
     oqish: true, ishla: hisobot,
     tavsif: 'DAVR HISOBOTI: daromad, buyurtma, o‘rtacha chek, foyda, yangi mijoz, tahlil — '
@@ -468,6 +493,6 @@ export async function biznesOldindanSoni(nom, a = {}) {
             + (Array.isArray(a.raqamlar) ? a.raqamlar.length : a.raqam ? 1 : 0);
     return n || 0;
   }
-  if (nom === 'mijozga_xabar' || nom === 'mahsulot_qosh') return 1;
+  if (nom === 'mijozga_xabar' || nom === 'mahsulot_qosh' || nom === 'havola_yarat') return 1;
   return undefined;
 }

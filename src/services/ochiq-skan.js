@@ -55,7 +55,7 @@ export async function chegaraHolati(ip) {
  *
  * @returns {{yaroqli:boolean, token?:string, ochiq?:object, sabab?:string}}
  */
-export async function ochiqSkan({ base64, mime, ip }) {
+export async function ochiqSkan({ base64, mime, ip, manba = '' }) {
   const chegara = await chegaraHolati(ip);
   if (!chegara.ruxsat) {
     const e = new Error('CHEGARA');
@@ -69,6 +69,10 @@ export async function ochiqSkan({ base64, mime, ip }) {
   const mehmon = await qator(
     `insert into users (telegram_id, source) values ($1, 'instagram') returning *`,
     [`mehmon:${token}`]);
+  if (manba) {
+    const { manbaBelgila } = await import('./manba.js');
+    await manbaBelgila(mehmon.id, manba).catch(() => {});
+  }
 
   let natija;
   try {
@@ -149,7 +153,12 @@ export async function tokenniOl(token, user) {
     [user.id, t]);
   // Mehmon endi kerak emas. `on delete cascade` tahlilni o'chirib
   // yubormasin — shuning uchun AVVAL ko'chiramiz, keyin o'chiramiz.
-  if (s.mehmon_id) await sorov('delete from users where id = $1', [s.mehmon_id]).catch(() => {});
+  if (s.mehmon_id) {
+    // Mehmon Instagram/TikTok havolasidan kelgan bo'lsa — manba hisobga o'tadi
+    const { manbaKochir } = await import('./manba.js');
+    await manbaKochir(s.mehmon_id, user.id);
+    await sorov('delete from users where id = $1', [s.mehmon_id]).catch(() => {});
+  }
   await hodisa(user.id, 'ochiq_skan_olindi', { token: t });
   return { ok: true, analysisId: Number(s.analysis_id) };
 }

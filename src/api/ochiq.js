@@ -4,6 +4,7 @@
 // ham, admin tokeni ham yo'q. Shuning uchun har bir yo'l o'z
 // chegarasini o'zi qo'yadi va javobda faqat OCHIQ ma'lumot bo'ladi.
 import { ok, xato, json, tana, ipOl } from '../lib/http.js';
+import { sorovBelgisi } from '../services/manba.js';
 import { brendNomi } from '../lib/brend.js';
 import { ilovaHavolasi } from '../lib/ilova-havola.js';
 import { ochiqSkan, chegaraHolati, IP_KUNLIK } from '../services/ochiq-skan.js';
@@ -59,7 +60,9 @@ export async function ochiqRoutes(req, res, yol) {
     if (base64.length > 12 * 1024 * 1024) return xato(res, 413, 'Rasm juda katta.');
 
     try {
-      const natija = await ochiqSkan({ base64, mime: tozaMime(b.mime), ip: ipOl(req) });
+      const natija = await ochiqSkan({ base64, mime: tozaMime(b.mime), ip: ipOl(req),
+        // Instagram/TikTok havolasidan kelgan mehmon — manba keyin hisobiga ko'chadi
+        manba: sorovBelgisi(req) || (b.h ? String(b.h).slice(0, 40) : '') });
       if (!natija.yaroqli) return ok(res, natija);
       // Botga havola: start parametrida TOKEN ketadi, bot esa aynan
       // shu tahlilni topib beradi

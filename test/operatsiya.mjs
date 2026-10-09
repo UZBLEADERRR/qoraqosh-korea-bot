@@ -6080,6 +6080,123 @@ console.log('\n── MARJA VA NARX QOIDASI ──');
   await sorov(`delete from products where name like 'MarjaSinov%'`);
 }
 
+
+// ═══════════ MANBALAR: Instagram, TikTok… ═══════════
+// Qisqa havola (/h/ig) bosishni sanaydi, keyin ro'yxatdan o'tgan
+// yangi odamga manba yoziladi — «nechta keldi, nechtasi sotib oldi».
+console.log('\n── MANBALAR (Instagram, TikTok) ──');
+{
+  const M = await import('../src/services/manba.js');
+  const { seansOch } = await import('../src/services/ilova-kirish.js');
+  const { vositaniBajar, yozishmi } = await import('../src/services/admin-vositalar.js');
+
+  test('Instagram ichki brauzeri taniladi', M.uaManba('Mozilla/5.0 (iPhone) Instagram 312.0.0.0') === 'instagram');
+  test('TikTok ichki brauzeri taniladi', M.uaManba('Mozilla/5.0 (Linux; Android 13) musical_ly_2023') === 'tiktok'
+    && M.uaManba('x BytedanceWebview/d8a21c6') === 'tiktok');
+  test('referer bo‘yicha ham', M.uaManba('Chrome', 'https://l.instagram.com/?u=x') === 'instagram'
+    && M.uaManba('Chrome', 'https://www.tiktok.com/@kiovo') === 'tiktok');
+  test('oddiy brauzer — manba yo‘q', M.uaManba('Mozilla/5.0 Chrome/120', '') === null);
+  test('utm_source ham tushuniladi', M.utmManba('ig') === 'instagram' && M.utmManba('tiktok_ads') === 'tiktok');
+
+  // Soxta so'rov/javob
+  const sorovYasa = (h = {}) => ({ headers: { 'user-agent': 'Mozilla/5.0 (iPhone) Instagram 300', ...h } });
+  const javobYasa = () => { const sar = {}; return { sar, getHeader: (k) => sar[k], setHeader: (k, v) => { sar[k] = v; } }; };
+
+  await sorov(`delete from havolalar where kod like 'sinov-%'`);
+  const hy = await M.havolaYarat({ nom: 'Sinov TikTok video', manba: 'tiktok', maqsad: 'skan', kod: 'sinov-tt' }, 'https://www.kiovo.shop');
+  test('havola yaratildi va to‘liq manzil', hy.havola?.url === 'https://www.kiovo.shop/h/sinov-tt');
+  test('band kod rad etiladi', Boolean((await M.havolaYarat({ nom: 'Yana', manba: 'tiktok', kod: 'sinov-tt' })).xato));
+  test('noto‘g‘ri kod rad etiladi', Boolean((await M.havolaYarat({ nom: 'Yana', manba: 'tiktok', kod: 'Yomon kod!' })).xato));
+  const avtoKod = await M.havolaYarat({ nom: 'Bloger Madina', manba: 'instagram', maqsad: 'bot' });
+  test('kod o‘zi yasaladi', /^ig-bloger-madina-[0-9a-f]{4}$/.test(avtoKod.havola?.kod || ''), avtoKod.havola?.kod);
+  await sorov(`update havolalar set kod = 'sinov-ig' where id = $1`, [avtoKod.havola.id]);
+
+  const r1 = javobYasa();
+  const joy = await M.havolaBosildi(sorovYasa(), r1, 'sinov-tt');
+  test('bosilgach skanerga yo‘naltiradi', joy === '/skan/?h=sinov-tt', joy);
+  test('brauzerga belgi qo‘yildi', (r1.sar['Set-Cookie'] || []).some((c) => /^kq_h=sinov-tt;/.test(c))
+    && (r1.sar['Set-Cookie'] || []).some((c) => /^kq_m=[0-9a-f]{16};/.test(c)));
+  const mehmon = (r1.sar['Set-Cookie'].find((c) => c.startsWith('kq_m=')) || '').slice(5, 21);
+  await M.havolaBosildi(sorovYasa({ cookie: `kq_m=${mehmon}` }), javobYasa(), 'sinov-tt');
+  test('bot maqsadi — t.me ?start=h_', /^https:\/\/t\.me\/[^?]+\?start=h_sinov-ig$/.test(await M.havolaBosildi(sorovYasa(), javobYasa(), 'sinov-ig')));
+  test('noma’lum kod — bosh sahifa', await M.havolaBosildi(sorovYasa(), javobYasa(), 'yoq-kod') === '/');
+
+  // Havolasiz, Instagram ichidan ochilgan sayt
+  const r2 = javobYasa();
+  await M.avtoTashrif(sorovYasa(), r2, new URL('http://x/'));
+  test('havolasiz Instagram tashrifi sanaldi', (r2.sar['Set-Cookie'] || []).some((c) => c.startsWith('kq_h=auto-instagram')));
+  const r3 = javobYasa();
+  await M.avtoTashrif(sorovYasa({ cookie: 'kq_k=1' }), r3, new URL('http://x/'));
+  test('bir kunda qayta sanalmaydi', !r3.sar['Set-Cookie']);
+
+  // Ro'yxatdan o'tish: YANGI hisobga manba yoziladi, eskisiga — yo'q
+  await sorov(`delete from users where telegram_id in ('881001','881002','881003')`);
+  const yangi = await qator(`insert into users (telegram_id, full_name) values ('881001', 'Manba Yangi') returning id`);
+  const eski = await qator(`insert into users (telegram_id, full_name, created_at) values ('881002', 'Manba Eski', now() - interval '60 days') returning id`);
+  test('yangi hisobga manba yozildi', await M.manbaBelgila(yangi.id, 'sinov-tt') === true);
+  test('eski mijoz Instagramdan kelgan bo‘lib qolmaydi', await M.manbaBelgila(eski.id, 'sinov-tt') === false);
+  test('birinchi manba almashmaydi', await M.manbaBelgila(yangi.id, 'auto-instagram') === false
+    && (await qator(`select manba from users where id = $1`, [yangi.id])).manba === 'tiktok');
+
+  // Ilova: X-Manba sarlavhasi bilan kelgan yangi foydalanuvchi
+  const ilovaU = await qator(`insert into users (telegram_id, full_name) values ('881003', 'Manba Ilova') returning id`);
+  const { token } = await seansOch(ilovaU.id, 'sinov');
+  await new Promise((res) => {
+    const req = Object.assign(new Readable({ read() { this.push(null); } }), { url: '/api/me', method: 'GET',
+      headers: { authorization: `Bearer ${token}`, 'x-manba': 'sinov-ig' }, socket: { remoteAddress: '127.0.0.1' } });
+    const javob = { statusCode: 200, writeHead() { return this; }, setHeader() {}, end() { res(); } };
+    apiRoutes(req, javob, '/api/me').catch(() => res());
+  });
+  await kut(150);
+  const iu = await qator(`select manba, havola_id from users where id = $1`, [ilovaU.id]);
+  test('ilovadan ro‘yxatdan o‘tgan — manba yozildi', iu.manba === 'instagram' && Number(iu.havola_id) === Number(avtoKod.havola.id),
+    JSON.stringify(iu));
+
+  // Bot: t.me/bot?start=h_sinov-tt
+  await sorov(`delete from users where telegram_id = '881004'`);
+  await yoz('881004', '/start h_sinov-tt');
+  const bu = await qator(`select manba from users where telegram_id = '881004'`);
+  test('botga havola bilan kelgan — manba yozildi', bu?.manba === 'tiktok');
+  test('bot odatdagidek javob berdi', yuborilgan.length > 0);
+
+  // Xarid: hisobotda daromad ko'rinadi
+  await sorov(`insert into orders (order_no, user_id, items, subtotal, total, status)
+    values ('KQ-MANBA-1', $1, '[]', 150000, 150000, 'yangi')`, [yangi.id]);
+  const hs = await M.manbaHisoboti({ kun: 30 }, 'https://www.kiovo.shop');
+  const tt = hs.manbalar.find((x) => x.manba === 'tiktok');
+  const hv = hs.havolalar.find((x) => x.kod === 'sinov-tt');
+  test('hisobot: TikTok bosish va unikal odam', tt && tt.bosish >= 2 && hv.bosish === 2 && hv.unikal === 1, JSON.stringify(hv));
+  test('hisobot: havoladan ro‘yxat va xarid', hv.royxat === 2 && hv.xaridor === 1 && hv.daromad === 150000,
+    `${hv.royxat}/${hv.xaridor}/${hv.daromad}`);
+  test('hisobot: nom raqam bilan buzilmaydi', tt.nom === 'TikTok');
+  test('hisobot: 14 kunlik qatori', hs.kunlar.length === 14);
+
+  const ad = await chaqirAdmin('/api/admin/manbalar?kun=30', 'GET');
+  test('admin endpoint', ad.kod === 200 && Array.isArray(ad.tana.havolalar) && ad.tana.turlar?.instagram === 'Instagram');
+  const tayyor = ad.tana.havolalar.map((h) => h.kod);
+  test('tayyor bio havolalari bor (ig, tt, tg)', ['ig', 'tt', 'tg'].every((k) => tayyor.includes(k)));
+  const ya = await chaqirAdmin('/api/admin/havola', 'POST', { nom: 'Sinov panel', manba: 'youtube', kod: 'sinov-yt' });
+  test('paneldan havola yaratish', ya.kod === 200 && ya.tana.havola?.kod === 'sinov-yt');
+  const oz = await chaqirAdmin('/api/admin/havola', 'POST', { id: ya.tana.havola.id, faol: false });
+  test('havolani o‘chirib qo‘yish', oz.kod === 200 && oz.tana.havola?.faol === false
+    && await M.havolaBosildi(sorovYasa(), javobYasa(), 'sinov-yt') === '/');
+  test('havolani o‘chirish', (await chaqirAdmin('/api/admin/havola', 'DELETE', { id: ya.tana.havola.id })).tana.ochirildi === true);
+
+  test('AI vositalari: manbalar (o‘qish), havola_yarat (tasdiq bilan)', !yozishmi('manbalar') && yozishmi('havola_yarat'));
+  const av = await vositaniBajar('manbalar', { kun: 30 });
+  test('AI «Instagramdan nechta keldi?» ga javob oladi', av.manbalar.some((x) => x.manba === 'instagram'));
+
+  const fs = await import('node:fs');
+  const srv = fs.readFileSync('src/server.js', 'utf8');
+  test('server: /h/ yo‘li', /yol\.startsWith\('\/h\/'\)/.test(srv) && /avtoTashrif\(req, res, url\)/.test(srv));
+  const app = fs.readFileSync('public/app/app.js', 'utf8');
+  test('ilova: ?h= va startapp=h_ belgisi eslab qolinadi', /start_param/.test(app) && /'X-Manba': manbaBelgisi\(\)/.test(app));
+
+  await sorov(`delete from orders where order_no = 'KQ-MANBA-1'`);
+  await sorov(`delete from users where telegram_id in ('881001','881002','881003','881004')`);
+  await sorov(`delete from havolalar where kod like 'sinov-%'`);
+}
+
 // ═══════════ ADMIN KARKASI ═══════════
 console.log('\n── ADMIN KARKASI ──');
 {

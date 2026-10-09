@@ -39,6 +39,30 @@ const holat = {
   draft: {}, tab: 'katalog',
 };
 
+// ---------------- MANBA ----------------
+// Odam qayerdan keldi (Instagram, TikTok…): www.kiovo.shop/h/ig havolasi
+// `?h=ig` bilan ochadi, Telegram ilovasi esa `startapp=h_ig` bilan.
+// Belgi 7 kun eslab qolinadi va so'rovlar bilan ketadi — ro'yxatdan
+// o'tilgach server uni yangi hisobga yozadi (src/services/manba.js).
+const MANBA_KALIT = 'kiovo_manba';
+(() => {
+  try {
+    const q = new URLSearchParams(location.search).get('h');
+    const sp = tg?.initDataUnsafe?.start_param || '';
+    const ck = (document.cookie.match(/(?:^|;\s*)kq_h=([a-z0-9-]{2,40})/) || [])[1];
+    const b = q || (/^h_[a-z0-9-]{2,32}$/i.test(sp) ? sp.slice(2) : '') || ck || '';
+    if (/^[a-z0-9-]{2,40}$/i.test(b) && !localStorage.getItem(MANBA_KALIT)) {
+      localStorage.setItem(MANBA_KALIT, JSON.stringify({ b, t: Date.now() }));
+    }
+  } catch { /* xotira yo'q — manba yozilmaydi, ilova ishlayveradi */ }
+})();
+function manbaBelgisi() {
+  try {
+    const m = JSON.parse(localStorage.getItem(MANBA_KALIT) || 'null');
+    return m && Date.now() - m.t < 7 * 864e5 ? m.b : '';
+  } catch { return ''; }
+}
+
 // ---------------- API ----------------
 async function api(yol, opt = {}) {
   const token = seansToken();
@@ -47,6 +71,7 @@ async function api(yol, opt = {}) {
     ...opt,
     headers: { 'Content-Type': 'application/json',
                'X-Init-Data': tg?.initData || '',
+               ...(manbaBelgisi() ? { 'X-Manba': manbaBelgisi() } : {}),
                // Telegramdan tashqarida: botdan tasdiqlangan seans
                ...(token && !tg?.initData ? { Authorization: `Bearer ${token}` } : {}),
                ...(opt.headers || {}) },

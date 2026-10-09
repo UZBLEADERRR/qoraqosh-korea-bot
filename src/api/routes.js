@@ -25,6 +25,7 @@ import { hisobniOchir, meningMalumotlarim } from '../services/hisob.js';
 import { ochiqKalit, obunaSaqla, obunaOchir, foydalanuvchigaPush } from '../services/push.js';
 import { natijaHavolasi, natijaHavolasiniOch } from '../lib/natija-havola.js';
 import { supabaseBilanKir } from '../services/ilova-kirish.js';
+import { manbaBelgila, sorovBelgisi } from '../services/manba.js';
 
 // Kuniga minglab foydalanuvchi bo'lganda katalog eng ko'p so'raladigan yo'l.
 // 30 soniyalik kesh bazaga ketadigan bir xil so'rovlarni yig'ib bitta qiladi.
@@ -39,6 +40,16 @@ const KATALOG_KESH_MS = 30_000;
  *      yorlig'idan ham Telegramsiz ishlaydi.
  */
 async function kim(req) {
+  const u = await kimXom(req);
+  // Yangi hisob va manba belgisi bor (Instagram/TikTok havolasi) — yozib qo'yamiz
+  if (u && !u.manba && Date.now() - new Date(u.created_at).getTime() < 7 * 86400e3) {
+    const belgi = sorovBelgisi(req);
+    if (belgi) manbaBelgila(u.id, belgi).catch(() => {});
+  }
+  return u;
+}
+
+async function kimXom(req) {
   const tgUser = verifyInitData(req.headers['x-init-data']);
   if (tgUser) {
     const bor = await qator('select * from users where telegram_id = $1', [String(tgUser.id)]);

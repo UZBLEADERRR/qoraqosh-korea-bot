@@ -38,6 +38,7 @@ import { brendNomi } from './lib/brend.js';
 import { verifyAdminToken } from './lib/auth.js';
 import { versiyaOl, versiyalaHtml, versiyalanganmi } from './lib/versiya.js';
 import { logoSvg } from './lib/logo.js';
+import { havolaBosildi, avtoTashrif } from './services/manba.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -406,6 +407,18 @@ const server = http.createServer(async (req, res) => {
     // ---------- Statik ----------
     // Bosh sahifa (www.kiovo.shop). `sahifa()` orqali: css/js havolalariga
     // versiya qo'shiladi, aks holda brauzer eski uslubni saqlab qoladi.
+    // ---------- Manba havolasi: www.kiovo.shop/h/ig ----------
+    // Instagram, TikTok va boshqa joylarga qo'yiladigan qisqa havola.
+    // Bosish yoziladi va odam kerakli sahifaga o'tadi (src/services/manba.js).
+    if (yol.startsWith('/h/') && (req.method === 'GET' || req.method === 'HEAD')) {
+      const joy = await havolaBosildi(req, res, yol.slice(3).replace(/\/+$/, ''));
+      res.writeHead(302, { Location: joy, 'Cache-Control': 'no-store' });
+      return res.end();
+    }
+
+    // Havolasiz, lekin Instagram/TikTok ichidan ochilgan tashrif ham sanaladi
+    if (yol === '/' || yol === '/skan/' || yol === '/app/') await avtoTashrif(req, res, url);
+
     if (yol === '/' )        return sahifa(res, 'uy');
 
     // ---------- Qidiruv tizimlari uchun ----------

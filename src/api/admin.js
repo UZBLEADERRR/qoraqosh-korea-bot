@@ -13,6 +13,7 @@ import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
 import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi } from '../ai/index.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { config } from '../config.js';
+import * as manba from '../services/manba.js';
 import { HOLATLAR, BOSQICHLAR, BEKOR, bosqich } from '../lib/bosqichlar.js';
 import { yubor, tg, tgFayl } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
@@ -273,6 +274,22 @@ export async function adminRoutes(req, res, yol) {
   if (yol === '/api/admin/hisobot' && req.method === 'GET') {
     const davr = new URL(req.url, 'http://x').searchParams.get('davr') || 'hafta';
     return ok(res, await hisobot({ davr }));
+  }
+
+  // ================= MANBALAR: Instagram, TikTok… =================
+  if (yol === '/api/admin/manbalar' && req.method === 'GET') {
+    const kun = new URL(req.url, 'http://x').searchParams.get('kun') ?? 30;
+    return ok(res, { ...(await manba.manbaHisoboti({ kun }, config.saytUrl)),
+      turlar: manba.MANBALAR, maqsadlar: manba.MAQSADLAR });
+  }
+  if (yol === '/api/admin/havola' && req.method === 'POST') {
+    const b = await tana(req);
+    const r = b.id ? await manba.havolaOzgartir(b) : await manba.havolaYarat(b, config.saytUrl);
+    return r.xato ? xato(res, 400, r.xato) : ok(res, r);
+  }
+  if (yol === '/api/admin/havola' && req.method === 'DELETE') {
+    const b = await tana(req);
+    return ok(res, await manba.havolaOchir(b.id));
   }
 
   // ================= XARID RO'YXATI =================
