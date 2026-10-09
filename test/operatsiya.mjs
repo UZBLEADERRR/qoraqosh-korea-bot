@@ -6197,6 +6197,42 @@ console.log('\n── MANBALAR (Instagram, TikTok) ──');
   await sorov(`delete from havolalar where kod like 'sinov-%'`);
 }
 
+
+// ═══════════ POSTER: Google band bo'lsa ═══════════
+// Rasm modeli tez-tez 503 («model overloaded») beradi. Ilgari bu admin
+// panelda «Kutilmagan xatolik» bo'lib chiqardi va qayta urinilmasdi.
+console.log('\n── POSTER (Google band) ──');
+{
+  const { png } = await import('./soxta-server.mjs').catch(() => ({}));
+  globalThis.RASM_KUTISH = [10, 10];
+  const bayt = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  const p = await qator(`insert into products (name, price, stock) values ('PosterSinov', 50000, 1) returning id`);
+  const qoy = async () => {
+    const m = await qator(`insert into media (tur, mime, bayt, hajm, product_id) values ('skrinshot','image/png',$1,$2,$3) returning id`,
+      [bayt, bayt.length, p.id]);
+    await sorov(`update products set poster_id = $1 where id = $2`, [m.id, p.id]);
+  };
+  await qoy();
+  globalThis.AI_RASM_503 = 2;
+  const r1 = await chaqirAdmin('/api/admin/poster-yasa', 'POST', { id: p.id });
+  test('503 ikki marta — qayta urinib chizildi', r1.kod === 200, JSON.stringify(r1.tana).slice(0, 120));
+  await qoy();
+  globalThis.AI_RASM_503 = 9;
+  const r2 = await chaqirAdmin('/api/admin/poster-yasa', 'POST', { id: p.id });
+  test('doim band — tushunarli sabab (kutilmagan emas)', r2.kod === 502 && /hozir band/.test(r2.tana.error || '')
+    && !/Kutilmagan/.test(r2.tana.error || ''), (r2.tana.error || '').slice(0, 90));
+  test('admin ANIQ sababni ko‘radi', /Sabab: Google HTTP 503/.test(r2.tana.error || ''));
+  test('kalit sababi oshkor bo‘lmaydi', !/key=(?!\*\*\*)/.test(r2.tana.error || ''));
+  globalThis.AI_RASM_503 = 0; delete globalThis.RASM_KUTISH;
+  const { xatoniTushuntir } = await import('../src/lib/xatolar.js');
+  test('kechikish — «vaqt»', xatoniTushuntir(Object.assign(new Error('This operation was aborted'), { name: 'AbortError' })).turkum === 'vaqt');
+  test('ulanish uzildi — «tarmoq»', xatoniTushuntir(new TypeError('fetch failed')).turkum === 'tarmoq');
+  const fs = await import('node:fs');
+  const js = fs.readFileSync('public/admin/admin.js', 'utf8');
+  test('panel: xato xabari o‘qishga yetarli turadi', /tur === 'xato' \? Math\.min\(9000/.test(js) && /tost\$\{tur === 'xato' \? ' xato' : ''\}/.test(js));
+  await sorov(`delete from products where id = $1`, [p.id]);
+}
+
 // ═══════════ ADMIN KARKASI ═══════════
 console.log('\n── ADMIN KARKASI ──');
 {

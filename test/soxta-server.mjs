@@ -491,6 +491,13 @@ export function soxtaServer(port = 4444) {
         // (Sxema yo'qligiga qarab bo'lmaydi: server 400 dan keyin sxemani
         // promptga ko'chirib, sxemasiz ham JSON so'raydi.)
         if ((b.generationConfig?.responseModalities || []).includes('IMAGE')) {
+          // Rasm modeli band («model overloaded») — haqiqiy Google 503
+          if (globalThis.AI_RASM_503 > 0) {
+            globalThis.AI_RASM_503 -= 1;
+            res.writeHead(503, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: { code: 503,
+              message: 'The model is overloaded. Please try again later.', status: 'UNAVAILABLE' } }));
+          }
           return j({ candidates: [{ finishReason: 'STOP', content: { parts: [
             { inline_data: { mime_type: 'image/png', data: png().toString('base64') } }] } }] });
         }

@@ -82,11 +82,12 @@ let tostTimer;
 function tost(matn, tur = '') {
   $('.tost')?.remove();
   const el = document.createElement('div');
-  el.className = 'tost'; el.textContent = matn;
-  if (tur === 'xato') el.style.background = 'var(--qizil)';
+  el.className = `tost${tur === 'xato' ? ' xato' : ''}`; el.textContent = matn;
+  // Xato matni uzun bo'ladi (sabab bilan) — o'qishga vaqt, bosilsa yopiladi
+  el.onclick = () => el.remove();
   document.body.appendChild(el);
   clearTimeout(tostTimer);
-  tostTimer = setTimeout(() => el.remove(), 2600);
+  tostTimer = setTimeout(() => el.remove(), tur === 'xato' ? Math.min(9000, 3000 + matn.length * 40) : 2600);
   try { tg?.HapticFeedback?.notificationOccurred?.(tur === 'xato' ? 'error' : 'success'); } catch {}
 }
 
@@ -756,14 +757,14 @@ async function mahsulotlar(qidiruv = '') {
     $$('[data-mf]').forEach((b) => b.onclick = () => { mf.tur = b.dataset.mf; mahsulotlar(qidiruv); });
     // Skrinshotdan AI poster. `data-poster` band — u reklama posteri.
     $$('[data-yasa]').forEach((b) => b.onclick = async () => {
-      b.disabled = true; b.textContent = 'Chizilmoqda…';
+      b.disabled = true; b.innerHTML = '<span class="aylana kichik"></span>Chizilmoqda… (≈30 s)';
       try {
         await api('/api/admin/poster-yasa', { method: 'POST',
           body: JSON.stringify({ id: Number(b.dataset.yasa) }) });
         tost('Poster tayyor'); holat.kesh = {}; mahsulotlar(qidiruv);
       } catch (e) {
         tost(e.message, 'xato');
-        b.disabled = false; b.textContent = '🎨 Skrinshotdan poster';
+        b.disabled = false; b.innerHTML = `${ik('ai', 15)}Qayta urinish`;
       }
     });
     $('#t-skrin').onclick = skrinshotOyna;
@@ -850,7 +851,7 @@ function mahsulotKarta(p) {
       <button class="tug kichik" data-mah="${p.id}">${ik('hujjat', 15)}Tahrirlash</button>
       <button class="tug kichik" data-poster="${p.id}">${ik('xat', 15)}Poster</button>
       ${p.poster_turi === 'skrinshot' ? `<button class="tug kichik asos"
-        data-yasa="${p.id}">🎨 Skrinshotdan poster</button>` : ''}
+        data-yasa="${p.id}">${ik('ai', 15)}AI poster</button>` : ''}
     </div>
   </div>`;
 }

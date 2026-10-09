@@ -721,11 +721,14 @@ export async function adminRoutes(req, res, yol) {
     if (!id) return xato(res, 400, 'Mahsulot tanlanmadi.');
     try {
       const yangi = await posterniYarat(id);
-      if (!yangi) return xato(res, 502, 'Poster chizilmadi — AI band yoki rasm yo‘q.');
+      if (!yangi) return xato(res, 400, 'Bu mahsulotda tayanch rasm yo‘q — avval rasm yuklang.');
       katalogYangilandi();
       return ok(res, { poster_id: yangi });
     } catch (e) {
-      return xato(res, 502, xatoniTushuntir(e).matn);
+      // Admin uchun ANIQ sabab: «kutilmagan xatolik» bilan nima qilishni bilib bo'lmaydi
+      const t = xatoniTushuntir(e);
+      console.error('POSTER XATOSI:', t.log);
+      return xato(res, 502, posterXatoMatni(t.turkum, e));
     }
   }
 
@@ -2021,6 +2024,24 @@ const karuselSaqla = (royxat) => sorov(
  *
  * @returns {{ok:true}|{xato:string, kod:number}}
  */
+/** Poster chizilmasa — admin tushunadigan sabab va keyingi qadam. */
+export function posterXatoMatni(turkum, e) {
+  const sabab = String(e?.message || '').replace(/key=[^&\s"]+/g, 'key=***').slice(0, 160);
+  const asos = {
+    band:     'Google rasm modeli hozir band (ko‘p so‘rov). 1–2 daqiqadan keyin qayta bosing.',
+    vaqt:     'Rasm chizish juda uzoq davom etdi. Qayta bosing — odatda ikkinchi urinishda chiqadi.',
+    tarmoq:   'Google serveriga ulanib bo‘lmadi. Bir daqiqadan keyin qayta bosing.',
+    kvota:    'Rasm chizish limiti vaqtincha tugadi. 10–15 daqiqadan keyin urinib ko‘ring.',
+    kvota_kunlik: 'Bugungi rasm chizish limiti tugadi — ertaga urinib ko‘ring.',
+    kalit:    'Gemini API kaliti ishlamayapti — Railway → Variables dagi GEMINI_API_KEY ni tekshiring.',
+    model:    'Rasm modeli topilmadi. Tizim holati → AI modellari bo‘limida rasm modelini tanlang.',
+    xavfsizlik: 'AI bu rasm bo‘yicha poster chizishdan bosh tortdi. Boshqa (tozaroq) rasm yuklang.',
+    bosh:     'AI rasm o‘rniga matn qaytardi. Qayta bosing yoki mahsulotning tozaroq rasmini yuklang.',
+    sorov:    'AI so‘rovni qabul qilmadi (rasm formati yoki o‘lchami). Boshqa rasm yuklab ko‘ring.',
+  }[turkum] || 'Poster chizilmadi.';
+  return sabab ? `${asos}\nSabab: ${sabab}` : asos;
+}
+
 export async function holatniQoy(id, yangiHolat, b = {}) {
   if (!HOLATLAR.includes(String(yangiHolat))) {
     return { xato: 'Noto‘g‘ri holat.', kod: 400 };

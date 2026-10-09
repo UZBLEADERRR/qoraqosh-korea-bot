@@ -42,6 +42,8 @@ export function xatoniTushuntir(e) {
     if (m === 'FAYL_KATTA')                       turkum = 'fayl_katta';
     else if (/FAYL_(OLINMADI|YUKLANMADI)/.test(m)) turkum = 'fayl';
     else if (m === 'GEMINI_KALIT_YOQ')             turkum = 'kalit';
+    else if (e?.name === 'AbortError' || /aborted|timed? ?out/i.test(m)) turkum = 'vaqt';
+    else if (/fetch failed|ECONNRESET|socket hang up/i.test(m))   turkum = 'tarmoq';
     else if (/ECONNREFUSED|ENOTFOUND|ETIMEDOUT|terminated/i.test(m)) turkum = 'baza';
   }
 
