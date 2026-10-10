@@ -95,6 +95,31 @@ const s3 = await qator(`select * from ig_suhbatlar where igsid = '900300'`);
 test('Instagram ilovasidan yozilgani ham ko‘rinadi va AI jim', s3 && s3.ai_pauza_gacha
   && (await qator(`select kim from ig_xabarlar where mid = 'mid-echo-1'`)).kim === 'ilova');
 
+// Echo: O'ZIMIZ yuborgan xabar API javobidan oldin qaytsa ham AI jim qolmasin
+const oxirgiAi = await qiymat(`select matn from ig_xabarlar where suhbat_id = $1 and kim = 'ai' and matn is not null order by id desc limit 1`, [s1.id]);
+await ig.webhookKeldi({ object: 'instagram', entry: [{ id: AKK, messaging: [{ sender: { id: AKK }, recipient: { id: '900200' },
+  message: { mid: 'mid-echo-ai-oldin', text: oxirgiAi, is_echo: true } }] }] });
+const s1e = await qator(`select ai_pauza_gacha from ig_suhbatlar where id = $1`, [s1.id]);
+test('o‘z AI xabarimiz echo’si — AI jim qilinmaydi', oxirgiAi && s1e.ai_pauza_gacha === null
+  && !(await qator(`select 1 from ig_xabarlar where mid = 'mid-echo-ai-oldin'`)));
+await igApi.kommentgaDm('c_echo_1', 'Salom! Chegirma kodingiz: KIOVO10');
+await ig.webhookKeldi({ object: 'instagram', entry: [{ id: AKK, messaging: [{ sender: { id: AKK }, recipient: { id: '900350' },
+  message: { mid: 'mid-echo-komment', text: 'Salom! Chegirma kodingiz: KIOVO10', is_echo: true } }] }] });
+const s35 = await qator(`select ai_pauza_gacha from ig_suhbatlar where igsid = '900350'`);
+test('komment DM echo’si — keyin mijoz yozsa AI javob beradi', !s35 || s35.ai_pauza_gacha === null);
+tozala();
+await dm('900350', 'mid-k-javob', { text: 'Rahmat, qanday buyurtma qilaman?' });
+test('komment DM dan keyin Direct’da AI javob berdi', yuborildi().some((x) => x.recipient?.id === '900350' && x.message?.text));
+
+// AI ishlamasa — mijoz jim qolmaydi, menejer chaqiriladi
+tozala(); yuborilgan.length = 0;
+globalThis.IG_AI_XATO = true;
+await dm('900360', 'mid-ai-xato', { text: 'Salom, centella bormi?' });
+delete globalThis.IG_AI_XATO;
+const s36 = await qator(`select * from ig_suhbatlar where igsid = '900360'`);
+test('AI yiqildi — mijozga «menejer javob beradi»', yuborildi().some((x) => x.recipient?.id === '900360' && /menejerimiz/.test(x.message?.text || '')));
+test('AI yiqildi — menejer kerak + adminga Telegram', s36.admin_kerak === true && yuborilgan.some((x) => /AI .*javob bera olmadi/.test(x.text || '')));
+
 // Menejer kerak
 tozala(); yuborilgan.length = 0;
 globalThis.IG_AI_JAVOB = { ig_javob: 'Tushunaman, hozir menejerimiz yozadi 🙏', niyat: 'shikoyat', admin_kerak: true };
@@ -219,7 +244,7 @@ const h = await chaqir('/api/admin/ig/holat');
 test('holat: ulangan, webhook manzili, statistika', h.kod === 200 && h.tana.ulangan && h.tana.webhook_url === 'https://www.kiovo.shop/instagram/webhook'
   && h.tana.bugun.kiruvchi >= 3 && h.tana.standart_korsatma.length > 200);
 const sl = await chaqir('/api/admin/ig/suhbatlar?filtr=admin');
-test('«menejer kerak» filtri', sl.kod === 200 && sl.tana.suhbatlar.length === 1 && sl.tana.suhbatlar[0].igsid === '900400');
+test('«menejer kerak» filtri', sl.kod === 200 && sl.tana.suhbatlar.some((x) => x.igsid === '900400') && sl.tana.suhbatlar.every((x) => x.admin_kerak));
 const sx2 = await chaqir(`/api/admin/ig/suhbat?id=${s1.id}`);
 test('suhbat xabarlari + o‘qildi', sx2.kod === 200 && sx2.tana.xabarlar.length >= 4
   && (await qator(`select oqilmagan from ig_suhbatlar where id = $1`, [s1.id])).oqilmagan === 0);
@@ -246,6 +271,33 @@ test('panel: Instagram bo‘limi (Direct, Kommentlar, Qoidalar, Sozlamalar)', /i
   && /function igDirect/.test(adm) && /function igKommentlar/.test(adm) && /function igQoidalar/.test(adm) && /function igSozlama/.test(adm));
 const srvKod = fs.readFileSync('src/server.js', 'utf8');
 test('server: webhook (GET tasdiq + POST imzo bilan)', /\/instagram\/webhook/.test(srvKod) && /imzoTogri\(xom/.test(srvKod) && /hub\.challenge/.test(srvKod));
+
+console.log('\n── TEKSHIRUV (javob yo‘q bo‘lsa sabab) ──');
+const SIR2 = 'ab'.repeat(16);
+test('panel: noto‘g‘ri sir rad etiladi', Boolean((await chaqir('/api/admin/ig/sir', 'POST', { sir: 'qisqa' })).tana.error));
+test('panel: App secret saqlandi', (await chaqir('/api/admin/ig/sir', 'POST', { sir: SIR2 })).kod === 200);
+const xom2 = Buffer.from('{"object":"instagram","entry":[]}');
+const imzo = (sir) => 'sha256=' + crypto.createHmac('sha256', sir).update(xom2).digest('hex');
+test('imzo: paneldagi sir ham, env dagi ham qabul qilinadi', ig.imzoTogri(xom2, imzo(SIR2)) && ig.imzoTogri(xom2, imzo('meta-sir')));
+const diagM = await import('../src/services/instagram/diag.js');
+await diagM.belgila('imzo_xato', 'imzo mos kelmadi');
+let tk = await chaqir('/api/admin/ig/tekshir');
+const qt = (nom) => tk.tana.qatorlar?.find((x) => x.nom.startsWith(nom));
+test('tekshiruv: token va webhook obunasi ok', tk.kod === 200 && qt('Token')?.holat === 'ok' && qt('Webhook obunasi')?.holat === 'ok', JSON.stringify(tk.tana.qatorlar?.map((x) => x.nom + ':' + x.holat)));
+test('tekshiruv: imzo xatosi ko‘rsatiladi va yechim yozilgan', qt('Imzo')?.holat === 'xato' && /Instagram app secret/.test(qt('Imzo').izoh));
+test('tekshiruv: webhooklar kelgani ko‘rinadi', qt('Meta')?.holat === 'ok');
+test('tekshiruv: AI xatosi ko‘rinadi', tk.tana.diag.ai_xato_soni >= 1, JSON.stringify(tk.tana.diag));
+await ig.webhookKeldi({ object: 'instagram', entry: [] });
+globalThis.IG_OBUNA = [];
+tk = await chaqir('/api/admin/ig/tekshir');
+delete globalThis.IG_OBUNA;
+test('tekshiruv: messages obunasi yo‘q — xato va yechim', qt('Webhook obunasi')?.holat === 'xato' && /ulash/.test(qt('Webhook obunasi').izoh));
+test('tekshiruv: imzo yangi webhookdan keyin ok', qt('Imzo')?.holat === 'ok');
+await sorov(`update ig_suhbatlar set ai_pauza_gacha = now() + interval '1 hour' where igsid = '900200'`);
+const po = await chaqir('/api/admin/ig/pauza-och', 'POST', {});
+test('jim suhbatlarni ochish', po.kod === 200 && po.tana.ochildi >= 1);
+test('AI yordamchida instagram_tekshir va instagram_pauza_och', VOSITALAR.instagram_tekshir?.oqish === true && VOSITALAR.instagram_pauza_och?.oqish === false);
+await chaqir('/api/admin/ig/sir', 'POST', { sir: '' });
 
 const { xiraNatija } = await import('../src/rasm/xira.js');
 const sinovPng = await (await fetch(`http://127.0.0.1:${PORT}/ig-cdn/yuz.png`)).arrayBuffer();

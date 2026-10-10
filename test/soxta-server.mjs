@@ -73,6 +73,7 @@ function javobMatni(sxemaMatni, prompt = '') {
   // Instagram Direct AI suhbatdoshi
   if (sxemaMatni.includes('ig_javob')) {
     globalThis.OXIRGI_IG_PROMPT = prompt;
+    if (globalThis.IG_AI_XATO) return 'buzuq javob {';
     return JSON.stringify(globalThis.IG_AI_JAVOB || { ig_javob: 'Salom! Yuzingiz rasmini yuboring — bepul tahlil qilib beraman 🌿', niyat: 'salom', admin_kerak: false });
   }
   if (sxemaMatni.includes('muammolar')) {
@@ -232,7 +233,8 @@ export function soxtaServer(port = 4444) {
           }
           return j({ recipient_id: b.recipient?.id || globalThis.IG_KOMMENT_EGASI || '900100', message_id: `m_${n()}` });
         }
-        if (y === '/me/subscribed_apps') return j({ success: true });
+        if (y === '/me/subscribed_apps') return req.method === 'GET'
+          ? j({ data: [{ subscribed_fields: globalThis.IG_OBUNA ?? ['messages', 'comments'] }] }) : j({ success: true });
         if (y === '/me/media') return j({ data: [{ id: 'media1', caption: 'Bepul teri tahlili 🌿 «+» qoldiring', media_type: 'IMAGE',
           media_url: 'http://x/m.jpg', permalink: 'https://instagram.com/p/x', timestamp: new Date().toISOString(), comments_count: 2, like_count: 40 }] });
         if (/^\/media1\/comments$/.test(y)) return j({ data: [

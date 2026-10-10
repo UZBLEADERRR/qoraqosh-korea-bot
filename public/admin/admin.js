@@ -1096,6 +1096,14 @@ function igSozlama() {
   const almash = (k, nom, izoh) => `<label class="ig-almash"><span><b>${nom}</b><small>${izoh}</small></span>
     <span class="ig-switch"><input type="checkbox" data-igs-k="${k}" ${s[k] ? 'checked' : ''}><span></span></span></label>`;
   $('#ig-tan').innerHTML = `
+    <section class="karta">
+      <div class="karta-bosh"><h2>Tekshiruv</h2><span class="yor kul">«instadan yozsam javob yo‘q» bo‘lsa</span></div>
+      <div id="ig-tek"><p class="mayda">Token, webhook, imzo, yuborish va AI — hammasini bir bosishda tekshiradi.</p></div>
+      <div class="ig-tek-tug">
+        <button class="tug asos" id="ig-tek-t">${ik('tasdiq', 16)}Tekshirish</button>
+        <button class="tug" id="ig-pauza-och">AI jim suhbatlarni ochish</button>
+      </div>
+    </section>
     <div class="ustunlar">
       <section class="karta">
         <div class="karta-bosh"><h2>Ulanish</h2><span class="yor ${h.ulangan ? 'yashil' : 'qizil'}">${h.ulangan ? `@${esc(h.username || '')}` : 'ulanmagan'}</span></div>
@@ -1107,7 +1115,10 @@ function igSozlama() {
         <div class="ig-nusxa"><code>${esc(h.webhook_url || '')}</code><button class="ik-tugma" data-nusxa="${esc(h.webhook_url || '')}">${ik('nusxa')}</button></div>
         <label>Verify token</label>
         <div class="ig-nusxa"><code>${esc(h.verify_token || '')}</code><button class="ik-tugma" data-nusxa="${esc(h.verify_token || '')}">${ik('nusxa')}</button></div>
-        ${h.imzo_sir ? '' : '<div class="xabar-quti ogoh" style="margin:12px 0 0">INSTAGRAM_APP_SECRET berilmagan — webhook imzosi tekshirilmayapti. Railway → Variables ga qo‘shing.</div>'}
+        <label>Instagram app secret<span class="yordam">API setup with Instagram login → Business login settings → «Instagram app secret»</span></label>
+        <div class="ig-sinov"><input id="ig-sir" type="password" autocomplete="off" placeholder="${h.imzo_sir ? 'Saqlangan (almashtirish uchun yangisini kiriting)' : '32 belgili sir'}">
+          <button class="tug" id="ig-sir-s">Saqlash</button></div>
+        ${h.imzo_sir ? '' : '<div class="xabar-quti ogoh" style="margin:12px 0 0">App secret berilmagan — webhook imzosi tekshirilmayapti.</div>'}
         <button class="tug keng" id="ig-webhook" style="margin-top:12px" ${h.ulangan ? '' : 'disabled'}>${ik('havola', 16)}Webhookni akkauntga ulash</button>
       </section>
       <section class="karta">
@@ -1137,6 +1148,27 @@ function igSozlama() {
       <div id="ig-sin-j"></div>
     </section>`;
   $$('#ig-tan [data-nusxa]').forEach((x) => x.onclick = () => nusxaOl(x.dataset.nusxa));
+  const tekshir = async () => {
+    const b = $('#ig-tek-t'); b.disabled = true;
+    $('#ig-tek').innerHTML = '<p class="mayda">Tekshirilmoqda…</p>';
+    try {
+      const r = await api('/api/admin/ig/tekshir');
+      const belgi = { ok: '✓', ogoh: '!', xato: '✕' };
+      $('#ig-tek').innerHTML = `<ul class="ig-tek">${r.qatorlar.map((q) => `<li class="${q.holat}">
+        <span class="ig-tek-b">${belgi[q.holat] || '·'}</span><div><b>${esc(q.nom)}</b><small>${esc(q.izoh)}</small></div></li>`).join('')}</ul>`;
+    } catch (e) { $('#ig-tek').innerHTML = `<div class="xabar-quti xato">${esc(e.message)}</div>`; }
+    b.disabled = false;
+  };
+  $('#ig-tek-t').onclick = tekshir;
+  $('#ig-pauza-och').onclick = async () => {
+    try { const r = await api('/api/admin/ig/pauza-och', { method: 'POST', body: '{}' }); tost(`${r.ochildi} ta suhbatda AI yana javob beradi`); }
+    catch (e) { tost(e.message, 'xato'); }
+  };
+  $('#ig-sir-s').onclick = async () => {
+    try { await api('/api/admin/ig/sir', { method: 'POST', body: JSON.stringify({ sir: $('#ig-sir').value }) });
+      tost('App secret saqlandi'); holat.kesh.ig = await api('/api/admin/ig/holat'); igSozlama(); }
+    catch (e) { tost(e.message, 'xato'); }
+  };
   $('#ig-token-saqla') && ($('#ig-token-saqla').onclick = async () => {
     try { const r = await api('/api/admin/ig/token', { method: 'POST', body: JSON.stringify({ token: $('#ig-token').value }) });
       tost(`Ulandi: @${r.username}`); holat.igTab = 'sozlama'; instagramBolimi(); }

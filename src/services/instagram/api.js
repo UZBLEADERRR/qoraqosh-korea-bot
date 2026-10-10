@@ -115,16 +115,47 @@ export async function tokenniYangila() {
   return { ozgardi: true };
 }
 
+// ── Biz yuborgan xabarlar (echo'ni tanish uchun) ──
+// Meta har yuborilgan xabarning «echo»sini webhook bilan qaytaradi. U
+// ko'pincha API javobidan OLDIN keladi — bazada hali mid yo'q. Shunda
+// echo «admin Instagram ilovasidan o'zi yozdi» deb tushunilib AI jim
+// qolardi va mijozning keyingi xabarlariga javob bermasdi. Shu sabab
+// yuborishdan OLDIN matn (va keyin mid) shu yerda eslab qolinadi.
+const YANGI_MS = 5 * 60_000;
+const yuborganlar = [];               // {vaqt, mid, matn, igsid, rasm}
+const normal = (t) => String(t || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+function eslab(o) {
+  const hozir = Date.now();
+  while (yuborganlar.length && (hozir - yuborganlar[0].vaqt > YANGI_MS || yuborganlar.length > 500)) yuborganlar.shift();
+  const x = { vaqt: hozir, ...o, matn: o.matn ? normal(o.matn) : '' };
+  yuborganlar.push(x);
+  return x;
+}
+/** Echo bizning API orqali yuborganimizmi (AI, panel, komment DM)? */
+export function bizYuborganmi({ mid, matn, igsid, rasm } = {}) {
+  const hozir = Date.now();
+  return yuborganlar.some((x) => hozir - x.vaqt < YANGI_MS && (
+    (mid && x.mid === mid)
+    || (matn && x.matn && x.matn === normal(matn) && (!x.igsid || !igsid || x.igsid === String(igsid)))
+    || (rasm && x.rasm && (!igsid || x.igsid === String(igsid)))));
+}
+async function eslabYubor(o, chaqiruv) {
+  const x = eslab(o);
+  const j = await chaqiruv();
+  x.mid = j?.message_id || null;
+  return j;
+}
+
 // ── Xabarlar ──
-export const matnYubor = (igsid, matn) =>
-  ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, message: { text: String(matn).slice(0, 1000) } } });
-export const rasmYubor = (igsid, url) =>
-  ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, message: { attachment: { type: 'image', payload: { url } } } } });
+export const matnYubor = (igsid, matn) => eslabYubor({ igsid: String(igsid), matn: String(matn).slice(0, 1000) }, () =>
+  ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, message: { text: String(matn).slice(0, 1000) } } }));
+export const rasmYubor = (igsid, url) => eslabYubor({ igsid: String(igsid), rasm: url }, () =>
+  ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, message: { attachment: { type: 'image', payload: { url } } } } }));
 export const yozmoqda = (igsid) =>
   ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, sender_action: 'typing_on' } }).catch(() => null);
 /** Kommentga Direct orqali «shaxsiy javob» (7 kun ichida, bitta xabar). */
-export const kommentgaDm = (kommentId, matn) =>
-  ig('/me/messages', { usul: 'POST', tana: { recipient: { comment_id: kommentId }, message: { text: String(matn).slice(0, 1000) } } });
+export const kommentgaDm = (kommentId, matn) => eslabYubor({ matn: String(matn).slice(0, 1000) }, () =>
+  ig('/me/messages', { usul: 'POST', tana: { recipient: { comment_id: kommentId }, message: { text: String(matn).slice(0, 1000) } } }));
 export const profil = (igsid) => ig(`/${igsid}`, { qidiruv: { fields: 'name,username,profile_pic' } }).catch(() => null);
 
 // ── Kommentlar va postlar ──
@@ -139,3 +170,5 @@ export const postKommentlari = (mediaId, chegara = 50) => ig(`/${mediaId}/commen
 /** Webhookni akkauntga ulash (Meta ilovasida webhook manzili kiritilgandan keyin). */
 export const webhookniUla = () => ig('/me/subscribed_apps', {
   usul: 'POST', qidiruv: { subscribed_fields: 'messages,comments' } });
+/** Akkaunt webhookka qaysi maydonlar bilan ulangan. */
+export const webhookHolati = () => ig('/me/subscribed_apps');

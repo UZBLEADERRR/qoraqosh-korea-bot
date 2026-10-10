@@ -17,6 +17,19 @@ export const IG_VOSITALAR = {
           + 'Telegramga o‘tganlar, AI sozlamalari (ko‘rsatma, yoqilgan/o‘chirilgan) va komment qoidalari.',
     parametrlar: '—',
   },
+  instagram_tekshir: {
+    oqish: true,
+    ishla: () => ig.tekshiruv(),
+    tavsif: '«Instagramdan yozsam javob yo‘q» bo‘lsa SABABNI topadi: token, webhook obunasi, imzo (App secret), '
+          + 'Meta’dan webhook kelyaptimi, yuborish va AI xatolari, jim qolgan suhbatlar. Har qatorda nima qilish kerakligi yozilgan.',
+    parametrlar: '—',
+  },
+  instagram_pauza_och: {
+    oqish: false,
+    ishla: () => ig.pauzalarniOch(),
+    tavsif: 'Hamma Direct suhbatlarida «AI jim» pauzasini olib tashlaydi — AI yana javob bera boshlaydi.',
+    parametrlar: '—',
+  },
   instagram_sinov: {
     oqish: true,
     ishla: async (a = {}) => {

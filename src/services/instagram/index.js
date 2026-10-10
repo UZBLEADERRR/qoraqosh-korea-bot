@@ -14,6 +14,7 @@ import crypto from 'node:crypto';
 import { qator, qatorlar, sorov, sozlama, sozlamalarniUnut } from '../../db.js';
 import { config } from '../../config.js';
 import * as api from './api.js';
+import * as diag from './diag.js';
 
 const SOZLAMA_KALIT = 'instagram';
 export const STANDART = {
@@ -63,18 +64,47 @@ export async function verifyToken() {
   return t;
 }
 
+// Ilova siri: env (vergul bilan bir nechta) va/yoki admin paneldan kiritilgani.
+// Bir nechta bo'lishi kerak: «Instagram Login» webhooklarini Meta
+// *Instagram app secret* bilan imzolaydi, ko'pchilik esa Facebook ilovasining
+// «App secret» ini qo'yadi — ikkalasini ham qabul qilamiz.
+let panelSiri = '';
+export async function sirlarniYukla() {
+  const s = await sozlama('instagram_ulanish', {}).catch(() => ({}));
+  panelSiri = String(s?.sir || '').trim();
+  return sirlar();
+}
+const sirlar = () => [...new Set([...String(config.instagramSecret || '').split(','), panelSiri]
+  .map((x) => x.trim()).filter(Boolean))];
+
 /** X-Hub-Signature-256 — Meta xabarni imzolaydi (ilova sirini bilmagan soxta so'rov o'tmaydi). */
 export function imzoTogri(xom, sarlavha) {
-  if (!config.instagramSecret) return true;              // sir berilmagan — tekshirib bo'lmaydi (panelda ogohlantiriladi)
-  const kutilgan = 'sha256=' + crypto.createHmac('sha256', config.instagramSecret).update(xom).digest('hex');
-  const a = Buffer.from(String(sarlavha || '')), b = Buffer.from(kutilgan);
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  const r = sirlar();
+  if (!r.length) return true;                            // sir berilmagan — tekshirib bo'lmaydi (panelda ogohlantiriladi)
+  const a = Buffer.from(String(sarlavha || ''));
+  return r.some((sir) => {
+    const b = Buffer.from('sha256=' + crypto.createHmac('sha256', sir).update(xom).digest('hex'));
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  });
+}
+
+/** Ilova sirini panel orqali saqlash (Railway'ga kirmasdan). */
+export async function sirniSaqla(sir) {
+  const t = String(sir || '').trim();
+  if (t && !/^[0-9a-f]{32}$/i.test(t)) return { xato: 'App secret 32 belgili (0-9, a-f) bo‘ladi — Meta’dan to‘liq nusxalang.' };
+  const s = await sozlama('instagram_ulanish', {}).catch(() => ({}));
+  await sorov(`insert into settings (key, value, updated_at) values ('instagram_ulanish', $1::jsonb, now())
+    on conflict (key) do update set value = excluded.value, updated_at = now()`, [JSON.stringify({ ...(s || {}), sir: t })]);
+  sozlamalarniUnut(); api.ulanishniUnut();
+  await sirlarniYukla();
+  return { saqlandi: true };
 }
 
 // ─────────────────────────── WEBHOOK ───────────────────────────
 
 export async function webhookKeldi(body) {
   if (body?.object !== 'instagram') return;
+  await diag.belgila('webhook');
   const akk = (await api.ulanish()).akkaunt_id;
   for (const entry of body.entry || []) {
     const bizniki = String(akk || entry.id || '');
@@ -117,7 +147,14 @@ async function xabarKeldi(ev, bizniki) {
   // Echo — biz yuborgan (yoki admin Instagram ilovasidan yozgan) xabar
   if (msg.is_echo) {
     const igsid = String(ev.recipient?.id || '');
-    if (!igsid || await qator(`select 1 from ig_xabarlar where mid = $1`, [msg.mid])) return;
+    if (!igsid) return;
+    const rasmi = msg.attachments?.[0]?.payload?.url || null;
+    const bizniki2 = () => api.bizYuborganmi({ mid: msg.mid, matn: msg.text, igsid, rasm: rasmi });
+    // O'zimiz (AI, panel, komment DM) yuborgan xabar — admin yozdi deb AI jim qilinmaydi
+    if (bizniki2() || await qator(`select 1 from ig_xabarlar where mid = $1`, [msg.mid])) return diag.belgila('echo');
+    // Echo API javobidan oldin kelishi mumkin — ozgina kutib yana tekshiramiz
+    await new Promise((ok) => setTimeout(ok, globalThis.IG_KECHIKISH_MS === 0 ? 0 : 3000));
+    if (bizniki2() || await qator(`select 1 from ig_xabarlar where mid = $1`, [msg.mid])) return diag.belgila('echo');
     const s = await suhbatOl(igsid);
     await xabarYoz(s.id, { yonalish: 'chiquvchi', kim: 'ilova', matn: msg.text || null, mid: msg.mid,
       rasm: msg.attachments?.[0]?.payload?.url || null });
@@ -128,6 +165,7 @@ async function xabarKeldi(ev, bizniki) {
   }
   const igsid = String(ev.sender?.id || '');
   if (!igsid || igsid === bizniki) return;
+  await diag.belgila('xabar');
   const s = await suhbatOl(igsid);
   const rasmlar = (msg.attachments || []).filter((a) => a.type === 'image' && a.payload?.url).map((a) => a.payload.url);
   const yangi = await xabarYoz(s.id, { yonalish: 'kiruvchi', kim: 'mijoz', matn: msg.text || null, mid: msg.mid,
@@ -228,17 +266,27 @@ export async function aiJavobYoz(suhbatId, { majburiy = false } = {}) {
   const katalog = await faolMahsulotlar();
   const t = s.tahlil_token ? await tahlilMalumoti(s.tahlil_token, katalog).catch(() => null) : null;
   api.yozmoqda(s.igsid);
+  const sorovi = {
+    tarix: await tarixi(s.id), korsatma: st.korsatma, mahsulotlar: katalog,
+    malumot: { ism: s.ism || s.username || '', tg_havola: await botHavolasi('h_ig-direct'),
+      ...(await dokonHavolalari()),
+      tahlil: t ? tahlilMatni(t) : '', tahlil_soz: t ? t.tahlil.muammolar.map((m) => m.nom).join(' ') : '',
+      tahlil_havola: t ? await botHavolasi(`n_${s.tahlil_token}`) : '' },
+  };
   let r;
   try {
-    r = await igJavob({
-      tarix: await tarixi(s.id), korsatma: st.korsatma, mahsulotlar: katalog,
-      malumot: { ism: s.ism || s.username || '', tg_havola: await botHavolasi('h_ig-direct'),
-        ...(await dokonHavolalari()),
-        tahlil: t ? tahlilMatni(t) : '', tahlil_soz: t ? t.tahlil.muammolar.map((m) => m.nom).join(' ') : '',
-        tahlil_havola: t ? await botHavolasi(`n_${s.tahlil_token}`) : '' },
+    r = await igJavob(sorovi).catch(async () => {          // bir marta qayta urinish (provayder vaqtincha band)
+      await new Promise((ok) => setTimeout(ok, globalThis.IG_KECHIKISH_MS === 0 ? 0 : 2000));
+      return igJavob(sorovi);
     });
   } catch (e) {
     await xabarYoz(s.id, { yonalish: 'chiquvchi', kim: 'ai', matn: null, xato: `AI javob bermadi: ${e.message}`.slice(0, 300) });
+    await diag.belgila('ai_xato', e.message);
+    // Mijoz jimlikda qolmasin: menejer chaqiriladi va odamga shu aytiladi
+    await sorov(`update ig_suhbatlar set admin_kerak = true where id = $1`, [s.id]);
+    await yuborVaYoz(s, 'Xabaringizni oldim, hozir menejerimiz javob beradi 🙏', 'ai').catch(() => {});
+    await adminlargaXabar(`📸 <b>Instagram</b>: AI ${s.username ? '@' + s.username : 'mijoz'}ga javob bera olmadi — `
+      + `menejer yozsin.\nSabab: ${String(e.message).slice(0, 200)}\nAdmin panel → Instagram → Direct`, 'ai_xato').catch(() => {});
     return null;
   }
   if (!r.javob) return null;
@@ -258,14 +306,26 @@ export async function aiJavobYoz(suhbatId, { majburiy = false } = {}) {
 async function yuborVaYoz(s, m, kim) {
   try {
     const j = await api.matnYubor(s.igsid, m);
+    await diag.belgila('yuborildi');
     return xabarYoz(s.id, { yonalish: 'chiquvchi', kim, matn: m, mid: j.message_id || null });
   } catch (e) {
     await xabarYoz(s.id, { yonalish: 'chiquvchi', kim, matn: m, xato: e.message.slice(0, 300) });
+    await diag.belgila('yuborish_xato', e.message);
+    if (kim !== 'admin') {
+      await adminlargaXabar(`📸 <b>Instagram</b>: ${s.username ? '@' + s.username : 'mijoz'}ga javob yuborilmadi.\n`
+        + `Sabab: ${e.message.slice(0, 250)}\nAdmin panel → Instagram → Sozlamalar → Tekshiruv`, 'yuborish_xato').catch(() => {});
+    }
     throw e;
   }
 }
 
-async function adminlargaXabar(html) {
+// Bir xil ogohlantirish adminni ko'mib tashlamasin: turi bo'yicha 30 daqiqada bir marta
+const ogohVaqti = new Map();
+async function adminlargaXabar(html, tur = '') {
+  if (tur) {
+    if (Date.now() - (ogohVaqti.get(tur) || 0) < 30 * 60_000) return;
+    ogohVaqti.set(tur, Date.now());
+  }
   const { yubor } = await import('../../bot/tg.js');
   const idlar = new Set(config.adminTelegramIds || []);
   for (const u of await qatorlar(`select telegram_id from users where is_admin and telegram_id ~ '^[0-9]+$'`)) idlar.add(u.telegram_id);
@@ -460,11 +520,75 @@ export async function igHolat() {
   ]);
   return {
     ulangan: Boolean(u.token), username: u.username, akkaunt_id: u.akkaunt_id, token_manba: u.manba,
-    imzo_sir: Boolean(config.instagramSecret),
+    imzo_sir: sirlar().length > 0, imzo_sir_panel: Boolean(panelSiri),
+    diag: await diag.diagnostika(),
     webhook_url: `${config.saytUrl}/instagram/webhook`, verify_token: await verifyToken(),
     sozlamalar: st, bugun: { ...bugun, telegramga_otdi: tg?.soni ?? 0 },
     standart_korsatma: (await import('../../ai/instagram-suhbat.js')).STANDART_KORSATMA,
   };
+}
+
+/**
+ * «Instadan yozsam javob yo'q» — sababni bosqichma-bosqich tekshiradi.
+ * Har qator: {nom, holat: 'ok'|'ogoh'|'xato', izoh}.
+ */
+export async function tekshiruv() {
+  await sirlarniYukla();
+  const u = await api.ulanish();
+  const d = await diag.diagnostika();
+  const st = await igSozlamalari();
+  const q = [];
+  const vaqt = (t) => (t ? new Date(t).toLocaleString('ru-RU', { timeZone: 'Asia/Tashkent' }) : '');
+  if (!u.token) {
+    q.push({ nom: 'Token', holat: 'xato', izoh: 'Instagram ulanmagan — Sozlamalarda token kiriting.' });
+    return { qatorlar: q, diag: d };
+  }
+  try {
+    const me = await api.akkaunt();
+    q.push({ nom: 'Token', holat: 'ok', izoh: `@${me?.username || u.username} ulangan.` });
+  } catch (e) {
+    q.push({ nom: 'Token', holat: 'xato', izoh: e.message });
+  }
+  try {
+    const w = await api.webhookHolati();
+    const maydon = (w?.data || []).flatMap((x) => x.subscribed_fields || []);
+    q.push(maydon.includes('messages')
+      ? { nom: 'Webhook obunasi', holat: 'ok', izoh: `Ulangan: ${maydon.join(', ')}.` }
+      : { nom: 'Webhook obunasi', holat: 'xato', izoh: 'Akkaunt «messages» ga obuna emas — «Webhookni akkauntga ulash» tugmasini bosing.' });
+  } catch (e) {
+    q.push({ nom: 'Webhook obunasi', holat: 'ogoh', izoh: `Tekshirib bo‘lmadi: ${e.message}` });
+  }
+  if (!sirlar().length) q.push({ nom: 'Imzo (App secret)', holat: 'ogoh', izoh: 'App secret berilmagan — xabarlar qabul qilinadi, lekin imzo tekshirilmaydi.' });
+  else if (d.imzo_xato_oxirgi && (!d.webhook_oxirgi || d.imzo_xato_oxirgi > d.webhook_oxirgi)) {
+    q.push({ nom: 'Imzo (App secret)', holat: 'xato',
+      izoh: `Meta yuborgan ${d.imzo_xato_soni || 1} ta xabar imzo mos kelmagani uchun RAD etildi (oxirgisi ${vaqt(d.imzo_xato_oxirgi)}). `
+        + 'Meta → App → Instagram → «API setup with Instagram login» → «Business login settings» dagi «Instagram app secret» ni '
+        + 'shu yerga kiriting (Facebook «App secret» emas).' });
+  } else q.push({ nom: 'Imzo (App secret)', holat: 'ok', izoh: 'Imzo tekshirilyapti.' });
+  q.push(d.webhook_oxirgi
+    ? { nom: 'Meta’dan xabar kelyaptimi', holat: 'ok', izoh: `Oxirgi webhook: ${vaqt(d.webhook_oxirgi)} (jami ${d.webhook_soni || 0}).` }
+    : { nom: 'Meta’dan xabar kelyaptimi', holat: 'xato',
+        izoh: 'Hali BIRORTA webhook kelmagan. Tekshiring: 1) Meta → Webhooks da manzil va verify token to‘g‘ri, «messages» maydoni Subscribe; '
+          + '2) ilova Development rejimida bo‘lsa, faqat ilovada roli bor (Tester) akkauntlar yozganda keladi — '
+          + 'boshqa odamlar uchun ilovani Live qiling va instagram_business_manage_messages ga Advanced Access oling; '
+          + '3) Instagram ilovasida: Sozlamalar → Xabarlar → «Ulangan vositalar» → «Xabarlarga ruxsat» yoqilgan bo‘lsin; '
+          + '4) yuqoridagi «Webhookni akkauntga ulash» tugmasini bosing.' });
+  if (d.yuborish_xato_oxirgi && (!d.yuborildi_oxirgi || d.yuborish_xato_oxirgi > d.yuborildi_oxirgi)) {
+    q.push({ nom: 'Javob yuborish', holat: 'xato', izoh: `Oxirgi xato (${vaqt(d.yuborish_xato_oxirgi)}): ${d.yuborish_xato_izoh || ''}` });
+  } else if (d.yuborildi_oxirgi) q.push({ nom: 'Javob yuborish', holat: 'ok', izoh: `Oxirgi javob: ${vaqt(d.yuborildi_oxirgi)}.` });
+  if (d.ai_xato_oxirgi && (!d.yuborildi_oxirgi || d.ai_xato_oxirgi > d.yuborildi_oxirgi)) {
+    q.push({ nom: 'AI', holat: 'xato', izoh: `AI javob bermadi (${vaqt(d.ai_xato_oxirgi)}): ${d.ai_xato_izoh || ''}` });
+  }
+  if (!st.ai_yoqiq) q.push({ nom: 'AI javoblari', holat: 'ogoh', izoh: '«Direct’ga AI javob bersin» o‘chiq.' });
+  const pauza = await qator(`select count(*)::int as n from ig_suhbatlar where ai_pauza_gacha > now() or not ai_yoqiq`);
+  if (pauza?.n) q.push({ nom: 'Jim suhbatlar', holat: 'ogoh', izoh: `${pauza.n} ta suhbatda AI hozir jim (siz yozgansiz yoki o‘chirilgan). Direct → suhbat → «AI ni qaytarish».` });
+  return { qatorlar: q, diag: d };
+}
+
+/** Hamma suhbatlardagi «AI jim» pauzasini olib tashlaydi (echo xatosidan keyin tozalash). */
+export async function pauzalarniOch() {
+  const r = await sorov(`update ig_suhbatlar set ai_pauza_gacha = null where ai_pauza_gacha > now()`);
+  return { ochildi: r.rowCount || 0 };
 }
 
 export async function suhbatlar({ q = '', filtr = '', chegara = 60 } = {}) {

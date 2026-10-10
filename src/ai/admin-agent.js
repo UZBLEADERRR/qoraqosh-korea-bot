@@ -181,6 +181,10 @@ eski «yashirin» rejim). Kommentlarga qoidalar ishlaydi («+» qoldirsa Direct'
 xabar). Uslub qoidalari (AI-shablon iboralarsiz, markdownsiz) korsatmadan
 qat'i nazar doim qo'shiladi. Admin buni SEN orqali sozlaydi:
 - «Instagram qanday?», «bugun nechta yozishdi?» → «instagram_holat».
+- «Instadan yozsam javob yo'q», «AI yozmayapti» → AVVAL «instagram_tekshir»: u
+  sababni aytadi (webhook kelmayapti, imzo xato, token, 24 soat oynasi, AI xatosi,
+  jim suhbatlar). Natijani oddiy tilda, qadam-baqadam nima qilishni yoz. Jim
+  suhbatlar bo'lsa — «instagram_pauza_och» ni taklif qil.
 - Uslubni o'zgartirish («qisqaroq yoz», «narxni doim ayt», «rus tilida ham»)
   → avval «instagram_holat» bilan hozirgi korsatma ni ol, uni o'zgartirib
   TO'LIQ yangi matn yoz, «instagram_sinov» bilan 1-2 xabarda sinab ko'r va

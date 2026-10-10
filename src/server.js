@@ -173,7 +173,12 @@ const server = http.createServer(async (req, res) => {
       }
       if (req.method === 'POST') {
         const xom = await xomTana(req, 2 * 1024 * 1024).catch(() => null);
+        await instagram.sirlarniYukla().catch(() => {});
         if (!xom || !instagram.imzoTogri(xom, req.headers['x-hub-signature-256'])) {
+          // Jim rad etilsa admin «nega javob yo'q?» deb hayron qoladi — Tekshiruvda ko'rinadi
+          const { belgila } = await import('./services/instagram/diag.js');
+          await belgila('imzo_xato', req.headers['x-hub-signature-256'] ? 'imzo mos kelmadi' : 'imzo sarlavhasi yo‘q').catch(() => {});
+          console.warn('IG webhook: imzo mos kelmadi — App secret ni tekshiring');
           res.writeHead(403).end('imzo'); return;
         }
         res.writeHead(200).end('ok');

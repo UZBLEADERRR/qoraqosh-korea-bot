@@ -289,6 +289,9 @@ export async function adminRoutes(req, res, yol) {
       if (amal === 'token') return javob(await igApi.tokenniSaqla(b.token));
       if (amal === 'sozlama') return ok(res, { sozlamalar: await ig.sozlamaniSaqla(b) });
       if (amal === 'webhook-ula') return ok(res, await igApi.webhookniUla());
+      if (amal === 'tekshir') return ok(res, await ig.tekshiruv());
+      if (amal === 'sir') return javob(await ig.sirniSaqla(b.sir));
+      if (amal === 'pauza-och') return ok(res, await ig.pauzalarniOch());
       if (amal === 'suhbatlar') return ok(res, { suhbatlar: await ig.suhbatlar({ q: q.get('q') || '', filtr: q.get('filtr') || '' }) });
       if (amal === 'suhbat' && req.method === 'GET') {
         const r = await ig.suhbatXabarlari(q.get('id'));
