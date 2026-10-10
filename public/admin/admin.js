@@ -1113,7 +1113,8 @@ function igSozlama() {
       <section class="karta">
         <div class="karta-bosh"><h2>AI boshqaruvchi</h2></div>
         ${almash('ai_yoqiq', 'Direct’ga AI javob bersin', 'Odamdek qisqa, mijoz tilida; kerak bo‘lsa menejerni chaqiradi')}
-        ${almash('yuz_tahlil', 'Yuz rasmi → bepul tahlil', 'Natijaning muhim qismi xira + Telegram havolasi')}
+        ${almash('yuz_tahlil', 'Yuz rasmi → bepul tahlil', 'To‘liq natija, mos mahsulotlar va Telegramdagi tavsiya havolasi')}
+        ${almash('xira', 'Natijani xira qilish', 'Eski rejim: muhim qism yashirin, to‘liq natija faqat Telegramda')}
         ${almash('komment_qoidalar', 'Komment qoidalari ishlasin', '«+» va kalit so‘zlarga avtomatik javob')}
         ${almash('komment_mention', 'Javob @username bilan', 'Ochiq javob mijozni belgilab yoziladi')}
         <div class="ikki" style="margin-top:6px">
@@ -1125,8 +1126,8 @@ function igSozlama() {
     <section class="karta">
       <div class="karta-bosh"><h2>AI ko‘rsatmasi</h2><button class="tug kichik" id="ig-standart">Standartni qo‘yish</button></div>
       <textarea id="ig-korsatma" rows="10" placeholder="${esc(h.standart_korsatma || '')}">${esc(s.korsatma || '')}</textarea>
-      <label>Tahlildan keyingi xabar<span class="yordam">Bo‘sh — standart. {ball}, {tavsif}, {soni}, {havola}</span></label>
-      <textarea id="ig-tmatn" rows="3" placeholder="Natijangiz tayyor! ✨ Teri holati: {ball}/100 … {havola}">${esc(s.tahlil_matni || '')}</textarea>
+      <label>Tahlildan keyingi xabar<span class="yordam">Bo‘sh — AI har odamga o‘zi yozadi. {ball}, {tavsif}, {soni}, {mahsulotlar}, {havola}</span></label>
+      <textarea id="ig-tmatn" rows="3" placeholder="Ko‘rib chiqdim. Sizga mana shular mos: {mahsulotlar} … {havola}">${esc(s.tahlil_matni || '')}</textarea>
       <button class="tug asos keng" id="ig-saqla" style="margin-top:12px">${ik('tasdiq', 16)}Saqlash</button>
     </section>
     <section class="karta">

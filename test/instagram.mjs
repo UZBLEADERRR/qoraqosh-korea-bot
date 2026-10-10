@@ -1,4 +1,4 @@
-// INSTAGRAM BOSHQARUVCHI: Direct (AI), yuz rasmi → xira natija + Telegram,
+// INSTAGRAM BOSHQARUVCHI: Direct (AI), yuz rasmi → to'liq natija + tavsiya + Telegram,
 // komment qoidalari («+»), admin aralashuvi, AI yordamchi vositalari.
 // Haqiqiy Meta o'rniga soxta server (test/soxta-server.mjs → /ig/...).
 import crypto from 'node:crypto';
@@ -109,21 +109,62 @@ const yop = await ig.qoldaYubor(s1.id, 'Salom');
 globalThis.IG_OYNA_YOPIQ = false;
 test('24 soat oynasi yopiq — tushunarli sabab', /24 soatdan beri yozmagan/.test(yop.xato || ''), yop.xato);
 
-console.log('\n── YUZ RASMI → XIRA NATIJA + TELEGRAM ──');
+console.log('\n── YUZ RASMI → TO‘LIQ NATIJA + TAVSIYA + TELEGRAM ──');
 tozala();
 const RASMCHI = `9005${Date.now() % 1e6}`;   // tahlil limiti bir kishiga kuniga 3 ta — har sinovda yangi odam
+globalThis.IG_AI_JAVOB = { ig_javob: '', niyat: 'tahlil', admin_kerak: false };   // AI bo'sh qaytarsa — andoza ishlaydi
 await dm(RASMCHI, `mid-rasm-${RASMCHI}`, { attachments: [{ type: 'image', payload: { url: `http://127.0.0.1:${PORT}/ig-cdn/yuz.png` } }] });
+delete globalThis.IG_AI_JAVOB;
 const ys = yuborildi();
-test('«tahlil qilyapman» deb darhol javob', ys.some((x) => /tahlil qilyapman/.test(x.message?.text || '')));
+test('rasm keldi — darhol odamcha javob', ys.some((x) => /kuting|Bir daqiqa|vaqt bering/.test(x.message?.text || '')));
 const rasm = ys.find((x) => x.message?.attachment?.type === 'image');
-test('xira natija rasmi yuborildi', rasm && /^https:\/\/www\.kiovo\.shop\/media\/[0-9a-f-]{36}$/.test(rasm.message.attachment.payload.url),
+test('to‘liq natija rasmi yuborildi', rasm && /^https:\/\/www\.kiovo\.shop\/media\/[0-9a-f-]{36}$/.test(rasm.message.attachment.payload.url),
   rasm?.message?.attachment?.payload?.url);
+const rasmId = rasm?.message?.attachment?.payload?.url.split('/').pop();
+const rasmTur = rasmId ? await qiymat(`select tur from media where id = $1`, [rasmId]) : null;
+test('natija xira emas (ig_natija, ochiq nusxa)', rasmTur === 'ig_natija', rasmTur);
+const serverKod = (await import('node:fs')).readFileSync(new URL('../src/server.js', import.meta.url), 'utf8');
+test('natija rasmi Instagram uchun ochiq (himoyali turlar ro‘yxatida emas)', /m\.tur === 'chek' \|\| m\.tur === 'natija'\)/.test(serverKod) && rasmTur !== 'natija');
 const s5 = await qator(`select * from ig_suhbatlar where igsid = $1`, [RASMCHI]);
 const tgMatn = ys.map((x) => x.message?.text || '').find((t) => /start=n_/.test(t)) || '';
-test('to‘liq natija uchun Telegram havolasi (n_token)', s5.tahlil_token && tgMatn.includes(`start=n_${s5.tahlil_token}`), tgMatn.slice(0, 80));
-test('xira rasm bazada (ig_xira)', Number(await qiymat(`select count(*) from media where tur = 'ig_xira'`)) >= 1);
+test('Telegramda tavsiyani ochadigan havola (n_token) oxirida', s5.tahlil_token && tgMatn.trim().endsWith(`start=n_${s5.tahlil_token}`), tgMatn.slice(-80));
+const tavsiyaNomlari = (await qatorlar(`select coalesce(nom_uz, name) as nom from products where id = any($1)`, [[1, 21, 25]])).map((x) => x.nom);
+test('xabarda tavsiya qilingan mahsulotlar va narx', tavsiyaNomlari.length && tavsiyaNomlari.some((n) => tgMatn.includes(n)) && /so'm/.test(tgMatn), tgMatn.slice(0, 200));
+test('«yashirin / 🔒» yo‘q — natija to‘liq', !/🔒|yashirin/.test(tgMatn));
+test('AI ga tahlil va tavsiya berildi', /TAVSIYA QILINGAN MAHSULOTLAR/.test(globalThis.OXIRGI_IG_PROMPT || '') && /T-zona uchun mos/.test(globalThis.OXIRGI_IG_PROMPT));
 const mehmon = await qator(`select u.manba, h.kod from ochiq_skan o join users u on u.id = o.mehmon_id left join havolalar h on h.id = u.havola_id where o.token = $1`, [s5.tahlil_token]);
 test('manba: Instagram Direct (botga o‘tsa sanaladi)', mehmon?.manba === 'instagram' && mehmon?.kod === 'ig-direct', JSON.stringify(mehmon));
+
+// Tahlildan keyin odam savol beradi — AI uning natijasini biladi va buyurtmani o'rgatadi
+tozala();
+await dm(RASMCHI, `mid-rasm-sav-${RASMCHI}`, { text: 'Qanday buyurtma qilaman?' });
+const pr = globalThis.OXIRGI_IG_PROMPT || '';
+test('suhbatda AI tahlilni biladi (muammolar + tavsiyalar)', /UNING YUZ TAHLILI/.test(pr) && /Tavsiya qilingan mahsulotlar/.test(pr) && /Dog‘lardan himoya/.test(pr));
+test('AI buyurtma qadamlari va to‘lovni biladi', /Buyurtma qadamlari/.test(pr) && /kartaga o'tkazma/.test(pr) && /Savatga/.test(pr));
+test('AI ilova bo‘limlarini biladi', /«Skaner»/.test(pr) && /«Maslahat»/.test(pr) && /kiovo\.shop\/app\//.test(pr));
+test('AI konsultatsiya beradi', /KONSULTATSIYA/.test(pr));
+test('uslub qoidalari doim (anti-slop)', /HAQIQIY ODAMDEK/.test(pr) && /Ajoyib savol/.test(pr));
+test('tavsiyani ochish havolasi AI da', s5.tahlil_token && pr.includes(`start=n_${s5.tahlil_token}`));
+
+// Eski «xira» rejim — sozlamada yoqilsa
+await ig.sozlamaniSaqla({ xira: true });
+tozala();
+const XIRACHI = `9006${Date.now() % 1e6}`;
+await dm(XIRACHI, `mid-xira-${XIRACHI}`, { attachments: [{ type: 'image', payload: { url: `http://127.0.0.1:${PORT}/ig-cdn/yuz.png` } }] });
+const xRasm = yuborildi().find((x) => x.message?.attachment?.type === 'image');
+const xTur = xRasm ? await qiymat(`select tur from media where id = $1`, [xRasm.message.attachment.payload.url.split('/').pop()]) : null;
+test('xira=true — eski xira rejim ishlaydi', xTur === 'ig_xira', xTur);
+await ig.sozlamaniSaqla({ xira: false });
+
+console.log('\n── ODAMDEK USLUB (AI SLOP TOZALASH) ──');
+const { slopTozala, tahlilAndozasi } = await import('../src/ai/instagram-suhbat.js');
+test('«Albatta! Ajoyib savol!» olib tashlanadi', slopTozala('Albatta! Ajoyib savol! Niatsinamid dog‘ga yaxshi.') === 'Niatsinamid dog‘ga yaxshi.');
+test('markdown yulduzchalar olib tashlanadi', slopTozala('**COSRX** krem — 185 000 so‘m') === 'COSRX krem — 185 000 so‘m');
+test('emoji ko‘pi bilan bitta', [...slopTozala('Zo‘r tanlov ✨🌟😊').matchAll(/\p{Extended_Pictographic}/gu)].length === 1);
+test('«yana savollaringiz bo‘lsa…» dumi kesiladi', slopTozala('Kremni kechqurun surting. Yana savollaringiz bo‘lsa, bemalol yozing!') === 'Kremni kechqurun surting.');
+test('rus tilida ham: «Отличный вопрос!»', slopTozala('Отличный вопрос! Подойдёт крем с центеллой.') === 'Подойдёт крем с центеллой.');
+const and = tahlilAndozasi({ tahlil: { muammolar: [{ nom: 'Dog‘lar' }] }, tavsiya: [{ nom: 'Krem', brend: 'COSRX', narx: 185000, sabab: 'Namlaydi.' }] });
+test('andoza: muammo + mahsulot + narx', /dog‘lar/.test(and) && /COSRX Krem — 185 000 so'm/.test(and) && /Telegramda ochiladi/.test(and), and);
 
 console.log('\n── KOMMENTLAR VA QOIDALAR ──');
 const qoidalar = await ig.qoidalar();

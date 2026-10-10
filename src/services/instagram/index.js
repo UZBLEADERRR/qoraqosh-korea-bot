@@ -3,8 +3,9 @@
 // Oqim:
 //   Meta webhook → webhookKeldi()
 //     • Direct xabar  → suhbatga yoziladi → AI javob beradi (odamdek, qisqa).
-//       Yuz rasmi kelsa — bepul tahlil, natijaning MUHIM qismi XIRA rasm
-//       bo'lib boradi va to'liq natija uchun Telegram havolasi beriladi.
+//       Yuz rasmi kelsa — bepul tahlil: TO'LIQ natija rasmi, keyin «mana
+//       shular sizga kerak» degan mahsulotlar va Telegramda tavsiyani
+//       ochadigan havola (xohlansa sozlamada eski «xira» rejim yoqiladi).
 //     • Komment       → qoidalar: «+» qoldirsa Direct ga xabar va ochiq
 //       javob («Direct'ga yozdik»), «narx» so'rasa AI yozgan Direct…
 //   Admin o'zi yozsa (panel yoki Instagram ilovasi) — AI shu suhbatda
@@ -18,7 +19,8 @@ const SOZLAMA_KALIT = 'instagram';
 export const STANDART = {
   ai_yoqiq: true,              // Direct ga AI javob beradi
   korsatma: '',                // AI ga do'kon egasining ko'rsatmasi (bo'sh — standart)
-  yuz_tahlil: true,            // yuz rasmi kelsa — tahlil va xira natija
+  yuz_tahlil: true,            // yuz rasmi kelsa — tahlil va natija
+  xira: false,                 // true — natijaning muhim qismi xira (eski «teaser» rejim)
   komment_qoidalar: true,      // kommentlarga qoidalar ishlaydi
   komment_mention: true,       // ochiq javob @username bilan boshlansin
   kechikish_soniya: 4,         // mijoz ketma-ket yozsa — oxirgisidan keyin javob
@@ -155,6 +157,53 @@ async function botHavolasi(start) {
   return bot ? `https://t.me/${bot}?start=${start}` : `${config.saytUrl || ''}/skan/`;
 }
 
+/** Ilova, Play va menejer telefoni — AI buyurtma/ilovani o'rgatishi uchun. */
+async function dokonHavolalari() {
+  const [play, telefon] = await Promise.all([
+    sozlama('play_havola', '').catch(() => ''), sozlama('menejer_telefon', '').catch(() => ''),
+  ]);
+  return { ilova_havola: config.saytUrl ? `${config.saytUrl}/app/` : '', play_havola: play || '', telefon: telefon || '' };
+}
+
+/**
+ * Ochiq skan tokeni bo'yicha to'liq tahlil: muammolar va tavsiya
+ * qilingan mahsulotlar (nomi, narxi, nega mos). AI shu bilan maslahat
+ * beradi, Direct xabari ham shundan tuziladi.
+ */
+export async function tahlilMalumoti(token, katalog = null) {
+  const a = await qator(`select a.id, a.score, a.skin_type, a.age_estimate, a.problems, a.routine, a.natija_rasm_id,
+         a.raw->>'tavsif' as tavsif, a.raw->>'xulosa' as xulosa
+       from ochiq_skan o join analyses a on a.id = o.analysis_id where o.token = $1`, [token]);
+  if (!a) return null;
+  const routine = Array.isArray(a.routine) ? a.routine : [];
+  const idlar = routine.map((r) => Number(r.product_id)).filter(Boolean);
+  const mahsulot = katalog
+    ? katalog.filter((p) => idlar.includes(Number(p.id)))
+    : idlar.length ? await qatorlar(`select id, name, nom_uz, brand, price, old_price, stock from products where id = any($1)`, [idlar]) : [];
+  const karta = new Map(mahsulot.map((p) => [Number(p.id), p]));
+  const tavsiya = routine.map((r) => {
+    const p = karta.get(Number(r.product_id));
+    if (!p) return null;
+    return { id: p.id, nom: p.nom_uz || p.name, brend: p.brand || '', narx: Number(p.price) || 0,
+      eski_narx: Number(p.old_price) || 0, bosqich: r.bosqich || '', sabab: String(r.sabab || '').slice(0, 200),
+      bor: !(p.stock <= 0) };
+  }).filter(Boolean);
+  const muammolar = (Array.isArray(a.problems) ? a.problems : [])
+    .map((m) => ({ nom: m.nom, foiz: m.foiz, zona: m.zona, sabab: m.sabab })).filter((m) => m.nom);
+  return {
+    natija_rasm_id: a.natija_rasm_id,
+    tahlil: { ball: a.score, teri_turi: a.skin_type, yosh: a.age_estimate, tavsif: a.tavsif || '', xulosa: a.xulosa || '', muammolar },
+    tavsiya: [...tavsiya.filter((x) => x.bor), ...tavsiya.filter((x) => !x.bor)],
+  };
+}
+
+const tahlilMatni = ({ tahlil: t, tavsiya }) => [
+  `Ball ${t.ball ?? '?'}/100, ${t.teri_turi || ''} teri${t.yosh ? `, taxminiy yosh ${t.yosh}` : ''}. ${t.tavsif || ''} ${t.xulosa || ''}`.trim(),
+  t.muammolar.length ? `Muammolar: ${t.muammolar.slice(0, 6).map((m) => `${m.nom}${m.foiz ? ` ${m.foiz}%` : ''}${m.zona ? ` (${m.zona})` : ''}`).join('; ')}` : 'Jiddiy muammo topilmadi.',
+  tavsiya.length ? `Tavsiya qilingan mahsulotlar (unga yuborilgan):\n${tavsiya.slice(0, 6).map((p) =>
+    `- ${p.brend ? p.brend + ' ' : ''}${p.nom} | ${p.narx} so'm | ${p.bosqich} | ${p.sabab}${p.bor ? '' : ' | TUGAGAN'}`).join('\n')}` : '',
+].filter(Boolean).join('\n').slice(0, 1500);
+
 /** Suhbat tarixi AI uchun. */
 async function tarixi(suhbatId) {
   const r = await qatorlar(`select kim, matn, rasm_url from ig_xabarlar where suhbat_id = $1 and xato is null
@@ -176,16 +225,17 @@ export async function aiJavobYoz(suhbatId, { majburiy = false } = {}) {
   }
   const { faolMahsulotlar } = await import('../analysis.js');
   const { igJavob } = await import('../../ai/instagram-suhbat.js');
-  const tahlil = s.tahlil_token ? await qator(
-    `select a.score, a.skin_type, a.raw->>'tavsif' as summary from ochiq_skan o join analyses a on a.id = o.analysis_id where o.token = $1`,
-    [s.tahlil_token]).catch(() => null) : null;
+  const katalog = await faolMahsulotlar();
+  const t = s.tahlil_token ? await tahlilMalumoti(s.tahlil_token, katalog).catch(() => null) : null;
   api.yozmoqda(s.igsid);
   let r;
   try {
     r = await igJavob({
-      tarix: await tarixi(s.id), korsatma: st.korsatma, mahsulotlar: await faolMahsulotlar(),
+      tarix: await tarixi(s.id), korsatma: st.korsatma, mahsulotlar: katalog,
       malumot: { ism: s.ism || s.username || '', tg_havola: await botHavolasi('h_ig-direct'),
-        tahlil: tahlil ? `${tahlil.score ?? '?'}/100, ${tahlil.skin_type || ''} teri. ${tahlil.summary || ''} (to'liq natija Telegramda)`.slice(0, 240) : '' },
+        ...(await dokonHavolalari()),
+        tahlil: t ? tahlilMatni(t) : '', tahlil_soz: t ? t.tahlil.muammolar.map((m) => m.nom).join(' ') : '',
+        tahlil_havola: t ? await botHavolasi(`n_${s.tahlil_token}`) : '' },
     });
   } catch (e) {
     await xabarYoz(s.id, { yonalish: 'chiquvchi', kim: 'ai', matn: null, xato: `AI javob bermadi: ${e.message}`.slice(0, 300) });
@@ -222,7 +272,7 @@ async function adminlargaXabar(html) {
   for (const id of idlar) await yubor(id, html).catch(() => {});
 }
 
-// ─────────────────────── YUZ RASMI → XIRA NATIJA ───────────────────────
+// ─────────────────── YUZ RASMI → NATIJA VA TAVSIYA ───────────────────
 
 const RAD_MATN = {
   xira: 'Rasm biroz xira chiqibdi 🙏 Yorug‘ joyda, kamerani yuzingizga to‘g‘ri tutib yana bitta yuboring.',
@@ -240,7 +290,10 @@ export async function rasmniTahlilQil(suhbatId, url) {
   if (!s) return null;
   const pauzada = !st.ai_yoqiq || !s.ai_yoqiq || (s.ai_pauza_gacha && new Date(s.ai_pauza_gacha) > new Date());
   if (pauzada) return null;                               // admin suhbatni o'zi olib boryapti
-  await yuborVaYoz(s, 'Rasmingizni oldim ✨ Teringizni tahlil qilyapman — 30 soniyacha kuting.', 'tahlil').catch(() => {});
+  const kutMatn = ['Oldim, hozir ko‘rib chiqaman — yarim daqiqacha kuting.',
+    'Rasm keldi, teringizni tahlil qilyapman. Bir daqiqa.',
+    'Ko‘ryapman, 30 soniyacha vaqt bering.'][Math.floor(Math.random() * 3)];
+  await yuborVaYoz(s, kutMatn, 'tahlil').catch(() => {});
   api.yozmoqda(s.igsid);
 
   let base64, mime;
@@ -275,31 +328,46 @@ export async function rasmniTahlilQil(suhbatId, url) {
   }
   await sorov(`update ig_suhbatlar set tahlil_token = $2 where id = $1`, [s.id, n.token]);
 
-  // Xira natija rasmi: yuqorisi ochiq, muhim qismi xira + qulf
   const tg = await botHavolasi(`n_${n.token}`);
+  const t = await tahlilMalumoti(n.token).catch(() => null);
+
+  // 1) Natija rasmi. Asl rasm (tur 'natija') faqat admin uchun ochiq —
+  //    Instagram uni yuklab olishi uchun ochiq nusxa saqlanadi.
   try {
-    const m = await qator(`select m.bayt from ochiq_skan o join analyses a on a.id = o.analysis_id
-        join media m on m.id = a.natija_rasm_id where o.token = $1`, [n.token]);
+    const m = t?.natija_rasm_id ? await qator(`select bayt from media where id = $1`, [t.natija_rasm_id]) : null;
     if (m?.bayt) {
-      const { xiraNatija } = await import('../../rasm/xira.js');
-      const xira = await xiraNatija(Buffer.from(m.bayt), { soni: n.yopiq?.muammo_soni || 0 });
-      const md = await qator(`insert into media (tur, mime, bayt, hajm, goya) values ('ig_xira','image/png',$1,$2,$3) returning id`,
-        [xira, xira.length, `Instagram teaser · ${n.token.slice(0, 8)}`]);
+      let bayt = Buffer.from(m.bayt), tur = 'ig_natija';
+      if (st.xira) {
+        const { xiraNatija } = await import('../../rasm/xira.js');
+        bayt = await xiraNatija(bayt, { soni: n.yopiq?.muammo_soni || 0 });
+        tur = 'ig_xira';
+      }
+      const md = await qator(`insert into media (tur, mime, bayt, hajm, goya) values ($1,'image/png',$2,$3,$4) returning id`,
+        [tur, bayt, bayt.length, `Instagram natija · ${n.token.slice(0, 8)}`]);
       const rasmUrl = `${config.saytUrl}/media/${md.id}`;
       const j = await api.rasmYubor(s.igsid, rasmUrl);
       await xabarYoz(s.id, { yonalish: 'chiquvchi', kim: 'tahlil', rasm: rasmUrl, mid: j.message_id || null });
     }
   } catch (e) {
-    console.error('IG XIRA NATIJA:', e.message);
+    console.error('IG NATIJA RASMI:', e.message);
   }
+
+  // 2) «Mana shular sizga kerak» + Telegramda tavsiyani ochadigan havola
   const o = n.ochiq || {};
-  const standart = `Natijangiz tayyor! ✨ Teri holati: ${o.ball}/100${o.tavsif ? ` — ${o.tavsif}` : ''}.\n`
-    + `${n.yopiq?.muammo_soni ? `${n.yopiq.muammo_soni} ta belgi topildi` : 'Teringiz tahlil qilindi'} va sizga mos parvarish tanlandi 🔒\n\n`
-    + `To‘liq natijani (har bir belgi, sabab va mos mahsulotlar) Telegramda oching:\n${tg}`;
-  const tayyor = st.tahlil_matni
-    ? st.tahlil_matni.replaceAll('{ball}', String(o.ball ?? '')).replaceAll('{havola}', tg)
-        .replaceAll('{soni}', String(n.yopiq?.muammo_soni ?? '')).replaceAll('{tavsif}', o.tavsif || '')
-    : standart;
+  let tayyor;
+  if (st.tahlil_matni) {
+    const nomlar = (t?.tavsiya || []).slice(0, 4).map((p) => `${p.brend ? p.brend + ' ' : ''}${p.nom} — ${p.narx.toLocaleString('ru-RU').replace(/\u00a0/g, ' ')} so‘m`).join('\n');
+    tayyor = st.tahlil_matni.replaceAll('{ball}', String(o.ball ?? '')).replaceAll('{havola}', tg)
+      .replaceAll('{soni}', String(n.yopiq?.muammo_soni ?? '')).replaceAll('{tavsif}', o.tavsif || '')
+      .replaceAll('{mahsulotlar}', nomlar);
+  } else {
+    const { tahlilXabari } = await import('../../ai/instagram-suhbat.js');
+    tayyor = await tahlilXabari({
+      tahlil: t?.tahlil || { ball: o.ball, tavsif: o.tavsif, teri_turi: o.teri_turi, muammolar: [] },
+      tavsiya: t?.tavsiya || [], havola: tg, ism: s.ism || '', korsatma: st.korsatma,
+    });
+  }
+  api.yozmoqda(s.igsid);
   await yuborVaYoz(s, tayyor, 'tahlil').catch(() => {});
   return { yaroqli: true, token: n.token };
 }

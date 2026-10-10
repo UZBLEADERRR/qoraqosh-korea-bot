@@ -34,8 +34,9 @@ export const IG_VOSITALAR = {
     oqish: false,
     ishla: async (a = {}) => ({ sozlamalar: await ig.sozlamaniSaqla(a) }),
     tavsif: 'Instagram boshqaruvchi sozlamalari: ai_yoqiq (Direct ga AI javob), korsatma (AI uslubi va qoidalari — '
-          + 'TO‘LIQ matn, eskisini o‘zgartirib qayta yoz), yuz_tahlil, komment_qoidalar, komment_mention, '
-          + 'kechikish_soniya, qolda_pauza_daqiqa, tahlil_matni ({ball},{tavsif},{soni},{havola}).',
+          + 'TO‘LIQ matn, eskisini o‘zgartirib qayta yoz), yuz_tahlil, xira (true — natijaning muhim qismi xira, '
+          + 'standart false — to‘liq natija), komment_qoidalar, komment_mention, kechikish_soniya, qolda_pauza_daqiqa, '
+          + 'tahlil_matni (bo‘sh — AI har odamga o‘zi yozadi; andoza: {ball},{tavsif},{soni},{mahsulotlar},{havola}).',
     parametrlar: 'o‘zgaradigan maydonlar',
   },
   instagram_qoida: {
