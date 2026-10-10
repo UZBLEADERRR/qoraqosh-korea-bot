@@ -46,6 +46,11 @@ export const config = {
   openrouterModel: opt('OPENROUTER_MODEL', 'google/gemini-2.5-flash'),
   // Rasm chizish zaxirasi: Google kalitlari ishlamasa — shu model OpenRouter orqali
   openrouterImageModel: opt('OPENROUTER_IMAGE_MODEL', 'google/gemini-2.5-flash-image'),
+  // Instagram (Instagram API with Instagram Login). Token panelda ham kiritiladi.
+  instagramApi:    opt('INSTAGRAM_API', 'https://graph.instagram.com/v23.0'),
+  instagramToken:  opt('INSTAGRAM_ACCESS_TOKEN', ''),
+  instagramSecret: opt('INSTAGRAM_APP_SECRET', ''),
+  instagramVerify: opt('INSTAGRAM_VERIFY_TOKEN', ''),
   // Matn/JSON modeli. Standart — eng yangi Flash.
   geminiModel:   opt('GEMINI_MODEL', 'gemini-3.8-flash'),
   // ZAXIRA MODELLAR. Har modelning O'Z kunlik kvotasi bor, shuning

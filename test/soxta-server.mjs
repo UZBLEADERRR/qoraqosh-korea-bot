@@ -70,6 +70,11 @@ function javobMatni(sxemaMatni, prompt = '') {
   if (sxemaMatni.includes('kosmetikami')) aiHisobi.marketplace += 1;
   // Tahlil promptini eslab qolamiz — do'kon egasining qo'shimcha
   // ko'rsatmasi modelga haqiqatan yetib bordimi, sinov shuni tekshiradi
+  // Instagram Direct AI suhbatdoshi
+  if (sxemaMatni.includes('ig_javob')) {
+    globalThis.OXIRGI_IG_PROMPT = prompt;
+    return JSON.stringify(globalThis.IG_AI_JAVOB || { ig_javob: 'Salom! Yuzingiz rasmini yuboring — bepul tahlil qilib beraman 🌿', niyat: 'salom', admin_kerak: false });
+  }
   if (sxemaMatni.includes('muammolar')) {
     globalThis.OXIRGI_TAHLIL_PROMPT = prompt;
     return JSON.stringify(TAHLIL);
@@ -202,6 +207,43 @@ export function soxtaServer(port = 4444) {
       const u = new URL(req.url, 'http://x');
       const yol = u.pathname;
       const j = (o) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(o)); };
+
+      // ---- Instagram Graph API (graph.instagram.com o'rnida) ----
+      // Yuborilganlar globalThis.IG_YUBORILGAN da; IG_OYNA_YOPIQ — 24 soatlik
+      // oyna yopiq (haqiqiy xato kodi bilan).
+      if (yol.startsWith('/ig/') || yol === '/ig-cdn/yuz.png') {
+        if (yol === '/ig-cdn/yuz.png') { res.writeHead(200, { 'Content-Type': 'image/png' }); return res.end(png(600, 600)); }
+        const g = (globalThis.IG_YUBORILGAN ||= []);
+        const n = () => `${Date.now()}${Math.floor(Math.random() * 1e6)}`;
+        const tanaXom = req.method === 'POST' ? await tana(req) : '';
+        const b = (() => { try { return JSON.parse(tanaXom || '{}'); } catch { return {}; } })();
+        if (u.searchParams.get('access_token') === 'eskirgan') {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: { message: 'Error validating access token', type: 'OAuthException', code: 190 } }));
+        }
+        const y = yol.slice(3);
+        if (y === '/me' && req.method === 'GET') return j({ user_id: '17841400000000001', username: 'kiovo.uz', name: 'KiOVO', followers_count: 1200, media_count: 34 });
+        if (y === '/me/messages') {
+          g.push({ yol: y, ...b });
+          if (b.sender_action) return j({ recipient_id: b.recipient?.id });
+          if (globalThis.IG_OYNA_YOPIQ && b.recipient?.id) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: { message: 'This message is sent outside of allowed window.', code: 10, error_subcode: 2534022 } }));
+          }
+          return j({ recipient_id: b.recipient?.id || globalThis.IG_KOMMENT_EGASI || '900100', message_id: `m_${n()}` });
+        }
+        if (y === '/me/subscribed_apps') return j({ success: true });
+        if (y === '/me/media') return j({ data: [{ id: 'media1', caption: 'Bepul teri tahlili 🌿 «+» qoldiring', media_type: 'IMAGE',
+          media_url: 'http://x/m.jpg', permalink: 'https://instagram.com/p/x', timestamp: new Date().toISOString(), comments_count: 2, like_count: 40 }] });
+        if (/^\/media1\/comments$/.test(y)) return j({ data: [
+          { id: 'c_sinx_1', text: '+', username: 'nodira_s', from: { id: '700501', username: 'nodira_s' }, timestamp: new Date().toISOString() },
+          { id: 'c_sinx_2', text: 'Rahmat', username: 'kiovo.uz', from: { id: '17841400000000001', username: 'kiovo.uz' } }] });
+        if (/\/replies$/.test(y)) { g.push({ yol: y, message: u.searchParams.get('message') }); return j({ id: `r_${n()}` }); }
+        if (req.method === 'DELETE') { g.push({ yol: y, ochir: true }); return j({ success: true }); }
+        if (req.method === 'POST' && u.searchParams.has('hide')) { g.push({ yol: y, hide: u.searchParams.get('hide') }); return j({ success: true }); }
+        if (req.method === 'GET') return j({ name: 'Madina Karimova', username: 'madina_uz', profile_pic: '' });
+        return j({ success: true });
+      }
 
       // ---- Web Push xizmati (FCM o'rnida) ----
       // `globalThis.PUSH_KOD[id]` — shu obunaga qaytariladigan holat kodi

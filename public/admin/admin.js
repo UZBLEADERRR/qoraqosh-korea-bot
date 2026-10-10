@@ -56,6 +56,9 @@ const IK = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
   plyus: '<path d="M12 5v14M5 12h14"/>',
   tasdiq: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  insta: '<rect x="3" y="3" width="18" height="18" rx="5.5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor"/>',
+  suhbat: '<path d="M20 12a8 8 0 0 1-11.7 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/>',
+  qulf: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   magnit: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
   nusxa: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
   ochir: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
@@ -215,6 +218,7 @@ const BOLIMLAR = {
   mijoz:     { nom: 'Mijozlar',     chiz: () => mijozlar() },
   sotuv:     { nom: 'Sotuvlar',     chiz: () => sotuvlar() },
   manba:     { nom: 'Manbalar',     chiz: () => manbalarBolimi() },
+  instagram: { nom: 'Instagram',    chiz: () => instagramBolimi() },
   ombor:     { nom: 'Omborlar',     chiz: () => omborlar() },
   sozlama:   { nom: 'Sozlamalar',   chiz: () => sozlamalar() },
   xabar:     { nom: 'Xabarlar',     chiz: () => xabarlar() },
@@ -224,6 +228,7 @@ const BOLIMLAR = {
 
 function bolimOch(nom) {
   if (!BOLIMLAR[nom]) nom = 'boshqaruv';
+  clearInterval(holat.igTimer);   // Instagram ro'yxati faqat o'z bo'limida yangilanadi
   holat.bolim = nom;
   location.hash = nom;
   $('#tepa-nom').textContent = BOLIMLAR[nom].nom;
@@ -247,9 +252,9 @@ $('#t-yangila').onclick = () => { holat.kesh = {}; bolimOch(holat.bolim); tost('
 
 // Bo'lim ikonlari — menyu, qidiruv va «Menyu» oynasi uchun bitta joy
 const BOLIM_IK = { boshqaruv: 'uy', buyurtma: 'quti', xarid: 'royxat', mahsulot: 'teg', market: 'globus',
-  havola: 'havola', bolim: 'papka', mijoz: 'odamlar', sotuv: 'osish', manba: 'magnit', ombor: 'ombor', sozlama: 'sozlama',
+  havola: 'havola', bolim: 'papka', mijoz: 'odamlar', sotuv: 'osish', manba: 'magnit', instagram: 'insta', ombor: 'ombor', sozlama: 'sozlama',
   xabar: 'xat', tizim: 'puls', qollanma: 'kitob' };
-const KOP_MENYU = ['mijoz', 'sotuv', 'manba', 'xarid', 'ombor', 'market', 'bolim', 'havola', 'xabar', 'sozlama', 'tizim', 'qollanma'];
+const KOP_MENYU = ['instagram', 'mijoz', 'sotuv', 'manba', 'xarid', 'ombor', 'market', 'bolim', 'havola', 'xabar', 'sozlama', 'tizim', 'qollanma'];
 // Telefondagi «Menyu» — ikonli to'r, ro'yxat emas
 const kopMenyu = () => modal('Menyu', `
   <button class="ai-banner" id="t-yordamchi"><span>${ik('ai', 22)}</span>
@@ -789,6 +794,380 @@ function havolaOyna(h) {
     'Havola ishlamay qoladi va uning bosishlar tarixi o‘chadi. Foydalanuvchilarning manbasi (masalan «Instagram») saqlanadi.',
     async () => { await api('/api/admin/havola', { method: 'DELETE', body: JSON.stringify({ id: h.id }) }); modalYop(); manbalarBolimi(); },
     { xavf: true });
+}
+
+// ═══════════ INSTAGRAM BOSHQARUVCHI ═══════════
+// Direct (AI suhbatdosh), kommentlar, avtomatik qoidalar va sozlamalar.
+// Ro'yxat 8 soniyada yangilanadi — bo'limdan chiqilganda to'xtaydi.
+const IG_TABLAR = [['direct', 'Direct', 'suhbat'], ['komment', 'Kommentlar', 'xat'], ['qoida', 'Qoidalar', 'sozlama'], ['sozlama', 'Sozlamalar', 'puls']];
+const IG_KIM = { ai: 'AI', admin: 'Siz', ilova: 'Instagram ilovasi', qoida: 'Qoida', tahlil: 'Tahlil' };
+const igVaqt = (d) => {
+  if (!d) return '';
+  const t = new Date(d), h = new Date();
+  return t.toDateString() === h.toDateString()
+    ? t.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })
+    : t.toLocaleDateString('uz-UZ', { day: '2-digit', month: '2-digit' });
+};
+const igBosh = (s) => esc(((s.ism || s.username || '?').trim()[0] || '?').toUpperCase());
+
+async function instagramBolimi() {
+  holat.igTab = holat.igTab || 'direct';
+  clearInterval(holat.igTimer);
+  try {
+    const h = await api('/api/admin/ig/holat');
+    holat.kesh.ig = h;
+    const b = h.bugun || {};
+    $('#tan').innerHTML = `
+      ${h.ulangan ? '' : `<section class="karta ig-ulash">
+        <div class="ig-ulash-bosh"><span class="ig-logo">${ik('insta', 26)}</span>
+          <div><h2>Instagram'ni ulang</h2><p>Token kiritsangiz — Direct'ga AI javob beradi, kommentlarga qoidalar ishlaydi.</p></div></div>
+        <button class="tug asos" data-igtab="sozlama">${ik('keyingi', 16)}Ulash</button></section>`}
+      <div class="kpi-tor">
+        ${kpiKarta('Bugun yozishdi', som(b.kiruvchi), null, 'suhbat')}
+        ${kpiKarta('AI javob berdi', som(b.ai_javob), null, 'ai')}
+        ${kpiKarta('Yuz tahlili · 30 kun', som(b.tahlil), null, 'skaner')}
+        ${kpiKarta('Telegramga o‘tdi', som(b.telegramga_otdi), null, 'xat')}
+      </div>
+      <div class="asbob ig-tablar">
+        <div class="davr">${IG_TABLAR.map(([k, n, i]) => `<button data-igtab="${k}" class="${holat.igTab === k ? 'faol' : ''}">
+          ${ik(i, 15)}<span>${n}</span>${k === 'direct' && b.oqilmagan ? `<em class="ig-son">${b.oqilmagan}</em>` : ''}
+          ${k === 'komment' && b.komment ? `<em class="ig-son kul">${b.komment}</em>` : ''}</button>`).join('')}</div>
+        <span class="ig-holat ${h.ulangan ? 'ok' : ''}">${h.ulangan ? `@${esc(h.username || 'instagram')}` : 'ulanmagan'}
+          ${h.sozlamalar?.ai_yoqiq ? '· AI yoqiq' : '· AI o‘chiq'}</span>
+      </div>
+      <div id="ig-tan"></div>`;
+    $$('[data-igtab]').forEach((x) => x.onclick = () => { holat.igTab = x.dataset.igtab; instagramBolimi(); });
+    const nishon = $('#yon-ig'); if (nishon) { nishon.textContent = b.oqilmagan || 0; kor(nishon, b.oqilmagan > 0); }
+    ({ direct: igDirect, komment: igKommentlar, qoida: igQoidalar, sozlama: igSozlama })[holat.igTab]();
+  } catch (e) { xatoChiz(e); }
+}
+
+// ── DIRECT ──
+async function igDirect() {
+  const q = holat.igQ || '', f = holat.igFiltr || '';
+  $('#ig-tan').innerHTML = `
+    <div class="ig-inbox ${holat.igOchiq ? 'chat-ochiq' : ''}">
+      <aside class="ig-royxat karta">
+        <label class="qidir-joy">${ik('qidir')}<input id="ig-q" placeholder="Ism yoki xabar" value="${esc(q)}" autocomplete="off"></label>
+        <div class="chip-satr ig-filtr">${[['', 'Hammasi'], ['oqilmagan', 'O‘qilmagan'], ['admin', 'Menejer kerak'], ['tahlil', 'Tahlil']]
+          .map(([k, n]) => `<button class="chip ${f === k ? 'faol' : ''}" data-igf="${k}">${n}</button>`).join('')}</div>
+        <div id="ig-suhbatlar"><div class="skelet"></div><div class="skelet"></div></div>
+      </aside>
+      <section class="ig-chat karta" id="ig-chat">
+        <div class="ig-bosh-holat">${ik('suhbat', 34)}<b>Suhbatni tanlang</b><span>AI mijozlarga o‘zi javob beradi — siz istalgan payt aralashasiz</span></div>
+      </section>
+    </div>`;
+  let t; $('#ig-q').oninput = (e) => { clearTimeout(t); holat.igQ = e.target.value; t = setTimeout(igRoyxatniChiz, 250); };
+  $$('[data-igf]').forEach((x) => x.onclick = () => { holat.igFiltr = x.dataset.igf;
+    $$('[data-igf]').forEach((y) => y.classList.toggle('faol', y === x)); igRoyxatniChiz(); });
+  await igRoyxatniChiz();
+  if (holat.igOchiq) igChatOch(holat.igOchiq, { jim: true });
+  holat.igTimer = setInterval(() => {
+    if (holat.bolim !== 'instagram' || holat.igTab !== 'direct') return clearInterval(holat.igTimer);
+    igRoyxatniChiz(); if (holat.igOchiq) igChatOch(holat.igOchiq, { jim: true });
+  }, 8000);
+}
+
+async function igRoyxatniChiz() {
+  const quti = $('#ig-suhbatlar'); if (!quti) return;
+  try {
+    const { suhbatlar } = await api(`/api/admin/ig/suhbatlar?q=${encodeURIComponent(holat.igQ || '')}&filtr=${holat.igFiltr || ''}`);
+    quti.innerHTML = suhbatlar.length ? suhbatlar.map((s) => `
+      <button class="ig-qator ${holat.igOchiq === s.id ? 'tanlangan' : ''} ${s.oqilmagan ? 'yangi' : ''}" data-igs="${s.id}">
+        <span class="ig-avatar">${s.rasm_url ? `<img src="${esc(s.rasm_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}${igBosh(s)}</span>
+        <span class="ig-qator-tan">
+          <b>${esc(s.username ? '@' + s.username : s.ism || 'Instagram foydalanuvchi')}</b>
+          <span>${esc(s.oxirgi_matn || '')}</span>
+        </span>
+        <span class="ig-qator-ong">
+          <em>${igVaqt(s.oxirgi_at)}</em>
+          ${s.oqilmagan ? `<i class="ig-son">${s.oqilmagan}</i>` : s.admin_kerak ? `<i class="ig-son sariq">!</i>`
+            : !s.ai_yoqiq ? '<i class="ig-yor">AI off</i>' : s.tahlil ? `<i class="ig-yor yashil">${ik('skaner', 12)}</i>` : ''}
+        </span>
+      </button>`).join('')
+      : `<div class="ig-bosh-holat kichik">${ik('suhbat', 26)}<span>${holat.igQ || holat.igFiltr ? 'Topilmadi' : 'Hali hech kim yozmagan'}</span></div>`;
+    $$('[data-igs]', quti).forEach((x) => x.onclick = () => igChatOch(Number(x.dataset.igs)));
+  } catch (e) { quti.innerHTML = `<p class="xato">${esc(e.message)}</p>`; }
+}
+
+async function igChatOch(id, { jim = false } = {}) {
+  holat.igOchiq = id;
+  const chat = $('#ig-chat'); if (!chat) return;
+  $('.ig-inbox')?.classList.add('chat-ochiq');
+  $$('[data-igs]').forEach((x) => x.classList.toggle('tanlangan', Number(x.dataset.igs) === id));
+  try {
+    const { suhbat: s, xabarlar } = await api(`/api/admin/ig/suhbat?id=${id}`);
+    const oqim = $('#ig-oqim');
+    const pastdami = !oqim || oqim.scrollHeight - oqim.scrollTop - oqim.clientHeight < 80;
+    const yozuv = $('#ig-matn')?.value || '';
+    const pauza = s.ai_pauza_gacha && new Date(s.ai_pauza_gacha) > new Date();
+    chat.innerHTML = `
+      <header class="ig-chat-bosh">
+        <button class="ik-tugma ig-orqaga" id="ig-orqaga" aria-label="Orqaga">${ik('orqaga')}</button>
+        <span class="ig-avatar">${s.rasm_url ? `<img src="${esc(s.rasm_url)}" alt="" onerror="this.remove()">` : ''}${igBosh(s)}</span>
+        <div class="ig-chat-nom"><b>${esc(s.username ? '@' + s.username : s.ism || 'Instagram foydalanuvchi')}</b>
+          <span>${s.oyna_ochiq ? 'Javob yozish mumkin' : '24 soatlik oyna yopiq — mijoz yozishini kuting'}${s.telegramga_otdi ? ' · Telegramga o‘tdi ✓' : ''}</span></div>
+        <label class="ig-switch" title="Shu suhbatda AI javob bersinmi">
+          <input type="checkbox" id="ig-ai" ${s.ai_yoqiq ? 'checked' : ''}><span></span><b>AI</b></label>
+      </header>
+      ${s.admin_kerak ? `<div class="ig-ogoh">${ik('ogoh', 16)}<span>AI menejer kerakligini aytdi</span><button class="tug kichik" id="ig-hal">Hal qilindi</button></div>` : ''}
+      ${pauza && s.ai_yoqiq ? `<div class="ig-ogoh kul">${ik('soat', 16)}<span>Siz yozdingiz — AI ${igVaqt(s.ai_pauza_gacha)} gacha jim</span><button class="tug kichik" id="ig-pauza">AI ni qaytarish</button></div>` : ''}
+      <div class="ig-oqim" id="ig-oqim">${xabarlar.map((x) => `
+        <div class="ig-xabar ${x.yonalish === 'kiruvchi' ? 'u' : 'biz'} ${x.xato ? 'xato' : ''}">
+          ${x.rasm_url ? `<a href="${esc(x.rasm_url)}" target="_blank" rel="noopener"><img src="${esc(x.rasm_url)}" alt="" loading="lazy" onerror="this.parentNode.textContent='📷 Rasm'"></a>` : ''}
+          ${x.matn ? `<p>${esc(x.matn)}</p>` : ''}
+          <small>${x.yonalish === 'chiquvchi' ? `${IG_KIM[x.kim] || ''} · ` : ''}${igVaqt(x.created_at)}${x.xato ? ` · ${esc(x.xato)}` : ''}</small>
+        </div>`).join('') || '<div class="ig-bosh-holat kichik"><span>Xabarlar yo‘q</span></div>'}</div>
+      <div class="ig-yozish">
+        <button class="ik-tugma" id="ig-aiyoz" title="AI hozir javob yozsin">${ik('ai')}</button>
+        <textarea id="ig-matn" rows="1" placeholder="${s.oyna_ochiq ? 'Mijozga yozing…' : '24 soatdan oshgan — Instagram yuborishga ruxsat bermaydi'}">${esc(yozuv)}</textarea>
+        <button class="y-yubor" id="ig-yubor" aria-label="Yuborish">${ik('yubor', 20)}</button>
+      </div>`;
+    const yangiOqim = $('#ig-oqim');
+    if (!jim || pastdami) yangiOqim.scrollTop = yangiOqim.scrollHeight;
+    $('#ig-orqaga').onclick = () => { holat.igOchiq = null; $('.ig-inbox')?.classList.remove('chat-ochiq'); };
+    $('#ig-ai').onchange = async (e) => { await api('/api/admin/ig/suhbat', { method: 'POST', body: JSON.stringify({ id, ai_yoqiq: e.target.checked }) });
+      tost(e.target.checked ? 'AI shu suhbatda javob beradi' : 'AI shu suhbatda o‘chirildi'); igRoyxatniChiz(); };
+    $('#ig-hal') && ($('#ig-hal').onclick = async () => { await api('/api/admin/ig/suhbat', { method: 'POST', body: JSON.stringify({ id, admin_kerak: false }) }); igChatOch(id); });
+    $('#ig-pauza') && ($('#ig-pauza').onclick = async () => { await api('/api/admin/ig/suhbat', { method: 'POST', body: JSON.stringify({ id, pauza_olib: true }) }); igChatOch(id); });
+    const m = $('#ig-matn');
+    m.oninput = () => { m.style.height = 'auto'; m.style.height = Math.min(120, m.scrollHeight) + 'px'; };
+    const yubor = async () => {
+      const t = m.value.trim(); if (!t) return;
+      $('#ig-yubor').disabled = true;
+      try { await api('/api/admin/ig/yubor', { method: 'POST', body: JSON.stringify({ id, matn: t }) }); m.value = ''; igChatOch(id); }
+      catch (e) { tost(e.message, 'xato'); }
+      finally { const b = $('#ig-yubor'); if (b) b.disabled = false; }
+    };
+    $('#ig-yubor').onclick = yubor;
+    m.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); yubor(); } };
+    $('#ig-aiyoz').onclick = async () => {
+      const b = $('#ig-aiyoz'); b.disabled = true;
+      try { const r = await api('/api/admin/ig/ai-javob', { method: 'POST', body: JSON.stringify({ id }) });
+        tost(r.natija ? 'AI javob yubordi' : 'AI javob bermadi'); igChatOch(id); }
+      catch (e) { tost(e.message, 'xato'); b.disabled = false; }
+    };
+  } catch (e) { if (!jim) chat.innerHTML = `<p class="xato" style="padding:16px">${esc(e.message)}</p>`; }
+}
+
+// ── KOMMENTLAR ──
+async function igKommentlar() {
+  const f = holat.igKf || '';
+  $('#ig-tan').innerHTML = `
+    <div class="asbob">
+      <div class="chip-satr" style="padding:0">${[['', 'Hammasi'], ['javobsiz', 'Javobsiz'], ['qoida', 'Qoida ishlagan']]
+        .map(([k, n]) => `<button class="chip ${f === k ? 'faol' : ''}" data-igkf="${k}">${n}</button>`).join('')}</div>
+      <span style="flex:1"></span>
+      <button class="tug" id="ig-sinxron">${ik('yangila', 16)}<span>Postlardan yangilash</span></button>
+    </div>
+    <div id="ig-kommentlar"><div class="karta"><div class="skelet"></div><div class="skelet"></div></div></div>`;
+  $$('[data-igkf]').forEach((x) => x.onclick = () => { holat.igKf = x.dataset.igkf; igKommentlar(); });
+  $('#ig-sinxron').onclick = async () => {
+    const b = $('#ig-sinxron'); b.disabled = true;
+    try { const r = await api('/api/admin/ig/sinxron', { method: 'POST', body: '{}' }); tost(`${r.yangi_komment} ta yangi komment`); igKommentlar(); }
+    catch (e) { tost(e.message, 'xato'); b.disabled = false; }
+  };
+  try {
+    const { kommentlar } = await api(`/api/admin/ig/kommentlar?filtr=${f}`);
+    $('#ig-kommentlar').innerHTML = kommentlar.length ? `<div class="karta ig-k-royxat">${kommentlar.map((k) => `
+      <div class="ig-k ${k.yashirildi ? 'yashirin-k' : ''}">
+        <span class="ig-avatar kichik">${esc((k.username || '?')[0].toUpperCase())}</span>
+        <div class="ig-k-tan">
+          <div class="ig-k-bosh"><b>@${esc(k.username || 'foydalanuvchi')}</b><em>${igVaqt(k.created_at)}</em></div>
+          <p>${esc(k.matn || '')}</p>
+          <div class="ig-k-teg">
+            ${k.qoida_nom ? `<span class="yor yashil">${ik('tasdiq', 12)}${esc(k.qoida_nom)}</span>` : ''}
+            ${k.dm_yuborildi ? `<span class="yor kok">${ik('xat', 12)}Direct ketdi</span>` : ''}
+            ${k.yashirildi ? '<span class="yor kul">yashirilgan</span>' : ''}
+            ${k.xato ? `<span class="yor qizil" title="${esc(k.xato)}">${ik('ogoh', 12)}xato</span>` : ''}
+          </div>
+          ${k.javob ? `<div class="ig-k-javob">${ik('orqaga', 13)}${esc(k.javob)}</div>` : ''}
+          <div class="ig-k-amal">
+            <button data-igk="javob" data-id="${esc(k.id)}">Javob</button>
+            <button data-igk="dm" data-id="${esc(k.id)}">Direct</button>
+            ${k.qoida_id ? '' : `<button data-igk="qoida" data-id="${esc(k.id)}">Qoidani qo‘llash</button>`}
+            <button data-igk="${k.yashirildi ? 'kor' : 'yashir'}" data-id="${esc(k.id)}">${k.yashirildi ? 'Ko‘rsatish' : 'Yashirish'}</button>
+            <button data-igk="ochir" data-id="${esc(k.id)}" class="xavf">O‘chirish</button>
+          </div>
+        </div>
+      </div>`).join('')}</div>`
+      : `<div class="karta"><div class="ig-bosh-holat kichik">${ik('xat', 26)}<span>Kommentlar yo‘q. «Postlardan yangilash» ni bosing.</span></div></div>`;
+    $$('[data-igk]').forEach((x) => x.onclick = () => igKommentAmal(x.dataset.id, x.dataset.igk));
+  } catch (e) { $('#ig-kommentlar').innerHTML = `<div class="xabar-quti xato">${esc(e.message)}</div>`; }
+}
+
+function igKommentAmal(id, amal) {
+  const bajar = async (matn = '') => {
+    try {
+      const r = await api('/api/admin/ig/komment', { method: 'POST', body: JSON.stringify({ id, amal, matn }) });
+      modalYop(); tost(amal === 'qoida' ? `«${r.qoida}» qo‘llandi` : 'Bajarildi'); igKommentlar();
+    } catch (e) { tost(e.message, 'xato'); }
+  };
+  if (amal === 'javob' || amal === 'dm') {
+    modal(amal === 'javob' ? 'Kommentga javob' : 'Direct orqali yozish', `
+      ${amal === 'dm' ? '<p class="mayda" style="margin:0 0 8px">Instagram har kommentga faqat BITTA shaxsiy xabar yuborishga ruxsat beradi (7 kun ichida).</p>' : ''}
+      <textarea id="ig-km" rows="4" placeholder="${amal === 'javob' ? 'Rahmat! Direct’ga yozdik 💌' : 'Salom! …'}"></textarea>
+      <button class="tug asos keng" id="ig-kok" style="margin-top:12px">${ik('yubor', 16)}Yuborish</button>`);
+    $('#ig-kok').onclick = () => bajar($('#ig-km').value);
+    setTimeout(() => $('#ig-km')?.focus(), 50);
+  } else if (amal === 'ochir') {
+    tasdiqla('Kommentni o‘chirish', 'Komment Instagram’dan butunlay o‘chadi.', () => bajar(), { xavf: true });
+  } else bajar();
+}
+
+// ── QOIDALAR ──
+const IG_QOLIP = [
+  { nom: '«+» qoldirganlarga Direct', kalitlar: '+, ++, +++', aniq: true, javoblar: 'Direct’ga yozdik 💌\nDirect’ni tekshiring ✨',
+    dm_matn: 'Salom{ism}! 🌿 Va’da qilingan ma’lumot: …\n\nYuzingiz rasmini yuboring — AI 30 soniyada bepul tahlil qiladi.\nTelegram: {tg_havola}' },
+  { nom: 'Narx so‘raganlar', kalitlar: 'narx, qancha, necha pul, цена, сколько', aniq: false, javoblar: 'Narxini Direct’ga yozdik 💌', dm_ai: true },
+  { nom: 'Chegirma kodi', kalitlar: 'kod, chegirma, aksiya', aniq: false, javoblar: 'Kodni Direct’ga yubordik 🎁',
+    dm_matn: 'Salom{ism}! 🎁 Chegirma kodingiz: KIOVO10\nBuyurtma Telegram’da: {tg_havola}' },
+];
+async function igQoidalar() {
+  try {
+    const { qoidalar } = await api('/api/admin/ig/qoidalar');
+    $('#ig-tan').innerHTML = `
+      <div class="asbob"><p class="mayda" style="margin:0;flex:1">Komment kalit so‘zga mos kelsa — ochiq javob va Direct avtomatik ketadi.</p>
+        <button class="tug asos" id="ig-q-yangi">${ik('plyus', 16)}<span>Yangi qoida</span></button></div>
+      <div class="ig-qoidalar">${qoidalar.map((q) => `
+        <div class="karta ig-qoida ${q.faol ? '' : 'ochiq-emas'}">
+          <div class="karta-bosh"><h2>${esc(q.nom)}</h2>
+            <label class="ig-switch"><input type="checkbox" data-igqf="${q.id}" ${q.faol ? 'checked' : ''}><span></span></label></div>
+          <div class="ig-kalitlar">${q.kalitlar.map((k) => `<span>${esc(k)}</span>`).join('')}${q.aniq ? '<em>aynan shu</em>' : '<em>ichida bo‘lsa</em>'}</div>
+          <div class="ig-qoida-q">
+            ${q.javoblar.length ? `<div>${ik('xat', 14)}<span>Ochiq javob: ${esc(q.javoblar[0])}${q.javoblar.length > 1 ? ` (+${q.javoblar.length - 1})` : ''}</span></div>` : ''}
+            ${q.dm_ai ? `<div>${ik('ai', 14)}<span>Direct: AI kommentga qarab yozadi</span></div>` : q.dm_matn ? `<div>${ik('suhbat', 14)}<span>Direct: ${esc(q.dm_matn.slice(0, 90))}${q.dm_matn.length > 90 ? '…' : ''}</span></div>` : ''}
+          </div>
+          <div class="ig-qoida-past"><span>${som(q.ishladi)} marta ishladi</span>
+            <button class="tug kichik" data-igq="${q.id}">${ik('hujjat', 14)}Tahrirlash</button></div>
+        </div>`).join('')}</div>
+      <section class="ai-chaqiriq"><div class="ai-chaqiriq-bosh">${ik('ai', 20)}<b>AI yordamchiga ayting</b></div>
+        <div class="ai-chiplar">
+          <button data-igai="Instagram'da «+» qoldirganlarga Direct'da 10% chegirma kodi KIOVO10 yuboradigan qoida qil.">${ik('plyus', 15)}«+» ga chegirma kodi</button>
+          <button data-igai="Instagram kommentlarida «qayerdan olsa bo'ladi», «yetkazib berasizmi» deganlarga Direct'da AI javob bersin — qoida qil.">${ik('suhbat', 15)}Yetkazish savollari</button>
+        </div></section>`;
+    $('#ig-q-yangi').onclick = () => igQoidaOyna(null);
+    $$('[data-igq]').forEach((x) => x.onclick = () => igQoidaOyna(qoidalar.find((q) => q.id === Number(x.dataset.igq))));
+    $$('[data-igqf]').forEach((x) => x.onchange = async () => {
+      const q = qoidalar.find((y) => y.id === Number(x.dataset.igqf));
+      await api('/api/admin/ig/qoida', { method: 'POST', body: JSON.stringify({ ...q, faol: x.checked }) });
+      tost(x.checked ? 'Qoida yoqildi' : 'Qoida o‘chirildi'); igQoidalar();
+    });
+    $$('[data-igai]').forEach((x) => x.onclick = () => aiSora(x.dataset.igai));
+  } catch (e) { $('#ig-tan').innerHTML = `<div class="xabar-quti xato">${esc(e.message)}</div>`; }
+}
+
+function igQoidaOyna(q) {
+  modal(q ? 'Qoidani tahrirlash' : 'Yangi qoida', `
+    ${q ? '' : `<div class="chip-satr" style="padding:0 0 6px">${IG_QOLIP.map((x, i) => `<button class="chip" data-qolip="${i}">${esc(x.nom)}</button>`).join('')}</div>`}
+    <label>Nomi</label><input id="qq-nom" value="${esc(q?.nom || '')}" maxlength="80">
+    <label>Kalit so‘zlar<span class="yordam">Vergul bilan: «+, ++» yoki «narx, qancha»</span></label>
+    <input id="qq-kalit" value="${esc((q?.kalitlar || []).join(', '))}">
+    <label class="belgi-qator" style="margin-top:10px"><input type="checkbox" id="qq-aniq" ${q?.aniq ? 'checked' : ''}>Komment AYNAN shu so‘z bo‘lsa (masalan faqat «+»)</label>
+    <label>Ochiq javob variantlari<span class="yordam">Har qatorga bittasi — tasodifiy tanlanadi (bir xil javob spamdek ko‘rinadi)</span></label>
+    <textarea id="qq-javob" rows="3">${esc((q?.javoblar || []).join('\n'))}</textarea>
+    <label>Direct xabari<span class="yordam">{ism} — mijoz nomi, {tg_havola} — Telegram bot havolasi</span></label>
+    <textarea id="qq-dm" rows="4">${esc(q?.dm_matn || '')}</textarea>
+    <label class="belgi-qator" style="margin-top:10px"><input type="checkbox" id="qq-ai" ${q?.dm_ai ? 'checked' : ''}>Direct matnini AI kommentga qarab yozsin</label>
+    <div id="qq-xato" class="xato"></div>
+    <div class="amallar" style="margin-top:14px">
+      ${q ? `<button class="tug xavf" id="qq-ochir">${ik('ochir', 16)}O‘chirish</button>` : ''}
+      <button class="tug asos" id="qq-saqla">Saqlash</button></div>`);
+  $$('[data-qolip]').forEach((x) => x.onclick = () => {
+    const t = IG_QOLIP[Number(x.dataset.qolip)];
+    $('#qq-nom').value = t.nom; $('#qq-kalit').value = t.kalitlar; $('#qq-aniq').checked = Boolean(t.aniq);
+    $('#qq-javob').value = t.javoblar || ''; $('#qq-dm').value = t.dm_matn || ''; $('#qq-ai').checked = Boolean(t.dm_ai);
+  });
+  $('#qq-saqla').onclick = async () => {
+    try {
+      await api('/api/admin/ig/qoida', { method: 'POST', body: JSON.stringify({ id: q?.id, faol: q ? q.faol : true, tartib: q?.tartib,
+        nom: $('#qq-nom').value, kalitlar: $('#qq-kalit').value, aniq: $('#qq-aniq').checked,
+        javoblar: $('#qq-javob').value, dm_matn: $('#qq-dm').value, dm_ai: $('#qq-ai').checked }) });
+      modalYop(); tost('Qoida saqlandi'); igQoidalar();
+    } catch (e) { $('#qq-xato').textContent = e.message; }
+  };
+  q && ($('#qq-ochir').onclick = () => tasdiqla('Qoidani o‘chirish', `«${q.nom}» o‘chadi.`, async () => {
+    await api('/api/admin/ig/qoida', { method: 'DELETE', body: JSON.stringify({ id: q.id }) }); modalYop(); igQoidalar(); }, { xavf: true }));
+}
+
+// ── SOZLAMALAR ──
+function igSozlama() {
+  const h = holat.kesh.ig || {}, s = h.sozlamalar || {};
+  const almash = (k, nom, izoh) => `<label class="ig-almash"><span><b>${nom}</b><small>${izoh}</small></span>
+    <span class="ig-switch"><input type="checkbox" data-igs-k="${k}" ${s[k] ? 'checked' : ''}><span></span></span></label>`;
+  $('#ig-tan').innerHTML = `
+    <div class="ustunlar">
+      <section class="karta">
+        <div class="karta-bosh"><h2>Ulanish</h2><span class="yor ${h.ulangan ? 'yashil' : 'qizil'}">${h.ulangan ? `@${esc(h.username || '')}` : 'ulanmagan'}</span></div>
+        ${h.token_manba === 'env' ? '<p class="mayda">Token Railway → Variables dagi INSTAGRAM_ACCESS_TOKEN dan olinmoqda.</p>' : `
+        <label>Instagram access token<span class="yordam">Meta Developers → ilovangiz → Instagram → API setup → «Generate token»</span></label>
+        <input id="ig-token" type="password" autocomplete="off" placeholder="${h.ulangan ? 'Yangi token (almashtirish uchun)' : 'IGAA…'}">
+        <button class="tug asos keng" id="ig-token-saqla" style="margin-top:10px">${ik('tasdiq', 16)}Tokenni saqlash</button>`}
+        <label>Webhook manzili (Meta’ga kiriting)</label>
+        <div class="ig-nusxa"><code>${esc(h.webhook_url || '')}</code><button class="ik-tugma" data-nusxa="${esc(h.webhook_url || '')}">${ik('nusxa')}</button></div>
+        <label>Verify token</label>
+        <div class="ig-nusxa"><code>${esc(h.verify_token || '')}</code><button class="ik-tugma" data-nusxa="${esc(h.verify_token || '')}">${ik('nusxa')}</button></div>
+        ${h.imzo_sir ? '' : '<div class="xabar-quti ogoh" style="margin:12px 0 0">INSTAGRAM_APP_SECRET berilmagan — webhook imzosi tekshirilmayapti. Railway → Variables ga qo‘shing.</div>'}
+        <button class="tug keng" id="ig-webhook" style="margin-top:12px" ${h.ulangan ? '' : 'disabled'}>${ik('havola', 16)}Webhookni akkauntga ulash</button>
+      </section>
+      <section class="karta">
+        <div class="karta-bosh"><h2>AI boshqaruvchi</h2></div>
+        ${almash('ai_yoqiq', 'Direct’ga AI javob bersin', 'Odamdek qisqa, mijoz tilida; kerak bo‘lsa menejerni chaqiradi')}
+        ${almash('yuz_tahlil', 'Yuz rasmi → bepul tahlil', 'Natijaning muhim qismi xira + Telegram havolasi')}
+        ${almash('komment_qoidalar', 'Komment qoidalari ishlasin', '«+» va kalit so‘zlarga avtomatik javob')}
+        ${almash('komment_mention', 'Javob @username bilan', 'Ochiq javob mijozni belgilab yoziladi')}
+        <div class="ikki" style="margin-top:6px">
+          <div><label>Javobdan oldin kutish (soniya)</label><input id="ig-kech" type="number" min="0" max="60" value="${s.kechikish_soniya ?? 4}"></div>
+          <div><label>Siz yozsangiz AI jim (daqiqa)</label><input id="ig-pz" type="number" min="0" max="1440" value="${s.qolda_pauza_daqiqa ?? 60}"></div>
+        </div>
+      </section>
+    </div>
+    <section class="karta">
+      <div class="karta-bosh"><h2>AI ko‘rsatmasi</h2><button class="tug kichik" id="ig-standart">Standartni qo‘yish</button></div>
+      <textarea id="ig-korsatma" rows="10" placeholder="${esc(h.standart_korsatma || '')}">${esc(s.korsatma || '')}</textarea>
+      <label>Tahlildan keyingi xabar<span class="yordam">Bo‘sh — standart. {ball}, {tavsif}, {soni}, {havola}</span></label>
+      <textarea id="ig-tmatn" rows="3" placeholder="Natijangiz tayyor! ✨ Teri holati: {ball}/100 … {havola}">${esc(s.tahlil_matni || '')}</textarea>
+      <button class="tug asos keng" id="ig-saqla" style="margin-top:12px">${ik('tasdiq', 16)}Saqlash</button>
+    </section>
+    <section class="karta">
+      <div class="karta-bosh"><h2>Sinab ko‘rish</h2><span class="yor kul">hech kimga yuborilmaydi</span></div>
+      <div class="ig-sinov"><input id="ig-sin" placeholder="Mijoz xabari: «Salom, akne uchun nima bor?»">
+        <button class="tug asos" id="ig-sin-t">${ik('ai', 16)}<span>AI javobi</span></button></div>
+      <div id="ig-sin-j"></div>
+    </section>`;
+  $$('#ig-tan [data-nusxa]').forEach((x) => x.onclick = () => nusxaOl(x.dataset.nusxa));
+  $('#ig-token-saqla') && ($('#ig-token-saqla').onclick = async () => {
+    try { const r = await api('/api/admin/ig/token', { method: 'POST', body: JSON.stringify({ token: $('#ig-token').value }) });
+      tost(`Ulandi: @${r.username}`); holat.igTab = 'sozlama'; instagramBolimi(); }
+    catch (e) { tost(e.message, 'xato'); }
+  });
+  $('#ig-webhook').onclick = async () => {
+    try { await api('/api/admin/ig/webhook-ula', { method: 'POST', body: '{}' }); tost('Webhook ulandi: Direct va kommentlar keladi'); }
+    catch (e) { tost(e.message, 'xato'); }
+  };
+  $$('[data-igs-k]').forEach((x) => x.onchange = async () => {
+    await api('/api/admin/ig/sozlama', { method: 'POST', body: JSON.stringify({ [x.dataset.igsK]: x.checked }) });
+    tost('Saqlandi'); const r = await api('/api/admin/ig/holat'); holat.kesh.ig = r;
+  });
+  $('#ig-standart').onclick = () => { $('#ig-korsatma').value = h.standart_korsatma || ''; };
+  $('#ig-saqla').onclick = async () => {
+    try {
+      await api('/api/admin/ig/sozlama', { method: 'POST', body: JSON.stringify({ korsatma: $('#ig-korsatma').value,
+        tahlil_matni: $('#ig-tmatn').value, kechikish_soniya: Number($('#ig-kech').value), qolda_pauza_daqiqa: Number($('#ig-pz').value) }) });
+      tost('Sozlamalar saqlandi'); holat.kesh.ig = await api('/api/admin/ig/holat');
+    } catch (e) { tost(e.message, 'xato'); }
+  };
+  $('#ig-sin-t').onclick = async () => {
+    const b = $('#ig-sin-t'); b.disabled = true;
+    $('#ig-sin-j').innerHTML = '<div class="skelet"></div>';
+    try {
+      const r = await api('/api/admin/ig/sinov', { method: 'POST', body: JSON.stringify({ matn: $('#ig-sin').value || 'Salom, narxlar qancha?',
+        korsatma: $('#ig-korsatma').value }) });
+      $('#ig-sin-j').innerHTML = `<div class="ig-oqim sinov"><div class="ig-xabar u"><p>${esc($('#ig-sin').value || 'Salom, narxlar qancha?')}</p></div>
+        <div class="ig-xabar biz"><p>${esc(r.javob)}</p><small>AI · ${esc(r.niyat)}${r.admin_kerak ? ' · menejer kerak' : ''}</small></div></div>`;
+    } catch (e) { $('#ig-sin-j').innerHTML = `<p class="xato">${esc(e.message)}</p>`; }
+    finally { b.disabled = false; }
+  };
 }
 
 const voronkaQator = (nom, son, asos) => `

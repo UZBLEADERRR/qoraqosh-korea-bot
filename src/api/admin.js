@@ -14,6 +14,8 @@ import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi } from '../ai/
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { config } from '../config.js';
 import * as manba from '../services/manba.js';
+import * as ig from '../services/instagram/index.js';
+import * as igApi from '../services/instagram/api.js';
 import { HOLATLAR, BOSQICHLAR, BEKOR, bosqich } from '../lib/bosqichlar.js';
 import { yubor, tg, tgFayl } from '../bot/tg.js';
 import { esc } from '../bot/format.js';
@@ -274,6 +276,48 @@ export async function adminRoutes(req, res, yol) {
   if (yol === '/api/admin/hisobot' && req.method === 'GET') {
     const davr = new URL(req.url, 'http://x').searchParams.get('davr') || 'hafta';
     return ok(res, await hisobot({ davr }));
+  }
+
+  // ================= INSTAGRAM BOSHQARUVI =================
+  if (yol.startsWith('/api/admin/ig/')) {
+    const q = new URL(req.url, 'http://x').searchParams;
+    const b = req.method === 'GET' ? {} : await tana(req);
+    const javob = (r) => (r?.xato ? xato(res, 400, r.xato) : ok(res, r));
+    const amal = yol.slice('/api/admin/ig/'.length);
+    try {
+      if (amal === 'holat') return ok(res, await ig.igHolat());
+      if (amal === 'token') return javob(await igApi.tokenniSaqla(b.token));
+      if (amal === 'sozlama') return ok(res, { sozlamalar: await ig.sozlamaniSaqla(b) });
+      if (amal === 'webhook-ula') return ok(res, await igApi.webhookniUla());
+      if (amal === 'suhbatlar') return ok(res, { suhbatlar: await ig.suhbatlar({ q: q.get('q') || '', filtr: q.get('filtr') || '' }) });
+      if (amal === 'suhbat' && req.method === 'GET') {
+        const r = await ig.suhbatXabarlari(q.get('id'));
+        return r ? ok(res, r) : xato(res, 404, 'Suhbat topilmadi.');
+      }
+      if (amal === 'suhbat') return javob(await ig.suhbatOzgartir(b.id, b));
+      if (amal === 'yubor') return javob(await ig.qoldaYubor(b.id, b.matn));
+      if (amal === 'ai-javob') return ok(res, { natija: await ig.aiJavobYoz(Number(b.id), { majburiy: true }) });
+      if (amal === 'kommentlar') return ok(res, { kommentlar: await ig.kommentlar({ filtr: q.get('filtr') || '' }) });
+      if (amal === 'komment') return javob(await ig.kommentAmal(b.id, b.amal, b.matn));
+      if (amal === 'qoidalar') return ok(res, { qoidalar: await ig.qoidalar() });
+      if (amal === 'qoida' && req.method === 'DELETE') return ok(res, await ig.qoidaOchir(b.id));
+      if (amal === 'qoida') return javob(await ig.qoidaSaqla(b));
+      if (amal === 'sinxron') return ok(res, await ig.sinxron());
+      // AI qanday javob berishini YUBORMASDAN ko'rish — ko'rsatmani sozlash uchun
+      if (amal === 'sinov') {
+        const { igJavob } = await import('../ai/instagram-suhbat.js');
+        const { faolMahsulotlar } = await import('../services/analysis.js');
+        const st = await ig.igSozlamalari();
+        const tarix = (Array.isArray(b.tarix) ? b.tarix : []).slice(-10)
+          .map((x) => ({ kim: x.kim === 'mijoz' ? 'mijoz' : 'ai', matn: String(x.matn || '').slice(0, 500) }));
+        tarix.push({ kim: 'mijoz', matn: String(b.matn || '').slice(0, 500) });
+        return ok(res, await igJavob({ tarix, korsatma: b.korsatma ?? st.korsatma, mahsulotlar: await faolMahsulotlar(),
+          malumot: { tg_havola: 'https://t.me/...?start=h_ig-direct' } }));
+      }
+    } catch (e) {
+      return xato(res, e.turkum === 'ig_ulanmagan' ? 400 : 502, e.message);
+    }
+    return xato(res, 404, 'Noma’lum Instagram amali.');
   }
 
   // ================= MANBALAR: Instagram, TikTok… =================

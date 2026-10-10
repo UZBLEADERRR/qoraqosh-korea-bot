@@ -39,6 +39,8 @@ import { verifyAdminToken } from './lib/auth.js';
 import { versiyaOl, versiyalaHtml, versiyalanganmi } from './lib/versiya.js';
 import { logoSvg } from './lib/logo.js';
 import { havolaBosildi, avtoTashrif, taklifchiNatijasi } from './services/manba.js';
+import * as instagram from './services/instagram/index.js';
+import { tokenniYangila as igTokenniYangila } from './services/instagram/api.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(__dirname, '..', 'public');
@@ -158,6 +160,29 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (yol === '/healthz') return ok(res, { ok: true, vaqt: new Date().toISOString() });
+
+    // ---------- Instagram webhook (Meta) ----------
+    // GET — Meta manzilni tasdiqlaydi (hub.challenge); POST — Direct va
+    // kommentlar. Javob DARHOL qaytadi: Meta 20 soniyada javob olmasa qayta yuboradi.
+    if (yol === '/instagram/webhook') {
+      if (req.method === 'GET') {
+        const ok2 = url.searchParams.get('hub.mode') === 'subscribe'
+          && url.searchParams.get('hub.verify_token') === await instagram.verifyToken();
+        res.writeHead(ok2 ? 200 : 403, { 'Content-Type': 'text/plain' });
+        return res.end(ok2 ? String(url.searchParams.get('hub.challenge') || '') : 'forbidden');
+      }
+      if (req.method === 'POST') {
+        const xom = await xomTana(req, 2 * 1024 * 1024).catch(() => null);
+        if (!xom || !instagram.imzoTogri(xom, req.headers['x-hub-signature-256'])) {
+          res.writeHead(403).end('imzo'); return;
+        }
+        res.writeHead(200).end('ok');
+        let body = null;
+        try { body = JSON.parse(xom.toString('utf8')); } catch { return; }
+        instagram.webhookKeldi(body).catch((e) => console.error('IG webhook:', e.message));
+        return;
+      }
+    }
 
     // ---------- kiovo.shop → www.kiovo.shop ----------
     // Asosiy manzil www BILAN. Agar «www» siz so'rov qachondir shu serverga
@@ -597,6 +622,16 @@ ${n.faol ? '' : '<p class="y">Bu havola hozir o‘chirilgan.</p>'}
 </div></body></html>`;
 }
 
+/** Xom tana (imzo tekshirish uchun bayt-baytga kerak). */
+function xomTana(req, maks) {
+  return new Promise((hal, rad) => {
+    const b = []; let n = 0;
+    req.on('data', (c) => { n += c.length; if (n > maks) { rad(new Error('katta')); req.destroy(); } else b.push(c); });
+    req.on('end', () => hal(Buffer.concat(b)));
+    req.on('error', rad);
+  });
+}
+
 const redirect = (res, joy) => { res.writeHead(302, { Location: joy }); res.end(); };
 
 // ============================================================
@@ -668,6 +703,8 @@ async function boshla() {
     // Yarim qolgan ommaviy import — deploy yoki qayta ishga tushishdan
     // keyin o'zi davom etadi, admin qaytadan boshlamaydi
     jadvalniIshgaTushir();  // avtomatik import (jadval yoqilgan bo'lsa)
+    // Instagram tokeni 60 kun yashaydi — kuniga bir marta uzaytiramiz
+    setInterval(() => igTokenniYangila().catch((e) => console.error('IG token:', e.message)), 24 * 3600e3).unref();
     vazifaniTiklash()
       .then((v) => v && console.log(`   Import davom etmoqda: #${v.id} (${v.qoshilgan}/${v.maqsad})`))
       .catch((e) => console.error('Importni tiklashda xato:', e.message));

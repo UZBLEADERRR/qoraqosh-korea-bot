@@ -930,3 +930,132 @@ details.filtr label:first-child{margin-top:0}
 .kn-qator b{flex:1 1 140px;font-size:14px}
 .kn-natija{border:0;background:none;color:var(--och);font-size:12.5px;cursor:pointer;display:inline-flex;gap:5px;align-items:center}
 .kn-natija:hover{color:var(--matn)}
+
+/* ═════════ INSTAGRAM ═════════ */
+.ig-ulash{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  background:linear-gradient(135deg,color-mix(in srgb,#d62976 12%,var(--panel)),color-mix(in srgb,#feda75 14%,var(--panel)))}
+.ig-ulash-bosh{flex:1;display:flex;gap:12px;align-items:center;min-width:220px}
+.ig-ulash p{margin:2px 0 0;color:var(--kul);font-size:13.5px}
+.ig-logo{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;color:#fff;flex:0 0 auto;
+  background:linear-gradient(45deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5)}
+.ig-tablar .davr button{display:inline-flex;align-items:center;gap:6px}
+.ig-son{font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:99px;background:var(--urgu);color:#fff;
+  font-size:10.5px;font-weight:800;display:inline-grid;place-items:center}
+.ig-son.kul{background:var(--chiziq);color:var(--kul)} .ig-son.sariq{background:var(--sariq);color:#fff}
+.davr button.faol .ig-son.kul{background:color-mix(in srgb,var(--panel) 25%,transparent);color:var(--panel)}
+.ig-holat{font-size:12.5px;color:var(--och);font-weight:600}
+.ig-holat.ok{color:var(--yashil)}
+@media (max-width:560px){ .ig-tablar .davr{width:100%;overflow-x:auto} .ig-tablar .davr button span{display:none}
+  .ig-tablar .davr button.faol span{display:inline} .ig-holat{display:none} }
+
+/* Inbox: ro'yxat + chat */
+.ig-inbox{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;padding:0 16px}
+.ig-inbox>.karta{margin:0}
+@container ish (min-width:820px){
+  .ig-inbox{grid-template-columns:minmax(260px,340px) minmax(0,1fr);height:calc(100dvh - 300px);min-height:520px}
+  .ig-royxat,.ig-chat{height:100%;min-height:0}
+  .ig-orqaga{display:none!important}
+}
+@container ish (max-width:819px){
+  .ig-inbox.chat-ochiq .ig-royxat{display:none}
+  .ig-inbox:not(.chat-ochiq) .ig-chat{display:none}
+  .ig-chat{height:calc(100dvh - 210px);min-height:440px}
+}
+.ig-royxat{display:flex;flex-direction:column;padding:12px}
+.ig-royxat .qidir-joy{flex:0 0 auto;height:40px}
+.ig-filtr{padding:8px 0 6px;flex:0 0 auto}
+#ig-suhbatlar{flex:1;min-height:0;overflow-y:auto;margin:0 -6px;max-height:70dvh}
+.ig-qator{display:flex;align-items:center;gap:10px;width:100%;padding:9px 8px;border:0;border-radius:12px;background:none;
+  color:var(--matn);cursor:pointer;text-align:left}
+.ig-qator:hover{background:var(--fon)}
+.ig-qator.tanlangan{background:var(--urgu-och)}
+.ig-avatar{position:relative;flex:0 0 42px;width:42px;height:42px;border-radius:50%;overflow:hidden;display:grid;place-items:center;
+  font-weight:800;color:#fff;background:linear-gradient(45deg,#fa7e1e,#d62976,#962fbf)}
+.ig-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ig-avatar.kichik{flex-basis:32px;width:32px;height:32px;font-size:13px}
+.ig-qator-tan{flex:1;min-width:0;display:flex;flex-direction:column}
+.ig-qator-tan b{font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ig-qator-tan span{font-size:12.5px;color:var(--och);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ig-qator.yangi .ig-qator-tan span{color:var(--matn);font-weight:600}
+.ig-qator-ong{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.ig-qator-ong em{font-style:normal;font-size:11.5px;color:var(--och)}
+.ig-yor{font-style:normal;font-size:10.5px;font-weight:700;color:var(--och);background:var(--fon);padding:1px 6px;border-radius:99px;
+  display:inline-flex;align-items:center}
+.ig-yor.yashil{color:var(--yashil);background:var(--yashil-och)}
+.ig-bosh-holat{height:100%;display:grid;place-content:center;justify-items:center;gap:6px;text-align:center;color:var(--och);
+  padding:40px 16px;font-size:13.5px}
+.ig-bosh-holat b{color:var(--matn);font-size:15px}
+.ig-bosh-holat.kichik{padding:24px 10px;height:auto}
+
+.ig-chat{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.ig-chat-bosh{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--chiziq)}
+.ig-chat-nom{flex:1;min-width:0;display:grid}
+.ig-chat-nom b{font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ig-chat-nom span{font-size:12px;color:var(--och);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ig-ogoh{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--sariq-och);color:var(--sariq);font-size:13px;font-weight:600}
+.ig-ogoh span{flex:1}
+.ig-ogoh.kul{background:var(--fon);color:var(--kul)}
+.ig-oqim{flex:1;min-height:0;overflow-y:auto;padding:14px 12px;display:flex;flex-direction:column;gap:6px;background:var(--panel2)}
+.ig-oqim.sinov{border-radius:12px;margin-top:12px;border:1px solid var(--chiziq)}
+.ig-xabar{max-width:78%;padding:9px 12px;border-radius:18px;font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+.ig-xabar p{margin:0;white-space:pre-line}
+.ig-xabar small{display:block;margin-top:4px;font-size:10.5px;opacity:.7}
+.ig-xabar img{display:block;max-width:220px;width:100%;border-radius:12px;margin:0 0 4px}
+.ig-xabar.u{align-self:flex-start;background:var(--panel);border:1px solid var(--chiziq);border-bottom-left-radius:6px}
+.ig-xabar.biz{align-self:flex-end;color:#fff;border-bottom-right-radius:6px;background:linear-gradient(135deg,#7b3fe4,#d62976)}
+.ig-xabar.xato{background:var(--qizil-och);color:var(--qizil);border:1px solid color-mix(in srgb,var(--qizil) 35%,transparent)}
+.ig-yozish{display:flex;gap:6px;align-items:flex-end;padding:10px;border-top:1px solid var(--chiziq);background:var(--panel)}
+.ig-yozish textarea{flex:1;resize:none;min-height:44px;max-height:120px;border-radius:22px;padding:11px 14px;background:var(--fon);font-size:14.5px}
+.ig-yozish .y-yubor{background:linear-gradient(135deg,#7b3fe4,#d62976)}
+
+/* Almashtirgich */
+.ig-switch{display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin:0;font-size:12.5px;font-weight:700;color:var(--kul)}
+.ig-switch input{position:absolute;opacity:0;width:1px;height:1px}
+.ig-switch>span{width:40px;height:24px;border-radius:99px;background:var(--chiziq);position:relative;transition:background .2s;flex:0 0 auto}
+.ig-switch>span::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.ig-switch input:checked+span{background:var(--yashil)}
+.ig-switch input:checked+span::after{transform:translateX(16px)}
+.ig-almash{display:flex;align-items:center;gap:12px;padding:10px 0;margin:0;border-top:1px solid var(--chiziq);cursor:pointer}
+.ig-almash:first-of-type{border-top:0}
+.ig-almash>span:first-child{flex:1}
+.ig-almash b{display:block;font-size:14px}
+.ig-almash small{display:block;font-size:12px;color:var(--och);font-weight:400}
+
+/* Kommentlar */
+.ig-k-royxat{padding:4px 16px}
+.ig-k{display:flex;gap:10px;padding:12px 0;border-top:1px solid var(--chiziq)}
+.ig-k:first-child{border-top:0}
+.ig-k.yashirin-k{opacity:.55}
+.ig-k-tan{flex:1;min-width:0}
+.ig-k-bosh{display:flex;justify-content:space-between;gap:8px}
+.ig-k-bosh b{font-size:13.5px} .ig-k-bosh em{font-style:normal;font-size:11.5px;color:var(--och)}
+.ig-k-tan p{margin:2px 0 6px;font-size:14px;white-space:pre-line}
+.ig-k-teg{display:flex;gap:5px;flex-wrap:wrap}
+.ig-k-teg .yor{gap:4px}
+.ig-k-javob{display:flex;gap:6px;align-items:flex-start;margin-top:6px;padding:7px 10px;border-radius:10px;background:var(--fon);
+  font-size:13px;color:var(--kul)}
+.ig-k-javob .ik{transform:scaleX(-1) rotate(-90deg);margin-top:2px}
+.ig-k-amal{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.ig-k-amal button{border:0;background:none;color:var(--kul);font-size:12.5px;font-weight:700;padding:4px 8px;border-radius:8px;cursor:pointer}
+.ig-k-amal button:hover{background:var(--fon);color:var(--matn)}
+.ig-k-amal button.xavf{color:var(--qizil)}
+
+/* Qoidalar */
+.ig-qoidalar{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding:0 16px;margin-bottom:14px}
+.ig-qoidalar>.karta{margin:0}
+@container ish (min-width:760px){.ig-qoidalar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ig-qoida.ochiq-emas{opacity:.6}
+.ig-kalitlar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.ig-kalitlar span{padding:3px 10px;border-radius:8px;background:var(--urgu-och);color:var(--urgu);font-weight:800;font-size:13px}
+.ig-kalitlar em{font-style:normal;font-size:12px;color:var(--och)}
+.ig-qoida-q{display:flex;flex-direction:column;gap:6px;margin:12px 0;font-size:13px;color:var(--kul)}
+.ig-qoida-q div{display:flex;gap:7px;align-items:flex-start}
+.ig-qoida-q .ik{margin-top:2px;flex:0 0 auto}
+.ig-qoida-past{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--och)}
+
+/* Sozlamalar */
+.ig-nusxa{display:flex;align-items:center;gap:6px;border:1px solid var(--chiziq);border-radius:10px;padding:4px 4px 4px 10px;background:var(--panel2)}
+.ig-nusxa code{flex:1;min-width:0;border:0;background:none;padding:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
+.ig-sinov{display:flex;gap:8px;flex-wrap:wrap}
+.ig-sinov input{flex:1 1 220px}

@@ -22,6 +22,7 @@ import { eksportHajmi, BOLIMLAR as EKSPORT_BOLIMLAR } from './eksport.js';
 import { sqlOqi, sqlYoz, sxema } from './admin-sql.js';
 import { BIZNES_VOSITALAR, biznesOldindanSoni } from './admin-vositalar-biznes.js';
 import { MARJA_VOSITALAR, marjaOldindanSoni } from './admin-marja.js';
+import { IG_VOSITALAR } from './admin-instagram-vositalar.js';
 import { kartochkaSozlamasi, kartochkaniQosh, BLOKLAR, BLOK_NOMI,
          KARTOCHKA_STANDART } from '../lib/kartochka.js';
 
@@ -1122,6 +1123,7 @@ export const VOSITALAR = {
   },
   ...BIZNES_VOSITALAR,
   ...MARJA_VOSITALAR,
+  ...IG_VOSITALAR,
   mavzu_ozgartir: {
     oqish: false, ishla: mavzuOzgartir,
     tavsif: 'Ilova ranglarini o‘zgartiradi. Avval «mavzu» bilan kontrastni '
