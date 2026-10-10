@@ -151,6 +151,9 @@ export const matnYubor = (igsid, matn) => eslabYubor({ igsid: String(igsid), mat
   ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, message: { text: String(matn).slice(0, 1000) } } }));
 export const rasmYubor = (igsid, url) => eslabYubor({ igsid: String(igsid), rasm: url }, () =>
   ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, message: { attachment: { type: 'image', payload: { url } } } } }));
+/** «Ko'rildi» — odam xabarni o'qigandek. */
+export const korildi = (igsid) =>
+  ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, sender_action: 'mark_seen' } }).catch(() => null);
 export const yozmoqda = (igsid) =>
   ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, sender_action: 'typing_on' } }).catch(() => null);
 /** Kommentga Direct orqali «shaxsiy javob» (7 kun ichida, bitta xabar). */

@@ -11,7 +11,7 @@
 //   Admin o'zi yozsa (panel yoki Instagram ilovasi) — AI shu suhbatda
 //   vaqtincha jim turadi: ikki «sotuvchi» bir-birining gapini bo'lmasin.
 import crypto from 'node:crypto';
-import { qator, qatorlar, sorov, sozlama, sozlamalarniUnut } from '../../db.js';
+import { qator, qatorlar, qiymat, sorov, sozlama, sozlamalarniUnut } from '../../db.js';
 import { config } from '../../config.js';
 import * as api from './api.js';
 import * as diag from './diag.js';
@@ -27,6 +27,25 @@ export const STANDART = {
   kechikish_soniya: 4,         // mijoz ketma-ket yozsa — oxirgisidan keyin javob
   qolda_pauza_daqiqa: 60,      // admin yozsa AI shuncha jim
   tahlil_matni: '',            // tahlildan keyingi xabar (bo'sh — standart)
+  tahlil_xabari: 'qisqa',      // rasmdan keyin: qisqa (natija + havola) | yoq (faqat rasm) | mahsulotlar
+  yozish_tezligi: 'tabiiy',    // tabiiy | sekin | tez — «yozmoqda…» va javob vaqti
+  korildi: true,               // xabar «ko'rildi» bo'ladi (odam o'qigandek)
+  bilim: '',                   // do'kon haqida FAQ: manzil, yetkazish muddati, kafolat… (AI shunga tayanadi)
+  eslatma: true,               // tahlildan keyin Telegramga o'tmaganlarga bitta yumshoq eslatma
+  eslatma_soat: 3,
+  spam_yashir: true,           // havola/haqoratli kommentlar avtomatik yashiriladi
+  tez_javoblar: [
+    'Assalomu alaykum, eshitaman',
+    'yuzingizni yorug\' joyda bitta rasmga olib tashlang, bepul tahlil qilib beraman',
+    'buyurtmani telegram botimiz orqali qilasiz, oson',
+    'yetkazib berish butun o\'zbekiston bo\'ylab pochta orqali',
+    'to\'lov kartaga o\'tkazma, chekni botga tashlaysiz',
+    'rahmat, sizni kutib qolamiz 😊',
+  ],
+};
+const TANLOVLAR = {
+  tahlil_xabari: ['qisqa', 'yoq', 'mahsulotlar'],
+  yozish_tezligi: ['tabiiy', 'sekin', 'tez'],
 };
 
 const son = (v, z = 0) => (Number.isFinite(Number(v)) ? Number(v) : z);
@@ -42,6 +61,12 @@ export async function sozlamaniSaqla(qism = {}) {
   const yangi = { ...joriy };
   for (const [k, v] of Object.entries(qism)) {
     if (!(k in STANDART)) continue;
+    if (TANLOVLAR[k]) { if (TANLOVLAR[k].includes(v)) yangi[k] = v; continue; }
+    if (Array.isArray(STANDART[k])) {
+      const r = Array.isArray(v) ? v : String(v ?? '').split('\n');
+      yangi[k] = r.map((x) => matn(x, 300)).filter(Boolean).slice(0, 30);
+      continue;
+    }
     yangi[k] = typeof STANDART[k] === 'boolean' ? v === true || v === 'true'
       : typeof STANDART[k] === 'number' ? Math.max(0, Math.min(1440, son(v, STANDART[k]))) : matn(v, 6000);
   }
@@ -129,10 +154,10 @@ async function suhbatOl(igsid) {
   return s;
 }
 
-async function xabarYoz(suhbatId, { yonalish, kim, matn: m = null, rasm = null, mid = null, xato = null }) {
+async function xabarYoz(suhbatId, { yonalish, kim, matn: m = null, rasm = null, mid = null, xato = null, niyat = null, javob_ms = null }) {
   const r = await qator(
-    `insert into ig_xabarlar (suhbat_id, yonalish, kim, matn, rasm_url, mid, xato) values ($1,$2,$3,$4,$5,$6,$7)
-     on conflict (mid) do nothing returning *`, [suhbatId, yonalish, kim, m, rasm, mid, xato]);
+    `insert into ig_xabarlar (suhbat_id, yonalish, kim, matn, rasm_url, mid, xato, niyat, javob_ms) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+     on conflict (mid) do nothing returning *`, [suhbatId, yonalish, kim, m, rasm, mid, xato, niyat, javob_ms]);
   if (r) {
     await sorov(`update ig_suhbatlar set oxirgi_at = now(), oxirgi_matn = $2,
         oqilmagan = oqilmagan + $3, oxirgi_kiruvchi = case when $4 then now() else oxirgi_kiruvchi end where id = $1`,
@@ -167,14 +192,20 @@ async function xabarKeldi(ev, bizniki) {
   if (!igsid || igsid === bizniki) return;
   await diag.belgila('xabar');
   const s = await suhbatOl(igsid);
-  const rasmlar = (msg.attachments || []).filter((a) => a.type === 'image' && a.payload?.url).map((a) => a.payload.url);
-  const yangi = await xabarYoz(s.id, { yonalish: 'kiruvchi', kim: 'mijoz', matn: msg.text || null, mid: msg.mid,
-    rasm: rasmlar[0] || (msg.attachments?.[0]?.payload?.url ?? null) });
+  const ilova = msg.attachments || [];
+  const rasmlar = ilova.filter((a) => a.type === 'image' && a.payload?.url).map((a) => a.payload.url);
+  // Matnsiz ilovalar AI uchun tushunarli izohga aylanadi (ovozli, story, post…)
+  const IZOH = { audio: '(ovozli xabar yubordi)', video: '(video yubordi)', story_mention: '(sizni storysida belgiladi)',
+    share: '(post ulashdi)', ig_reel: '(reels ulashdi)', reel: '(reels ulashdi)', file: '(fayl yubordi)' };
+  let m = msg.text || ilova.map((a) => IZOH[a.type]).filter(Boolean)[0] || null;
+  if (m && msg.reply_to?.story) m = `(storyingizga javob) ${m}`;
+  const yangi = await xabarYoz(s.id, { yonalish: 'kiruvchi', kim: 'mijoz', matn: m, mid: msg.mid,
+    rasm: rasmlar[0] || (ilova[0]?.payload?.url ?? null) });
   if (!yangi) return;                                     // takroriy webhook
 
   const st = await igSozlamalari();
   if (rasmlar.length && st.yuz_tahlil) return rasmniTahlilQil(s.id, rasmlar[0]);
-  if (msg.text || msg.attachments?.length) return javobniRejalashtir(s.id);
+  if (m || ilova.length) return javobniRejalashtir(s.id);
 }
 
 // Mijoz ketma-ket 3 ta xabar yozsa — uchtasiga bitta javob (odam ham shunday qiladi)
@@ -253,7 +284,71 @@ async function tarixi(suhbatId) {
 }
 
 /** AI javobi — barcha shartlar tekshiriladi (o'chiq, pauza, admin yozdi…). */
+const kut = (ms) => (ms > 0 && globalThis.IG_KECHIKISH_MS !== 0 ? new Promise((ok) => setTimeout(ok, ms)) : Promise.resolve());
+
+/** AI uchun to'liq kontekst: tarix, katalog, tahlil, do'kon bilimi. */
+async function javobKonteksti(s, st) {
+  const { faolMahsulotlar } = await import('../analysis.js');
+  const { uslubUrugi } = await import('../../ai/instagram-suhbat.js');
+  const katalog = await faolMahsulotlar();
+  const t = s.tahlil_token ? await tahlilMalumoti(s.tahlil_token, katalog).catch(() => null) : null;
+  return {
+    tarix: await tarixi(s.id), korsatma: st.korsatma, mahsulotlar: katalog,
+    malumot: { ism: s.ism || s.username || '', tg_havola: await botHavolasi('h_ig-direct'),
+      ...(await dokonHavolalari()), dokon: await dokonBilimi().catch(() => ''), bilim: st.bilim || '',
+      izoh: s.izoh || '', urug: uslubUrugi(s.igsid),
+      tahlil: t ? tahlilMatni(t) : '', tahlil_soz: t ? t.tahlil.muammolar.map((m) => m.nom).join(' ') : '',
+      tahlil_havola: t ? await botHavolasi(`n_${s.tahlil_token}`) : '' },
+  };
+}
+
+/** Oxirgi kiruvchi xabar id — javob yozilayotganda mijoz yana yozdimi, shu bilan bilinadi. */
+const oxirgiKiruvchi = async (id) => Number(await qiymat(
+  `select coalesce(max(id), 0) from ig_xabarlar where suhbat_id = $1 and yonalish = 'kiruvchi'`, [id]) || 0);
+
+/**
+ * Javobni ODAMDEK yuboradi: «ko'rildi» → «yozmoqda…» → har qism o'z
+ * vaqtida, alohida xabar bo'lib. Yozib turgan paytda mijoz yana yozsa —
+ * to'xtaydi ({uzildi:true}): odam ham yangi xabarni o'qib, javobini
+ * o'zgartiradi.
+ */
+async function odamdekYubor(s, javob, kim, { niyat = null, st = null, kiruvchiId = null, birinchi = true } = {}) {
+  const { qismlarga, yozishVaqti } = await import('../../ai/instagram-suhbat.js');
+  st ||= await igSozlamalari();
+  const qismlar = qismlarga(javob);
+  const yangi = await qator(`select oxirgi_kiruvchi from ig_suhbatlar where id = $1`, [s.id]);
+  const javobVaqti = () => (yangi?.oxirgi_kiruvchi ? Date.now() - new Date(yangi.oxirgi_kiruvchi).getTime() : null);
+  for (let i = 0; i < qismlar.length; i++) {
+    api.yozmoqda(s.igsid);
+    let qoldi = yozishVaqti(qismlar[i], { birinchi: birinchi && i === 0, tezlik: st.yozish_tezligi });
+    // «yozmoqda…» belgisi Instagram'da ~20 soniyada o'chadi — yangilab turamiz
+    while (qoldi > 0) { const b = Math.min(qoldi, 9000); await kut(b); qoldi -= b; if (qoldi > 0) api.yozmoqda(s.igsid); }
+    if (kiruvchiId !== null && await oxirgiKiruvchi(s.id) > kiruvchiId) return { uzildi: true, yuborildi: i };
+    await yuborVaYoz(s, qismlar[i], kim, { niyat: i === 0 ? niyat : null, javob_ms: i === 0 && kim !== 'eslatma' ? javobVaqti() : null });
+  }
+  return { uzildi: false, yuborildi: qismlar.length };
+}
+
+// Bitta suhbatda bir vaqtda bitta javob: ikkinchisi navbat kutadi
+const band = new Map();
+
+/** AI javobi — barcha shartlar tekshiriladi (o'chiq, pauza, admin yozdi…). */
 export async function aiJavobYoz(suhbatId, { majburiy = false } = {}) {
+  if (band.has(suhbatId)) { band.get(suhbatId).qayta = true; return null; }
+  const h = { qayta: false };
+  band.set(suhbatId, h);
+  try {
+    let r = null;
+    for (let urinish = 0; urinish < 3; urinish++) {
+      h.qayta = false;
+      r = await birJavob(suhbatId, { majburiy });
+      if (!r?.uzildi && !h.qayta) break;
+    }
+    return r;
+  } finally { band.delete(suhbatId); }
+}
+
+async function birJavob(suhbatId, { majburiy = false } = {}) {
   const s = await qator(`select * from ig_suhbatlar where id = $1`, [suhbatId]);
   if (!s) return null;
   const st = await igSozlamalari();
@@ -261,22 +356,15 @@ export async function aiJavobYoz(suhbatId, { majburiy = false } = {}) {
     if (!st.ai_yoqiq || !s.ai_yoqiq) return null;
     if (s.ai_pauza_gacha && new Date(s.ai_pauza_gacha) > new Date()) return null;
   }
-  const { faolMahsulotlar } = await import('../analysis.js');
   const { igJavob } = await import('../../ai/instagram-suhbat.js');
-  const katalog = await faolMahsulotlar();
-  const t = s.tahlil_token ? await tahlilMalumoti(s.tahlil_token, katalog).catch(() => null) : null;
-  api.yozmoqda(s.igsid);
-  const sorovi = {
-    tarix: await tarixi(s.id), korsatma: st.korsatma, mahsulotlar: katalog,
-    malumot: { ism: s.ism || s.username || '', tg_havola: await botHavolasi('h_ig-direct'),
-      ...(await dokonHavolalari()),
-      tahlil: t ? tahlilMatni(t) : '', tahlil_soz: t ? t.tahlil.muammolar.map((m) => m.nom).join(' ') : '',
-      tahlil_havola: t ? await botHavolasi(`n_${s.tahlil_token}`) : '' },
-  };
+  const kiruvchiId = await oxirgiKiruvchi(s.id);
+  // Odam avval o'qiydi: «ko'rildi»
+  if (st.korildi) { await kut(st.yozish_tezligi === 'tez' ? 300 : 700 + Math.random() * 1800); api.korildi(s.igsid); }
+  const sorovi = await javobKonteksti(s, st);
   let r;
   try {
     r = await igJavob(sorovi).catch(async () => {          // bir marta qayta urinish (provayder vaqtincha band)
-      await new Promise((ok) => setTimeout(ok, globalThis.IG_KECHIKISH_MS === 0 ? 0 : 2000));
+      await kut(2000);
       return igJavob(sorovi);
     });
   } catch (e) {
@@ -284,16 +372,15 @@ export async function aiJavobYoz(suhbatId, { majburiy = false } = {}) {
     await diag.belgila('ai_xato', e.message);
     // Mijoz jimlikda qolmasin: menejer chaqiriladi va odamga shu aytiladi
     await sorov(`update ig_suhbatlar set admin_kerak = true where id = $1`, [s.id]);
-    await yuborVaYoz(s, 'Xabaringizni oldim, hozir menejerimiz javob beradi 🙏', 'ai').catch(() => {});
+    await yuborVaYoz(s, 'xabaringizni oldim, hozir menejerimiz javob beradi 🙏', 'ai').catch(() => {});
     await adminlargaXabar(`📸 <b>Instagram</b>: AI ${s.username ? '@' + s.username : 'mijoz'}ga javob bera olmadi — `
       + `menejer yozsin.\nSabab: ${String(e.message).slice(0, 200)}\nAdmin panel → Instagram → Direct`, 'ai_xato').catch(() => {});
     return null;
   }
   if (!r.javob) return null;
-  // Odamdek: uzun javob biroz «yoziladi» (sinovda — darhol)
-  const pauza = globalThis.IG_KECHIKISH_MS === 0 ? 0 : Math.min(4000, 600 + r.javob.length * 25);
-  if (pauza) await new Promise((ok) => setTimeout(ok, pauza));
-  await yuborVaYoz(s, r.javob, 'ai');
+  const y = await odamdekYubor(s, r.javob, 'ai', { niyat: r.niyat, st, kiruvchiId });
+  if (y.uzildi) return { ...r, uzildi: true };
+  await sorov(`update ig_suhbatlar set oxirgi_niyat = $2 where id = $1`, [s.id, r.niyat]);
   if (r.admin_kerak && !s.admin_kerak) {
     await sorov(`update ig_suhbatlar set admin_kerak = true where id = $1`, [s.id]);
     await adminlargaXabar(`📸 <b>Instagram</b>: ${s.username ? '@' + s.username : 'mijoz'} bilan suhbatga menejer kerak.\n`
@@ -303,11 +390,52 @@ export async function aiJavobYoz(suhbatId, { majburiy = false } = {}) {
   return r;
 }
 
-async function yuborVaYoz(s, m, kim) {
+/** Admin uchun AI qoralamasi — YUBORILMAYDI, faqat matn qaytadi. */
+export async function qoralama(id) {
+  const s = await qator(`select * from ig_suhbatlar where id = $1`, [Number(id)]);
+  if (!s) return { xato: 'Suhbat topilmadi.' };
+  const { igJavob } = await import('../../ai/instagram-suhbat.js');
+  const r = await igJavob(await javobKonteksti(s, await igSozlamalari()));
+  return { javob: r.javob, niyat: r.niyat, admin_kerak: r.admin_kerak };
+}
+
+// Do'kon bilimi — bazadan yig'iladi (brendlar, toifalar, aksiya, ko'p sotilganlar,
+// yetkazish tarifi). 10 daqiqa keshda: har xabarga qayta so'rov shart emas.
+let bilimKesh = null;
+export async function dokonBilimi() {
+  if (bilimKesh && Date.now() - bilimKesh.vaqt < 10 * 60_000) return bilimKesh.matn;
+  const [jami, brendlar, toifalar, aksiya, top, filial, uy] = await Promise.all([
+    qator(`select count(*)::int as n, min(price)::int as min, max(price)::int as max from products where is_active and stock > 0`),
+    qatorlar(`select brand, count(*)::int as n from products where is_active and stock > 0 and brand is not null and brand <> ''
+      group by brand order by n desc limit 25`),
+    qatorlar(`select c.name, count(p.id)::int as n from categories c join products p on p.category_id = c.id and p.is_active
+      group by c.name order by n desc limit 12`).catch(() => []),
+    qatorlar(`select coalesce(nom_uz, name) as nom, brand, price, old_price from products
+      where is_active and stock > 0 and old_price > price order by (old_price - price) desc limit 8`),
+    qatorlar(`select coalesce(nom_uz, name) as nom, brand, price from products
+      where is_active and stock > 0 order by sold_count desc nulls last limit 8`),
+    sozlama('tarif_filial_1kg', 7000).catch(() => 7000), sozlama('tarif_uy_1kg', 15000).catch(() => 15000),
+  ]);
+  const nom = (x) => `${x.brand ? x.brand + ' ' : ''}${x.nom}`;
+  const matnB = [
+    `- Katalog: ${jami?.n || 0} ta mahsulot sotuvda, narxlar ${jami?.min || 0} — ${jami?.max || 0} so'm.`,
+    brendlar.length ? `- Brendlar: ${brendlar.map((b) => b.brand).join(', ')}.` : '',
+    toifalar.length ? `- Toifalar: ${toifalar.map((t) => t.name).join(', ')}.` : '',
+    aksiya.length ? `- Hozirgi aksiyalar: ${aksiya.map((x) => `${nom(x)} ${x.price} (eski ${x.old_price})`).join('; ')}.` : '',
+    top.length ? `- Ko'p sotilganlar: ${top.map((x) => `${nom(x)} ${x.price}`).join('; ')}.` : '',
+    `- Yetkazish narxi taxminan: pochta filialigacha 1 kg ${filial} so'm, uygacha ${uy} so'm (og'irlikka qarab o'zgaradi).`,
+  ].filter(Boolean).join('\n');
+  bilimKesh = { matn: matnB, vaqt: Date.now() };
+  return matnB;
+}
+export const bilimniUnut = () => { bilimKesh = null; };
+
+async function yuborVaYoz(s, m, kim, { niyat = null, javob_ms = null } = {}) {
   try {
     const j = await api.matnYubor(s.igsid, m);
     await diag.belgila('yuborildi');
-    return xabarYoz(s.id, { yonalish: 'chiquvchi', kim, matn: m, mid: j.message_id || null });
+    return xabarYoz(s.id, { yonalish: 'chiquvchi', kim, matn: m, mid: j.message_id || null, niyat,
+      javob_ms: Number.isFinite(javob_ms) ? Math.min(2e9, Math.round(javob_ms)) : null });
   } catch (e) {
     await xabarYoz(s.id, { yonalish: 'chiquvchi', kim, matn: m, xato: e.message.slice(0, 300) });
     await diag.belgila('yuborish_xato', e.message);
@@ -335,13 +463,13 @@ async function adminlargaXabar(html, tur = '') {
 // ─────────────────── YUZ RASMI → NATIJA VA TAVSIYA ───────────────────
 
 const RAD_MATN = {
-  xira: 'Rasm biroz xira chiqibdi 🙏 Yorug‘ joyda, kamerani yuzingizga to‘g‘ri tutib yana bitta yuboring.',
-  qorongi: 'Rasm qorong‘iroq chiqibdi — deraza yonida, kunduzgi yorug‘likda yana bitta yuboring 🙏',
-  uzoq: 'Yuzingiz uzoqda qolibdi — yaqinroqdan, yuz kadrni to‘ldirib tursin.',
-  yopiq: 'Yuzingiz biroz yopiq qolibdi (soch/ko‘zoynak) — ochiq holda yana bitta yuboring 🙏',
-  bir_nechta: 'Rasmda bir nechta odam bor — faqat o‘zingiz tushgan rasmni yuboring.',
-  pardoz: 'Pardoz teri holatini yashirib qo‘yadi — iloji bo‘lsa pardozsiz rasm yuboring, aniqroq chiqadi.',
-  sunday: 'Bu rasm filtr yoki AI bilan ishlanganga o‘xshaydi — oddiy kamera bilan olingan rasm yuboring.',
+  xira: 'rasm biroz xira chiqibdi, yorug\' joyda kamerani yuzga to\'g\'ri tutib yana bitta tashlang',
+  qorongi: 'qorong\'iroq chiqibdi, deraza yonida kunduzgi yorug\'likda yana bitta tashlang',
+  uzoq: 'yuzingiz uzoqda qolibdi, yaqinroqdan oling, yuz kadrni to\'ldirsin',
+  yopiq: 'yuzingiz biroz yopiq qolibdi (soch yoki ko\'zoynak), ochiq holda yana bitta tashlang',
+  bir_nechta: 'rasmda bir nechta odam bor, faqat o\'zingiz tushgan rasmni tashlang',
+  pardoz: 'pardoz terini yashirib qo\'yadi, iloji bo\'lsa pardozsiz rasm tashlang, aniqroq chiqadi',
+  sunday: 'bu rasm filtrli yoki ishlangan ko\'rinyapti, oddiy kamerada olingan rasm kerak',
 };
 
 export async function rasmniTahlilQil(suhbatId, url) {
@@ -350,10 +478,12 @@ export async function rasmniTahlilQil(suhbatId, url) {
   if (!s) return null;
   const pauzada = !st.ai_yoqiq || !s.ai_yoqiq || (s.ai_pauza_gacha && new Date(s.ai_pauza_gacha) > new Date());
   if (pauzada) return null;                               // admin suhbatni o'zi olib boryapti
-  const kutMatn = ['Oldim, hozir ko‘rib chiqaman — yarim daqiqacha kuting.',
-    'Rasm keldi, teringizni tahlil qilyapman. Bir daqiqa.',
-    'Ko‘ryapman, 30 soniyacha vaqt bering.'][Math.floor(Math.random() * 3)];
-  await yuborVaYoz(s, kutMatn, 'tahlil').catch(() => {});
+  const { uslubUrugi, insonlashtir } = await import('../../ai/instagram-suhbat.js');
+  const urug = uslubUrugi(s.igsid);
+  const kutMatn = ['oldim, hozir qarab beraman', 'ok, bir daqiqa tahlil qilib beraman',
+    'rasm keldi, hozir ko\'rib chiqaman', 'qarayapman, yarim daqiqa'][Math.floor(Math.random() * 4)];
+  if (st.korildi) { await kut(500 + Math.random() * 1200); api.korildi(s.igsid); }
+  await odamdekYubor(s, insonlashtir(kutMatn, urug), 'tahlil', { st }).catch(() => {});
   api.yozmoqda(s.igsid);
 
   let base64, mime;
@@ -365,7 +495,7 @@ export async function rasmniTahlilQil(suhbatId, url) {
     base64 = bayt.toString('base64');
     mime = (r.headers.get('content-type') || 'image/jpeg').split(';')[0];
   } catch (e) {
-    await yuborVaYoz(s, 'Rasm ochilmadi 😔 Iltimos, yana bir marta yuboring.', 'tahlil').catch(() => {});
+    await yuborVaYoz(s, 'rasm ochilmadi, yana bir marta tashlab ko\'ring', 'tahlil').catch(() => {});
     return { xato: e.message };
   }
 
@@ -375,15 +505,15 @@ export async function rasmniTahlilQil(suhbatId, url) {
     n = await ochiqSkan({ base64, mime, ip: `ig:${s.igsid}`, manba: 'ig-direct' });
   } catch (e) {
     const m = e.message === 'CHEGARA'
-      ? 'Bugun bepul tahlil limitingiz tugadi 🙏 Ertaga yana yuboring yoki Telegramda davom eting: ' + await botHavolasi('h_ig-direct')
-      : 'Hozir tahlil qila olmadim — bir necha daqiqadan keyin rasmni qayta yuboring 🙏';
+      ? 'bugungi bepul tahlil limiti tugadi, ertaga yana tashlang yoki telegramda davom eting\n\n' + await botHavolasi('h_ig-direct')
+      : 'hozir tahlil qilolmadim, bir necha daqiqadan keyin rasmni qayta tashlang 🙏';
     await yuborVaYoz(s, m, 'tahlil').catch(() => {});
     return { xato: e.message };
   }
   if (!n.yaroqli) {
     // Yuz emas (mahsulot rasmi, skrinshot) — oddiy suhbat: AI rasm haqida so'raydi
     if (['yuz_yoq', 'yuz_emas', 'ekran'].includes(n.sabab)) return aiJavobYoz(s.id);
-    await yuborVaYoz(s, RAD_MATN[n.sabab] || 'Rasm tahlilga yaramadi — yorug‘ joyda, yuzingiz to‘liq ko‘rinadigan rasm yuboring 🙏', 'tahlil').catch(() => {});
+    await odamdekYubor(s, RAD_MATN[n.sabab] || 'bu rasm tahlilga yaramadi, yorug\' joyda yuzingiz to\'liq ko\'rinadigan rasm tashlang', 'tahlil', { st }).catch(() => {});
     return { yaroqli: false, sabab: n.sabab };
   }
   await sorov(`update ig_suhbatlar set tahlil_token = $2 where id = $1`, [s.id, n.token]);
@@ -412,29 +542,46 @@ export async function rasmniTahlilQil(suhbatId, url) {
     console.error('IG NATIJA RASMI:', e.message);
   }
 
-  // 2) «Mana shular sizga kerak» + Telegramda tavsiyani ochadigan havola
+  // 2) Rasmdan keyin. Standart — faqat natija va qisqa havola (mahsulot ro'yxati
+  //    matnda yo'q: u natija rasmida ham, Telegramda ham bor). «mahsulotlar»
+  //    rejimida — eski uzun xabar; «yoq» — faqat rasm.
   const o = n.ochiq || {};
-  let tayyor;
+  let tayyor = '';
   if (st.tahlil_matni) {
-    const nomlar = (t?.tavsiya || []).slice(0, 4).map((p) => `${p.brend ? p.brend + ' ' : ''}${p.nom} — ${p.narx.toLocaleString('ru-RU').replace(/\u00a0/g, ' ')} so‘m`).join('\n');
+    const nomlar = (t?.tavsiya || []).slice(0, 4).map((p) => `${p.brend ? p.brend + ' ' : ''}${p.nom} ${p.narx.toLocaleString('ru-RU').replace(/\u00a0/g, ' ')} so'm`).join('\n');
     tayyor = st.tahlil_matni.replaceAll('{ball}', String(o.ball ?? '')).replaceAll('{havola}', tg)
       .replaceAll('{soni}', String(n.yopiq?.muammo_soni ?? '')).replaceAll('{tavsif}', o.tavsif || '')
       .replaceAll('{mahsulotlar}', nomlar);
-  } else {
+  } else if (st.tahlil_xabari === 'mahsulotlar') {
     const { tahlilXabari } = await import('../../ai/instagram-suhbat.js');
     tayyor = await tahlilXabari({
       tahlil: t?.tahlil || { ball: o.ball, tavsif: o.tavsif, teri_turi: o.teri_turi, muammolar: [] },
       tavsiya: t?.tavsiya || [], havola: tg, ism: s.ism || '', korsatma: st.korsatma,
     });
+  } else if (st.tahlil_xabari !== 'yoq') {
+    const { tahlilQisqa } = await import('../../ai/instagram-suhbat.js');
+    const oxirgi = await qator(`select matn from ig_xabarlar where suhbat_id = $1 and yonalish = 'kiruvchi' and matn is not null
+      order by id desc limit 1`, [s.id]);
+    tayyor = tahlilQisqa({ havola: tg, urug: urug + Math.floor(Math.random() * 3), rus: /[а-яё]/i.test(oxirgi?.matn || '') }).join('\n\n');
   }
-  api.yozmoqda(s.igsid);
-  await yuborVaYoz(s, tayyor, 'tahlil').catch(() => {});
+  if (tayyor) await odamdekYubor(s, insonlashtir(tayyor, urug), 'tahlil', { st, birinchi: false }).catch(() => {});
+  await sorov(`update ig_suhbatlar set eslatma_at = null where id = $1`, [s.id]);
   return { yaroqli: true, token: n.token };
 }
 
 // ─────────────────────────── KOMMENTLAR ───────────────────────────
 
 const normal = (t) => String(t || '').toLowerCase().replace(/[‘’'`ʻ]/g, '').replace(/\s+/g, ' ').trim();
+
+// Spam: begona havola, «obuna bo'l», pul ishlash/kazino va so'kinish. Oddiy
+// «+», «narxi?», emoji — spam EMAS.
+const SPAM = [
+  /https?:\/\/|www\.|\bt\.me\/|bit\.ly|\.(com|ru|net|xyz|top|uz)\b\/?/i,
+  /(подпиш|подписывай|follow\s*(me|back)|f4f|l4l|obuna\s*bo['‘’ʻ]?l(ing)?\s*(menga|bizga))/i,
+  /(заработ|earn\s*money|crypto|крипт|casino|казино|kazino|1xbet|ставк|investitsiya\s+qiling)/i,
+  /(бля|сука|ху[йяеи]|пизд|ебан|jalab|qo['‘’ʻ]?toq|dalba[yj]o['‘’ʻ]?b|далба|onangni|gandon|гандон|mudak|мудак)/i,
+];
+export const spammi = (t) => SPAM.some((r) => r.test(String(t || '')));
 
 /** Kommentga mos birinchi qoida. */
 export function qoidaTop(qoidalar, kommentMatni, mediaId) {
@@ -457,6 +604,12 @@ async function kommentKeldi(v, bizniki) {
     [id, v.media?.id || null, v.parent_id || null, matn(v.text, 2200), from.username || null, from.id ? String(from.id) : null]);
   if (!yangi) return;
   const st = await igSozlamalari();
+  if (st.spam_yashir && spammi(v.text)) {
+    await api.kommentYashir(id, true).then(() =>
+      sorov(`update ig_kommentlar set spam = true, yashirildi = true where id = $1`, [id]))
+      .catch((e) => sorov(`update ig_kommentlar set spam = true, xato = $2 where id = $1`, [id, e.message.slice(0, 300)]));
+    return;
+  }
   if (!st.komment_qoidalar) return;
   const q = qoidaTop(await qatorlar(`select * from ig_qoidalar order by tartib, id`), v.text, v.media?.id);
   if (q) await qoidaniBajar(yangi, q, st);
@@ -591,30 +744,54 @@ export async function pauzalarniOch() {
   return { ochildi: r.rowCount || 0 };
 }
 
+// Suhbat bosqichi (voronka): suhbat → tahlil → telegram → mijoz (buyurtma qildi)
+const BOSQICH_SQL = `case
+    when exists (select 1 from ochiq_skan o join orders r on r.user_id = o.olindi_id
+                  where o.token = s.tahlil_token and r.status <> 'bekor') then 'mijoz'
+    when exists (select 1 from ochiq_skan o where o.token = s.tahlil_token and o.olindi_id is not null) then 'telegram'
+    when s.tahlil_token is not null then 'tahlil'
+    else 'suhbat' end`;
+
 export async function suhbatlar({ q = '', filtr = '', chegara = 60 } = {}) {
   const p = [];
   const shart = ['1=1'];
-  if (q) { p.push(`%${matn(q, 60)}%`); shart.push(`(username ilike $${p.length} or ism ilike $${p.length} or oxirgi_matn ilike $${p.length})`); }
+  if (q) { p.push(`%${matn(q, 60)}%`); shart.push(`(username ilike $${p.length} or ism ilike $${p.length} or oxirgi_matn ilike $${p.length} or izoh ilike $${p.length})`); }
   if (filtr === 'oqilmagan') shart.push('oqilmagan > 0');
   if (filtr === 'admin') shart.push('admin_kerak');
-  if (filtr === 'tahlil') shart.push('tahlil_token is not null');
+  if (filtr === 'tahlil') shart.push('tahlil');
+  if (['telegram', 'mijoz'].includes(filtr)) { p.push(filtr); shart.push(`bosqich = $${p.length}`); }
   p.push(Math.min(200, son(chegara, 60)));
-  return qatorlar(`select id, igsid, username, ism, rasm_url, ai_yoqiq, ai_pauza_gacha, admin_kerak, oqilmagan,
-      oxirgi_matn, oxirgi_at, oxirgi_kiruvchi, tahlil_token is not null as tahlil
-      from ig_suhbatlar where ${shart.join(' and ')} order by oxirgi_at desc limit $${p.length}`, p);
+  return qatorlar(`select * from (select id, igsid, username, ism, rasm_url, ai_yoqiq, ai_pauza_gacha, admin_kerak, oqilmagan,
+      oxirgi_matn, oxirgi_at, oxirgi_kiruvchi, oxirgi_niyat, izoh, teglar, tahlil_token is not null as tahlil, ${BOSQICH_SQL} as bosqich
+      from ig_suhbatlar s) t where ${shart.join(' and ')} order by oxirgi_at desc limit $${p.length}`, p);
 }
 
 export async function suhbatXabarlari(id, { oqildi = true } = {}) {
   const s = await qator(`select * from ig_suhbatlar where id = $1`, [Number(id)]);
   if (!s) return null;
   if (oqildi && s.oqilmagan) await sorov(`update ig_suhbatlar set oqilmagan = 0 where id = $1`, [s.id]);
-  const xabarlar = await qatorlar(`select id, yonalish, kim, matn, rasm_url, xato, created_at from ig_xabarlar
+  const xabarlar = await qatorlar(`select id, yonalish, kim, matn, rasm_url, xato, niyat, created_at from ig_xabarlar
       where suhbat_id = $1 order by created_at, id`, [s.id]);
-  const tg = s.tahlil_token ? await qator(`select olindi_id is not null as olindi from ochiq_skan where token = $1`, [s.tahlil_token]) : null;
+  const tg = s.tahlil_token ? await qator(`select olindi_id, olindi_at from ochiq_skan where token = $1`, [s.tahlil_token]) : null;
+  // Mijoz kartasi: tahlil, Telegram'dagi foydalanuvchi va buyurtmalari
+  let tahlil = null, mijoz = null;
+  if (s.tahlil_token) {
+    const t = await tahlilMalumoti(s.tahlil_token).catch(() => null);
+    if (t) tahlil = { ball: t.tahlil.ball, teri_turi: t.tahlil.teri_turi, yosh: t.tahlil.yosh,
+      muammolar: t.tahlil.muammolar.slice(0, 5).map((m) => m.nom),
+      tavsiya: t.tavsiya.slice(0, 5).map((p) => ({ nom: `${p.brend ? p.brend + ' ' : ''}${p.nom}`, narx: p.narx })) };
+  }
+  if (tg?.olindi_id) {
+    mijoz = await qator(`select u.id, u.full_name as ism, u.phone as telefon,
+        (select count(*)::int from orders r where r.user_id = u.id and r.status <> 'bekor') as buyurtma_soni,
+        (select coalesce(sum(total), 0)::int from orders r where r.user_id = u.id and r.status <> 'bekor') as jami
+      from users u where u.id = $1`, [tg.olindi_id]).catch(() => null);
+  }
+  const bosqich = mijoz?.buyurtma_soni ? 'mijoz' : tg?.olindi_id ? 'telegram' : s.tahlil_token ? 'tahlil' : 'suhbat';
   return {
     suhbat: { ...s, oyna_ochiq: s.oxirgi_kiruvchi && Date.now() - new Date(s.oxirgi_kiruvchi) < 24 * 3600e3,
-      telegramga_otdi: Boolean(tg?.olindi) },
-    xabarlar,
+      telegramga_otdi: Boolean(tg?.olindi_id), bosqich },
+    xabarlar, karta: { tahlil, mijoz, bosqich },
   };
 }
 
@@ -633,10 +810,14 @@ export async function qoldaYubor(id, m, { pauza = true } = {}) {
   return { yuborildi: true };
 }
 
-export async function suhbatOzgartir(id, { ai_yoqiq, admin_kerak, pauza_olib } = {}) {
+export async function suhbatOzgartir(id, { ai_yoqiq, admin_kerak, pauza_olib, izoh, teglar } = {}) {
+  const tg = Array.isArray(teglar) ? teglar.map((x) => matn(x, 30)).filter(Boolean).slice(0, 10) : null;
   const r = await qator(`update ig_suhbatlar set ai_yoqiq = coalesce($2, ai_yoqiq), admin_kerak = coalesce($3, admin_kerak),
-      ai_pauza_gacha = case when $4 then null else ai_pauza_gacha end where id = $1 returning *`,
-    [Number(id), typeof ai_yoqiq === 'boolean' ? ai_yoqiq : null, typeof admin_kerak === 'boolean' ? admin_kerak : null, pauza_olib === true]);
+      ai_pauza_gacha = case when $4 then null else ai_pauza_gacha end,
+      izoh = case when $5::text is null then izoh else nullif($5, '') end, teglar = coalesce($6, teglar)
+      where id = $1 returning *`,
+    [Number(id), typeof ai_yoqiq === 'boolean' ? ai_yoqiq : null, typeof admin_kerak === 'boolean' ? admin_kerak : null, pauza_olib === true,
+      typeof izoh === 'string' ? matn(izoh, 1000) : null, tg]);
   return r ? { suhbat: r } : { xato: 'Suhbat topilmadi.' };
 }
 
@@ -721,4 +902,83 @@ export async function sinxron({ postSoni = 6 } = {}) {
   }
   return { postlar: (p.data || []).map((m) => ({ id: m.id, caption: (m.caption || '').slice(0, 120), rasm: m.thumbnail_url || m.media_url,
     havola: m.permalink, komment: m.comments_count, layk: m.like_count, vaqt: m.timestamp })), yangi_komment: yangi };
+}
+
+// ─────────────────────────── ESLATMA ───────────────────────────
+
+/**
+ * Tahlil olib, Telegramdagi tavsiyani ochmagan odamga BITTA yumshoq eslatma.
+ * Faqat 24 soatlik oyna ichida (Instagram qoidasi) va oxirgi xabar bizniki
+ * bo'lsa — mijoz yozib turgan suhbatga aralashmaydi. Har 10 daqiqada.
+ */
+export async function eslatmalarniYubor() {
+  const st = await igSozlamalari();
+  if (!st.eslatma || !st.ai_yoqiq || !(await api.ulanganmi())) return { yuborildi: 0 };
+  const r = await qatorlar(`select s.* from ig_suhbatlar s join ochiq_skan o on o.token = s.tahlil_token
+     where o.olindi_id is null and s.eslatma_at is null and s.ai_yoqiq and not s.admin_kerak
+       and (s.ai_pauza_gacha is null or s.ai_pauza_gacha < now())
+       and s.oxirgi_kiruvchi > now() - interval '22 hours'
+       and s.oxirgi_at < now() - ($1 || ' hours')::interval
+       and (select x.yonalish from ig_xabarlar x where x.suhbat_id = s.id and x.xato is null
+             order by x.created_at desc, x.id desc limit 1) = 'chiquvchi'
+     order by s.oxirgi_at limit 20`, [String(Math.max(1, son(st.eslatma_soat, 3)))]);
+  const { insonlashtir, uslubUrugi } = await import('../../ai/instagram-suhbat.js');
+  let yuborildi = 0;
+  for (const s of r) {
+    await sorov(`update ig_suhbatlar set eslatma_at = now() where id = $1`, [s.id]);
+    const tg = await botHavolasi(`n_${s.tahlil_token}`);
+    const V = [
+      `natijani ochib ko'rdingizmi?\n\ntushunmagan joyi bo'lsa yozing, tushuntirib beraman`,
+      `tahlilingizni ko'rib chiqdingizmi\n\nhavolasi shu yerda edi\n${tg}`,
+      `qalay, natija bo'yicha savol bormi?\n\nqaysi biridan boshlashni aytib beraman`,
+    ];
+    const m = V[(uslubUrugi(s.igsid) + new Date().getDate()) % V.length];
+    try { await odamdekYubor(s, insonlashtir(m, uslubUrugi(s.igsid)), 'eslatma', { st }); yuborildi++; }
+    catch { /* oyna yopilgan bo'lishi mumkin — xato ig_xabarlar da ko'rinadi */ }
+  }
+  return { yuborildi };
+}
+
+// ─────────────────────────── HISOBOT ───────────────────────────
+
+/** Instagram hisoboti: kunlik grafik, voronka, javob tezligi, niyatlar, soatlar. */
+export async function igStatistika({ kun = 30 } = {}) {
+  const k = Math.max(1, Math.min(180, son(kun, 30)));
+  const [kunlik, voronka, tezlik, niyatlar, soatlar, komment, qoidalarTop] = await Promise.all([
+    qatorlar(`with d as (select generate_series((now() at time zone 'Asia/Tashkent')::date - ($1::int - 1),
+                (now() at time zone 'Asia/Tashkent')::date, interval '1 day')::date as kun)
+      select to_char(d.kun, 'DD.MM') as kun,
+        (select count(*) from ig_xabarlar x where x.yonalish = 'kiruvchi' and (x.created_at at time zone 'Asia/Tashkent')::date = d.kun)::int as kiruvchi,
+        (select count(*) from ig_xabarlar x where x.kim = 'ai' and x.xato is null and x.matn is not null
+           and (x.created_at at time zone 'Asia/Tashkent')::date = d.kun)::int as ai,
+        (select count(*) from ig_xabarlar x where x.kim = 'tahlil' and x.rasm_url is not null
+           and (x.created_at at time zone 'Asia/Tashkent')::date = d.kun)::int as tahlil
+      from d order by d.kun`, [k]),
+    qator(`select
+        (select count(distinct x.suhbat_id) from ig_xabarlar x where x.yonalish = 'kiruvchi' and x.created_at > now() - ($1 || ' days')::interval)::int as yozdi,
+        (select count(*) from ig_suhbatlar s join ochiq_skan o on o.token = s.tahlil_token where o.created_at > now() - ($1 || ' days')::interval)::int as tahlil,
+        (select count(*) from ig_suhbatlar s join ochiq_skan o on o.token = s.tahlil_token
+           where o.olindi_id is not null and o.created_at > now() - ($1 || ' days')::interval)::int as telegram,
+        (select count(distinct o.olindi_id) from ig_suhbatlar s join ochiq_skan o on o.token = s.tahlil_token
+           join orders r on r.user_id = o.olindi_id and r.status <> 'bekor' and r.created_at >= o.olindi_at
+           where o.created_at > now() - ($1 || ' days')::interval)::int as buyurtma,
+        (select coalesce(sum(r.total), 0) from ig_suhbatlar s join ochiq_skan o on o.token = s.tahlil_token
+           join orders r on r.user_id = o.olindi_id and r.status <> 'bekor' and r.created_at >= o.olindi_at
+           where o.created_at > now() - ($1 || ' days')::interval)::bigint as tushum`, [String(k)]),
+    qator(`select
+        (percentile_cont(0.5) within group (order by javob_ms) filter (where kim = 'ai'))::int as ai_ms,
+        (percentile_cont(0.5) within group (order by javob_ms) filter (where kim = 'admin'))::int as admin_ms,
+        count(*) filter (where kim = 'ai')::int as ai_soni, count(*) filter (where kim = 'admin')::int as admin_soni
+      from ig_xabarlar where javob_ms is not null and created_at > now() - ($1 || ' days')::interval`, [String(k)]),
+    qatorlar(`select niyat, count(*)::int as soni from ig_xabarlar where niyat is not null
+        and created_at > now() - ($1 || ' days')::interval group by niyat order by soni desc`, [String(k)]),
+    qatorlar(`select extract(hour from created_at at time zone 'Asia/Tashkent')::int as soat, count(*)::int as soni
+        from ig_xabarlar where yonalish = 'kiruvchi' and created_at > now() - ($1 || ' days')::interval group by 1 order by 1`, [String(k)]),
+    qator(`select count(*)::int as jami, count(*) filter (where qoida_id is not null)::int as qoida,
+        count(*) filter (where dm_yuborildi)::int as dm, count(*) filter (where spam)::int as spam
+        from ig_kommentlar where created_at > now() - ($1 || ' days')::interval`, [String(k)]),
+    qatorlar(`select nom, ishladi from ig_qoidalar where ishladi > 0 order by ishladi desc limit 6`),
+  ]);
+  const soat24 = Array.from({ length: 24 }, (_, i) => soatlar.find((x) => x.soat === i)?.soni || 0);
+  return { kun: k, kunlik, voronka: { ...voronka, tushum: Number(voronka?.tushum || 0) }, tezlik, niyatlar, soatlar: soat24, komment, qoidalar: qoidalarTop };
 }

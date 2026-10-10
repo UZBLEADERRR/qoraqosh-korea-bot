@@ -1072,3 +1072,62 @@ details.filtr label:first-child{margin-top:0}
 .ig-tek li.xato .ig-tek-b{background:#dc2626}
 .ig-tek li.xato{border-color:color-mix(in srgb,#dc2626 35%,var(--chiziq))}
 .ig-tek li b{color:var(--matn);font-weight:600}
+
+/* ── Instagram: mijoz kartasi, tez javoblar, hisobot ── */
+.ig-chat{flex-direction:row;position:relative;container-type:inline-size;container-name:igchat}
+.ig-chat-ich{flex:1;min-width:0;display:flex;flex-direction:column}
+.ig-chat>.ig-bosh-holat{flex:1}
+.ig-karta{display:none;width:280px;flex:none;border-left:1px solid var(--chiziq);overflow-y:auto;padding:12px 14px 16px;
+  flex-direction:column;gap:12px;background:var(--panel)}
+.ig-chat.karta-ochiq .ig-karta{display:flex}
+@container igchat (max-width:720px){
+  .ig-karta{position:absolute;inset:0;width:auto;border-left:0;z-index:4}
+}
+.ig-karta-bosh{display:flex;align-items:center;justify-content:space-between}
+.ig-karta-bosh b{font-size:15px}
+.ig-karta section{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--chiziq);padding-top:10px}
+.ig-karta h4{margin:0;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--och);font-weight:600}
+.ig-karta textarea{width:100%;resize:vertical;font-size:13.5px}
+.ig-karta-bosqich{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.ig-karta-bosqich span{font-size:10.5px;text-align:center;padding:6px 2px 0;border-top:3px solid var(--chiziq);color:var(--och)}
+.ig-karta-bosqich span.otdi{border-color:#d62976;color:var(--matn);font-weight:600}
+.ig-ball{display:flex;align-items:baseline;gap:6px}
+.ig-ball b{font-size:28px;line-height:1;font-weight:700}
+.ig-ball span{font-size:12.5px;color:var(--kul)}
+.ig-tavsiya{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.ig-tavsiya li{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:6px 8px;border-radius:8px;background:var(--panel2)}
+.ig-tavsiya li span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ig-tavsiya li b{flex:none;font-weight:600}
+.ig-bosqich{display:inline-block;font-style:normal;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:99px;
+  vertical-align:1px;margin-left:4px;background:var(--fon);color:var(--kul)}
+.ig-bosqich.kok{background:var(--kok-och);color:var(--kok)}
+.ig-bosqich.yashil{background:var(--yashil-och);color:var(--yashil)}
+.ig-bosqich.binafsha{background:color-mix(in srgb,#7b3fe4 14%,transparent);color:#7b3fe4}
+.ig-tez{display:flex;gap:6px;overflow-x:auto;padding:8px 10px 0;border-top:1px solid var(--chiziq);background:var(--panel);scrollbar-width:none}
+.ig-tez::-webkit-scrollbar{display:none}
+.ig-tez .chip{flex:none;font-size:12.5px;white-space:nowrap}
+.ig-tez + .ig-yozish{border-top:0}
+#ig-qoralama.ishlayapti{animation:ig-puls 1s ease-in-out infinite}
+@keyframes ig-puls{50%{opacity:.4}}
+.ik-tugma.faol{background:var(--fon);color:var(--matn)}
+.kpi-qosh{font-size:12.5px;font-weight:500;color:var(--och);margin-left:4px}
+
+.ig-voronka{display:flex;flex-direction:column;gap:10px}
+.ig-v-qator{display:grid;grid-template-columns:minmax(90px,130px) minmax(0,1fr) auto 42px;align-items:center;gap:10px;font-size:13.5px}
+.ig-v-nom{color:var(--kul)}
+.ig-v-yol{height:12px;border-radius:99px;background:var(--panel2);overflow:hidden}
+.ig-v-yol i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#7b3fe4,#d62976)}
+.ig-v-qator em{font-style:normal;font-size:12px;color:var(--och);text-align:right}
+.ig-soatlar{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;height:120px;align-items:end}
+.ig-soatlar div{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+.ig-soatlar i{display:block;width:100%;border-radius:4px 4px 2px 2px;background:color-mix(in srgb,#d62976 70%,#7b3fe4)}
+.ig-soatlar span{font-size:10px;color:var(--och);height:12px}
+.ig-k-stat{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ig-k-stat div{padding:10px 12px;border-radius:10px;background:var(--panel2);display:flex;flex-direction:column}
+.ig-k-stat b{font-size:20px}
+.ig-k-stat span{font-size:12px;color:var(--och)}
+.ig-grafiklar{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+@container ish (min-width:900px){.ig-grafiklar{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.ig-grafiklar .y-grafik{margin:0}
+.ig-grafiklar .g-chiziq{max-height:170px;width:100%}
+.ig-karta .chip-satr{flex-wrap:wrap;overflow:visible}

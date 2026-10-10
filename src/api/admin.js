@@ -290,6 +290,9 @@ export async function adminRoutes(req, res, yol) {
       if (amal === 'sozlama') return ok(res, { sozlamalar: await ig.sozlamaniSaqla(b) });
       if (amal === 'webhook-ula') return ok(res, await igApi.webhookniUla());
       if (amal === 'tekshir') return ok(res, await ig.tekshiruv());
+      if (amal === 'statistika') return ok(res, await ig.igStatistika({ kun: q.get('kun') || 30 }));
+      if (amal === 'qoralama') return javob(await ig.qoralama(b.id));
+      if (amal === 'eslatma') return ok(res, await ig.eslatmalarniYubor());
       if (amal === 'sir') return javob(await ig.sirniSaqla(b.sir));
       if (amal === 'pauza-och') return ok(res, await ig.pauzalarniOch());
       if (amal === 'suhbatlar') return ok(res, { suhbatlar: await ig.suhbatlar({ q: q.get('q') || '', filtr: q.get('filtr') || '' }) });

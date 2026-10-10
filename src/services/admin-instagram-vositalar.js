@@ -17,6 +17,14 @@ export const IG_VOSITALAR = {
           + 'Telegramga o‘tganlar, AI sozlamalari (ko‘rsatma, yoqilgan/o‘chirilgan) va komment qoidalari.',
     parametrlar: '—',
   },
+  instagram_statistika: {
+    oqish: true,
+    ishla: (a = {}) => ig.igStatistika({ kun: a.kun || 30 }),
+    tavsif: 'Instagram HISOBOTI: kunlik yozishmalar/AI javoblar/tahlillar, voronka (yozdi → tahlil → Telegram → buyurtma, '
+          + 'tushum), AI va menejer javob tezligi (mediana, ms), mijozlar niyati (narx, buyurtma…), eng faol soatlar, '
+          + 'kommentlar (qoida, Direct, spam) va eng ko‘p ishlagan qoidalar.',
+    parametrlar: 'kun (standart 30)',
+  },
   instagram_tekshir: {
     oqish: true,
     ishla: () => ig.tekshiruv(),
@@ -49,7 +57,11 @@ export const IG_VOSITALAR = {
     tavsif: 'Instagram boshqaruvchi sozlamalari: ai_yoqiq (Direct ga AI javob), korsatma (AI uslubi va qoidalari — '
           + 'TO‘LIQ matn, eskisini o‘zgartirib qayta yoz), yuz_tahlil, xira (true — natijaning muhim qismi xira, '
           + 'standart false — to‘liq natija), komment_qoidalar, komment_mention, kechikish_soniya, qolda_pauza_daqiqa, '
-          + 'tahlil_matni (bo‘sh — AI har odamga o‘zi yozadi; andoza: {ball},{tavsif},{soni},{mahsulotlar},{havola}).',
+          + 'tahlil_matni (andoza: {ball},{tavsif},{soni},{mahsulotlar},{havola}), '
+          + 'tahlil_xabari (qisqa — natija rasmi + qisqa havola | yoq — faqat rasm | mahsulotlar — mahsulot ro‘yxati bilan), '
+          + 'yozish_tezligi (tabiiy | sekin | tez), korildi («ko‘rildi» belgisi), bilim (do‘kon FAQ: manzil, yetkazish muddati, '
+          + 'kafolat, qaytarish — AI faqat shunga tayanadi; TO‘LIQ matn yoz), eslatma va eslatma_soat (tahlildan keyin '
+          + 'Telegramga o‘tmaganlarga bitta eslatma), spam_yashir, tez_javoblar (massiv — menejer uchun tayyor javoblar).',
     parametrlar: 'o‘zgaradigan maydonlar',
   },
   instagram_qoida: {

@@ -141,7 +141,8 @@ globalThis.IG_AI_JAVOB = { ig_javob: '', niyat: 'tahlil', admin_kerak: false }; 
 await dm(RASMCHI, `mid-rasm-${RASMCHI}`, { attachments: [{ type: 'image', payload: { url: `http://127.0.0.1:${PORT}/ig-cdn/yuz.png` } }] });
 delete globalThis.IG_AI_JAVOB;
 const ys = yuborildi();
-test('rasm keldi — darhol odamcha javob', ys.some((x) => /kuting|Bir daqiqa|vaqt bering/.test(x.message?.text || '')));
+test('rasm keldi — darhol odamcha javob', ys.some((x) => /qarab beraman|tahlil qilib beraman|ko'rib chiqaman|yarim daqiqa/.test(x.message?.text || '')));
+test('rasm keldi — «ko‘rildi» belgisi', ys.some((x) => x.sender_action === 'mark_seen'));
 const rasm = ys.find((x) => x.message?.attachment?.type === 'image');
 test('to‘liq natija rasmi yuborildi', rasm && /^https:\/\/www\.kiovo\.shop\/media\/[0-9a-f-]{36}$/.test(rasm.message.attachment.payload.url),
   rasm?.message?.attachment?.payload?.url);
@@ -154,9 +155,12 @@ const s5 = await qator(`select * from ig_suhbatlar where igsid = $1`, [RASMCHI])
 const tgMatn = ys.map((x) => x.message?.text || '').find((t) => /start=n_/.test(t)) || '';
 test('Telegramda tavsiyani ochadigan havola (n_token) oxirida', s5.tahlil_token && tgMatn.trim().endsWith(`start=n_${s5.tahlil_token}`), tgMatn.slice(-80));
 const tavsiyaNomlari = (await qatorlar(`select coalesce(nom_uz, name) as nom from products where id = any($1)`, [[1, 21, 25]])).map((x) => x.nom);
-test('xabarda tavsiya qilingan mahsulotlar va narx', tavsiyaNomlari.length && tavsiyaNomlari.some((n) => tgMatn.includes(n)) && /so'm/.test(tgMatn), tgMatn.slice(0, 200));
+const rasmdanKeyin = ys.map((x) => x.message?.text || '').join('\n');
+test('standart: matnda mahsulot ro‘yxati YO‘Q — faqat natija va qisqa havola',
+  tavsiyaNomlari.length && !tavsiyaNomlari.some((n) => rasmdanKeyin.includes(n)) && !/so'm|ming/.test(rasmdanKeyin), rasmdanKeyin.slice(0, 200));
+test('rasmdan keyingi xabarlar qisqa va bo‘lib yuborilgan', ys.filter((x) => x.message?.text).length >= 3
+  && ys.filter((x) => x.message?.text).every((x) => x.message.text.length < 160));
 test('«yashirin / 🔒» yo‘q — natija to‘liq', !/🔒|yashirin/.test(tgMatn));
-test('AI ga tahlil va tavsiya berildi', /TAVSIYA QILINGAN MAHSULOTLAR/.test(globalThis.OXIRGI_IG_PROMPT || '') && /T-zona uchun mos/.test(globalThis.OXIRGI_IG_PROMPT));
 const mehmon = await qator(`select u.manba, h.kod from ochiq_skan o join users u on u.id = o.mehmon_id left join havolalar h on h.id = u.havola_id where o.token = $1`, [s5.tahlil_token]);
 test('manba: Instagram Direct (botga o‘tsa sanaladi)', mehmon?.manba === 'instagram' && mehmon?.kod === 'ig-direct', JSON.stringify(mehmon));
 
@@ -180,6 +184,24 @@ const xRasm = yuborildi().find((x) => x.message?.attachment?.type === 'image');
 const xTur = xRasm ? await qiymat(`select tur from media where id = $1`, [xRasm.message.attachment.payload.url.split('/').pop()]) : null;
 test('xira=true — eski xira rejim ishlaydi', xTur === 'ig_xira', xTur);
 await ig.sozlamaniSaqla({ xira: false });
+
+// «mahsulotlar» rejimi — eski uzun xabar (mahsulot, narx, nega mos)
+await ig.sozlamaniSaqla({ tahlil_xabari: 'mahsulotlar' });
+tozala();
+const MAHSULOTCHI = `9007${Date.now() % 1e6}`;
+globalThis.IG_AI_JAVOB = { ig_javob: '', niyat: 'tahlil', admin_kerak: false };
+await dm(MAHSULOTCHI, `mid-mah-${MAHSULOTCHI}`, { attachments: [{ type: 'image', payload: { url: `http://127.0.0.1:${PORT}/ig-cdn/yuz.png` } }] });
+delete globalThis.IG_AI_JAVOB;
+const mMatn = yuborildi().map((x) => x.message?.text || '').join('\n');
+test('tahlil_xabari=mahsulotlar — mahsulotlar va narx', tavsiyaNomlari.some((n) => mMatn.includes(n)) && /ming|so'm/.test(mMatn), mMatn.slice(0, 160));
+test('AI ga tahlil va tavsiya berildi', /TAVSIYA QILINGAN MAHSULOTLAR/.test(globalThis.OXIRGI_IG_PROMPT || '') && /T-zona uchun mos/.test(globalThis.OXIRGI_IG_PROMPT));
+await ig.sozlamaniSaqla({ tahlil_xabari: 'yoq' });
+tozala();
+const FAQATRASM = `9008${Date.now() % 1e6}`;
+await dm(FAQATRASM, `mid-yoq-${FAQATRASM}`, { attachments: [{ type: 'image', payload: { url: `http://127.0.0.1:${PORT}/ig-cdn/yuz.png` } }] });
+const yoqY = yuborildi();
+test('tahlil_xabari=yoq — rasmdan keyin matn yo‘q', yoqY.some((x) => x.message?.attachment) && !yoqY.some((x) => /start=n_/.test(x.message?.text || '')));
+await ig.sozlamaniSaqla({ tahlil_xabari: 'qisqa' });
 
 console.log('\n── ODAMDEK USLUB (AI SLOP TOZALASH) ──');
 const { slopTozala, tahlilAndozasi } = await import('../src/ai/instagram-suhbat.js');
@@ -216,7 +238,7 @@ tozala();
 globalThis.IG_AI_JAVOB = { ig_javob: 'Centella ampula 227 000 so‘m. Teringizga mosligini bilish uchun yuz rasmingizni yuboring 🌿', niyat: 'narx', admin_kerak: false };
 await komment('c-narx-1', 'Narxi qancha?', { id: '700778', username: 'aziza' });
 delete globalThis.IG_AI_JAVOB;
-test('«narx» — Direct ni AI yozdi', yuborildi().some((x) => x.recipient?.comment_id === 'c-narx-1' && /227 000/.test(x.message?.text || '')));
+test('«narx» — Direct ni AI yozdi', yuborildi().some((x) => x.recipient?.comment_id === 'c-narx-1' && /227 ming/.test(x.message?.text || '')));
 
 tozala();
 await komment('c-oddiy-1', 'Zo‘r mahsulotlar!');
@@ -271,6 +293,78 @@ test('panel: Instagram bo‘limi (Direct, Kommentlar, Qoidalar, Sozlamalar)', /i
   && /function igDirect/.test(adm) && /function igKommentlar/.test(adm) && /function igQoidalar/.test(adm) && /function igSozlama/.test(adm));
 const srvKod = fs.readFileSync('src/server.js', 'utf8');
 test('server: webhook (GET tasdiq + POST imzo bilan)', /\/instagram\/webhook/.test(srvKod) && /imzoTogri\(xom/.test(srvKod) && /hub\.challenge/.test(srvKod));
+
+console.log('\n── ODAMDEK YOZISH VA YANGI IMKONIYATLAR ──');
+// Javob bo'laklarga bo'linib alohida xabar bo'lib ketadi, narx «ming», nuqta/tire yo'q
+await ig.sozlamaniSaqla({ ai_yoqiq: true, korsatma: '', bilim: 'Toshkentga 1-2 kunda, viloyatlarga 3-5 kunda yetadi. Mahsulotlar 100% original.' });
+tozala();
+globalThis.IG_AI_JAVOB = { ig_javob: 'Ha, bor — centella ampula 227 000 so‘m.\n\nHozir aksiyada, oldin 260 000 so‘m edi.', niyat: 'narx', admin_kerak: false };
+await dm('900800', 'mid-od-1', { text: 'centella bormi narxi qancha' });
+delete globalThis.IG_AI_JAVOB;
+const odam = yuborildi().filter((x) => x.recipient?.id === '900800' && x.message?.text).map((x) => x.message.text);
+test('javob 2 ta alohida xabar bo‘lib ketdi', odam.length === 2, JSON.stringify(odam));
+test('narx odamcha: «227 ming», tire va oxirgi nuqta yo‘q', /227 ming/.test(odam[0] || '') && !/[—.]$/.test(odam[0] || '') && !/—/.test(odam.join('')), JSON.stringify(odam));
+test('«ko‘rildi» va «yozmoqda…»', yuborildi().some((x) => x.recipient?.id === '900800' && x.sender_action === 'mark_seen')
+  && yuborildi().some((x) => x.recipient?.id === '900800' && x.sender_action === 'typing_on'));
+const pr2 = globalThis.OXIRGI_IG_PROMPT || '';
+test('AI ga do‘kon bilimi (admin yozgan)', /BILIM \(do'kon egasi/.test(pr2) && /3-5 kunda/.test(pr2));
+test('AI ga bazadan bilim: katalog, yetkazish tarifi', /Katalog: \d+ ta mahsulot/.test(pr2) && /Yetkazish narxi taxminan/.test(pr2));
+test('AI ga odamcha misollar (few-shot)', /MISOLLAR/.test(pr2) && /eshitaman/.test(pr2));
+const nx = await qator(`select niyat, javob_ms from ig_xabarlar x join ig_suhbatlar s on s.id = x.suhbat_id
+  where s.igsid = '900800' and x.kim = 'ai' and x.niyat is not null order by x.id desc limit 1`);
+test('niyat va javob vaqti saqlandi', nx?.niyat === 'narx' && Number.isFinite(nx?.javob_ms), JSON.stringify(nx));
+
+// Story, ovozli xabar
+tozala();
+await dm('900810', 'mid-story-1', { attachments: [{ type: 'story_mention', payload: { url: 'http://x/story.jpg' } }] });
+test('story’da belgilash — AI ga tushunarli izoh', /sizni storysida belgiladi/.test(globalThis.OXIRGI_IG_PROMPT || '')
+  && yuborildi().some((x) => x.recipient?.id === '900810' && x.message?.text));
+test('story rasmi yuz tahliliga ketmadi', !yuborildi().some((x) => x.recipient?.id === '900810' && x.message?.attachment));
+await dm('900810', 'mid-audio-1', { attachments: [{ type: 'audio', payload: { url: 'http://x/a.mp4' } }] });
+test('ovozli xabar — AI ga izoh', /ovozli xabar yubordi/.test(globalThis.OXIRGI_IG_PROMPT || ''));
+
+// Spam komment avtomatik yashiriladi
+tozala();
+await komment('c-spam-1', 'Kunda 500$ ishlang 👉 t.me/pul_kanal', { id: '700900', username: 'spamer' });
+const sp = await qator(`select spam, yashirildi, qoida_id from ig_kommentlar where id = 'c-spam-1'`);
+test('spam komment yashirildi, qoida ishlamadi', sp?.spam && sp?.yashirildi && !sp.qoida_id && yuborildi().some((x) => x.hide === 'true'));
+test('oddiy «+» spam emas', !ig.spammi('+') && !ig.spammi('Narxi qancha?') && ig.spammi('подпишись на меня') && ig.spammi('https://bit.ly/x'));
+
+// Admin: qoralama (yubormaydi), izoh, bosqich, karta, statistika, tez javoblar
+const s8 = await qator(`select id from ig_suhbatlar where igsid = '900800'`);
+tozala();
+const qr = await chaqir('/api/admin/ig/qoralama', 'POST', { id: s8.id });
+test('AI qoralama — matn qaytadi, hech narsa yuborilmaydi', qr.kod === 200 && qr.tana.javob && !yuborildi().some((x) => x.message?.text));
+const iz = await chaqir('/api/admin/ig/suhbat', 'POST', { id: s8.id, izoh: 'Quruq teri, VIP mijoz', teglar: ['vip'] });
+test('menejer izohi va teg saqlandi', iz.kod === 200 && iz.tana.suhbat.izoh === 'Quruq teri, VIP mijoz' && iz.tana.suhbat.teglar.includes('vip'));
+tozala();
+await dm('900800', 'mid-od-2', { text: 'rahmat' });
+test('izoh AI ga ham boradi', /MENEJER ESLATMASI: Quruq teri/.test(globalThis.OXIRGI_IG_PROMPT || ''));
+const sr = await chaqir(`/api/admin/ig/suhbatlar`);
+const tahlilli = sr.tana.suhbatlar.find((x) => x.igsid === RASMCHI);
+test('ro‘yxatda bosqich (voronka)', tahlilli?.bosqich === 'tahlil' && sr.tana.suhbatlar.find((x) => x.igsid === '900800')?.bosqich === 'suhbat', tahlilli?.bosqich);
+const kr = await chaqir(`/api/admin/ig/suhbat?id=${tahlilli.id}`);
+test('mijoz kartasi: tahlil (ball, muammolar, tavsiya)', kr.kod === 200 && kr.tana.karta?.tahlil?.ball != null
+  && kr.tana.karta.tahlil.muammolar.length && kr.tana.karta.tahlil.tavsiya.length, JSON.stringify(kr.tana.karta?.tahlil || {}).slice(0, 120));
+const stt = await chaqir('/api/admin/ig/statistika?kun=7');
+test('hisobot: kunlik, voronka, tezlik, niyat, soatlar', stt.kod === 200 && stt.tana.kunlik.length === 7 && stt.tana.voronka.yozdi >= 3
+  && stt.tana.voronka.tahlil >= 1 && stt.tana.soatlar.length === 24 && stt.tana.niyatlar.some((x) => x.niyat === 'narx'), JSON.stringify(stt.tana.voronka));
+const tj = await chaqir('/api/admin/ig/sozlama', 'POST', { tez_javoblar: 'salom\n\nrahmat 😊', yozish_tezligi: 'sekin', tahlil_xabari: 'notogri' });
+test('tez javoblar (qator bo‘yicha) va tanlovlar tekshiriladi', tj.tana.sozlamalar.tez_javoblar.length === 2
+  && tj.tana.sozlamalar.yozish_tezligi === 'sekin' && tj.tana.sozlamalar.tahlil_xabari === 'qisqa');
+await ig.sozlamaniSaqla({ yozish_tezligi: 'tabiiy' });
+
+// Eslatma: tahlil olgan, Telegramga o'tmagan, 3 soatdan beri jim
+await sorov(`update ig_suhbatlar set oxirgi_at = now() - interval '4 hours', oxirgi_kiruvchi = now() - interval '5 hours',
+  eslatma_at = null, admin_kerak = false, ai_pauza_gacha = null where igsid = $1`, [RASMCHI]);
+tozala();
+const es = await ig.eslatmalarniYubor();
+test('eslatma: bitta yumshoq xabar ketdi', es.yuborildi >= 1 && yuborildi().some((x) => x.recipient?.id === RASMCHI && x.message?.text));
+tozala();
+const es2 = await ig.eslatmalarniYubor();
+test('eslatma takrorlanmaydi', !yuborildi().some((x) => x.recipient?.id === RASMCHI && x.message?.text), JSON.stringify(es2));
+const { VOSITALAR: V2 } = await import('../src/services/admin-vositalar.js');
+test('AI yordamchida instagram_statistika', V2.instagram_statistika?.oqish === true);
 
 console.log('\n── TEKSHIRUV (javob yo‘q bo‘lsa sabab) ──');
 const SIR2 = 'ab'.repeat(16);

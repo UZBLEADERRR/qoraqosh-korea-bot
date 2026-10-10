@@ -799,8 +799,12 @@ function havolaOyna(h) {
 // ═══════════ INSTAGRAM BOSHQARUVCHI ═══════════
 // Direct (AI suhbatdosh), kommentlar, avtomatik qoidalar va sozlamalar.
 // Ro'yxat 8 soniyada yangilanadi — bo'limdan chiqilganda to'xtaydi.
-const IG_TABLAR = [['direct', 'Direct', 'suhbat'], ['komment', 'Kommentlar', 'xat'], ['qoida', 'Qoidalar', 'sozlama'], ['sozlama', 'Sozlamalar', 'puls']];
-const IG_KIM = { ai: 'AI', admin: 'Siz', ilova: 'Instagram ilovasi', qoida: 'Qoida', tahlil: 'Tahlil' };
+const IG_TABLAR = [['direct', 'Direct', 'suhbat'], ['hisobot', 'Hisobot', 'osish'], ['komment', 'Kommentlar', 'xat'],
+  ['qoida', 'Qoidalar', 'sozlama'], ['sozlama', 'Sozlamalar', 'puls']];
+const IG_KIM = { ai: 'AI', admin: 'Siz', ilova: 'Instagram ilovasi', qoida: 'Qoida', tahlil: 'Tahlil', eslatma: 'Eslatma' };
+const IG_BOSQICH = { suhbat: ['Suhbat', 'kul'], tahlil: ['Tahlil', 'kok'], telegram: ['Telegramda', 'binafsha'], mijoz: ['Xaridor', 'yashil'] };
+const IG_NIYAT = { salom: 'Salom', savol: 'Savol', narx: 'Narx', tahlil: 'Tahlil', buyurtma: 'Buyurtma', shikoyat: 'Shikoyat', boshqa: 'Boshqa' };
+const igMs = (ms) => (!Number.isFinite(ms) ? '—' : ms < 60e3 ? `${Math.round(ms / 1000)} s` : ms < 3600e3 ? `${Math.round(ms / 60e3)} daq` : `${(ms / 3600e3).toFixed(1)} soat`);
 const igVaqt = (d) => {
   if (!d) return '';
   const t = new Date(d), h = new Date();
@@ -838,7 +842,7 @@ async function instagramBolimi() {
       <div id="ig-tan"></div>`;
     $$('[data-igtab]').forEach((x) => x.onclick = () => { holat.igTab = x.dataset.igtab; instagramBolimi(); });
     const nishon = $('#yon-ig'); if (nishon) { nishon.textContent = b.oqilmagan || 0; kor(nishon, b.oqilmagan > 0); }
-    ({ direct: igDirect, komment: igKommentlar, qoida: igQoidalar, sozlama: igSozlama })[holat.igTab]();
+    ({ direct: igDirect, hisobot: igHisobot, komment: igKommentlar, qoida: igQoidalar, sozlama: igSozlama })[holat.igTab]();
   } catch (e) { xatoChiz(e); }
 }
 
@@ -849,7 +853,7 @@ async function igDirect() {
     <div class="ig-inbox ${holat.igOchiq ? 'chat-ochiq' : ''}">
       <aside class="ig-royxat karta">
         <label class="qidir-joy">${ik('qidir')}<input id="ig-q" placeholder="Ism yoki xabar" value="${esc(q)}" autocomplete="off"></label>
-        <div class="chip-satr ig-filtr">${[['', 'Hammasi'], ['oqilmagan', 'O‘qilmagan'], ['admin', 'Menejer kerak'], ['tahlil', 'Tahlil']]
+        <div class="chip-satr ig-filtr">${[['', 'Hammasi'], ['oqilmagan', 'O‘qilmagan'], ['admin', 'Menejer kerak'], ['tahlil', 'Tahlil'], ['telegram', 'Telegramda'], ['mijoz', 'Xaridor']]
           .map(([k, n]) => `<button class="chip ${f === k ? 'faol' : ''}" data-igf="${k}">${n}</button>`).join('')}</div>
         <div id="ig-suhbatlar"><div class="skelet"></div><div class="skelet"></div></div>
       </aside>
@@ -876,7 +880,8 @@ async function igRoyxatniChiz() {
       <button class="ig-qator ${holat.igOchiq === s.id ? 'tanlangan' : ''} ${s.oqilmagan ? 'yangi' : ''}" data-igs="${s.id}">
         <span class="ig-avatar">${s.rasm_url ? `<img src="${esc(s.rasm_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}${igBosh(s)}</span>
         <span class="ig-qator-tan">
-          <b>${esc(s.username ? '@' + s.username : s.ism || 'Instagram foydalanuvchi')}</b>
+          <b>${esc(s.username ? '@' + s.username : s.ism || 'Instagram foydalanuvchi')}${s.bosqich && s.bosqich !== 'suhbat'
+            ? ` <i class="ig-bosqich ${IG_BOSQICH[s.bosqich]?.[1] || ''}">${IG_BOSQICH[s.bosqich]?.[0] || ''}</i>` : ''}</b>
           <span>${esc(s.oxirgi_matn || '')}</span>
         </span>
         <span class="ig-qator-ong">
@@ -892,16 +897,23 @@ async function igRoyxatniChiz() {
 
 async function igChatOch(id, { jim = false } = {}) {
   holat.igOchiq = id;
+  if (holat.igKarta === undefined) holat.igKarta = window.innerWidth >= 1200;
   const chat = $('#ig-chat'); if (!chat) return;
   $('.ig-inbox')?.classList.add('chat-ochiq');
   $$('[data-igs]').forEach((x) => x.classList.toggle('tanlangan', Number(x.dataset.igs) === id));
   try {
-    const { suhbat: s, xabarlar } = await api(`/api/admin/ig/suhbat?id=${id}`);
+    const { suhbat: s, xabarlar, karta = {} } = await api(`/api/admin/ig/suhbat?id=${id}`);
     const oqim = $('#ig-oqim');
     const pastdami = !oqim || oqim.scrollHeight - oqim.scrollTop - oqim.clientHeight < 80;
     const yozuv = $('#ig-matn')?.value || '';
+    const izohYozuv = $('#ig-izoh') && document.activeElement === $('#ig-izoh') ? $('#ig-izoh').value : null;
     const pauza = s.ai_pauza_gacha && new Date(s.ai_pauza_gacha) > new Date();
+    const tez = holat.kesh.ig?.sozlamalar?.tez_javoblar || [];
+    const [bNom, bRang] = IG_BOSQICH[karta.bosqich || s.bosqich] || IG_BOSQICH.suhbat;
+    const t = karta.tahlil, m = karta.mijoz;
+    chat.classList.toggle('karta-ochiq', Boolean(holat.igKarta));
     chat.innerHTML = `
+      <div class="ig-chat-ich">
       <header class="ig-chat-bosh">
         <button class="ik-tugma ig-orqaga" id="ig-orqaga" aria-label="Orqaga">${ik('orqaga')}</button>
         <span class="ig-avatar">${s.rasm_url ? `<img src="${esc(s.rasm_url)}" alt="" onerror="this.remove()">` : ''}${igBosh(s)}</span>
@@ -909,6 +921,7 @@ async function igChatOch(id, { jim = false } = {}) {
           <span>${s.oyna_ochiq ? 'Javob yozish mumkin' : '24 soatlik oyna yopiq — mijoz yozishini kuting'}${s.telegramga_otdi ? ' · Telegramga o‘tdi ✓' : ''}</span></div>
         <label class="ig-switch" title="Shu suhbatda AI javob bersinmi">
           <input type="checkbox" id="ig-ai" ${s.ai_yoqiq ? 'checked' : ''}><span></span><b>AI</b></label>
+        <button class="ik-tugma ${holat.igKarta ? 'faol' : ''}" id="ig-karta-t" title="Mijoz kartasi">${ik('info')}</button>
       </header>
       ${s.admin_kerak ? `<div class="ig-ogoh">${ik('ogoh', 16)}<span>AI menejer kerakligini aytdi</span><button class="tug kichik" id="ig-hal">Hal qilindi</button></div>` : ''}
       ${pauza && s.ai_yoqiq ? `<div class="ig-ogoh kul">${ik('soat', 16)}<span>Siz yozdingiz — AI ${igVaqt(s.ai_pauza_gacha)} gacha jim</span><button class="tug kichik" id="ig-pauza">AI ni qaytarish</button></div>` : ''}
@@ -916,38 +929,133 @@ async function igChatOch(id, { jim = false } = {}) {
         <div class="ig-xabar ${x.yonalish === 'kiruvchi' ? 'u' : 'biz'} ${x.xato ? 'xato' : ''}">
           ${x.rasm_url ? `<a href="${esc(x.rasm_url)}" target="_blank" rel="noopener"><img src="${esc(x.rasm_url)}" alt="" loading="lazy" onerror="this.parentNode.textContent='📷 Rasm'"></a>` : ''}
           ${x.matn ? `<p>${esc(x.matn)}</p>` : ''}
-          <small>${x.yonalish === 'chiquvchi' ? `${IG_KIM[x.kim] || ''} · ` : ''}${igVaqt(x.created_at)}${x.xato ? ` · ${esc(x.xato)}` : ''}</small>
+          <small>${x.yonalish === 'chiquvchi' ? `${IG_KIM[x.kim] || ''} · ` : ''}${igVaqt(x.created_at)}${x.niyat ? ` · ${esc(IG_NIYAT[x.niyat] || x.niyat)}` : ''}${x.xato ? ` · ${esc(x.xato)}` : ''}</small>
         </div>`).join('') || '<div class="ig-bosh-holat kichik"><span>Xabarlar yo‘q</span></div>'}</div>
+      ${tez.length ? `<div class="ig-tez">${tez.map((x, i) => `<button class="chip" data-igtez="${i}" title="${esc(x)}">${esc(x.length > 34 ? x.slice(0, 32) + '…' : x)}</button>`).join('')}</div>` : ''}
       <div class="ig-yozish">
-        <button class="ik-tugma" id="ig-aiyoz" title="AI hozir javob yozsin">${ik('ai')}</button>
+        <button class="ik-tugma" id="ig-aiyoz" title="AI hozir javob yozib yuborsin">${ik('ai')}</button>
+        <button class="ik-tugma" id="ig-qoralama" title="AI qoralama — yubormaydi, matnni o‘zingiz tuzatasiz">${ik('hujjat')}</button>
         <textarea id="ig-matn" rows="1" placeholder="${s.oyna_ochiq ? 'Mijozga yozing…' : '24 soatdan oshgan — Instagram yuborishga ruxsat bermaydi'}">${esc(yozuv)}</textarea>
         <button class="y-yubor" id="ig-yubor" aria-label="Yuborish">${ik('yubor', 20)}</button>
-      </div>`;
+      </div>
+      </div>
+      <aside class="ig-karta" aria-label="Mijoz kartasi">
+        <div class="ig-karta-bosh"><b>Mijoz</b><button class="ik-tugma" id="ig-karta-yop" aria-label="Yopish">${ik('yop')}</button></div>
+        <div class="ig-karta-bosqich">${['suhbat', 'tahlil', 'telegram', 'mijoz'].map((k) => {
+          const i = ['suhbat', 'tahlil', 'telegram', 'mijoz'].indexOf(karta.bosqich || s.bosqich || 'suhbat');
+          const j = ['suhbat', 'tahlil', 'telegram', 'mijoz'].indexOf(k);
+          return `<span class="${j <= i ? 'otdi' : ''}">${IG_BOSQICH[k][0]}</span>`; }).join('')}</div>
+        <span class="ig-bosqich ${bRang}" style="align-self:flex-start">${bNom}</span>
+        ${t ? `<section><h4>Yuz tahlili</h4>
+          <div class="ig-ball"><b>${t.ball ?? '—'}</b><span>/100 · ${esc(t.teri_turi || '')}${t.yosh ? ` · ${esc(String(t.yosh))}` : ''}</span></div>
+          ${t.muammolar.length ? `<div class="chip-satr" style="padding:0">${t.muammolar.map((x) => `<span class="chip">${esc(x)}</span>`).join('')}</div>` : ''}
+          ${t.tavsiya.length ? `<ul class="ig-tavsiya">${t.tavsiya.map((p) => `<li><span>${esc(p.nom)}</span><b>${som(p.narx)}</b></li>`).join('')}</ul>` : ''}
+        </section>` : '<section><h4>Yuz tahlili</h4><p class="mayda">Hali rasm yubormagan.</p></section>'}
+        ${m ? `<section><h4>Telegram</h4><p class="mayda"><b>${esc(m.ism || '—')}</b>${m.telefon ? ` · ${esc(m.telefon)}` : ''}</p>
+          <p class="mayda">${m.buyurtma_soni ? `${m.buyurtma_soni} ta buyurtma · ${som(m.jami)} so‘m` : 'Hali buyurtma yo‘q'}</p></section>` : ''}
+        <section><h4>Menejer izohi</h4>
+          <textarea id="ig-izoh" rows="3" placeholder="Masalan: quruq teri, kechqurun yozadi. AI ham buni biladi">${esc(izohYozuv ?? s.izoh ?? '')}</textarea>
+          <button class="tug kichik" id="ig-izoh-s" style="margin-top:6px">Saqlash</button></section>
+      </aside>`;
     const yangiOqim = $('#ig-oqim');
     if (!jim || pastdami) yangiOqim.scrollTop = yangiOqim.scrollHeight;
     $('#ig-orqaga').onclick = () => { holat.igOchiq = null; $('.ig-inbox')?.classList.remove('chat-ochiq'); };
+    const kartaAlmash = () => { holat.igKarta = !holat.igKarta; chat.classList.toggle('karta-ochiq', holat.igKarta); $('#ig-karta-t')?.classList.toggle('faol', holat.igKarta); };
+    $('#ig-karta-t').onclick = kartaAlmash; $('#ig-karta-yop').onclick = kartaAlmash;
     $('#ig-ai').onchange = async (e) => { await api('/api/admin/ig/suhbat', { method: 'POST', body: JSON.stringify({ id, ai_yoqiq: e.target.checked }) });
       tost(e.target.checked ? 'AI shu suhbatda javob beradi' : 'AI shu suhbatda o‘chirildi'); igRoyxatniChiz(); };
     $('#ig-hal') && ($('#ig-hal').onclick = async () => { await api('/api/admin/ig/suhbat', { method: 'POST', body: JSON.stringify({ id, admin_kerak: false }) }); igChatOch(id); });
     $('#ig-pauza') && ($('#ig-pauza').onclick = async () => { await api('/api/admin/ig/suhbat', { method: 'POST', body: JSON.stringify({ id, pauza_olib: true }) }); igChatOch(id); });
-    const m = $('#ig-matn');
-    m.oninput = () => { m.style.height = 'auto'; m.style.height = Math.min(120, m.scrollHeight) + 'px'; };
+    $('#ig-izoh-s').onclick = async () => {
+      try { await api('/api/admin/ig/suhbat', { method: 'POST', body: JSON.stringify({ id, izoh: $('#ig-izoh').value }) }); tost('Izoh saqlandi'); $('#ig-izoh').blur(); }
+      catch (e) { tost(e.message, 'xato'); }
+    };
+    const mt = $('#ig-matn');
+    const balandlik = () => { mt.style.height = 'auto'; mt.style.height = Math.min(120, mt.scrollHeight) + 'px'; };
+    mt.oninput = balandlik;
+    $$('[data-igtez]').forEach((x) => x.onclick = () => { mt.value = tez[Number(x.dataset.igtez)] || ''; balandlik(); mt.focus(); });
     const yubor = async () => {
-      const t = m.value.trim(); if (!t) return;
+      const tx = mt.value.trim(); if (!tx) return;
       $('#ig-yubor').disabled = true;
-      try { await api('/api/admin/ig/yubor', { method: 'POST', body: JSON.stringify({ id, matn: t }) }); m.value = ''; igChatOch(id); }
+      try { await api('/api/admin/ig/yubor', { method: 'POST', body: JSON.stringify({ id, matn: tx }) }); mt.value = ''; igChatOch(id); }
       catch (e) { tost(e.message, 'xato'); }
       finally { const b = $('#ig-yubor'); if (b) b.disabled = false; }
     };
     $('#ig-yubor').onclick = yubor;
-    m.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); yubor(); } };
+    mt.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); yubor(); } };
     $('#ig-aiyoz').onclick = async () => {
       const b = $('#ig-aiyoz'); b.disabled = true;
       try { const r = await api('/api/admin/ig/ai-javob', { method: 'POST', body: JSON.stringify({ id }) });
         tost(r.natija ? 'AI javob yubordi' : 'AI javob bermadi'); igChatOch(id); }
       catch (e) { tost(e.message, 'xato'); b.disabled = false; }
     };
+    $('#ig-qoralama').onclick = async () => {
+      const b = $('#ig-qoralama'); b.disabled = true; b.classList.add('ishlayapti');
+      try { const r = await api('/api/admin/ig/qoralama', { method: 'POST', body: JSON.stringify({ id }) });
+        mt.value = r.javob || ''; balandlik(); mt.focus(); tost('Qoralama tayyor — tekshirib yuboring'); }
+      catch (e) { tost(e.message, 'xato'); }
+      finally { b.disabled = false; b.classList.remove('ishlayapti'); }
+    };
   } catch (e) { if (!jim) chat.innerHTML = `<p class="xato" style="padding:16px">${esc(e.message)}</p>`; }
+}
+
+// ── HISOBOT ──
+async function igHisobot() {
+  const kun = holat.igKun || 30;
+  $('#ig-tan').innerHTML = `
+    <div class="asbob"><div class="davr">${[7, 30, 90].map((k) => `<button data-igkun="${k}" class="${kun === k ? 'faol' : ''}">${k} kun</button>`).join('')}</div></div>
+    <div id="ig-hisobot"><div class="karta"><div class="skelet"></div><div class="skelet"></div></div></div>`;
+  $$('[data-igkun]').forEach((x) => x.onclick = () => { holat.igKun = Number(x.dataset.igkun); igHisobot(); });
+  try {
+    const r = await api(`/api/admin/ig/statistika?kun=${kun}`);
+    const v = r.voronka || {}, tz = r.tezlik || {};
+    const foiz = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : '—');
+    const bosqichlar = [['Yozdi', v.yozdi], ['Yuz tahlili', v.tahlil], ['Telegramga o‘tdi', v.telegram], ['Buyurtma qildi', v.buyurtma]];
+    const maks = Math.max(1, ...bosqichlar.map((x) => x[1] || 0));
+    const soatMaks = Math.max(1, ...r.soatlar);
+    $('#ig-hisobot').innerHTML = `
+      <div class="kpi-tor">
+        ${kpiKarta('Yozganlar', som(v.yozdi || 0), null, 'odamlar')}
+        ${kpiKarta('Telegramga o‘tdi', `${som(v.telegram || 0)} <small class="kpi-qosh">${foiz(v.telegram, v.yozdi)}</small>`, null, 'xat')}
+        ${kpiKarta('Buyurtma · tushum', `${som(v.buyurtma || 0)} <small class="kpi-qosh">${som(v.tushum || 0)} so‘m</small>`, null, 'savat')}
+        ${kpiKarta('AI javob tezligi', igMs(tz.ai_ms), null, 'soat')}
+      </div>
+      <div class="ustunlar">
+        <section class="karta"><div class="karta-bosh"><h2>Voronka</h2><span class="yor kul">${r.kun} kun</span></div>
+          <div class="ig-voronka">${bosqichlar.map(([n, q], i) => `<div class="ig-v-qator">
+            <span class="ig-v-nom">${n}</span>
+            <span class="ig-v-yol"><i style="width:${Math.max(2, ((q || 0) / maks) * 100).toFixed(1)}%"></i></span>
+            <b>${som(q || 0)}</b><em>${i ? foiz(q, bosqichlar[i - 1][1]) : ''}</em></div>`).join('')}</div>
+          <p class="mayda" style="margin-top:10px">Menejer javobi (mediana): <b>${igMs(tz.admin_ms)}</b> · AI ${som(tz.ai_soni || 0)} ta, menejer ${som(tz.admin_soni || 0)} ta javob</p>
+        </section>
+        <section class="karta"><div class="karta-bosh"><h2>Nimani so‘rashadi</h2></div>
+          ${r.niyatlar.length >= 2 ? grafikHtml({ tur: 'halqa', qatorlar: r.niyatlar.map((x) => ({ nom: IG_NIYAT[x.niyat] || x.niyat, qiymat: x.soni })) })
+            : '<p class="mayda">Hali ma’lumot kam — AI javob bergan sari to‘ladi.</p>'}
+        </section>
+      </div>
+      <section class="karta"><div class="karta-bosh"><h2>Kunlik yozishmalar</h2></div>
+        <div class="ig-grafiklar">
+        ${grafikHtml({ tur: 'chiziq', sarlavha: 'Kelgan xabarlar', qatorlar: r.kunlik.map((x) => ({ nom: x.kun, qiymat: x.kiruvchi })) })}
+        ${grafikHtml({ tur: 'chiziq', sarlavha: 'AI javoblari', qatorlar: r.kunlik.map((x) => ({ nom: x.kun, qiymat: x.ai })) })}
+        ${grafikHtml({ tur: 'chiziq', sarlavha: 'Yuz tahlillari', qatorlar: r.kunlik.map((x) => ({ nom: x.kun, qiymat: x.tahlil })) })}
+        </div>
+      </section>
+      <div class="ustunlar">
+        <section class="karta"><div class="karta-bosh"><h2>Eng faol soatlar</h2><span class="yor kul">Toshkent vaqti</span></div>
+          <div class="ig-soatlar">${r.soatlar.map((q, i) => `<div title="${i}:00 — ${q} ta xabar"><i style="height:${Math.max(3, (q / soatMaks) * 100).toFixed(0)}%"></i><span>${i % 3 === 0 ? i : ''}</span></div>`).join('')}</div>
+          <p class="mayda" style="margin-top:8px">Post va story shu soatlardan oldin chiqsa — ko‘proq javob keladi.</p>
+        </section>
+        <section class="karta"><div class="karta-bosh"><h2>Kommentlar</h2></div>
+          <div class="ig-k-stat">
+            <div><b>${som(r.komment?.jami || 0)}</b><span>jami</span></div>
+            <div><b>${som(r.komment?.qoida || 0)}</b><span>qoida ishladi</span></div>
+            <div><b>${som(r.komment?.dm || 0)}</b><span>Direct ketdi</span></div>
+            <div><b>${som(r.komment?.spam || 0)}</b><span>spam yashirildi</span></div>
+          </div>
+          ${r.qoidalar.length ? `<ul class="ig-tavsiya" style="margin-top:12px">${r.qoidalar.map((q) => `<li><span>${esc(q.nom)}</span><b>${som(q.ishladi)}</b></li>`).join('')}</ul>` : ''}
+        </section>
+      </div>`;
+  } catch (e) { $('#ig-hisobot').innerHTML = `<div class="xabar-quti xato">${esc(e.message)}</div>`; }
 }
 
 // ── KOMMENTLAR ──
@@ -1135,6 +1243,26 @@ function igSozlama() {
       </section>
     </div>
     <section class="karta">
+      <div class="karta-bosh"><h2>Odamdek yozish</h2><span class="yor kul">telefonda yozgandek</span></div>
+      <div class="ikki">
+        <div><label>Yozish tezligi<span class="yordam">«yozmoqda…» va javob vaqti</span></label>
+          <select data-igs-s="yozish_tezligi">${[['tabiiy', 'Tabiiy (3–15 s)'], ['sekin', 'Sekin, o‘ylab (5–25 s)'], ['tez', 'Tez (1–3 s)']]
+            .map(([k, n]) => `<option value="${k}" ${s.yozish_tezligi === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+        <div><label>Yuz rasmidan keyin<span class="yordam">natija rasmi doim ketadi</span></label>
+          <select data-igs-s="tahlil_xabari">${[['qisqa', 'Natija + qisqa Telegram havolasi'], ['yoq', 'Faqat natija rasmi'], ['mahsulotlar', 'Natija + mahsulotlar ro‘yxati']]
+            .map(([k, n]) => `<option value="${k}" ${s.tahlil_xabari === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      </div>
+      ${almash('korildi', '«Ko‘rildi» belgisi', 'Mijoz xabari o‘qilgandek ko‘rinadi, keyin «yozmoqda…»')}
+      ${almash('eslatma', 'Eslatma', 'Tahlil olib Telegramni ochmaganga bitta yumshoq xabar (24 soat ichida)')}
+      <div class="ikki"><div><label>Eslatma necha soatdan keyin</label><input id="ig-esl" type="number" min="1" max="20" value="${s.eslatma_soat ?? 3}"></div><div></div></div>
+      ${almash('spam_yashir', 'Spam kommentlarni yashirish', 'Begona havola, «obuna bo‘l», kazino va so‘kinishlar')}
+      <label>Do‘kon bilimi<span class="yordam">AI faqat shunga tayanadi: manzil, yetkazish muddati, kafolat, qaytarish, aksiya shartlari</span></label>
+      <textarea id="ig-bilim" rows="5" placeholder="Toshkent bo‘ylab 1–2 kun, viloyatlarga 3–5 kun. Barcha mahsulotlar original, Koreyadan. Ochilmagan mahsulot 3 kun ichida almashtiriladi…">${esc(s.bilim || '')}</textarea>
+      <label>Tez javoblar<span class="yordam">Har qatorda bitta — Direct’da bir bosishda qo‘yiladi</span></label>
+      <textarea id="ig-tez" rows="4">${esc((s.tez_javoblar || []).join('\n'))}</textarea>
+      <button class="tug asos keng" id="ig-odam-saqla" style="margin-top:12px">${ik('tasdiq', 16)}Saqlash</button>
+    </section>
+    <section class="karta">
       <div class="karta-bosh"><h2>AI ko‘rsatmasi</h2><button class="tug kichik" id="ig-standart">Standartni qo‘yish</button></div>
       <textarea id="ig-korsatma" rows="10" placeholder="${esc(h.standart_korsatma || '')}">${esc(s.korsatma || '')}</textarea>
       <label>Tahlildan keyingi xabar<span class="yordam">Bo‘sh — AI har odamga o‘zi yozadi. {ball}, {tavsif}, {soni}, {mahsulotlar}, {havola}</span></label>
@@ -1183,6 +1311,17 @@ function igSozlama() {
     tost('Saqlandi'); const r = await api('/api/admin/ig/holat'); holat.kesh.ig = r;
   });
   $('#ig-standart').onclick = () => { $('#ig-korsatma').value = h.standart_korsatma || ''; };
+  $$('[data-igs-s]').forEach((x) => x.onchange = async () => {
+    await api('/api/admin/ig/sozlama', { method: 'POST', body: JSON.stringify({ [x.dataset.igsS]: x.value }) });
+    tost('Saqlandi'); holat.kesh.ig = await api('/api/admin/ig/holat');
+  });
+  $('#ig-odam-saqla').onclick = async () => {
+    try {
+      await api('/api/admin/ig/sozlama', { method: 'POST', body: JSON.stringify({ bilim: $('#ig-bilim').value,
+        tez_javoblar: $('#ig-tez').value, eslatma_soat: Number($('#ig-esl').value) }) });
+      tost('Saqlandi — AI endi shu bilimga tayanadi'); holat.kesh.ig = await api('/api/admin/ig/holat');
+    } catch (e) { tost(e.message, 'xato'); }
+  };
   $('#ig-saqla').onclick = async () => {
     try {
       await api('/api/admin/ig/sozlama', { method: 'POST', body: JSON.stringify({ korsatma: $('#ig-korsatma').value,

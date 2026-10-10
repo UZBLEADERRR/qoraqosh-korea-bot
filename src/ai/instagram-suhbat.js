@@ -27,57 +27,88 @@ const SXEMA = {
   propertyOrdering: ['ig_javob', 'niyat', 'admin_kerak'],
 };
 
-export const STANDART_KORSATMA = `Sen — KiOVO (Koreya kosmetikasi, O'zbekiston) Instagram sahifasini
-yurituvchi sotuvchi-maslahatchisan. Ismingni so'rashsa — «KiOVO jamoasidan».
-Teri parvarishini yaxshi bilasan va odamga do'stona, lekin aniq maslahat berasan.
+export const STANDART_KORSATMA = `Sen KiOVO do'konining Instagram sahifasini yuritadigan odamsan (sotuvchi-maslahatchi).
+KiOVO — O'zbekistondagi Koreya kosmetikasi do'koni: Telegram bot, ilova (sayt va Android),
+bepul AI yuz skaneri va teri bo'yicha maslahat. Teri parvarishini yaxshi bilasan.
+Ismingni so'rashsa — «KiOVO jamoasidanman» de.
 
 NIMALAR QILASAN:
-1) KONSULTATSIYA. Teri turi, akne, dog', quruqlik, yog'lanish, kengaygan
-   teshiklar, ajin, SPF, ingredientlar (niatsinamid, retinol, kislotalar),
-   parvarish tartibi (tozalash → toner → davolash → namlash → kunduzi SPF),
-   nimani nima bilan birga ishlatmaslik — sodda tilda, 1-2 gapda tushuntir.
-   Ma'lumot yetmasa — BITTA aniqlashtiruvchi savol ber (teri turi, qancha
-   vaqtdan beri, nima ishlatyapti). Yoki bepul yuz tahlilini taklif qil:
-   «yorug' joyda yuzingizni bitta rasmga olib shu yerga tashlang, 30 soniyada
-   tahlil qilib beraman».
-2) MAHSULOT TAVSIYASI. Faqat KATALOGdagi mahsulot, narxi ANIQ katalogdagidek.
-   Nega aynan shu odamga mosligini uning muammosi bilan bog'lab ayt («dog'laringiz
-   uchun — tarkibida niatsinamid bor»). Bir yo'la 1-3 tadan ortiq taklif qilma.
-   Tahlili bo'lsa — tahlildagi tavsiyalarga tayan. Katalogda yo'q narsani
-   o'ylab topma: «hozir yo'q, o'rniga …» de.
-3) BUYURTMA. DM'da buyurtma qabul qilinmaydi — Telegram bot yoki ilova orqali
-   (DO'KON MA'LUMOTI bo'limidagi qadamlar). So'rashsa qadamlarni oddiy gap bilan,
-   bitta xabarda ayt va havolani ber.
-4) ILOVA. Qanday ishlatishni so'rashsa — DO'KON MA'LUMOTI dagi bo'limlarni
-   ayt: skaner, maslahat, do'kon, savat, profil.
+1) KONSULTATSIYA. Teri turi, akne, dog', quruqlik, yog'lanish, teshiklar, ajin, SPF,
+   tarkiblar (niatsinamid, retinol, kislotalar), tartib (tozalash → toner → davolash →
+   namlash → kunduzi SPF), nimani nima bilan birga surtmaslik. Sodda tilda, qisqa.
+   Ma'lumot yetmasa — bitta savol ber yoki bepul tahlilni taklif qil: yuzini yorug' joyda
+   bitta rasmga olib shu yerga tashlasa, 30 soniyada tahlil qilib beriladi.
+2) MAHSULOT. Faqat KATALOGdagi mahsulot, narxi aniq katalogdagidek. Nega aynan unga
+   mosligini uning muammosiga bog'lab ayt. Bir yo'la 1-2 tadan ko'p taklif qilma.
+   Katalogda yo'q bo'lsa o'ylab topma: «hozir yo'q, o'rniga …» de.
+3) BUYURTMA. Direct'da buyurtma olinmaydi — Telegram bot yoki ilova orqali
+   (DO'KON MA'LUMOTI dagi qadamlar). So'rashsa oddiy qilib tushuntir va havolani ber.
+4) ILOVA. Qanday ishlatishni so'rashsa — bo'limlarini ayt.
+5) BILMASANG o'ylab topma (yetkazish muddati, kafolat, manzil…): BILIM va DO'KON
+   MA'LUMOTI da bo'lmasa «aniqlab aytaman» de va admin_kerak=true.
 
-Agar «bot/AI misan?» deb to'g'ridan-to'g'ri so'rashsa — yolg'on gapirma:
-«KiOVO'ning AI yordamchisiman, kerak bo'lsa menejerni ulayman» de.
+«Bot/AI misan?» deb to'g'ridan-to'g'ri so'rashsa — yolg'on gapirma: «KiOVO'ning AI
+yordamchisiman, xohlasangiz menejerni ulab beraman» de.
 Shikoyat, qaytarish, to'lov yoki yetkazish muammosi, jahl — admin_kerak=true va
-«hozir menejerimiz yozadi» de. Tibbiy tashxis qo'yma, dori tavsiya qilma;
-jiddiy holatda (yiringli, og'riqli toshma) dermatologga borishni maslahat ber.`;
+«hozir menejerimiz yozadi» de. Tibbiy tashxis qo'yma, dori tavsiya qilma; jiddiy holatda
+(yiringli, og'riqli toshma) dermatologga borishni maslahat ber.`;
 
 // Bu qoidalar admin ko'rsatmasi o'zgartirilsa ham DOIM qo'shiladi.
-export const USLUB = `USLUB — HAQIQIY ODAMDEK YOZ (bu eng muhim qoida):
-- Direct chat. Qisqa: odatda 1-3 gap. Odam batafsil so'rasa — ko'pi bilan 5-6 gap.
-- Mijoz qaysi tilda yozsa (o'zbek lotin/kirill, rus) — o'sha tilda. «Siz» deb.
-- Markdown YO'Q: ** yulduzcha, # sarlavha, «1.» raqamli ro'yxat yozma.
-- Emoji ko'pi bilan bitta, ko'pincha umuman kerak emas.
-- Bu so'z va iboralarni ISHLATMA: «Albatta!», «Ajoyib savol», «Zo'r savol»,
-  «Sizga yordam berishdan xursandman», «Umid qilamanki», «Yana savollaringiz
-  bo'lsa bemalol», «Qo'shimcha savollar bo'lsa», «Men sizga yordam bera olaman»,
-  «Konechno!», «Отличный вопрос», «Рада помочь», «Надеюсь, это поможет».
-- Har xabarni salom bilan boshlama, javobni savol bilan qaytarib tushuntirma,
-  oxirida «yana nima kerak?» deb so'rama. To'g'ridan-to'g'ri gapga o't.
-- Jonli sotuvchidek: «ha, bor», «mana shunisi yaxshi», «menimcha sizga …», oddiy so'zlar.
-  Oldingi javoblaringni takrorlama, bir xil ibora bilan boshlama.`;
+export const USLUB = `USLUB — HAQIQIY ODAMDEK, TELEFONDA YOZGANDEK (eng muhim qoida):
+- Instagram chat. Har fikr — alohida qisqa xabar. 2-3 xabarga bo'lsang orasini BO'SH QATOR
+  bilan ajrat (har biri alohida yuboriladi). Bitta xabar odatda 3-12 so'z.
+- Gap oxirida nuqta qo'yma. Vergul kam. Gapni kichik harf bilan boshlasang ham bo'ladi.
+- Tire (—), «qo'shtirnoq», nuqtali vergul, ro'yxat, ** yulduzcha YO'Q.
+- Narxni odamcha yoz: «185 ming», «1 mln 200 ming».
+- Emoji kam: ko'pincha umuman yo'q, ba'zan bitta 🙂 😊 🙏
+- Mijoz qisqa yozsa sen ham qisqa. Uning gapini takrorlama, har xabarni salom bilan boshlama,
+  o'zingni tanishtirib o'tirma, oxirida «yana savol bo'lsa…» dema.
+- Rasmiy iboralar YO'Q: «Hurmatli mijoz», «Albatta!», «Ajoyib savol», «Sizga yordam
+  berishdan mamnunman», «Umid qilamanki», «Qo'shimcha savollar bo'lsa», «Konechno»,
+  «Отличный вопрос», «Рада помочь».
+- Mijoz qaysi tilda yozsa (o'zbek lotin/kirill, rus) o'sha tilda. «Siz» deb, lekin samimiy.
+- Ovozli xabar kelsa: hozir eshita olmasligingni ayt, yozib yuborishini so'ra.
+  Story'da belgilasa — samimiy rahmat ayt. Post ulashsa — nima qiziqtirganini so'ra.
+
+MISOLLAR (xuddi shu ohangda yoz, so'zma-so'z ko'chirma):
+Mijoz: Assalomu alaykum
+Siz: va alaykum assalom, eshitaman
+
+Mijoz: akne uchun nima bor
+Siz: bor, lekin avval teringizni bilsam yaxshi bo'lardi
+
+Siz: yuzingizni yorug' joyda bitta rasmga olib shu yerga tashlang, qarab aytaman qaysi biri mos
+
+Mijoz: centella ampula narxi qancha
+Siz: 227 ming
+
+Siz: hozir aksiyada, oldin 260 edi
+
+Mijoz: dostavka bormi
+Siz: ha, butun o'zbekiston bo'ylab pochta orqali jo'natamiz
+
+Siz: narxi og'irlikka qarab, buyurtma paytida o'zi hisoblanadi
+
+Mijoz: qanday buyurtma qilaman
+Siz: telegram botimizdan, oson
+
+Siz: do'kon bo'limidan tanlab savatga qo'shasiz, manzilni yozasiz, kartaga to'lab chekni tashlaysiz tamom
+
+Mijoz: Здравствуйте, есть солнцезащитный крем?
+Siz: здравствуйте, да есть
+
+Siz: для какой кожи? жирная или сухая
+
+Mijoz: rahmat
+Siz: arzimaydi 😊`;
 
 /** Javobni «AI slop»dan tozalaydi: markdown, ortiqcha emoji, quruq ochilish iboralari. */
 export function slopTozala(t) {
   let s = String(t || '').replace(/\r/g, '');
-  s = s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1').replace(/^#{1,6}\s+/gm, '');
+  s = s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/__(.+?)__/g, '$1').replace(/^#{1,6}\s+/gm, '')
+       .replace(/^\s*(?:[-•*]|\d+[.)])\s+/gm, '');
   // Ochilishdagi quruq iboralar — bir nechtasi ketma-ket kelsa ham
-  const OCHILISH = /^\s*(albatta|ajoyib savol|zo['‘’ʻ`]?r savol|yaxshi savol|juda yaxshi savol|konechno|конечно|отличный вопрос|хороший вопрос|absolutely|great question)[!.,:\s]*/i;
+  const OCHILISH = /^\s*(albatta|ajoyib savol|zo['‘’ʻ`]?r savol|yaxshi savol|juda yaxshi savol|hurmatli mijoz|konechno|конечно|отличный вопрос|хороший вопрос|absolutely|great question)[!.,:\s]*/i;
   for (let i = 0; i < 3 && OCHILISH.test(s); i++) s = s.replace(OCHILISH, '');
   // Oxiridagi «yana savol bo'lsa…» dumi
   s = s.replace(/\s*(yana|qo['‘’ʻ`]?shimcha)\s+savol(lar)?ingiz\s+bo['‘’ʻ`]?lsa[^.!?\n]*[.!?]?\s*$/i, '')
@@ -90,6 +121,78 @@ export function slopTozala(t) {
   return s ? s[0].toUpperCase() + s.slice(1) : s;
 }
 
+/** Suhbatga bog'liq barqaror «qo'l uslubi»: bir odam butun suhbatda bir xil yozadi. */
+export function uslubUrugi(kalit) {
+  let h = 0;
+  for (const c of String(kalit || '')) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return h;
+}
+
+const ming = (n, rus) => {
+  if (n >= 1e6) {
+    const mln = Math.floor(n / 1e6), q = Math.round((n % 1e6) / 1000);
+    return rus ? `${mln} млн${q ? ` ${q} тыс` : ''}` : `${mln} mln${q ? ` ${q} ming` : ''}`;
+  }
+  return n % 1000 === 0 ? (rus ? `${n / 1000} тыс` : `${n / 1000} ming`) : `${n.toLocaleString('ru-RU').replace(/ /g, ' ')} ${rus ? 'сум' : "so'm"}`;
+};
+
+/**
+ * Matnni telefonda yozilgandek qiladi: egri tutuq belgilari, tire va
+ * qo'shtirnoqlar (AI belgisi) olib tashlanadi, oxirgi nuqta tushadi,
+ * narx «185 ming» bo'ladi. Havolalarga tegilmaydi.
+ */
+export function insonlashtir(t, urug = 0) {
+  const havolalar = [];
+  let s = String(t || '').replace(/https?:\/\/\S+?(?=[.,!?)]*(?:\s|$))/g, (h) => `\u0000${havolalar.push(h) - 1}\u0000`);
+  const rus = /[а-яё]/i.test(s) && !/[a-z]{3}/i.test(s.replace(/\u0000\d+\u0000/g, ''));
+  s = s.replace(/[‘’ʻʼ`´]/g, "'")
+       .replace(/[«»“”„]/g, '')
+       .replace(/\s+[—–]\s+/g, ' ').replace(/[—–]/g, '-')
+       .replace(/;/g, ',')
+       .replace(/!{2,}/g, '!').replace(/\?{2,}/g, '?')
+       .replace(/\.{4,}/g, '...');
+  s = s.replace(/(\d{1,3}(?:[  .,]\d{3})+|\d{4,})\s*(?:so['‘’ʻ]?m|сум|sum|uzs)(?![\p{L}])/giu, (_, r) => {
+    const n = Number(String(r).replace(/[  .,]/g, ''));
+    return Number.isFinite(n) && n > 0 ? ming(n, rus) : _;
+  });
+  s = s.split('\n').map((q) => q.replace(/(?<!\.)\.\s*$/, '').replace(/\s+$/, '')).join('\n');
+  // Ba'zi odamlar gapni kichik harf bilan boshlaydi — suhbat bo'yi bir xil
+  if (urug % 2 === 0) {
+    s = s.replace(/(^|\n)([A-ZА-ЯЁ])(?=[a-zа-яё'])/g, (_, b, h) => b + h.toLowerCase());
+  }
+  s = s.replace(/[ \t]{2,}/g, ' ').replace(/ +([,!?])/g, '$1').trim();
+  return s.replace(/\u0000(\d+)\u0000/g, (_, i) => havolalar[Number(i)]);
+}
+
+/** Javobni alohida yuboriladigan qisqa xabarlarga bo'ladi (ko'pi bilan 3 ta). */
+export function qismlarga(t, chegara = 3) {
+  let q = String(t || '').split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean);
+  if (q.length === 1 && q[0].length > 170 && !/\n/.test(q[0])) {
+    const m = q[0];
+    const yarim = m.length / 2;
+    let eng = -1;
+    for (const x of m.matchAll(/[.!?](\s+)(?=\S)/g)) {
+      if (eng < 0 || Math.abs(x.index - yarim) < Math.abs(eng - yarim)) eng = x.index;
+    }
+    if (eng > 30 && eng < m.length - 20) q = [m.slice(0, eng + 1).trim(), m.slice(eng + 1).trim()];
+  }
+  if (q.length > chegara) q = [...q.slice(0, chegara - 1), q.slice(chegara - 1).join('\n')];
+  return q;
+}
+
+/**
+ * Bitta xabarni «yozish» vaqti (ms): odam o'qiydi, o'ylaydi, keyin yozadi.
+ * tezlik: 'tabiiy' | 'sekin' | 'tez'
+ */
+export function yozishVaqti(matn, { birinchi = false, tezlik = 'tabiiy', tasodif = Math.random } = {}) {
+  const T = { tez: [1.5, 12, 600, 3000], tabiiy: [3.5, 5, 1500, 14000], sekin: [7, 3.2, 3000, 26000] }[tezlik] || [3.5, 5, 1500, 14000];
+  const [oqish, belgiSoniya, min, maks] = T;
+  const uzun = String(matn || '').replace(/https?:\/\/\S+/g, 'havola').length;
+  const ms = (birinchi ? oqish * 1000 * (0.4 + tasodif() * 0.6) : 600 + tasodif() * 1400)
+    + (uzun / belgiSoniya) * 1000 * (0.8 + tasodif() * 0.4);
+  return Math.round(Math.max(min, Math.min(maks, ms)));
+}
+
 const narxi = (p) => `${Number(p.price).toLocaleString('ru-RU').replace(/ /g, ' ')} so'm`;
 
 const katalogMatni = (r) => r.map((p) =>
@@ -98,9 +201,11 @@ const katalogMatni = (r) => r.map((p) =>
 
 /**
  * Do'kon haqida faktlar: AI buyurtma va ilovani shu bo'yicha o'rgatadi
- * (o'ylab topmasin).
+ * (o'ylab topmasin). `dokon` — bazadan yig'ilgan qisqa bilim (brendlar,
+ * toifalar, aksiya, ko'p sotilganlar, yetkazish tarifi), `bilim` — admin
+ * yozgan FAQ (manzil, muddat, kafolat…).
  */
-export function dokonMalumoti({ tg_havola = '', ilova_havola = '', play_havola = '', telefon = '' } = {}) {
+export function dokonMalumoti({ tg_havola = '', ilova_havola = '', play_havola = '', telefon = '', dokon = '', bilim = '' } = {}) {
   return `DO'KON MA'LUMOTI (faqat shularga tayan):
 - Buyurtma qadamlari: Telegram botni oching (${tg_havola || 'Telegram bot'}) → telefon raqam va ism bilan
   30 soniyada ro'yxatdan o'tasiz → «🛍 Do'kon» → mahsulotni tanlab «Savatga» → Savat →
@@ -113,7 +218,10 @@ export function dokonMalumoti({ tg_havola = '', ilova_havola = '', play_havola =
   teri haqida yozib so'raysiz; «Do'kon» — katalog, qidiruv, aksiyalar; «Savat»; «Profil» —
   buyurtmalar holati va tahlillar tarixi.
 - Yuz tahlili natijasi va tavsiya qilingan mahsulotlar Telegramda ochiladi: o'sha yerdan
-  bir bosishda savatga qo'shiladi.${telefon ? `\n- Menejer telefoni: ${telefon}` : ''}`;
+  bir bosishda savatga qo'shiladi.${telefon ? `\n- Menejer telefoni: ${telefon}` : ''}${dokon ? `\n${dokon}` : ''}${bilim ? `
+
+BILIM (do'kon egasi yozgan — aniq fakt, shunga tayan):
+${String(bilim).slice(0, 3000)}` : ''}`;
 }
 
 /**
@@ -121,7 +229,7 @@ export function dokonMalumoti({ tg_havola = '', ilova_havola = '', play_havola =
  * @param {Array}  o.tarix    [{kim:'mijoz'|'ai'|'admin', matn}] eng eskisi birinchi
  * @param {string} o.korsatma admin yozgan ko'rsatma (bo'sh — standart)
  * @param {Array}  o.mahsulotlar katalog
- * @param {object} o.malumot  {ism, tg_havola, tahlil, tahlil_havola, ilova_havola, play_havola, telefon}
+ * @param {object} o.malumot  {ism, tg_havola, tahlil, tahlil_havola, ilova_havola, play_havola, telefon, dokon, bilim, urug}
  */
 export async function igJavob({ tarix = [], korsatma = '', mahsulotlar = [], malumot = {} }) {
   const oxirgi = [...tarix].reverse().find((x) => x.kim === 'mijoz')?.matn || '';
@@ -130,14 +238,14 @@ export async function igJavob({ tarix = [], korsatma = '', mahsulotlar = [], mal
     tarix: tarix.map((x) => ({ kim: x.kim === 'mijoz' ? 'odam' : 'ai', matn: x.matn })), chegara: 25,
   });
   const k = (korsatma || STANDART_KORSATMA).replaceAll('{tg_havola}', malumot.tg_havola || 'Telegram botimiz');
-  const suhbat = tarix.slice(-16).map((x) => `${x.kim === 'mijoz' ? 'Mijoz' : 'Siz'}: ${String(x.matn || '').slice(0, 500)}`).join('\n');
+  const suhbat = tarix.slice(-20).map((x) => `${x.kim === 'mijoz' ? 'Mijoz' : 'Siz'}: ${String(x.matn || '').slice(0, 500)}`).join('\n');
   const matn = `${k}
 
 ${USLUB}
 
 ${dokonMalumoti(malumot)}
 
-${malumot.ism ? `MIJOZ ISMI: ${malumot.ism}\n` : ''}${malumot.tahlil ? `UNING YUZ TAHLILI (allaqachon qilingan, natija rasmi unga yuborilgan):
+${malumot.ism ? `MIJOZ ISMI: ${malumot.ism}\n` : ''}${malumot.izoh ? `MENEJER ESLATMASI: ${malumot.izoh}\n` : ''}${malumot.tahlil ? `UNING YUZ TAHLILI (allaqachon qilingan, natija rasmi unga yuborilgan):
 ${malumot.tahlil}
 Tavsiyalar Telegramda ochiladigan havola: ${malumot.tahlil_havola || malumot.tg_havola || '-'}
 ` : ''}TELEGRAM HAVOLA: ${malumot.tg_havola || '-'}
@@ -148,14 +256,26 @@ ${katalogMatni(royxat)}
 SUHBAT (oxirgisi pastda):
 ${suhbat}
 
-Endi «Siz» sifatida BITTA javob yoz (ig_javob). Havolani faqat kerak bo'lganda ber
-(buyurtma, tavsiyani ochish, ilova) va matnga oddiy qo'y.`;
-  const j = await aiJson([{ text: matn }], SXEMA, { temperature: 0.8, maxTokens: 1024, qayerda: 'instagram' });
+Endi «Siz» sifatida javob yoz (ig_javob): 1-3 qisqa xabar, oralari bo'sh qator bilan.
+Havolani faqat kerak bo'lganda ber (buyurtma, tavsiyani ochish, ilova), alohida xabarda.`;
+  const j = await aiJson([{ text: matn }], SXEMA, { temperature: 0.85, maxTokens: 1024, qayerda: 'instagram' });
+  const toza = slopTozala(j.ig_javob).slice(0, 950);
   return {
-    javob: slopTozala(j.ig_javob).slice(0, 950),
+    javob: insonlashtir(toza, malumot.urug ?? 1),
     niyat: SXEMA.properties.niyat.enum.includes(j.niyat) ? j.niyat : 'boshqa',
     admin_kerak: j.admin_kerak === true,
   };
+}
+
+/** Rasm tahlilidan keyin — faqat qisqa, odamcha bir-ikki gap va havola. */
+export function tahlilQisqa({ havola = '', urug = 0, rus = false } = {}) {
+  const V = rus
+    ? [['вот ваш результат', `подробно и что вам подойдёт можно открыть в телеграме\n${havola}`],
+       ['готово, вот анализ', `полный разбор и уход под вашу кожу тут\n${havola}`]]
+    : [['mana natijangiz', `batafsili va sizga mos parvarish telegramda ochiladi\n${havola}`],
+       ['tayyor, mana tahlil', `to'liq tushuntirish va nima surtish kerakligi shu yerda\n${havola}`],
+       ['natija chiqdi', `qaysi birini qachon surtish kerakligigacha telegramda yozilgan\n${havola}`]];
+  return V[urug % V.length];
 }
 
 /**

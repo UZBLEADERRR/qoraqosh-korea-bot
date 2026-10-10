@@ -710,6 +710,8 @@ async function boshla() {
     jadvalniIshgaTushir();  // avtomatik import (jadval yoqilgan bo'lsa)
     // Instagram tokeni 60 kun yashaydi — kuniga bir marta uzaytiramiz
     setInterval(() => igTokenniYangila().catch((e) => console.error('IG token:', e.message)), 24 * 3600e3).unref();
+    // Tahlil olib Telegramga o'tmaganlarga bitta yumshoq eslatma (24 soat oynasi ichida)
+    setInterval(() => instagram.eslatmalarniYubor().catch((e) => console.error('IG eslatma:', e.message)), 10 * 60_000).unref();
     vazifaniTiklash()
       .then((v) => v && console.log(`   Import davom etmoqda: #${v.id} (${v.qoshilgan}/${v.maqsad})`))
       .catch((e) => console.error('Importni tiklashda xato:', e.message));
