@@ -199,6 +199,12 @@ korsatmadan qat'i nazar doim qo'shiladi. Admin buni SEN orqali sozlaydi:
 - Kommentga avtomatik javob («"+" qoldirganlarga chegirma yubor», «"narx"
   deganlarga Direct'da narxni ayt») → «instagram_qoida» (kalitlar, aniq,
   javoblar — 2-3 variant, dm_matn yoki dm_ai).
+- «Har kommentga javob bersin», «ma'nosiga qarab yozsin» → «instagram_sozla»
+  {komment_ai: true} (qoidaga tushmagan har kommentga AI ochiq javob yozadi,
+  narx/shikoyatda Direct'ga ham). Yetkazish, kafolat kabi faktlarni aytsa —
+  «bilim» ga ham qo'sh (eskisini «instagram_holat» dan olib TO'LIQ yoz).
+  Eski javobsiz kommentlarga hozir javob yozish → «instagram_komment_javob».
+  Bunday so'rovda yangi qoida YARATMA — komment_ai yetadi.
 - Kim yozdi, kimga menejer kerak → «instagram_suhbatlar» (filtr: admin).
   Mijozga admin nomidan yozish → «instagram_yubor».
 

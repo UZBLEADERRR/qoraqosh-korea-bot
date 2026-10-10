@@ -366,6 +366,54 @@ test('eslatma takrorlanmaydi', !yuborildi().some((x) => x.recipient?.id === RASM
 const { VOSITALAR: V2 } = await import('../src/services/admin-vositalar.js');
 test('AI yordamchida instagram_statistika', V2.instagram_statistika?.oqish === true);
 
+console.log('\n── HAR KOMMENTGA AI JAVOB ──');
+tozala();
+await komment('c-ai-1', 'Samarqandga yetkazib berasizlarmi?', { id: '700950', username: 'dilnoza_s' }, 'media1');
+const kAi = await qator(`select * from ig_kommentlar where id = 'c-ai-1'`);
+const ochiqJ = yuborildi().find((x) => /c-ai-1\/replies/.test(x.yol || ''));
+test('qoidaga tushmagan kommentga AI ochiq javob yozdi', kAi.ai && ochiqJ && /^@dilnoza_s /.test(ochiqJ.message || ''), ochiqJ?.message);
+test('komment javobi odamcha (tire yo‘q, qisqa)', ochiqJ && !/—/.test(ochiqJ.message) && ochiqJ.message.length < 300);
+const kp = globalThis.OXIRGI_KOMMENT_PROMPT || '';
+test('AI ga post matni, bilim va komment berildi', /POST MATNI: Bepul teri tahlili/.test(kp) && /Samarqandga/.test(kp) && /BILIM/.test(kp));
+// Narx — ochiq javob + Direct
+tozala();
+globalThis.IG_KOMMENT_AI = { komment_javob: 'direct\'ga yozdim', direct: true, javob_kerak: true };
+globalThis.IG_AI_JAVOB = { ig_javob: 'salom, centella ampula 227 000 so‘m', niyat: 'narx', admin_kerak: false };
+await komment('c-ai-2', 'Bu krem qanchadan ekan', { id: '700951', username: 'malika' }, 'media1');
+delete globalThis.IG_KOMMENT_AI; delete globalThis.IG_AI_JAVOB;
+test('narx/shaxsiy savol — Direct ham ketdi', yuborildi().some((x) => x.recipient?.comment_id === 'c-ai-2')
+  && (await qator(`select dm_yuborildi from ig_kommentlar where id = 'c-ai-2'`)).dm_yuborildi);
+// Do'stini belgilagan — javob yo'q
+tozala();
+globalThis.IG_KOMMENT_AI = { komment_javob: '', direct: false, javob_kerak: false };
+await komment('c-ai-3', '@sevara_k qara', { id: '700952', username: 'nigora' }, 'media1');
+delete globalThis.IG_KOMMENT_AI;
+test('do‘stini belgilagan — javob yozilmadi', !yuborildi().some((x) => /c-ai-3/.test(x.yol || '') || x.recipient?.comment_id === 'c-ai-3'));
+// Bir odam ketma-ket yozsa — 2 daqiqada bitta javob
+tozala();
+await komment('c-ai-4', 'Original mi?', { id: '700950', username: 'dilnoza_s' }, 'media1');
+test('bir odamga tez-tez ochiq javob yozilmaydi', !yuborildi().some((x) => /c-ai-4\/replies/.test(x.yol || '')));
+// Thread: javobga javob — asosiy kommentga yoziladi
+tozala();
+await ig.webhookKeldi({ object: 'instagram', entry: [{ id: AKK, time: Date.now(), changes: [{ field: 'comments',
+  value: { id: 'c-ai-5', text: 'Toshkentga necha kunda?', parent_id: 'c-ai-ota', from: { id: '700953', username: 'aziz' }, media: { id: 'media1' } } }] }] });
+test('javobga javob — asosiy kommentga yoziladi (thread)', yuborildi().some((x) => /c-ai-ota\/replies/.test(x.yol || '')));
+// O'chiq bo'lsa — javob yo'q
+await ig.sozlamaniSaqla({ komment_ai: false });
+tozala();
+await komment('c-ai-6', 'Zo‘r', { id: '700954', username: 'bek' }, 'media1');
+test('komment_ai o‘chiq — javob yo‘q', !yuborildi().some((x) => /c-ai-6/.test(x.yol || '')));
+await ig.sozlamaniSaqla({ komment_ai: true });
+// Javobsizlarga bir yo'la
+await sorov(`update ig_kommentlar set javob = null, ai = false where id = 'c-ai-4'`);
+tozala();
+const ja = await chaqir('/api/admin/ig/komment-ai', 'POST', { kun: 7 });
+test('«Javobsizlarga AI» — eski kommentlarga javob', ja.kod === 200 && ja.tana.javob >= 1 && yuborildi().some((x) => /c-ai-4\/replies/.test(x.yol || '')), JSON.stringify(ja.tana));
+const ka = await chaqir('/api/admin/ig/komment', 'POST', { id: 'c-ai-6', amal: 'ai' });
+test('bitta kommentga «AI javob» tugmasi', ka.kod === 200 && (await qator(`select ai from ig_kommentlar where id = 'c-ai-6'`)).ai);
+const { VOSITALAR: V3 } = await import('../src/services/admin-vositalar.js');
+test('AI yordamchida instagram_komment_javob', V3.instagram_komment_javob?.oqish === false);
+
 console.log('\n── TEKSHIRUV (javob yo‘q bo‘lsa sabab) ──');
 const SIR2 = 'ab'.repeat(16);
 test('panel: noto‘g‘ri sir rad etiladi', Boolean((await chaqir('/api/admin/ig/sir', 'POST', { sir: 'qisqa' })).tana.error));

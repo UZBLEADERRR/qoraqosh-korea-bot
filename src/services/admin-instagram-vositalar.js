@@ -17,6 +17,13 @@ export const IG_VOSITALAR = {
           + 'Telegramga o‘tganlar, AI sozlamalari (ko‘rsatma, yoqilgan/o‘chirilgan) va komment qoidalari.',
     parametrlar: '—',
   },
+  instagram_komment_javob: {
+    oqish: false,
+    ishla: (a = {}) => ig.javobsizlargaAi({ kun: a.kun || 7, chegara: a.chegara || 30 }),
+    tavsif: 'Javobsiz qolgan kommentlarga (oxirgi N kun, ko‘pi bilan 30 ta) AI ma’nosiga qarab OCHIQ javob yozadi; narx, '
+          + 'shaxsiy savol yoki shikoyat bo‘lsa Direct’ga ham yozadi. Do‘stini belgilagan, mavzudan tashqari kommentlar o‘tkaziladi.',
+    parametrlar: 'kun (standart 7), chegara (standart 30)',
+  },
   instagram_statistika: {
     oqish: true,
     ishla: (a = {}) => ig.igStatistika({ kun: a.kun || 30 }),
@@ -56,7 +63,8 @@ export const IG_VOSITALAR = {
     ishla: async (a = {}) => ({ sozlamalar: await ig.sozlamaniSaqla(a) }),
     tavsif: 'Instagram boshqaruvchi sozlamalari: ai_yoqiq (Direct ga AI javob), korsatma (AI uslubi va qoidalari — '
           + 'TO‘LIQ matn, eskisini o‘zgartirib qayta yoz), yuz_tahlil, xira (true — natijaning muhim qismi xira, '
-          + 'standart false — to‘liq natija), komment_qoidalar, komment_mention, kechikish_soniya, qolda_pauza_daqiqa, '
+          + 'standart false — to‘liq natija), komment_qoidalar, komment_mention, komment_ai (qoidaga tushmagan HAR kommentga AI ma’nosiga qarab ochiq javob, '
+          + 'kerak bo‘lsa Direct), kechikish_soniya, qolda_pauza_daqiqa, '
           + 'tahlil_matni (andoza: {ball},{tavsif},{soni},{mahsulotlar},{havola}), '
           + 'tahlil_xabari (qisqa — natija rasmi + qisqa havola | yoq — faqat rasm | mahsulotlar — mahsulot ro‘yxati bilan), '
           + 'yozish_tezligi (tabiiy | sekin | tez), korildi («ko‘rildi» belgisi), bilim (do‘kon FAQ: manzil, yetkazish muddati, '

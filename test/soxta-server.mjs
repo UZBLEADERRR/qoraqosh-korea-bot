@@ -71,6 +71,10 @@ function javobMatni(sxemaMatni, prompt = '') {
   // Tahlil promptini eslab qolamiz — do'kon egasining qo'shimcha
   // ko'rsatmasi modelga haqiqatan yetib bordimi, sinov shuni tekshiradi
   // Instagram Direct AI suhbatdoshi
+  if (sxemaMatni.includes('komment_javob')) {
+    globalThis.OXIRGI_KOMMENT_PROMPT = prompt;
+    return JSON.stringify(globalThis.IG_KOMMENT_AI || { komment_javob: 'Rahmat 😊 — yetkazish butun O‘zbekiston bo‘ylab.', direct: false, javob_kerak: true });
+  }
   if (sxemaMatni.includes('ig_javob')) {
     globalThis.OXIRGI_IG_PROMPT = prompt;
     if (globalThis.IG_AI_XATO) return 'buzuq javob {';
@@ -240,6 +244,7 @@ export function soxtaServer(port = 4444) {
         if (/^\/media1\/comments$/.test(y)) return j({ data: [
           { id: 'c_sinx_1', text: '+', username: 'nodira_s', from: { id: '700501', username: 'nodira_s' }, timestamp: new Date().toISOString() },
           { id: 'c_sinx_2', text: 'Rahmat', username: 'kiovo.uz', from: { id: '17841400000000001', username: 'kiovo.uz' } }] });
+        if (y === '/media1' && req.method === 'GET') return j({ id: 'media1', caption: 'Bepul teri tahlili 🌿 «+» qoldiring' });
         if (/\/replies$/.test(y)) { g.push({ yol: y, message: u.searchParams.get('message') }); return j({ id: `r_${n()}` }); }
         if (req.method === 'DELETE') { g.push({ yol: y, ochir: true }); return j({ success: true }); }
         if (req.method === 'POST' && u.searchParams.has('hide')) { g.push({ yol: y, hide: u.searchParams.get('hide') }); return j({ success: true }); }

@@ -24,6 +24,7 @@ export const STANDART = {
   xira: false,                 // true — natijaning muhim qismi xira (eski «teaser» rejim)
   komment_qoidalar: true,      // kommentlarga qoidalar ishlaydi
   komment_mention: true,       // ochiq javob @username bilan boshlansin
+  komment_ai: true,            // qoidaga tushmagan HAR kommentga AI ma'nosiga qarab javob yozadi
   kechikish_soniya: 4,         // mijoz ketma-ket yozsa — oxirgisidan keyin javob
   qolda_pauza_daqiqa: 60,      // admin yozsa AI shuncha jim
   tahlil_matni: '',            // tahlildan keyingi xabar (bo'sh — standart)
@@ -612,7 +613,79 @@ async function kommentKeldi(v, bizniki) {
   }
   if (!st.komment_qoidalar) return;
   const q = qoidaTop(await qatorlar(`select * from ig_qoidalar order by tartib, id`), v.text, v.media?.id);
-  if (q) await qoidaniBajar(yangi, q, st);
+  if (q) return qoidaniBajar(yangi, q, st);
+  if (!st.komment_ai) return;
+  // Odam kommentga darrov emas, biroz keyin javob yozadi
+  const ms = globalThis.IG_KECHIKISH_MS === 0 ? 0
+    : st.yozish_tezligi === 'tez' ? 2000 + Math.random() * 3000
+    : st.yozish_tezligi === 'sekin' ? 60_000 + Math.random() * 180_000 : 20_000 + Math.random() * 60_000;
+  if (!ms) return kommentgaAi(yangi, st);
+  setTimeout(() => kommentgaAi(yangi, st).catch((e) => console.error('IG komment AI:', e.message)), ms);
+}
+
+// Post matni — AI kommentni post mavzusi bilan tushunsin (kesh: post o'zgarmaydi)
+const postKesh = new Map();
+async function postMatni(mediaId) {
+  if (!mediaId) return '';
+  if (postKesh.has(mediaId)) return postKesh.get(mediaId);
+  const r = await api.ig(`/${mediaId}`, { qidiruv: { fields: 'caption' } }).catch(() => null);
+  const m = String(r?.caption || '').slice(0, 600);
+  if (postKesh.size > 300) postKesh.clear();
+  postKesh.set(mediaId, m);
+  return m;
+}
+
+/** Kommentga Direct (shaxsiy javob) — suhbat ochiladi, mijoz yozsa AI davom ettiradi. */
+async function kommentgaDmYubor(k, dmMatn, kim) {
+  const j = await api.kommentgaDm(k.id, dmMatn);
+  if (j.recipient_id) {
+    const s = await suhbatOl(String(j.recipient_id));
+    if (k.username) await sorov(`update ig_suhbatlar set username = coalesce(username, $2) where id = $1`, [s.id, k.username]);
+    await xabarYoz(s.id, { yonalish: 'chiquvchi', kim, matn: dmMatn, mid: j.message_id || null });
+  }
+  return j;
+}
+
+/**
+ * Qoidaga tushmagan kommentga AI javobi: ma'nosiga qarab ochiq javob va
+ * kerak bo'lsa (narx, shaxsiy savol, shikoyat) Direct. Bir odam ketma-ket
+ * ko'p yozsa — 2 daqiqada bitta ochiq javob (spamdek ko'rinmasin).
+ */
+export async function kommentgaAi(k, st = null, { majburiy = false } = {}) {
+  st ||= await igSozlamalari();
+  const xatolar = [];
+  if (!majburiy && k.from_id && await qator(`select 1 from ig_kommentlar where from_id = $1 and id <> $2 and javob is not null
+      and created_at > now() - interval '2 minutes'`, [k.from_id, k.id])) return { otkazildi: 'tez-tez' };
+  const { kommentJavobi, kommentDmMatni, uslubUrugi } = await import('../../ai/instagram-suhbat.js');
+  const { faolMahsulotlar } = await import('../analysis.js');
+  const katalog = await faolMahsulotlar();
+  const malumot = { ...(await dokonHavolalari()), dokon: await dokonBilimi().catch(() => ''), bilim: st.bilim || '',
+    urug: uslubUrugi(k.from_id || k.id) };
+  let r;
+  try {
+    r = await kommentJavobi({ komment: k.matn, username: k.username || '', post: await postMatni(k.media_id),
+      korsatma: st.korsatma, mahsulotlar: katalog, malumot });
+  } catch (e) {
+    await sorov(`update ig_kommentlar set xato = $2 where id = $1`, [k.id, `AI: ${e.message}`.slice(0, 300)]);
+    return { xato: e.message };
+  }
+  let dm = Boolean(k.dm_yuborildi);
+  if (r.direct && !dm) {
+    try {
+      const dmMatn = await kommentDmMatni({ komment: k.matn, korsatma: st.korsatma, mahsulotlar: katalog,
+        malumot: { ...malumot, ism: k.username || '', tg_havola: await botHavolasi('h_ig-komment') } });
+      if (dmMatn) { await kommentgaDmYubor(k, dmMatn, 'ai'); dm = true; }
+    } catch (e) { xatolar.push(`Direct: ${e.message}`); }
+  }
+  let javob = r.javob || null;
+  if (javob) {
+    if (st.komment_mention && k.username) javob = `@${k.username} ${javob}`;
+    // Javobga javob (thread) — Instagram faqat asosiy kommentga javob qabul qiladi
+    try { await api.kommentgaJavob(k.parent_id || k.id, javob); } catch (e) { xatolar.push(`Javob: ${e.message}`); javob = null; }
+  }
+  await sorov(`update ig_kommentlar set javob = coalesce($2, javob), dm_yuborildi = $3, ai = $4, xato = $5 where id = $1`,
+    [k.id, javob, dm, Boolean(javob || dm), xatolar.join(' · ') || null]);
+  return { javob, dm, xatolar };
 }
 
 export async function qoidaniBajar(k, q, st) {
@@ -630,16 +703,7 @@ export async function qoidaniBajar(k, q, st) {
     } catch (e) { xatolar.push(`AI: ${e.message}`); }
   }
   if (dmMatn) {
-    try {
-      const j = await api.kommentgaDm(k.id, dmMatn);
-      dm = true;
-      // Direct suhbati ochiladi — mijoz javob yozsa AI davom ettiradi
-      if (j.recipient_id) {
-        const s = await suhbatOl(String(j.recipient_id));
-        if (k.username) await sorov(`update ig_suhbatlar set username = coalesce(username, $2) where id = $1`, [s.id, k.username]);
-        await xabarYoz(s.id, { yonalish: 'chiquvchi', kim: 'qoida', matn: dmMatn, mid: j.message_id || null });
-      }
-    } catch (e) { xatolar.push(`Direct: ${e.message}`); }
+    try { await kommentgaDmYubor(k, dmMatn, 'qoida'); dm = true; } catch (e) { xatolar.push(`Direct: ${e.message}`); }
   }
   // 2) Ochiq javob (bir nechta variantdan tasodifiy — bir xil javob spamdek ko'rinadi)
   const variantlar = (q.javoblar || []).filter(Boolean);
@@ -848,6 +912,10 @@ export async function kommentAmal(id, amal, m = '') {
     } else if (amal === 'ochir') {
       await api.kommentOchir(k.id);
       await sorov(`delete from ig_kommentlar where id = $1`, [k.id]);
+    } else if (amal === 'ai') {
+      const r = await kommentgaAi(k, null, { majburiy: true });
+      if (r.xato) return { xato: `AI: ${r.xato}` };
+      return { ...r, ok: true };
     } else if (amal === 'qoida') {
       const st = await igSozlamalari();
       const q = qoidaTop(await qatorlar(`select * from ig_qoidalar order by tartib, id`), k.matn, k.media_id);
@@ -975,10 +1043,34 @@ export async function igStatistika({ kun = 30 } = {}) {
     qatorlar(`select extract(hour from created_at at time zone 'Asia/Tashkent')::int as soat, count(*)::int as soni
         from ig_xabarlar where yonalish = 'kiruvchi' and created_at > now() - ($1 || ' days')::interval group by 1 order by 1`, [String(k)]),
     qator(`select count(*)::int as jami, count(*) filter (where qoida_id is not null)::int as qoida,
-        count(*) filter (where dm_yuborildi)::int as dm, count(*) filter (where spam)::int as spam
+        count(*) filter (where dm_yuborildi)::int as dm, count(*) filter (where spam)::int as spam,
+        count(*) filter (where ai)::int as ai
         from ig_kommentlar where created_at > now() - ($1 || ' days')::interval`, [String(k)]),
     qatorlar(`select nom, ishladi from ig_qoidalar where ishladi > 0 order by ishladi desc limit 6`),
   ]);
   const soat24 = Array.from({ length: 24 }, (_, i) => soatlar.find((x) => x.soat === i)?.soni || 0);
   return { kun: k, kunlik, voronka: { ...voronka, tushum: Number(voronka?.tushum || 0) }, tezlik, niyatlar, soatlar: soat24, komment, qoidalar: qoidalarTop };
+}
+
+/**
+ * Javobsiz qolgan kommentlarga (masalan «Postlardan yangilash» bilan
+ * kelgan eski kommentlar) AI bir yo'la javob yozadi. Ko'pi bilan 30 ta,
+ * oxirgi `kun` kun ichidagilar; spam va o'zimizniki o'tkaziladi.
+ */
+export async function javobsizlargaAi({ kun = 7, chegara = 30 } = {}) {
+  const st = await igSozlamalari();
+  const akk = (await api.ulanish()).akkaunt_id || '';
+  const r = await qatorlar(`select * from ig_kommentlar where javob is null and not dm_yuborildi and not spam and not yashirildi
+      and coalesce(from_id, '') <> $1 and created_at > now() - ($2 || ' days')::interval order by created_at desc limit $3`,
+    [akk, String(Math.max(1, Math.min(30, son(kun, 7)))), Math.max(1, Math.min(30, son(chegara, 30)))]);
+  let javob = 0, dm = 0, otkazildi = 0;
+  const xatolar = [];
+  for (const k of r) {
+    const n = await kommentgaAi(k, st, { majburiy: true });
+    if (n.javob) javob++;
+    if (n.dm) dm++;
+    if (!n.javob && !n.dm) otkazildi++;
+    if (n.xato || n.xatolar?.length) xatolar.push(n.xato || n.xatolar.join(' · '));
+  }
+  return { korildi: r.length, javob, dm, otkazildi, xatolar: xatolar.slice(0, 5) };
 }

@@ -337,6 +337,53 @@ export function tahlilAndozasi({ tahlil = {}, tavsiya = [], ism = '' }) {
   return `${bosh}${qator.length ? topilma : ''}\n${qator.join('\n')}\n\nQaysi birini qachon surtish va to‘liq tartib Telegramda ochiladi, o‘sha yerdan bir bosishda savatga qo‘shasiz:`.trim();
 }
 
+const KSXEMA = {
+  type: 'object',
+  properties: {
+    komment_javob: { type: 'string' },
+    direct:        { type: 'boolean' },
+    javob_kerak:   { type: 'boolean' },
+  },
+  required: ['komment_javob', 'direct', 'javob_kerak'],
+  propertyOrdering: ['komment_javob', 'direct', 'javob_kerak'],
+};
+
+/**
+ * Postdagi kommentga OCHIQ javob (hamma ko'radi): ma'nosiga qarab qisqa,
+ * odamcha. Narx, shaxsiy savol, shikoyat — «direct'ga yozdim» va
+ * direct=true (Direct'ga alohida xabar ketadi). Do'stini belgilagan,
+ * mavzudan tashqari — javob_kerak=false.
+ */
+export async function kommentJavobi({ komment, username = '', post = '', korsatma = '', mahsulotlar = [], malumot = {} }) {
+  const { royxat } = katalogniTanla(mahsulotlar, { savol: `${komment} ${post}`.slice(0, 600), tarix: [], chegara: 15 });
+  const k = (korsatma || STANDART_KORSATMA).replaceAll('{tg_havola}', 'profildagi havola');
+  const j = await aiJson([{ text: `${k}
+
+${USLUB}
+
+${dokonMalumoti({ ...malumot, tg_havola: 'profildagi havola' })}
+
+KATALOG (id|nom|narx|...):
+${katalogMatni(royxat)}
+
+VAZIFA: Instagram postiga komment yozildi. Unga OCHIQ javob yoz (komment ostida hamma ko'radi).
+- Juda qisqa: 1 gap, ko'pi bilan 2. Telefonda yozgandek, bo'sh qatorsiz.
+- Savolga aniq javob ber: yetkazish, qanday buyurtma qilish (telegram bot yoki ilova, havola profilda),
+  qanday ishlatish, kimga mos, original-mi (faqat BILIMda bo'lsa).
+- Narx, teri muammosi bo'yicha shaxsiy savol, buyurtma holati, shikoyat → direct=true va javobda qisqa
+  «direct'ga yozdim» ma'nosida yoz (narxni ochiq yozma).
+- Maqtov, yurak, emoji → qisqa samimiy rahmat.
+- Faqat do'stini belgilagan (@ism), mavzuga aloqasiz yoki tushunarsiz → javob_kerak=false.
+- Havola YOZMA (kommentda spamga o'xshaydi) — «havola profilda» de. @username yozma, o'zi qo'shiladi.
+- Komment qaysi tilda bo'lsa o'sha tilda.
+${post ? `\nPOST MATNI: ${String(post).slice(0, 500)}` : ''}
+KOMMENT${username ? ` (@${username})` : ''}: ${String(komment || '').slice(0, 500)}` }],
+  KSXEMA, { temperature: 0.85, maxTokens: 400, qayerda: 'instagram' });
+  const t = insonlashtir(slopTozala(j.komment_javob).replace(/https?:\/\/\S+/g, '').replace(/\n+/g, ' '), malumot.urug ?? 1)
+    .replace(/^@\S+\s*/, '').slice(0, 280).trim();
+  return { javob: j.javob_kerak === false ? '' : t, direct: j.direct === true };
+}
+
 /** Kommentga Direct matni (qoida «dm_ai» bo'lsa): komment savoliga qisqa, aniq javob. */
 export async function kommentDmMatni({ komment, korsatma = '', mahsulotlar = [], malumot = {} }) {
   const r = await igJavob({ tarix: [{ kim: 'mijoz', matn: `(Postga komment yozdi) ${komment}` }], korsatma, mahsulotlar,

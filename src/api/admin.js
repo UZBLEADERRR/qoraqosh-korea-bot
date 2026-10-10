@@ -305,6 +305,7 @@ export async function adminRoutes(req, res, yol) {
       if (amal === 'ai-javob') return ok(res, { natija: await ig.aiJavobYoz(Number(b.id), { majburiy: true }) });
       if (amal === 'kommentlar') return ok(res, { kommentlar: await ig.kommentlar({ filtr: q.get('filtr') || '' }) });
       if (amal === 'komment') return javob(await ig.kommentAmal(b.id, b.amal, b.matn));
+      if (amal === 'komment-ai') return ok(res, await ig.javobsizlargaAi({ kun: b.kun, chegara: b.chegara }));
       if (amal === 'qoidalar') return ok(res, { qoidalar: await ig.qoidalar() });
       if (amal === 'qoida' && req.method === 'DELETE') return ok(res, await ig.qoidaOchir(b.id));
       if (amal === 'qoida') return javob(await ig.qoidaSaqla(b));

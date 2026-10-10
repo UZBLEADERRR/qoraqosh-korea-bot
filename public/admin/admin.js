@@ -1066,10 +1066,18 @@ async function igKommentlar() {
       <div class="chip-satr" style="padding:0">${[['', 'Hammasi'], ['javobsiz', 'Javobsiz'], ['qoida', 'Qoida ishlagan']]
         .map(([k, n]) => `<button class="chip ${f === k ? 'faol' : ''}" data-igkf="${k}">${n}</button>`).join('')}</div>
       <span style="flex:1"></span>
+      <button class="tug" id="ig-k-ai">${ik('ai', 16)}<span>Javobsizlarga AI</span></button>
       <button class="tug" id="ig-sinxron">${ik('yangila', 16)}<span>Postlardan yangilash</span></button>
     </div>
     <div id="ig-kommentlar"><div class="karta"><div class="skelet"></div><div class="skelet"></div></div></div>`;
   $$('[data-igkf]').forEach((x) => x.onclick = () => { holat.igKf = x.dataset.igkf; igKommentlar(); });
+  $('#ig-k-ai').onclick = () => tasdiqla('Javobsiz kommentlarga AI javob',
+    'Oxirgi 7 kundagi javobsiz kommentlarga (ko‘pi bilan 30 ta) AI ma’nosiga qarab javob yozadi, narx va shikoyatda Direct’ga ham.', async () => {
+      const b = $('#ig-k-ai'); b.disabled = true;
+      try { const r = await api('/api/admin/ig/komment-ai', { method: 'POST', body: JSON.stringify({ kun: 7 }) });
+        tost(`${r.javob} ta javob, ${r.dm} ta Direct${r.otkazildi ? `, ${r.otkazildi} ta javob kerak emas` : ''}`); igKommentlar(); }
+      catch (e) { tost(e.message, 'xato'); b.disabled = false; }
+    });
   $('#ig-sinxron').onclick = async () => {
     const b = $('#ig-sinxron'); b.disabled = true;
     try { const r = await api('/api/admin/ig/sinxron', { method: 'POST', body: '{}' }); tost(`${r.yangi_komment} ta yangi komment`); igKommentlar(); }
@@ -1085,6 +1093,8 @@ async function igKommentlar() {
           <p>${esc(k.matn || '')}</p>
           <div class="ig-k-teg">
             ${k.qoida_nom ? `<span class="yor yashil">${ik('tasdiq', 12)}${esc(k.qoida_nom)}</span>` : ''}
+            ${k.ai ? `<span class="yor binafsha">${ik('ai', 12)}AI javob</span>` : ''}
+            ${k.spam ? '<span class="yor qizil">spam</span>' : ''}
             ${k.dm_yuborildi ? `<span class="yor kok">${ik('xat', 12)}Direct ketdi</span>` : ''}
             ${k.yashirildi ? '<span class="yor kul">yashirilgan</span>' : ''}
             ${k.xato ? `<span class="yor qizil" title="${esc(k.xato)}">${ik('ogoh', 12)}xato</span>` : ''}
@@ -1092,6 +1102,7 @@ async function igKommentlar() {
           ${k.javob ? `<div class="ig-k-javob">${ik('orqaga', 13)}${esc(k.javob)}</div>` : ''}
           <div class="ig-k-amal">
             <button data-igk="javob" data-id="${esc(k.id)}">Javob</button>
+            ${k.javob ? '' : `<button data-igk="ai" data-id="${esc(k.id)}">AI javob</button>`}
             <button data-igk="dm" data-id="${esc(k.id)}">Direct</button>
             ${k.qoida_id ? '' : `<button data-igk="qoida" data-id="${esc(k.id)}">Qoidani qo‘llash</button>`}
             <button data-igk="${k.yashirildi ? 'kor' : 'yashir'}" data-id="${esc(k.id)}">${k.yashirildi ? 'Ko‘rsatish' : 'Yashirish'}</button>
@@ -1108,7 +1119,7 @@ function igKommentAmal(id, amal) {
   const bajar = async (matn = '') => {
     try {
       const r = await api('/api/admin/ig/komment', { method: 'POST', body: JSON.stringify({ id, amal, matn }) });
-      modalYop(); tost(amal === 'qoida' ? `«${r.qoida}» qo‘llandi` : 'Bajarildi'); igKommentlar();
+      modalYop(); tost(amal === 'qoida' ? `«${r.qoida}» qo‘llandi` : amal === 'ai' ? (r.javob || r.dm ? 'AI javob yozdi' : 'AI javob kerak emas deb topdi') : 'Bajarildi'); igKommentlar();
     } catch (e) { tost(e.message, 'xato'); }
   };
   if (amal === 'javob' || amal === 'dm') {
@@ -1235,6 +1246,7 @@ function igSozlama() {
         ${almash('yuz_tahlil', 'Yuz rasmi → bepul tahlil', 'To‘liq natija, mos mahsulotlar va Telegramdagi tavsiya havolasi')}
         ${almash('xira', 'Natijani xira qilish', 'Eski rejim: muhim qism yashirin, to‘liq natija faqat Telegramda')}
         ${almash('komment_qoidalar', 'Komment qoidalari ishlasin', '«+» va kalit so‘zlarga avtomatik javob')}
+        ${almash('komment_ai', 'Har kommentga AI javob', 'Qoidaga tushmaganlarga ma’nosiga qarab; narx va shikoyatda Direct’ga ham')}
         ${almash('komment_mention', 'Javob @username bilan', 'Ochiq javob mijozni belgilab yoziladi')}
         <div class="ikki" style="margin-top:6px">
           <div><label>Javobdan oldin kutish (soniya)</label><input id="ig-kech" type="number" min="0" max="60" value="${s.kechikish_soniya ?? 4}"></div>
