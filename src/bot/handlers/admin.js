@@ -369,7 +369,7 @@ async function bosqichniTarqat(buyurtmalar, holat, chatId) {
 export async function reklamaBoshla(chatId, user) {
   // Sanoq ham yuborish bilan BIR XIL shart: aks holda «120 ta» deb ko'rsatib,
   // 80 taga yuborardi (src/services/broadcast.js)
-  const soni = await qator(`select count(*)::int as n from users where not is_blocked and telegram_id ~ '^[0-9]+$'`);
+  const soni = await qator(`select count(*)::int as n from users where not is_blocked and bot_bloklagan_at is null and telegram_id ~ '^[0-9]+$'`);
   await holatSaqla(user.id, HOLAT.REKLAMA_MATN);
   return yubor(chatId, [
     `📢 <b>Reklama xabari</b>`, ``,

@@ -33,7 +33,7 @@ export async function broadcastBoshla({ matn, fileId, adminId, chatId, userIdlar
     // `tel:…`, `mehmon:…`, `ochirilgan:…`) botdan xabar ola olmaydi —
     // ular «xato» bo'lib sanalib, yuborishni sekinlatardi.
     `select telegram_id, full_name from users
-      where not is_blocked and telegram_id ~ '^[0-9]+$'
+      where not is_blocked and bot_bloklagan_at is null and telegram_id ~ '^[0-9]+$'
         ${segment ? 'and id = any($1::bigint[])' : ''} order by id`,
     segment ? [userIdlar.map(Number).filter(Number.isFinite)] : []);
 
@@ -76,9 +76,11 @@ async function yuborishniBajar(id, oluvchilar, { matn, fileId, tugma }, hisobotC
       if (floodmi(sabab) || sabab === 'PEER_FLOOD_KUTISH') { toxtadi = true; break; }
       // Foydalanuvchi botni bloklagan — qayta urinishdan foyda yo'q,
       // uni belgilab qo'yamiz, keyingi yuborishlarda vaqt ketmaydi.
+      // `is_blocked` EMAS: u admin taqiqi va bot bunday odamga umuman
+      // javob bermaydi. Bu belgi odam qaytib yozganda o'zi tozalanadi.
       if (/bot was blocked|user is deactivated|chat not found/i.test(sabab)) {
         bloklangan++;
-        await sorov('update users set is_blocked = true where telegram_id = $1', [u.telegram_id])
+        await sorov('update users set bot_bloklagan_at = now() where telegram_id = $1', [u.telegram_id])
           .catch(() => {});
       }
       // Tezlik cheklovi — Telegram qancha kutishni o'zi aytadi

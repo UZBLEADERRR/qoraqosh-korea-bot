@@ -5587,7 +5587,10 @@ console.log('\n── REKLAMA: FAQAT TELEGRAMI BORLARGA ──');
   const ad = fsR.readFileSync('src/bot/handlers/admin.js', 'utf8');
   test('reklama faqat raqamli Telegram id larga ketadi', /telegram_id ~ '\^\[0-9\]\+\$'/.test(br));
   test('oldindan ko‘rsatilgan son yuborish bilan bir xil shartda',
-    /count\(\*\)::int as n from users where not is_blocked and telegram_id ~ '\^\[0-9\]\+\$'/.test(ad));
+    /count\(\*\)::int as n from users where not is_blocked and bot_bloklagan_at is null and telegram_id ~ '\^\[0-9\]\+\$'/.test(ad)
+    && /where not is_blocked and bot_bloklagan_at is null and telegram_id ~/.test(br));
+  test('ommaviy xabarda «bot was blocked» — admin taqiqi EMAS, alohida belgi',
+    /set bot_bloklagan_at = now\(\) where telegram_id/.test(br) && !/set is_blocked = true/.test(br));
   const { telegramiBormi } = await import('../src/bot/tg.js');
   test('o‘chirilgan hisobga Telegram so‘rovi yuborilmaydi', !telegramiBormi('ochirilgan:ab12') && telegramiBormi('700001'));
 }

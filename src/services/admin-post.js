@@ -70,7 +70,7 @@ export const KATEGORIYA = {
 export async function kategoriyaIdlar(f = {}) {
   const k = KATEGORIYA[f.kategoriya] || KATEGORIYA.hammasi;
   const p = [];
-  const shart = [`u.id in (${k.sql})`, 'not u.is_blocked', `u.telegram_id !~ '^(mehmon|ochirilgan):'`];
+  const shart = [`u.id in (${k.sql})`, 'not u.is_blocked', 'u.bot_bloklagan_at is null', `u.telegram_id !~ '^(mehmon|ochirilgan):'`];
   if (f.teri_turi) { p.push(matn(f.teri_turi, 30)); shart.push(`u.teri_turi = $${p.length}`); }
   if (f.jins) { p.push(f.jins === 'erkak' ? 'erkak' : 'ayol'); shart.push(`u.gender = $${p.length}`); }
   if (son(f.yosh_dan)) { p.push(son(f.yosh_dan)); shart.push(`u.age >= $${p.length}`); }

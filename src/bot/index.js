@@ -15,11 +15,23 @@ import * as ochiq from '../services/ochiq-skan.js';
 import { hisobniOchir } from '../services/hisob.js';
 import { botStart } from '../services/manba.js';
 
+/** my_chat_member: «kicked» — botni bloklagan, «member» — qaytdi. Admin taqiqiga tegmaydi. */
+async function botHolati(m) {
+  if (m?.chat?.type !== 'private' || !m.from?.id) return;
+  const holat = m.new_chat_member?.status;
+  if (holat === 'kicked') {
+    await sorov('update users set bot_bloklagan_at = now() where telegram_id = $1', [String(m.from.id)]);
+  } else if (holat === 'member') {
+    await sorov('update users set bot_bloklagan_at = null where telegram_id = $1', [String(m.from.id)]);
+  }
+}
+
 async function foydalanuvchi(from) {
   const telegramId = String(from.id);
   const bor = await qator('select * from users where telegram_id = $1', [telegramId]);
   if (bor) {
-    sorov('update users set last_active = now(), username = $1 where id = $2',
+    // Botga yozdi — demak bloklamagan: ommaviy yuborishdagi belgi tozalanadi
+    sorov('update users set last_active = now(), username = $1, bot_bloklagan_at = null where id = $2',
           [from.username || null, bor.id]).catch(() => {});
     return bor;
   }
@@ -32,6 +44,8 @@ export async function yangilanish(upd) {
   if (upd.callback_query) return callback(upd.callback_query);
   // Kanalga kimdir qo'shildi/chiqdi (bot kanalda admin bo'lsa keladi)
   if (upd.chat_member) return kanalHarakati(upd.chat_member);
+  // Foydalanuvchi botni bloklaydi / blokdan chiqardi (shaxsiy chat)
+  if (upd.my_chat_member) return botHolati(upd.my_chat_member);
   // Telegram Business: egasining shaxsiy akkauntidagi suhbatlar (Nigina javob beradi)
   if (upd.business_connection || upd.business_message) {
     const ig = await import('../services/instagram/index.js');

@@ -149,7 +149,7 @@ export async function segmentIdlar(segment, kun = 14) {
   const sql = SEGMENT_SQL[segment];
   if (!sql) return null;
   const r = await qatorlar(
-    `select u.id, u.telegram_id from users u where u.id in (${sql}) and not u.is_blocked`,
+    `select u.id, u.telegram_id from users u where u.id in (${sql}) and not u.is_blocked and u.bot_bloklagan_at is null`,
     kunliSegment(segment) ? [String(chegara(kun, 14, 365))] : []);
   return r;
 }

@@ -593,6 +593,35 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
     (await qiymat('select count(*)::int from media where id = any($1::uuid[])', [idlar])) === 0);
 }
 
+// ═══ Botni bloklab qaytgan odam: bot jim qolmasin ═══
+{
+  // Ommaviy xabar «bot was blocked» qaytargan — belgi qo'yilgan
+  await sorov('update users set bot_bloklagan_at = now(), is_blocked = false where telegram_id = $1', [TG]);
+  const oldin = yuborilgan.length;
+  await yangilanish({ update_id: Math.random(), message: {
+    message_id: 120, date: Math.floor(Date.now() / 1000),
+    chat: { id: Number(TG), type: 'private' },
+    from: { id: Number(TG), first_name: 'Sinov' }, text: '/start' } });
+  test('botni bloklab qaytgan odamga /start javob beradi',
+    yuborilgan.slice(oldin).some((y) => String(y.chat_id) === TG && y.text));
+  await new Promise((r) => setTimeout(r, 150));
+  test('qaytib yozgach «bloklagan» belgisi tozalanadi',
+    (await qator('select bot_bloklagan_at is null as t from users where telegram_id = $1', [TG])).t === true);
+
+  // Telegram my_chat_member: kicked → belgi, member → tozalanadi
+  const mcm = (status) => yangilanish({ update_id: Math.random(), my_chat_member: {
+    chat: { id: Number(TG), type: 'private' }, from: { id: Number(TG), first_name: 'Sinov' },
+    date: Math.floor(Date.now() / 1000),
+    old_chat_member: { status: status === 'kicked' ? 'member' : 'kicked', user: { id: 1, is_bot: true } },
+    new_chat_member: { status, user: { id: 1, is_bot: true } } } });
+  await mcm('kicked');
+  test('botni bloklasa belgilanadi (admin taqiqi emas)',
+    (await qator('select (bot_bloklagan_at is not null and not is_blocked) as t from users where telegram_id = $1', [TG])).t === true);
+  await mcm('member');
+  test('blokdan chiqarsa belgi tozalanadi',
+    (await qator('select bot_bloklagan_at is null as t from users where telegram_id = $1', [TG])).t === true);
+}
+
 console.log(`\n${xato ? '❌' : '✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close();
 process.exit(xato ? 1 : 0);
