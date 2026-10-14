@@ -914,7 +914,7 @@ async function igDirect() {
     <div class="ig-inbox ${holat.igOchiq ? 'chat-ochiq' : ''}">
       <aside class="ig-royxat karta">
         <label class="qidir-joy">${ik('qidir')}<input id="ig-q" placeholder="Ism yoki xabar" value="${esc(q)}" autocomplete="off"></label>
-        <div class="chip-satr ig-filtr">${[['', 'Hammasi'], ['oqilmagan', 'O‘qilmagan'], ['admin', 'Menejer kerak'], ['tahlil', 'Tahlil'], ['telegram', 'Telegramda'], ['mijoz', 'Xaridor']]
+        <div class="chip-satr ig-filtr">${[['', 'Hammasi'], ['oqilmagan', 'O‘qilmagan'], ['admin', 'Menejer kerak'], ['ig_direct', 'Instagram'], ['tg_direct', 'Telegram chat'], ['tahlil', 'Tahlil'], ['telegram', 'Botga o‘tdi'], ['mijoz', 'Xaridor']]
           .map(([k, n]) => `<button class="chip ${f === k ? 'faol' : ''}" data-igf="${k}">${n}</button>`).join('')}</div>
         <div id="ig-suhbatlar"><div class="skelet"></div><div class="skelet"></div></div>
       </aside>
@@ -939,7 +939,8 @@ async function igRoyxatniChiz() {
     const { suhbatlar } = await api(`/api/admin/ig/suhbatlar?q=${encodeURIComponent(holat.igQ || '')}&filtr=${holat.igFiltr || ''}`);
     quti.innerHTML = suhbatlar.length ? suhbatlar.map((s) => `
       <button class="ig-qator ${holat.igOchiq === s.id ? 'tanlangan' : ''} ${s.oqilmagan ? 'yangi' : ''}" data-igs="${s.id}">
-        <span class="ig-avatar">${s.rasm_url ? `<img src="${esc(s.rasm_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}${igBosh(s)}</span>
+        <span class="ig-avatar">${s.rasm_url ? `<img src="${esc(s.rasm_url)}" alt="" loading="lazy" onerror="this.remove()">` : ''}${igBosh(s)}
+          <i class="ig-platforma ${s.platforma === 'telegram' ? 'tg' : 'ig'}" title="${s.platforma === 'telegram' ? 'Telegram' : 'Instagram'}"></i></span>
         <span class="ig-qator-tan">
           <b>${esc(s.username ? '@' + s.username : s.ism || 'Instagram foydalanuvchi')}${s.bosqich && s.bosqich !== 'suhbat'
             ? ` <i class="ig-bosqich ${IG_BOSQICH[s.bosqich]?.[1] || ''}">${IG_BOSQICH[s.bosqich]?.[0] || ''}</i>` : ''}</b>
@@ -979,7 +980,7 @@ async function igChatOch(id, { jim = false } = {}) {
         <button class="ik-tugma ig-orqaga" id="ig-orqaga" aria-label="Orqaga">${ik('orqaga')}</button>
         <span class="ig-avatar">${s.rasm_url ? `<img src="${esc(s.rasm_url)}" alt="" onerror="this.remove()">` : ''}${igBosh(s)}</span>
         <div class="ig-chat-nom"><b>${esc(s.username ? '@' + s.username : s.ism || 'Instagram foydalanuvchi')}</b>
-          <span>${s.oyna_ochiq ? 'Javob yozish mumkin' : '24 soatlik oyna yopiq — mijoz yozishini kuting'}${s.telegramga_otdi ? ' · Telegramga o‘tdi ✓' : ''}</span></div>
+          <span>${s.platforma === 'telegram' ? 'Telegram · shaxsiy chat' : 'Instagram Direct'} · ${s.oyna_ochiq ? 'javob yozish mumkin' : '24 soatlik oyna yopiq'}${s.telegramga_otdi ? ' · botga o‘tdi ✓' : ''}</span></div>
         <label class="ig-switch" title="Shu suhbatda AI javob bersinmi">
           <input type="checkbox" id="ig-ai" ${s.ai_yoqiq ? 'checked' : ''}><span></span><b>AI</b></label>
         <button class="ik-tugma ${holat.igKarta ? 'faol' : ''}" id="ig-karta-t" title="Mijoz kartasi">${ik('info')}</button>
@@ -1315,6 +1316,32 @@ function igSozlama() {
         </div>
       </section>
     </div>
+    <div class="ustunlar">
+      <section class="karta">
+        <div class="karta-bosh"><h2>Telegram shaxsiy chatlar</h2><span class="yor ${h.tg_biznes?.yoqiq ? 'yashil' : 'kul'}">${h.tg_biznes?.yoqiq
+          ? esc(h.tg_biznes.username ? '@' + h.tg_biznes.username : h.tg_biznes.ism || 'ulangan') : 'ulanmagan'}</span></div>
+        <p class="mayda" style="margin:0 0 10px">Shaxsiy Telegram akkauntingizga kelgan xabarlarga ham ${esc(s.persona || 'Nigina')} nomidan
+          javob beriladi — suhbatlar shu yerda, Instagram bilan bir joyda.</p>
+        ${h.tg_biznes?.yoqiq ? (h.tg_biznes.javob_bera_oladi === false
+          ? '<div class="xabar-quti ogoh">Javob yozish huquqi yo‘q — Telegram → Telegram Business → Chatbotlar da «Javob berish» ni yoqing.</div>'
+          : `<div class="xabar-quti ok">✓ Ulangan — shaxsiy chatlaringizga ${esc(s.persona || 'Nigina')} nomidan javob beriladi. Siz o‘zingiz yozsangiz AI o‘sha suhbatda ${s.qolda_pauza_daqiqa ?? 60} daqiqa jim turadi.</div>
+             <button class="tug keng" style="margin-top:10px" onclick="holat.igFiltr='tg_direct';holat.igTab='direct';instagramBolimi()">Telegram chatlarni ko‘rish</button>`)
+        : `<ol class="tg-qadam">
+            <li><b>@BotFather</b> → /mybots → botingiz → <b>Bot Settings</b> → <b>Business Mode</b> → Turn on</li>
+            <li>Telegram → <b>Sozlamalar</b> → <b>Telegram Business</b> → <b>Chatbotlar</b> → botingiz nomini yozing</li>
+            <li>«Barcha shaxsiy chatlar» va <b>«Javob berish»</b> ni yoqing</li>
+          </ol>
+          <p class="mayda" style="margin:8px 0 0">Telegram Business — Telegram Premium imkoniyati.</p>`}
+      </section>
+      <section class="karta">
+        <div class="karta-bosh"><h2>Kunlik kontent g‘oyalari</h2></div>
+        <p class="mayda" style="margin:0 0 6px">Har kuni botda sizga 5 ta Instagram g‘oyasi keladi — hali joylanmagan mavzular,
+          tayyor izoh va hashtaglar bilan.</p>
+        ${almash('kontent_tavsiya', 'Har kuni yuborilsin', 'Aksiya, yangi mahsulot, Direct savollari va mavsumga qarab')}
+        <div class="ikki"><div><label>Soat (Toshkent)</label><input id="ig-ksoat" type="number" min="0" max="23" value="${s.kontent_soat ?? 9}"></div>
+          <div style="display:flex;align-items:flex-end"><button class="tug keng" id="ig-kontent">${ik('ai', 16)}Hozir yuborish</button></div></div>
+      </section>
+    </div>
     <section class="karta">
       <div class="karta-bosh"><h2>Odamdek yozish</h2><span class="yor kul">telefonda yozgandek</span></div>
       <div class="ikki">
@@ -1325,6 +1352,8 @@ function igSozlama() {
           <select data-igs-s="tahlil_xabari">${[['qisqa', 'Natija + qisqa Telegram havolasi'], ['yoq', 'Faqat natija rasmi'], ['mahsulotlar', 'Natija + mahsulotlar ro‘yxati']]
             .map(([k, n]) => `<option value="${k}" ${s.tahlil_xabari === k ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
       </div>
+      <label>Kim nomidan yoziladi<span class="yordam">KiOVO asoschisi — Koreyada o‘qigan; AI o‘zini bot deb tanishtirmaydi</span></label>
+      <input id="ig-persona" value="${esc(s.persona || 'Nigina')}" maxlength="40">
       ${almash('korildi', '«Ko‘rildi» belgisi', 'Mijoz xabari o‘qilgandek ko‘rinadi, keyin «yozmoqda…»')}
       ${almash('eslatma', 'Eslatma', 'Tahlil olib Telegramni ochmaganga bitta yumshoq xabar (24 soat ichida)')}
       <div class="ikki"><div><label>Eslatma necha soatdan keyin</label><input id="ig-esl" type="number" min="1" max="20" value="${s.eslatma_soat ?? 3}"></div><div></div></div>
@@ -1388,10 +1417,19 @@ function igSozlama() {
     await api('/api/admin/ig/sozlama', { method: 'POST', body: JSON.stringify({ [x.dataset.igsS]: x.value }) });
     tost('Saqlandi'); holat.kesh.ig = await api('/api/admin/ig/holat');
   });
+  $('#ig-ksoat').onchange = async (e) => {
+    await api('/api/admin/ig/sozlama', { method: 'POST', body: JSON.stringify({ kontent_soat: Number(e.target.value) }) }); tost('Saqlandi');
+  };
+  $('#ig-kontent').onclick = async () => {
+    const b = $('#ig-kontent'); b.disabled = true; b.classList.add('ishlayapti');
+    try { const r = await api('/api/admin/ig/kontent', { method: 'POST', body: '{}' }); tost(r.yuborildi ? 'G‘oyalar botda — Telegramni oching' : (r.xabar || 'Yuborilmadi')); }
+    catch (e) { tost(e.message, 'xato'); }
+    finally { b.disabled = false; b.classList.remove('ishlayapti'); }
+  };
   $('#ig-odam-saqla').onclick = async () => {
     try {
       await api('/api/admin/ig/sozlama', { method: 'POST', body: JSON.stringify({ bilim: $('#ig-bilim').value,
-        tez_javoblar: $('#ig-tez').value, eslatma_soat: Number($('#ig-esl').value) }) });
+        tez_javoblar: $('#ig-tez').value, eslatma_soat: Number($('#ig-esl').value), persona: $('#ig-persona').value.trim() || 'Nigina' }) });
       tost('Saqlandi — AI endi shu bilimga tayanadi'); holat.kesh.ig = await api('/api/admin/ig/holat');
     } catch (e) { tost(e.message, 'xato'); }
   };
@@ -2166,6 +2204,28 @@ function kunOldin(n) {
   return d.toISOString().slice(0, 10);
 }
 
+// Mijoz kategoriyalari: har birida nechta odam va bir bosishda AI'ga
+// «shu kategoriyaga mos rasmli xabar tayyorla» topshirig'i.
+const KAT_IKON = { hammasi: 'odamlar', yangi: 'plyus', faol: 'puls', xaridorlar: 'savat', bir_martalik: 'savat', doimiy: 'yulduz',
+  vip: 'yulduz', tahlil_xaridsiz: 'skaner', savat_tashlagan: 'savat', uxlab_qolgan: 'soat', qaytmagan: 'soat', royxat_xaridsiz: 'odamlar' };
+async function kategoriyalarniChiz() {
+  const q = $('#kategoriyalar'); if (!q) return;
+  try {
+    const r = await api('/api/admin/kategoriyalar');
+    const k = Object.entries(r.kategoriyalar).filter(([n]) => n !== 'hammasi');
+    const chip = (sar, ro) => ro.length ? `<div class="kat-taqsim"><b>${sar}</b>${ro.slice(0, 8).map((x) =>
+      `<span class="chip">${esc(x.nom)} <em>${som(x.soni)}</em></span>`).join('')}</div>` : '';
+    q.innerHTML = `<div class="karta-bosh"><h2>Mijoz kategoriyalari</h2><span class="yor kul">kimga qanday xabar</span></div>
+      <div class="kat-tor">${k.map(([n, v]) => `<div class="kat ${v.jami ? '' : 'bosh'}">
+        <span class="kat-ik">${ik(KAT_IKON[n] || 'odamlar', 16)}</span>
+        <div class="kat-tan"><span>${esc(v.nom)}</span><b>${som(v.jami)}</b><small>Telegramda ${som(v.telegramda)}</small></div>
+        ${v.telegramda ? `<button class="ik-tugma" data-kat="${esc(n)}" data-katnom="${esc(v.nom)}" title="AI xabar tayyorlasin">${ik('xat', 16)}</button>` : ''}
+      </div>`).join('')}</div>
+      ${chip('Muammolar', r.muammolar)}${chip('Teri turi', r.teri_turi)}${chip('Yosh', r.yosh)}${chip('Manba', r.manba)}`;
+    $$('[data-kat]', q).forEach((b) => b.onclick = () => aiSora(`«${b.dataset.katnom}» kategoriyasidagi mijozlarga mos, chiroyli rasmli xabar tayyorla (kategoriya: ${b.dataset.kat}). Avval menga sinov yubor.`));
+  } catch (e) { q.innerHTML = `<div class="xabar-quti xato">${esc(e.message)}</div>`; }
+}
+
 async function mijozlar(yangiFiltr = null) {
   if (yangiFiltr) Object.assign(MIJOZ_FILTR, yangiFiltr);
   const F = MIJOZ_FILTR;
@@ -2196,6 +2256,9 @@ async function mijozlar(yangiFiltr = null) {
             title="${esc(sg.izoh)}">${sg.nom}</button>`).join('')}
         <button class="tug kichik" data-seg="tozala">✕ Tozalash</button>
       </div>
+
+      <section class="karta" id="kategoriyalar"><div class="karta-bosh"><h2>Mijoz kategoriyalari</h2>
+        <span class="yor kul">kimga qanday xabar</span></div><div class="skelet"></div></section>
 
       <!-- Filtr yig'ilgan turadi — faqat ishlatilganda ochiq -->
       <details class="karta tor filtr" ${[F.xarid_dan, F.xarid_gacha, F.buyurtma_dan, F.oxirgi_dan, F.oxirgi_gacha, F.xaridor]
@@ -2263,6 +2326,7 @@ async function mijozlar(yangiFiltr = null) {
           </div>
         </div>`).join('') : boshHolat('🔍', 'Bu filtrga mos mijoz topilmadi')}`;
 
+    kategoriyalarniChiz();
     let t; $('#u-qidiruv').oninput = (e) => {
       clearTimeout(t); const v = e.target.value;
       t = setTimeout(() => { mijozlar({ q: v }); setTimeout(() => $('#u-qidiruv')?.focus(), 0); }, 350);
@@ -3791,8 +3855,10 @@ async function sozlamalar() {
           foydalanuvchi qayerga borishni bilmay botdan umuman
           foydalana olmay qolmasligi uchun.
         </div>
-        <button class="tug keng" id="t-obuna-sina" style="margin-top:12px">
-          🔍 Kanalni tekshirish</button>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="tug" id="t-obuna-sina" style="flex:1">🔍 Kanalni tekshirish</button>
+          <button class="tug" id="t-obuna-matn" style="flex:1">✏️ Xabar matnini o‘zgartirish</button>
+        </div>
       </div>
 
       <div class="karta tor">
@@ -3936,6 +4002,7 @@ async function sozlamalar() {
     $('#t-kanal-sina').onclick = kanallarniSina;
     $('#t-tarif-sina').onclick = tarifniSina;
     $('#t-obuna-sina').onclick = obunaniSina;
+    $('#t-obuna-matn').onclick = () => bolimOch('xabar');
     $('#t-logo').onclick = () => $('#s-logo').click();
     $('#s-logo').onchange = logoniYukla;
     $('#t-namuna').onclick = () => $('#s-namuna').click();

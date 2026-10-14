@@ -24,6 +24,11 @@ export const GURUHLAR = [
                'xabar_holat_yetkazildi', 'xabar_holat_bekor', 'xabar_tolov_tasdiq'],
   },
   {
+    nom: '🔒 Majburiy obuna',
+    izoh: 'Kanalga a’zo bo‘lmagan odamga bot shu xabarni ko‘rsatadi.',
+    kalitlar: ['xabar_obuna', 'xabar_obuna_tugma', 'xabar_obuna_tekshir', 'xabar_obuna_rahmat'],
+  },
+  {
     nom: '💬 Boshqa bo‘limlar',
     izoh: 'Menyudagi tugmalar ostidagi matnlar.',
     kalitlar: ['xabar_konsultatsiya', 'xabar_yordam'],
@@ -85,9 +90,29 @@ export const TAVSIF = {
 
   xabar_konsultatsiya: { nom: 'Konsultatsiya', izoh: 'Telefon va ish vaqti sozlamalardan olinadi.', orin: ['telefon', 'ish_vaqti'] },
   xabar_yordam:        { nom: 'Yordam',        izoh: '', orin: [] },
+
+  xabar_obuna:         { nom: 'Obuna so‘rovi', izoh: 'Kanalga a’zo bo‘lmaganga chiqadi. {havola} — kanal havolasi (tugma ishlamasa ham odam bosadi).',
+    orin: ['dokon', 'havola', 'kanal'] },
+  xabar_obuna_tugma:   { nom: 'Kanal tugmasi', izoh: 'Kanalga olib boradigan tugma yozuvi.', orin: [] },
+  xabar_obuna_tekshir: { nom: '«Obuna bo‘ldim» tugmasi', izoh: 'Bosilganda bot a’zolikni qayta tekshiradi.', orin: [] },
+  xabar_obuna_rahmat:  { nom: 'Obunadan keyin', izoh: 'A’zolik tasdiqlanganda chiqadigan qisqa yozuv (bildirishnoma).', orin: [] },
 };
 
 export const STANDART = {
+  xabar_obuna:
+`🔒 <b>Avval kanalimizga obuna bo‘ling</b>
+
+{dokon} botidan foydalanish uchun kanalimizga a'zo bo‘lishingiz kerak.
+U yerda chegirmalar, yangi mahsulotlar va teri parvarishi bo‘yicha
+foydali maslahatlar chiqadi.
+
+👉 {havola}
+
+Obuna bo‘lgach «✅ Obuna bo‘ldim» tugmasini bosing.`,
+  xabar_obuna_tugma: '📢 Kanalga obuna bo‘lish',
+  xabar_obuna_tekshir: '✅ Obuna bo‘ldim',
+  xabar_obuna_rahmat: '✅ Rahmat! Xush kelibsiz',
+
   xabar_start:
 `✨ <b>{dokon}</b>
 

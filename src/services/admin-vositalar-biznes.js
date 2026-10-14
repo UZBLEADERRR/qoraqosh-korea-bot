@@ -341,7 +341,8 @@ export async function ommaviyXabar(a = {}) {
   const idlar = r.map((x) => x.id);
   if (!idlar.length) return { yuborildi: 0, xabar: 'Bu segmentda hech kim yo‘q.' };
   const { broadcastBoshla } = await import('./broadcast.js');
-  const b = await broadcastBoshla({ matn: esc(tana), userIdlar: idlar });
+  const { xavfsizHtml } = await import('./admin-post.js');
+  const b = await broadcastBoshla({ matn: xavfsizHtml(tana), userIdlar: idlar });
   return { yuborildi: b.jami, bajarildi: true, yuborish_id: b.id,
     natija: `${b.jami} kishiga yuborish boshlandi (fonda, sekundiga ~10 ta).` };
 }
@@ -494,7 +495,8 @@ export const BIZNES_VOSITALAR = {
   ommaviy_xabar: {
     oqish: false, ishla: ommaviyXabar,
     tavsif: 'SEGMENTGA ommaviy Telegram xabari (fonda, xavfsiz tezlikda). Avval «segmentlar» '
-          + 'bilan hajmini ko‘r. Matnni o‘zing yoz: shaxsiy, foydali, bitta aniq taklif bilan, spamsiz.',
+          + 'bilan hajmini ko‘r. Matnni o‘zing yoz: shaxsiy, foydali, bitta aniq taklif bilan, spamsiz. Telegram HTML '
+          + '(<b>, <i>) va {ism} ishlaydi. Rasm, tugma yoki aniqroq kategoriya (teri, muammo, jins, yosh) kerak bo‘lsa — «post_yubor».',
     parametrlar: 'segment, matn, kun (lid segmentlari uchun)',
   },
   mahsulot_qosh: {

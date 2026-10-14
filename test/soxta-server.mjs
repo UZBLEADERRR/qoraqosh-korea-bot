@@ -71,6 +71,15 @@ function javobMatni(sxemaMatni, prompt = '') {
   // Tahlil promptini eslab qolamiz — do'kon egasining qo'shimcha
   // ko'rsatmasi modelga haqiqatan yetib bordimi, sinov shuni tekshiradi
   // Instagram Direct AI suhbatdoshi
+  if (sxemaMatni.includes('goyalar') && sxemaMatni.includes('hashtaglar')) {
+    globalThis.OXIRGI_KONTENT_PROMPT = prompt;
+    return JSON.stringify({ goyalar: [
+      { mavzu: 'Kuzda teri nega quriydi', format: 'reels', hook: 'Kuz keldi — teringiz ham sezdimi?', ssenariy: '1) yuz yaqindan 2) krem surtish',
+        izoh: 'Kuzda namlash ikki barobar muhim', hashtaglar: '#kiovo #skincare', mahsulot: 'Laneige', nega: 'Mijozlar quruqlikni ko‘p so‘rayapti' },
+      { mavzu: 'Nigina Koreyada nimani o‘rgandi', format: 'karusel', hook: '5 ta Koreya siri', ssenariy: '5 slayd',
+        izoh: 'Koreyada parvarish 5 bosqich', hashtaglar: '#kbeauty', mahsulot: '—', nega: 'Ishonch uchun' },
+    ] });
+  }
   if (sxemaMatni.includes('komment_javob')) {
     globalThis.OXIRGI_KOMMENT_PROMPT = prompt;
     return JSON.stringify(globalThis.IG_KOMMENT_AI || { komment_javob: 'Rahmat 😊 — yetkazish butun O‘zbekiston bo‘ylab.', direct: false, javob_kerak: true });
@@ -348,6 +357,13 @@ export function soxtaServer(port = 4444) {
       // sendPhoto multipart bilan keladi — izohni ajratib olamiz, baytni tashlaymiz
       if (yol.endsWith('/sendPhoto')) {
         const xom = await tana(req);
+        // Rasm havola bilan (JSON) — post vositasi shunday yuboradi
+        if (/^\s*\{/.test(xom)) {
+          const b = JSON.parse(xom);
+          yuborilgan.push({ id: ++xabarId, rasm: true, rasm_url: b.photo, chat_id: String(b.chat_id), text: b.caption || '',
+            reply_markup: b.reply_markup, business_connection_id: b.business_connection_id });
+          return j({ ok: true, result: { message_id: xabarId, photo: [{ file_id: 'f1' }] } });
+        }
         const izoh = /name="caption"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
         const chat = /name="chat_id"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
         const kb   = /name="reply_markup"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);

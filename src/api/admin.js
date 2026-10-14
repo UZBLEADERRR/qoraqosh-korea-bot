@@ -291,6 +291,7 @@ export async function adminRoutes(req, res, yol) {
       if (amal === 'webhook-ula') return ok(res, await igApi.webhookniUla());
       if (amal === 'tekshir') return ok(res, await ig.tekshiruv());
       if (amal === 'statistika') return ok(res, await ig.igStatistika({ kun: q.get('kun') || 30 }));
+      if (amal === 'kontent') return ok(res, await (await import('../services/kontent-tavsiya.js')).kontentYubor());
       if (amal === 'qoralama') return javob(await ig.qoralama(b.id));
       if (amal === 'eslatma') return ok(res, await ig.eslatmalarniYubor());
       if (amal === 'sir') return javob(await ig.sirniSaqla(b.sir));
@@ -328,6 +329,10 @@ export async function adminRoutes(req, res, yol) {
   }
 
   // ================= MANBALAR: Instagram, TikTok… =================
+  if (yol === '/api/admin/kategoriyalar' && req.method === 'GET') {
+    const { kategoriyalar } = await import('../services/admin-post.js');
+    return ok(res, await kategoriyalar());
+  }
   if (yol === '/api/admin/kanal-hisobot' && req.method === 'GET') {
     const { kanalHisoboti } = await import('../services/majburiy-kanal.js');
     return ok(res, await kanalHisoboti({ kun: new URL(req.url, 'http://x').searchParams.get('kun') || 30 }));

@@ -23,7 +23,7 @@ const kut = (ms) => new Promise((r) => setTimeout(r, ms));
 /**
  * @returns {Promise<{id:number, jami:number}>}
  */
-export async function broadcastBoshla({ matn, fileId, adminId, chatId, userIdlar = null }) {
+export async function broadcastBoshla({ matn, fileId, adminId, chatId, userIdlar = null, tugma = null }) {
   // `userIdlar` — faqat shu segmentga (AI yordamchi «tahlil qilib sotib
   // olmaganlarga yoz» deganda). Berilmasa — hammaga.
   const segment = Array.isArray(userIdlar);
@@ -32,7 +32,7 @@ export async function broadcastBoshla({ matn, fileId, adminId, chatId, userIdlar
     // ochiq skaner mehmonlari va o'chirilgan hisoblar (`google:…`,
     // `tel:…`, `mehmon:…`, `ochirilgan:…`) botdan xabar ola olmaydi —
     // ular «xato» bo'lib sanalib, yuborishni sekinlatardi.
-    `select telegram_id from users
+    `select telegram_id, full_name from users
       where not is_blocked and telegram_id ~ '^[0-9]+$'
         ${segment ? 'and id = any($1::bigint[])' : ''} order by id`,
     segment ? [userIdlar.map(Number).filter(Number.isFinite)] : []);
@@ -43,22 +43,28 @@ export async function broadcastBoshla({ matn, fileId, adminId, chatId, userIdlar
     [matn || '', oluvchilar.length, adminId ?? null]);
 
   // Fonda yuboramiz — admin kutib turmaydi
-  yuborishniBajar(y.id, oluvchilar, { matn, fileId }, chatId)
+  yuborishniBajar(y.id, oluvchilar, { matn, fileId, tugma }, chatId)
     .catch((e) => console.error('BROADCAST:', e.message));
 
   return { id: y.id, jami: oluvchilar.length };
 }
 
-async function yuborishniBajar(id, oluvchilar, { matn, fileId }, hisobotChat) {
+async function yuborishniBajar(id, oluvchilar, { matn, fileId, tugma }, hisobotChat) {
   let yuborildi = 0, xato = 0, bloklangan = 0, toxtadi = false;
+  // {ism} — har odamga o'z ismi bilan («Salom, Malika!»)
+  const ismli = /\{ism\}/.test(matn || '');
+  const ismi = (u) => String(u.full_name || '').trim().split(/\s+/)[0]
+    .replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const qoshimcha = tugma ? { reply_markup: tugma } : {};
 
   for (const u of oluvchilar) {
     if (floodKutilmoqda()) { toxtadi = true; break; }
+    const m = ismli ? String(matn).replace(/\{ism\}/g, ismi(u) || 'do‘stim').replace(/,\s*do‘stim!/, ', do‘stim!') : matn;
     const javob = fileId
       ? await tg('sendPhoto', { chat_id: u.telegram_id, photo: fileId,
-          caption: matn, parse_mode: 'HTML' }, { ommaviy: true })
-      : await tg('sendMessage', { chat_id: u.telegram_id, text: matn,
-          parse_mode: 'HTML', link_preview_options: { is_disabled: true } },
+          caption: m, parse_mode: 'HTML', ...qoshimcha }, { ommaviy: true })
+      : await tg('sendMessage', { chat_id: u.telegram_id, text: m,
+          parse_mode: 'HTML', link_preview_options: { is_disabled: true }, ...qoshimcha },
           { ommaviy: true });
 
     if (javob?.ok) {

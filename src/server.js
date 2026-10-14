@@ -649,7 +649,7 @@ async function botniUla() {
     const r = await tg('setWebhook', {
       url,
       secret_token: config.webhookSecret || undefined,
-      allowed_updates: ['message', 'callback_query', 'chat_member'],
+      allowed_updates: ['message', 'callback_query', 'chat_member', 'business_connection', 'business_message'],
       drop_pending_updates: false,
     });
     console.log(r.ok ? `✅ Webhook ulandi: ${config.publicUrl}${WEBHOOK_YOL.slice(0, 12)}…`
@@ -663,7 +663,7 @@ async function botniUla() {
   let offset = 0;
   for (;;) {
     try {
-      const r = await tg('getUpdates', { offset, timeout: 30, allowed_updates: ['message', 'callback_query', 'chat_member'] });
+      const r = await tg('getUpdates', { offset, timeout: 30, allowed_updates: ['message', 'callback_query', 'chat_member', 'business_connection', 'business_message'] });
       if (r.ok) {
         for (const upd of r.result) {
           offset = upd.update_id + 1;
@@ -712,6 +712,9 @@ async function boshla() {
     setInterval(() => igTokenniYangila().catch((e) => console.error('IG token:', e.message)), 24 * 3600e3).unref();
     // Tahlil olib Telegramga o'tmaganlarga bitta yumshoq eslatma (24 soat oynasi ichida)
     setInterval(() => instagram.eslatmalarniYubor().catch((e) => console.error('IG eslatma:', e.message)), 10 * 60_000).unref();
+    // Har kuni adminga Instagram kontent g'oyalari (sozlangan soatda)
+    setInterval(() => import('./services/kontent-tavsiya.js').then((m) => m.kunlikTekshir())
+      .catch((e) => console.error('Kontent tavsiya:', e.message)), 10 * 60_000).unref();
     vazifaniTiklash()
       .then((v) => v && console.log(`   Import davom etmoqda: #${v.id} (${v.qoshilgan}/${v.maqsad})`))
       .catch((e) => console.error('Importni tiklashda xato:', e.message));

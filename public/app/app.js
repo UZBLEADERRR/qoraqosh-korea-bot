@@ -1473,12 +1473,7 @@ function mahsulotOyna(id) {
 
     <!-- Savatga tugmasi DOIM ko'rinib turadi: odam uni topish uchun
          tavsif, tarkib va ogohlantirishlarni oxirigacha surmasin -->
-    <div class="oyna-pastki${narx(p.price).length > 12 ? ' uzun' : ''}">
-      <div class="oyna-pastki-narx">
-        <b>${narx(p.price)}</b>
-        ${p.old_price && p.old_price > p.price ? `<s>${narx(p.old_price)}</s>`
-          : `<small>${esc(p.dona_soni > 1 ? `${p.dona_soni} dona` : p.volume || '')}</small>`}
-      </div>
+    <div class="oyna-pastki ikki-tugma">
       ${p.stock > 0 ? `
       <button class="ikkilamchi oyna-savatga ${savatda ? 'bor' : ''}" id="t-savatga" aria-label="Savatga qo‘shish">
         ${savatgaYorliq(savatda)}</button>
@@ -1498,7 +1493,6 @@ function mahsulotOyna(id) {
     t.innerHTML = savatgaYorliq(n);
     t.classList.add('bor');
     t.classList.remove('sakra'); void t.offsetWidth; t.classList.add('sakra');
-    tost(n > 1 ? `Savatda ${n} ta` : 'Savatga qo‘shildi');
   };
   const sb = $('#t-sotib');
   if (sb) sb.onclick = () => {
@@ -1515,7 +1509,9 @@ function mahsulotOyna(id) {
   });
 }
 function savatgaYorliq(n) {
-  return `${ik('savat', 21)}${n ? `<em class="savat-son">${n}</em>` : '<em class="savat-son plyus">+</em>'}`;
+  return n
+    ? `${ik('tasdiq', 18)}<span>Savatda ${n} · yana</span>`
+    : `${ik('savat', 18)}<span>Savatga qo‘shish</span>`;
 }
 
 /**
@@ -3976,6 +3972,67 @@ function savatniKorsat() {
     if (n) { n.textContent = soni; kor(n, soni > 0); }
   }
   savatniChiz();
+  suzuvchiSavat();
+}
+
+/**
+ * SUZUVCHI SAVAT — savatga nimadir qo'shilgach ekranda kichik savat
+ * belgisi suzib turadi (mahsulot oynasi ustida ham). Bosilsa — savat.
+ * Barmoq bilan surib istalgan joyga qo'yiladi va yon chetga yopishadi;
+ * joyi eslab qolinadi.
+ */
+function suzuvchiSavat({ sakra = false } = {}) {
+  const soni = holat.savat.reduce((x, r) => x + r.quantity, 0);
+  let el = $('#suzuvchi-savat');
+  const kerak = holat.suzuvchiFaol && soni > 0 && holat.tab !== 'savat';
+  if (!kerak) { if (el) el.classList.remove('kor'); return; }
+  if (!el) {
+    el = document.createElement('button');
+    el.id = 'suzuvchi-savat';
+    el.className = 'suzuvchi-savat';
+    el.setAttribute('aria-label', 'Savatga o‘tish');
+    el.innerHTML = `${ik('savat', 24)}<em></em>`;
+    document.body.appendChild(el);
+    try {
+      const j = JSON.parse(localStorage.getItem('qq_suzuvchi') || 'null');
+      if (j && Number.isFinite(j.y)) { el.style.top = `${Math.min(innerHeight - 140, Math.max(70, j.y))}px`; el.style.bottom = 'auto';
+        el.classList.toggle('chapda', j.chap === true); }
+    } catch { /* yashirin rejim */ }
+    let bosh = null, surildi = false;
+    el.addEventListener('pointerdown', (e) => {
+      bosh = { x: e.clientX, y: e.clientY, t: el.getBoundingClientRect().top }; surildi = false;
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!bosh) return;
+      const dx = e.clientX - bosh.x, dy = e.clientY - bosh.y;
+      if (!surildi && Math.hypot(dx, dy) < 7) return;
+      surildi = true; el.classList.add('surilmoqda');
+      el.style.top = `${Math.min(innerHeight - 70, Math.max(10, bosh.t + dy))}px`; el.style.bottom = 'auto';
+      el.style.left = `${Math.min(innerWidth - 62, Math.max(6, e.clientX - 28))}px`; el.style.right = 'auto';
+    });
+    const qoy = (e) => {
+      if (!bosh) return;
+      el.classList.remove('surilmoqda');
+      if (surildi) {
+        const chap = e.clientX < innerWidth / 2;
+        el.style.left = ''; el.style.right = '';
+        el.classList.toggle('chapda', chap);
+        const y = el.getBoundingClientRect().top;
+        try { localStorage.setItem('qq_suzuvchi', JSON.stringify({ y, chap })); } catch { /* */ }
+      } else {
+        titra('medium');
+        if (modalOchiqmi()) modalYop();
+        tabOch('savat');
+      }
+      bosh = null;
+    };
+    el.addEventListener('pointerup', qoy);
+    el.addEventListener('pointercancel', () => { bosh = null; el.classList.remove('surilmoqda'); });
+  }
+  el.querySelector('em').textContent = soni > 99 ? '99+' : soni;
+  requestAnimationFrame(() => el.classList.add('kor'));
+  if (sakra) { el.classList.remove('sakra'); void el.offsetWidth; el.classList.add('sakra'); }
 }
 
 /** Serverdan haqiqiy holatni olib, ekranni moslashtiradi. */
@@ -4002,7 +4059,9 @@ async function savatga(id, soni = 1) {
   const bor = holat.savat.find((r) => r.products.id === id);
   if (bor) bor.quantity += soni;
   else holat.savat.push({ quantity: soni, products: p });
+  holat.suzuvchiFaol = true;
   savatniKorsat(); titra();
+  suzuvchiSavat({ sakra: true });
 
   // 2) Keyin serverga
   try {
@@ -5978,6 +6037,7 @@ function tabOch(nom, { tarixsiz = false } = {}) {
     // batareyani yeydi va odam uni ko'rmay qoladi
     if (nom !== 'skaner' && kamOqim) kameraniYop();
   });
+  suzuvchiSavat();
   // Yangi bo'lim birdaniga «sakrab» chiqmasin — yumshoq paydo bo'ladi
   if (oldingi && oldingi !== nom && nom !== 'maslahat') {
     const el = $(`#tab-${nom}`);

@@ -23,6 +23,8 @@ import { sqlOqi, sqlYoz, sxema } from './admin-sql.js';
 import { BIZNES_VOSITALAR, biznesOldindanSoni } from './admin-vositalar-biznes.js';
 import { MARJA_VOSITALAR, marjaOldindanSoni } from './admin-marja.js';
 import { IG_VOSITALAR } from './admin-instagram-vositalar.js';
+import { POST_VOSITALAR, postSoni } from './admin-post.js';
+import { KONTENT_VOSITALAR } from './kontent-tavsiya.js';
 import { kartochkaSozlamasi, kartochkaniQosh, BLOKLAR, BLOK_NOMI,
          KARTOCHKA_STANDART } from '../lib/kartochka.js';
 
@@ -1124,6 +1126,8 @@ export const VOSITALAR = {
   ...BIZNES_VOSITALAR,
   ...MARJA_VOSITALAR,
   ...IG_VOSITALAR,
+  ...POST_VOSITALAR,
+  ...KONTENT_VOSITALAR,
   mavzu_ozgartir: {
     oqish: false, ishla: mavzuOzgartir,
     tavsif: 'Ilova ranglarini o‘zgartiradi. Avval «mavzu» bilan kontrastni '
@@ -1157,6 +1161,7 @@ export const yozishmi = (nom) => Boolean(VOSITALAR[nom]) && !VOSITALAR[nom].oqis
  */
 export async function oldindanSoni(nom, a = {}) {
   try {
+    if (nom === 'post_yubor') return await postSoni(a);
     const biznes = await biznesOldindanSoni(nom, a);
     if (biznes !== undefined) return biznes;
     const marja = await marjaOldindanSoni(nom, a);

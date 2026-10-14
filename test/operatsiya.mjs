@@ -5670,7 +5670,7 @@ console.log('\n── EKRANLAR, SHARHLAR, BELGILAR, GALEREYA ──');
   test('bildirishnoma — almashtirgich (switch)', /role="switch"/.test(js) && /\.almash\.yoqiq/.test(css));
 
   // ── Mahsulot oynasi ──
-  test('savatga tugmasi DOIM ko‘rinadi (pastga yopishgan)', /class="oyna-pastki\$\{/.test(js)
+  test('savatga tugmasi DOIM ko‘rinadi (pastga yopishgan)', /class="oyna-pastki ikki-tugma"/.test(js)
     && /\.oyna-pastki\{position:sticky;bottom:0/.test(css));
   test('reyting tepada va bosiladi', /id="oyna-baho">\$\{bahoQatori\(p\)\}/.test(js)
     && /class="baho-tugma[^"]*" data-sharhlar=/.test(js));
@@ -5861,8 +5861,10 @@ console.log('\n── OYNA, NARX, IPHONE, TUNGI QIDIRUV, GMAIL ──');
   test('mahsulot oynasi to‘liq ekranda', /\.modal \.oyna\.pastli\{max-height:100dvh;height:100dvh;border-radius:0/.test(css));
   test('narx qisqarmaydi, tugma qolgan joyni oladi', /\.oyna-pastki-narx\{flex:0 0 auto/.test(css)
     && /\.oyna-pastki \.asosiy\{flex:1 1 0;min-width:0\}/.test(css));
-  test('katta summada tugma yozuvi qisqaradi', /narx\(p\.price\)\.length > 12 \? ' uzun'/.test(js)
-    && /\.oyna-pastki\.uzun \.asosiy \.qisqa\{display:inline\}/.test(css));
+  test('pastda narx yo‘q — ikki to‘liq tugma (Savatga qo‘shish + Sotib olish)', !/<div class="oyna-pastki-narx">/.test(js)
+    && js.includes('Savatga qo‘shish') && /\.oyna-pastki\.ikki-tugma>button\{flex:1 1 0/.test(css));
+  test('savatga qo‘shilganda suzuvchi savat (surib qo‘yiladi, bosilsa savat)', /function suzuvchiSavat/.test(js)
+    && /suzuvchiSavat\(\{ sakra: true \}\)/.test(js) && /tabOch\('savat'\)/.test(js) && /\.suzuvchi-savat\{position:fixed/.test(css));
   test('iPhone: har bo‘lim kamida bir ekran (menyu bir joyda)', /body\{min-height:calc\(100lvh \+ 1px\)\}/.test(css));
   const tun = [...css.matchAll(/--qidiruv-fon:(#[0-9a-f]{6})/g)].map((m) => m[1]);
   test('tungi mavzuda qidiruv och yashil', tun.length === 3 && tun.slice(1).every((x) => x === '#d6ecae'), tun.join());

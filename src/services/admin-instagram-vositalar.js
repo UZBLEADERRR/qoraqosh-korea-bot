@@ -69,7 +69,8 @@ export const IG_VOSITALAR = {
           + 'tahlil_xabari (qisqa — natija rasmi + qisqa havola | yoq — faqat rasm | mahsulotlar — mahsulot ro‘yxati bilan), '
           + 'yozish_tezligi (tabiiy | sekin | tez), korildi («ko‘rildi» belgisi), bilim (do‘kon FAQ: manzil, yetkazish muddati, '
           + 'kafolat, qaytarish — AI faqat shunga tayanadi; TO‘LIQ matn yoz), eslatma va eslatma_soat (tahlildan keyin '
-          + 'Telegramga o‘tmaganlarga bitta eslatma), spam_yashir, tez_javoblar (massiv — menejer uchun tayyor javoblar).',
+          + 'Telegramga o‘tmaganlarga bitta eslatma), spam_yashir, tez_javoblar (massiv — menejer uchun tayyor javoblar), persona (kim nomidan yoziladi, standart Nigina), '
+          + 'kontent_tavsiya va kontent_soat (har kuni adminga kontent g‘oyalari, Toshkent soati).',
     parametrlar: 'o‘zgaradigan maydonlar',
   },
   instagram_qoida: {

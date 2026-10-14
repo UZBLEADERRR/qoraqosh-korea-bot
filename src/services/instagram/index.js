@@ -25,6 +25,9 @@ export const STANDART = {
   komment_qoidalar: true,      // kommentlarga qoidalar ishlaydi
   komment_mention: true,       // ochiq javob @username bilan boshlansin
   komment_ai: true,            // qoidaga tushmagan HAR kommentga AI ma'nosiga qarab javob yozadi
+  persona: 'Nigina',           // kim nomidan yoziladi (KiOVO asoschisi)
+  kontent_tavsiya: true,       // har kuni adminga Instagram uchun kontent g'oyalari
+  kontent_soat: 9,             // Toshkent vaqti bilan
   kechikish_soniya: 4,         // mijoz ketma-ket yozsa — oxirgisidan keyin javob
   qolda_pauza_daqiqa: 60,      // admin yozsa AI shuncha jim
   tahlil_matni: '',            // tahlildan keyingi xabar (bo'sh — standart)
@@ -143,11 +146,12 @@ export async function webhookKeldi(body) {
   }
 }
 
-async function suhbatOl(igsid) {
+async function suhbatOl(igsid, { platforma = null, ism = null, username = null } = {}) {
   let s = await qator(`select * from ig_suhbatlar where igsid = $1`, [igsid]);
   if (!s) {
-    s = await qator(`insert into ig_suhbatlar (igsid) values ($1) on conflict (igsid) do update set igsid = excluded.igsid
-      returning *`, [igsid]);
+    s = await qator(`insert into ig_suhbatlar (igsid, platforma, ism, username) values ($1, $2, $3, $4)
+      on conflict (igsid) do update set igsid = excluded.igsid returning *`,
+      [igsid, platforma || (String(igsid).startsWith('tg:') ? 'telegram' : 'instagram'), ism, username]);
     // Ism va username — chatlar ro'yxatida odam tanilsin (yiqilsa ham davom etadi)
     api.profil(igsid).then((p) => p && sorov(`update ig_suhbatlar set username = $2, ism = $3, rasm_url = $4 where id = $1`,
       [s.id, p.username || null, p.name || null, p.profile_pic || null])).catch(() => {});
@@ -295,9 +299,10 @@ async function javobKonteksti(s, st) {
   const t = s.tahlil_token ? await tahlilMalumoti(s.tahlil_token, katalog).catch(() => null) : null;
   return {
     tarix: await tarixi(s.id), korsatma: st.korsatma, mahsulotlar: katalog,
-    malumot: { ism: s.ism || s.username || '', tg_havola: await botHavolasi('h_ig-direct'),
+    malumot: { ism: s.ism || s.username || '', tg_havola: await botHavolasi(s.platforma === 'telegram' ? 'h_tg' : 'h_ig-direct'),
+      platforma: s.platforma || 'instagram',
       ...(await dokonHavolalari()), dokon: await dokonBilimi().catch(() => ''), bilim: st.bilim || '',
-      izoh: s.izoh || '', urug: uslubUrugi(s.igsid),
+      izoh: s.izoh || '', urug: uslubUrugi(s.igsid), persona: st.persona || 'Nigina',
       tahlil: t ? tahlilMatni(t) : '', tahlil_soz: t ? t.tahlil.muammolar.map((m) => m.nom).join(' ') : '',
       tahlil_havola: t ? await botHavolasi(`n_${s.tahlil_token}`) : '' },
   };
@@ -360,7 +365,11 @@ async function birJavob(suhbatId, { majburiy = false } = {}) {
   const { igJavob } = await import('../../ai/instagram-suhbat.js');
   const kiruvchiId = await oxirgiKiruvchi(s.id);
   // Odam avval o'qiydi: «ko'rildi»
-  if (st.korildi) { await kut(st.yozish_tezligi === 'tez' ? 300 : 700 + Math.random() * 1800); api.korildi(s.igsid); }
+  if (st.korildi) {
+    await kut(st.yozish_tezligi === 'tez' ? 300 : 700 + Math.random() * 1800);
+    const oxirgi = await qator(`select mid from ig_xabarlar where suhbat_id = $1 and yonalish = 'kiruvchi' order by id desc limit 1`, [s.id]);
+    api.korildi(s.igsid, oxirgi?.mid);
+  }
   const sorovi = await javobKonteksti(s, st);
   let r;
   try {
@@ -474,6 +483,7 @@ const RAD_MATN = {
 };
 
 export async function rasmniTahlilQil(suhbatId, url) {
+  // url — Instagram CDN havolasi YOKI { base64, mime } (Telegram fayli)
   const s = await qator(`select * from ig_suhbatlar where id = $1`, [suhbatId]);
   const st = await igSozlamalari();
   if (!s) return null;
@@ -489,12 +499,17 @@ export async function rasmniTahlilQil(suhbatId, url) {
 
   let base64, mime;
   try {
+    if (url && typeof url === 'object') {
+      if (!url.base64) throw new Error('rasm yo‘q');
+      base64 = url.base64; mime = url.mime || 'image/jpeg';
+    } else {
     const r = await fetch(url);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const bayt = Buffer.from(await r.arrayBuffer());
     if (bayt.length > 10 * 1024 * 1024) throw new Error('rasm juda katta');
     base64 = bayt.toString('base64');
     mime = (r.headers.get('content-type') || 'image/jpeg').split(';')[0];
+    }
   } catch (e) {
     await yuborVaYoz(s, 'rasm ochilmadi, yana bir marta tashlab ko\'ring', 'tahlil').catch(() => {});
     return { xato: e.message };
@@ -503,7 +518,7 @@ export async function rasmniTahlilQil(suhbatId, url) {
   const { ochiqSkan } = await import('../ochiq-skan.js');
   let n;
   try {
-    n = await ochiqSkan({ base64, mime, ip: `ig:${s.igsid}`, manba: 'ig-direct' });
+    n = await ochiqSkan({ base64, mime, ip: `ig:${s.igsid}`, manba: s.platforma === 'telegram' ? 'tg' : 'ig-direct' });
   } catch (e) {
     const m = e.message === 'CHEGARA'
       ? 'bugungi bepul tahlil limiti tugadi, ertaga yana tashlang yoki telegramda davom eting\n\n' + await botHavolasi('h_ig-direct')
@@ -660,7 +675,7 @@ export async function kommentgaAi(k, st = null, { majburiy = false } = {}) {
   const { faolMahsulotlar } = await import('../analysis.js');
   const katalog = await faolMahsulotlar();
   const malumot = { ...(await dokonHavolalari()), dokon: await dokonBilimi().catch(() => ''), bilim: st.bilim || '',
-    urug: uslubUrugi(k.from_id || k.id) };
+    urug: uslubUrugi(k.from_id || k.id), persona: st.persona || 'Nigina' };
   let r;
   try {
     r = await kommentJavobi({ komment: k.matn, username: k.username || '', post: await postMatni(k.media_id),
@@ -699,7 +714,7 @@ export async function qoidaniBajar(k, q, st) {
       const { kommentDmMatni } = await import('../../ai/instagram-suhbat.js');
       const { faolMahsulotlar } = await import('../analysis.js');
       dmMatn = await kommentDmMatni({ komment: k.matn, korsatma: st.korsatma, mahsulotlar: await faolMahsulotlar(),
-        malumot: { ism: k.username || '', tg_havola: await botHavolasi('h_ig-komment') } }) || dmMatn;
+        malumot: { ism: k.username || '', tg_havola: await botHavolasi('h_ig-komment'), persona: st.persona || 'Nigina' } }) || dmMatn;
     } catch (e) { xatolar.push(`AI: ${e.message}`); }
   }
   if (dmMatn) {
@@ -738,6 +753,7 @@ export async function igHolat() {
   return {
     ulangan: Boolean(u.token), username: u.username, akkaunt_id: u.akkaunt_id, token_manba: u.manba,
     imzo_sir: sirlar().length > 0, imzo_sir_panel: Boolean(panelSiri),
+    tg_biznes: await sozlama('tg_biznes', null).catch(() => null),
     diag: await diag.diagnostika(),
     webhook_url: `${config.saytUrl}/instagram/webhook`, verify_token: await verifyToken(),
     sozlamalar: st, bugun: { ...bugun, telegramga_otdi: tg?.soni ?? 0 },
@@ -824,9 +840,11 @@ export async function suhbatlar({ q = '', filtr = '', chegara = 60 } = {}) {
   if (filtr === 'admin') shart.push('admin_kerak');
   if (filtr === 'tahlil') shart.push('tahlil');
   if (['telegram', 'mijoz'].includes(filtr)) { p.push(filtr); shart.push(`bosqich = $${p.length}`); }
+  if (filtr === 'tg_direct') shart.push(`platforma = 'telegram'`);
+  if (filtr === 'ig_direct') shart.push(`platforma = 'instagram'`);
   p.push(Math.min(200, son(chegara, 60)));
   return qatorlar(`select * from (select id, igsid, username, ism, rasm_url, ai_yoqiq, ai_pauza_gacha, admin_kerak, oqilmagan,
-      oxirgi_matn, oxirgi_at, oxirgi_kiruvchi, oxirgi_niyat, izoh, teglar, tahlil_token is not null as tahlil, ${BOSQICH_SQL} as bosqich
+      oxirgi_matn, oxirgi_at, oxirgi_kiruvchi, oxirgi_niyat, izoh, teglar, platforma, tahlil_token is not null as tahlil, ${BOSQICH_SQL} as bosqich
       from ig_suhbatlar s) t where ${shart.join(' and ')} order by oxirgi_at desc limit $${p.length}`, p);
 }
 
@@ -853,7 +871,7 @@ export async function suhbatXabarlari(id, { oqildi = true } = {}) {
   }
   const bosqich = mijoz?.buyurtma_soni ? 'mijoz' : tg?.olindi_id ? 'telegram' : s.tahlil_token ? 'tahlil' : 'suhbat';
   return {
-    suhbat: { ...s, oyna_ochiq: s.oxirgi_kiruvchi && Date.now() - new Date(s.oxirgi_kiruvchi) < 24 * 3600e3,
+    suhbat: { ...s, oyna_ochiq: s.platforma === 'telegram' || (s.oxirgi_kiruvchi && Date.now() - new Date(s.oxirgi_kiruvchi) < 24 * 3600e3),
       telegramga_otdi: Boolean(tg?.olindi_id), bosqich },
     xabarlar, karta: { tahlil, mijoz, bosqich },
   };
@@ -1073,4 +1091,74 @@ export async function javobsizlargaAi({ kun = 7, chegara = 30 } = {}) {
     if (n.xato || n.xatolar?.length) xatolar.push(n.xato || n.xatolar.join(' · '));
   }
   return { korildi: r.length, javob, dm, otkazildi, xatolar: xatolar.slice(0, 5) };
+}
+
+// ─────────────────────────── TELEGRAM BUSINESS ───────────────────────────
+
+/**
+ * Do'kon egasi botni Telegram Business'ga uladi (yoki uzdi). Bot shu
+ * paytdan egasining shaxsiy akkauntiga kelgan xabarlarga javob beradi.
+ */
+export async function tgBiznesUlanish(bc) {
+  if (!bc?.id) return null;
+  const qiymat = { id: bc.id, user_id: String(bc.user?.id || ''), ism: [bc.user?.first_name, bc.user?.last_name].filter(Boolean).join(' '),
+    username: bc.user?.username || '', yoqiq: bc.is_enabled !== false,
+    javob_bera_oladi: bc.rights ? bc.rights.can_reply !== false : bc.can_reply !== false, vaqt: new Date().toISOString() };
+  await sorov(`insert into settings (key, value, updated_at) values ('tg_biznes', $1::jsonb, now())
+    on conflict (key) do update set value = excluded.value, updated_at = now()`, [JSON.stringify(qiymat)]);
+  sozlamalarniUnut();
+  await adminlargaXabar(qiymat.yoqiq
+    ? `💬 <b>Telegram Business ulandi</b>: ${qiymat.username ? '@' + qiymat.username : qiymat.ism}.\nShaxsiy xabarlaringizga endi AI (Nigina uslubida) javob beradi.\nAdmin panel → Instagram → Direct da ko‘rinadi.${qiymat.javob_bera_oladi ? '' : '\n⚠️ Javob yozish huquqi berilmagan — Telegram → Telegram Business → Chatbotlar da «Javob berish» ni yoqing.'}`
+    : '💬 Telegram Business o‘chirildi — bot shaxsiy xabarlarga javob bermaydi.').catch(() => {});
+  return qiymat;
+}
+
+/**
+ * Egasining shaxsiy akkauntiga kelgan (yoki u yozgan) xabar. Mijozniki —
+ * Instagram Direct bilan BIR XIL oqim (AI odamdek javob beradi, rasm bo'lsa
+ * yuz tahlili). Egasi o'zi yozsa — AI shu suhbatda vaqtincha jim turadi.
+ */
+export async function tgBiznesXabar(msg) {
+  if (!msg?.chat || msg.chat.type !== 'private') return null;
+  let ul = await sozlama('tg_biznes', {}).catch(() => ({}));
+  if (!ul?.id || (msg.business_connection_id && ul.id !== msg.business_connection_id)) {
+    // Ulanish xabari kelmay qolgan bo'lsa ham id ni eslab qolamiz
+    ul = { ...(ul || {}), id: msg.business_connection_id, yoqiq: true };
+    await sorov(`insert into settings (key, value, updated_at) values ('tg_biznes', $1::jsonb, now())
+      on conflict (key) do update set value = excluded.value, updated_at = now()`, [JSON.stringify(ul)]);
+    sozlamalarniUnut();
+  }
+  const igsid = `tg:${msg.chat.id}`;
+  const mid = `tg:${msg.chat.id}:${msg.message_id}`;
+  // Shaxsiy chatda mijoz yozsa from.id = chat.id; egasi yozsa — farq qiladi
+  const egasi = String(msg.from?.id) !== String(msg.chat.id);
+  const matnI = msg.text || msg.caption || null;
+  if (egasi) {
+    if (msg.sender_business_bot) return null;            // botning o'zi egasi nomidan yuborgan
+    if (api.bizYuborganmi({ mid, matn: matnI, igsid }) || await qator(`select 1 from ig_xabarlar where mid = $1`, [mid])) return null;
+    const s = await suhbatOl(igsid, { platforma: 'telegram', ism: [msg.chat.first_name, msg.chat.last_name].filter(Boolean).join(' ') || null,
+      username: msg.chat.username || null });
+    await xabarYoz(s.id, { yonalish: 'chiquvchi', kim: 'ilova', matn: matnI, mid });
+    const st = await igSozlamalari();
+    await sorov(`update ig_suhbatlar set ai_pauza_gacha = now() + ($2 || ' minutes')::interval where id = $1`, [s.id, String(st.qolda_pauza_daqiqa)]);
+    return { egasi: true };
+  }
+  await diag.belgila('xabar');
+  const f = msg.from || {};
+  const s = await suhbatOl(igsid, { platforma: 'telegram', ism: [f.first_name, f.last_name].filter(Boolean).join(' ') || null, username: f.username || null });
+  const IZOH = { voice: '(ovozli xabar yubordi)', video_note: '(video xabar yubordi)', video: '(video yubordi)', sticker: '(stiker yubordi)',
+    document: '(fayl yubordi)', audio: '(audio yubordi)', location: '(joylashuv yubordi)', contact: '(kontakt yubordi)' };
+  const tur = Object.keys(IZOH).find((k) => msg[k]);
+  let m = matnI || (tur ? IZOH[tur] : null) || (msg.photo ? '(rasm yubordi)' : null);
+  if (msg.sticker?.emoji && !matnI) m = `(stiker ${msg.sticker.emoji})`;
+  const yangi = await xabarYoz(s.id, { yonalish: 'kiruvchi', kim: 'mijoz', matn: m, mid });
+  if (!yangi) return null;
+  const st = await igSozlamalari();
+  if (msg.photo?.length && st.yuz_tahlil) {
+    const { faylOl } = await import('../../bot/tg.js');
+    const f2 = await faylOl(msg.photo[msg.photo.length - 1].file_id).catch(() => null);
+    if (f2?.base64) return rasmniTahlilQil(s.id, { base64: f2.base64, mime: 'image/jpeg' });
+  }
+  if (m || msg.photo) return javobniRejalashtir(s.id);
+  return null;
 }

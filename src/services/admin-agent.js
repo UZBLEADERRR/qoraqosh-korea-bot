@@ -68,6 +68,14 @@ export async function agentJavobi(savol, tarix = [], rasmlar = [], kuzat = null,
   let javob = null;
   let takliflar = [];
 
+  // Biriktirilgan rasmlar bazaga saqlanadi — «shu rasmni post qil» desa
+  // yordamchi uni media_id bilan ishlata oladi (tasdiqdan keyin ham)
+  if (rasmlar?.length) {
+    const { biriktirilganniSaqla } = await import('./admin-post.js');
+    const idlar = await biriktirilganniSaqla(rasmlar).catch(() => []);
+    if (idlar.length) savol = `${savol}\n\n(BIRIKTIRILGAN RASMLAR — post_yubor da rasm_id: ${idlar.join(', ')})`;
+  }
+
   for (let i = 0; i < MAKS_QADAM; i++) {
     xabarBer({ qadam: i + 1, holat: 'oylayapti', matn: 'O‘ylayapti…' });
     const q = await keyingiQadam(savol, qadamlar, tarix, rasmlar, kontekst);

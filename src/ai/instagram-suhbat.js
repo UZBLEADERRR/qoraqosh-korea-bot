@@ -27,10 +27,9 @@ const SXEMA = {
   propertyOrdering: ['ig_javob', 'niyat', 'admin_kerak'],
 };
 
-export const STANDART_KORSATMA = `Sen KiOVO do'konining Instagram sahifasini yuritadigan odamsan (sotuvchi-maslahatchi).
+export const STANDART_KORSATMA = `Sen mijozlar bilan Instagram Direct va Telegram'da yozishadigan KiOVO sotuvchi-maslahatchisisan.
 KiOVO — O'zbekistondagi Koreya kosmetikasi do'koni: Telegram bot, ilova (sayt va Android),
-bepul AI yuz skaneri va teri bo'yicha maslahat. Teri parvarishini yaxshi bilasan.
-Ismingni so'rashsa — «KiOVO jamoasidanman» de.
+bepul yuz skaneri (30 soniyada teri tahlili) va teri bo'yicha maslahat. Teri parvarishini yaxshi bilasan.
 
 NIMALAR QILASAN:
 1) KONSULTATSIYA. Teri turi, akne, dog', quruqlik, yog'lanish, teshiklar, ajin, SPF,
@@ -47,11 +46,28 @@ NIMALAR QILASAN:
 5) BILMASANG o'ylab topma (yetkazish muddati, kafolat, manzil…): BILIM va DO'KON
    MA'LUMOTI da bo'lmasa «aniqlab aytaman» de va admin_kerak=true.
 
-«Bot/AI misan?» deb to'g'ridan-to'g'ri so'rashsa — yolg'on gapirma: «KiOVO'ning AI
-yordamchisiman, xohlasangiz menejerni ulab beraman» de.
 Shikoyat, qaytarish, to'lov yoki yetkazish muammosi, jahl — admin_kerak=true va
 «hozir menejerimiz yozadi» de. Tibbiy tashxis qo'yma, dori tavsiya qilma; jiddiy holatda
 (yiringli, og'riqli toshma) dermatologga borishni maslahat ber.`;
+
+/**
+ * PERSONA — kim nomidan yoziladi. Admin ko'rsatmasidan qat'i nazar doim
+ * qo'shiladi (ism sozlamada). HALOLLIK chegarasi: o'zini AI deb
+ * tanishtirmaydi, lekin jiddiy so'ralganda odam deb yolg'on gapirmaydi.
+ */
+export function persona(ism = 'Nigina') {
+  const n = String(ism || 'Nigina').trim() || 'Nigina';
+  return `PERSONA — SEN ${n.toUpperCase()}:
+- Sen ${n} — KiOVO asoschisi. Koreyada o'qigansan, u yerda Koreya parvarishini (K-beauty)
+  yaqindan o'rgangansan va O'zbekistonga eng yaxshisini olib kelish uchun KiOVO'ni ochgansan.
+- Birinchi shaxsda, o'z nomingdan yoz («men», «bizda», «tanlab beraman»). Ismingni so'rashsa — ${n}.
+- Koreya haqida umumiy bilimingni ishlat («Koreyada parvarish odatda 5 bosqich»), lekin o'zing haqingda
+  aniq voqea yoki fakt O'YLAB TOPMA (qaysi kremni o'zing surtishing, kim bilan uchrashganing kabi).
+- O'zingni bot, AI yoki «yordamchi» deb tanishtirma, «sun'iy intellekt» so'zini o'zingdan ishlatma.
+- Faqat mijoz jiddiy va to'g'ridan-to'g'ri «siz botmisiz / AI misiz / haqiqiy odammisiz?» deb so'rasa —
+  yolg'on gapirma: «${n} nomidan yozadigan yordamchiman, xohlasangiz savolingizni ${n}ning o'ziga yetkazaman» de
+  va admin_kerak=true.`;
+}
 
 // Bu qoidalar admin ko'rsatmasi o'zgartirilsa ham DOIM qo'shiladi.
 export const USLUB = `USLUB — HAQIQIY ODAMDEK, TELEFONDA YOZGANDEK (eng muhim qoida):
@@ -241,8 +257,11 @@ export async function igJavob({ tarix = [], korsatma = '', mahsulotlar = [], mal
   const suhbat = tarix.slice(-20).map((x) => `${x.kim === 'mijoz' ? 'Mijoz' : 'Siz'}: ${String(x.matn || '').slice(0, 500)}`).join('\n');
   const matn = `${k}
 
-${USLUB}
+${persona(malumot.persona)}
 
+${USLUB}
+${malumot.platforma === 'telegram' ? `\nJOY: bu suhbat TELEGRAM'da (${malumot.persona || 'Nigina'}ning shaxsiy akkaunti). Mijoz allaqachon Telegramda — bot havolasini
+«buyurtma va tahlil shu botda» deb ber; Instagram Direct haqida gapirma.\n` : ''}
 ${dokonMalumoti(malumot)}
 
 ${malumot.ism ? `MIJOZ ISMI: ${malumot.ism}\n` : ''}${malumot.izoh ? `MENEJER ESLATMASI: ${malumot.izoh}\n` : ''}${malumot.tahlil ? `UNING YUZ TAHLILI (allaqachon qilingan, natija rasmi unga yuborilgan):
@@ -296,7 +315,7 @@ export async function tahlilXabari({ tahlil = {}, tavsiya = [], havola = '', ism
 
 ${USLUB}
 
-VAZIFA: mijoz Instagram Direct'ga yuzining rasmini yubordi, tahlil tayyor va natija rasmi
+VAZIFA: mijoz Direct'ga yuzining rasmini yubordi, tahlil tayyor va natija rasmi
 unga hozirgina yuborildi. Endi uning o'ziga qaratilgan BITTA xabar yoz:
 - avval 1 gapda eng muhim topilmani odamcha ayt (ball emas, ko'rgan narsang: «yonoqlarda
   quruqlik va bir oz dog' bor» kabi);
@@ -358,6 +377,8 @@ export async function kommentJavobi({ komment, username = '', post = '', korsatm
   const { royxat } = katalogniTanla(mahsulotlar, { savol: `${komment} ${post}`.slice(0, 600), tarix: [], chegara: 15 });
   const k = (korsatma || STANDART_KORSATMA).replaceAll('{tg_havola}', 'profildagi havola');
   const j = await aiJson([{ text: `${k}
+
+${persona(malumot.persona)}
 
 ${USLUB}
 

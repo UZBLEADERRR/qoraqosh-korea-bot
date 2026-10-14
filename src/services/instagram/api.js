@@ -146,20 +146,49 @@ async function eslabYubor(o, chaqiruv) {
   return j;
 }
 
+// ── Telegram Business ──
+// Do'kon egasi o'z Telegram akkauntini botga ulasa (Sozlamalar →
+// Telegram Business → Chatbotlar), unga kelgan shaxsiy xabarlar ham shu
+// suhbatlar tizimiga tushadi. Suhbat id si 'tg:<chat_id>', javob
+// business_connection_id bilan EGASI NOMIDAN ketadi.
+const tgmi = (id) => String(id).startsWith('tg:');
+export async function tgBiznes(usul, tana) {
+  const { tg } = await import('../../bot/tg.js');
+  const ul = await sozlama('tg_biznes', {}).catch(() => ({}));
+  if (!ul?.id || ul.yoqiq === false) throw Object.assign(new Error('Telegram Business ulanmagan yoki o‘chirilgan.'), { turkum: 'tg' });
+  const r = await tg(usul, { business_connection_id: ul.id, ...tana });
+  if (!r?.ok) throw Object.assign(new Error(`Telegram: ${r?.description || 'xato'}`), { turkum: 'tg' });
+  return r.result;
+}
+
 // ── Xabarlar ──
-export const matnYubor = (igsid, matn) => eslabYubor({ igsid: String(igsid), matn: String(matn).slice(0, 1000) }, () =>
-  ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, message: { text: String(matn).slice(0, 1000) } } }));
-export const rasmYubor = (igsid, url) => eslabYubor({ igsid: String(igsid), rasm: url }, () =>
-  ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, message: { attachment: { type: 'image', payload: { url } } } } }));
+export const matnYubor = (igsid, matn) => eslabYubor({ igsid: String(igsid), matn: String(matn).slice(0, 1000) }, async () => {
+  if (tgmi(igsid)) {
+    const r = await tgBiznes('sendMessage', { chat_id: String(igsid).slice(3), text: String(matn).slice(0, 4000),
+      link_preview_options: { is_disabled: true } });
+    return { message_id: `tg:${String(igsid).slice(3)}:${r.message_id}` };
+  }
+  return ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, message: { text: String(matn).slice(0, 1000) } } });
+});
+export const rasmYubor = (igsid, url) => eslabYubor({ igsid: String(igsid), rasm: url }, async () => {
+  if (tgmi(igsid)) {
+    const r = await tgBiznes('sendPhoto', { chat_id: String(igsid).slice(3), photo: url });
+    return { message_id: `tg:${String(igsid).slice(3)}:${r.message_id}` };
+  }
+  return ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, message: { attachment: { type: 'image', payload: { url } } } } });
+});
 /** «Ko'rildi» — odam xabarni o'qigandek. */
-export const korildi = (igsid) =>
-  ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, sender_action: 'mark_seen' } }).catch(() => null);
-export const yozmoqda = (igsid) =>
-  ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, sender_action: 'typing_on' } }).catch(() => null);
+export const korildi = (igsid, mid = null) => (tgmi(igsid)
+  ? (mid ? tgBiznes('readBusinessMessage', { chat_id: Number(String(igsid).slice(3)), message_id: Number(String(mid).split(':').pop()) }).catch(() => null) : null)
+  : ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, sender_action: 'mark_seen' } }).catch(() => null));
+export const yozmoqda = (igsid) => (tgmi(igsid)
+  ? tgBiznes('sendChatAction', { chat_id: String(igsid).slice(3), action: 'typing' }).catch(() => null)
+  : ig('/me/messages', { usul: 'POST', tana: { recipient: { id: igsid }, sender_action: 'typing_on' } }).catch(() => null));
 /** Kommentga Direct orqali «shaxsiy javob» (7 kun ichida, bitta xabar). */
 export const kommentgaDm = (kommentId, matn) => eslabYubor({ matn: String(matn).slice(0, 1000) }, () =>
   ig('/me/messages', { usul: 'POST', tana: { recipient: { comment_id: kommentId }, message: { text: String(matn).slice(0, 1000) } } }));
-export const profil = (igsid) => ig(`/${igsid}`, { qidiruv: { fields: 'name,username,profile_pic' } }).catch(() => null);
+export const profil = (igsid) => (tgmi(igsid) ? Promise.resolve(null)
+  : ig(`/${igsid}`, { qidiruv: { fields: 'name,username,profile_pic' } }).catch(() => null));
 
 // ── Kommentlar va postlar ──
 export const kommentgaJavob = (kommentId, matn) =>

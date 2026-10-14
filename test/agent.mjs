@@ -166,5 +166,37 @@ test('foydalanuvchiga yetdi', yuborilgan.some(x=>String(x.chat_id)==='800001' &&
 const y = await qator(`select * from yuborishlar order by id desc limit 1`);
 test('yuborish bazaga yozildi', y && y.yuborildi >= 2, `${y?.yuborildi}/${y?.jami}`);
 
+console.log('\n── POST VA KATEGORIYALAR ──');
+{
+  const P = await import('../src/services/admin-post.js');
+  test('chiroyli matn: **qalin**, <b>, havola ruxsat; <script> yo‘q', P.xavfsizHtml('**Yangi** <script>x</script> <a href="https://kiovo.shop">bu yer</a>')
+    === '<b>Yangi</b> &lt;script&gt;x&lt;/script&gt; <a href="https://kiovo.shop">bu yer</a>');
+  test('juft bo‘lmagan teg — oddiy matn', !/<b>/.test(P.xavfsizHtml('<b>yarim')));
+  const k = await P.kategoriyalar();
+  test('kategoriyalar: xatti-harakat va taqsimotlar', k.kategoriyalar.vip && k.kategoriyalar.uxlab_qolgan && Array.isArray(k.yosh) && Array.isArray(k.muammolar));
+  const yosh = await P.kategoriyaIdlar({ yosh_dan: 20, yosh_gacha: 26 });
+  test('filtr: yosh oralig‘i', yosh.some((u) => u.telegram_id === '800001') && !yosh.some((u) => u.telegram_id === '700001'));
+  yuborilgan.length = 0;
+  const s1 = await P.postYubor({ kimga: 'sinov', matn: '<b>Yangi aksiya</b>\nHammasi −15%', product_id: 1 });
+  const r1 = yuborilgan.find((x) => x.rasm);
+  test('post sinovi: adminga rasm, matn va tugma bilan', s1.yuborildi >= 1 && r1?.chat_id === '700001' && /Yangi aksiya/.test(r1.text)
+    && /\/media\//.test(r1.rasm_url || '') && r1.reply_markup?.inline_keyboard?.[0]?.[0]?.url, JSON.stringify(s1));
+  await sorov(`update settings set value='"@meduza_kanal"'::jsonb where key='majburiy_kanal'`);
+  yuborilgan.length = 0;
+  const s2 = await P.postYubor({ kimga: 'kanal', matn: 'Kanal posti', tugma_yoq: true });
+  test('kanalga post (tugmasiz)', s2.yuborildi === 1 && yuborilgan.some((x) => x.chat_id === '@meduza_kanal' && !x.reply_markup));
+  await sorov(`update settings set value='""'::jsonb where key='majburiy_kanal'`);
+  yuborilgan.length = 0;
+  const s3 = await P.postYubor({ kimga: 'bot', matn: '{ism}, siz uchun <b>sovg‘a</b>', yosh_dan: 20, yosh_gacha: 26 });
+  await kut(800);
+  const r3 = yuborilgan.find((x) => x.chat_id === 800001 || x.chat_id === '800001');
+  test('bot obunachilariga (kategoriya bilan), {ism} o‘rniga ism', s3.yuborildi >= 1 && /^Malika, siz uchun <b>sovg‘a<\/b>/.test(r3?.text || ''), r3?.text);
+  const ids = await P.biriktirilganniSaqla([{ base64: Buffer.alloc(800, 7).toString('base64'), mime: 'image/jpeg' }]);
+  test('biriktirilgan rasm postga saqlanadi', ids.length === 1 && /^[0-9a-f-]{36}$/.test(ids[0]));
+  const { VOSITALAR, oldindanSoni } = await import('../src/services/admin-vositalar.js');
+  test('AI yordamchida post_yubor (tasdiq bilan) va mijoz_kategoriyalari', VOSITALAR.post_yubor?.oqish === false && VOSITALAR.mijoz_kategoriyalari?.oqish === true
+    && (await oldindanSoni('post_yubor', { kimga: 'kanal' })) === 1);
+}
+
 console.log(`\n${xato?'❌':'✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato?1:0);

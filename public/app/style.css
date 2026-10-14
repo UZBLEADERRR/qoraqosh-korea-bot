@@ -2766,18 +2766,34 @@ details.n-yigma[open] .n-ochish::before{transform:rotate(225deg) translate(-3px,
 .dona-satr b{color:var(--matn)}
 .dona-satr span{color:var(--och);font-size:13px}
 
-/* ── Mahsulot oynasi: Savatga (ixcham) + Sotib olish ── */
-.oyna-pastki .oyna-savatga{flex:0 0 auto;width:54px;min-width:54px;height:54px;min-height:54px;padding:0;margin:0;display:grid;
-  place-items:center;position:relative;border-radius:16px;transition:background .2s,border-color .2s,color .2s}
+/* ── Mahsulot oynasi: ikki to'liq tugma (narx tepada turadi) ── */
+.oyna-pastki.ikki-tugma{gap:10px}
+.oyna-pastki.ikki-tugma>button{flex:1 1 0;min-width:0;min-height:54px;margin:0;padding:12px 10px;display:flex;align-items:center;
+  justify-content:center;gap:7px;font-size:15.5px;border-radius:16px}
+.oyna-pastki.ikki-tugma>button span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oyna-pastki .oyna-savatga{transition:background .2s,border-color .2s,color .2s}
 .oyna-pastki .oyna-savatga.bor{border-color:var(--urgu);color:var(--urgu);background:color-mix(in srgb,var(--urgu) 8%,var(--panel))}
-.oyna-pastki .savat-son{position:absolute;top:-6px;right:-6px;min-width:22px;height:22px;padding:0 6px;border-radius:99px;
-  display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:800;background:var(--urgu);color:#fff;
-  box-shadow:0 0 0 2px var(--panel)}
-.oyna-pastki .savat-son.plyus{background:var(--matn);font-size:14px}
 .oyna-pastki .oyna-savatga.sakra{animation:savat-sakra .42s cubic-bezier(.3,1.6,.5,1)}
-@keyframes savat-sakra{0%{transform:scale(1)}35%{transform:scale(.88)}70%{transform:scale(1.08)}100%{transform:scale(1)}}
-.oyna-pastki #t-sotib{flex:1 1 auto}
-@media (max-width:360px){.oyna-pastki-narx small,.oyna-pastki-narx s{display:none}}
+@keyframes savat-sakra{0%{transform:scale(1)}35%{transform:scale(.92)}70%{transform:scale(1.05)}100%{transform:scale(1)}}
+@media (max-width:360px){.oyna-pastki.ikki-tugma>button{font-size:14px;padding:12px 6px}.oyna-pastki.ikki-tugma>button>i[data-ik]{display:none}}
+
+/* ── Suzuvchi savat ── */
+.suzuvchi-savat{position:fixed;right:14px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:70;width:58px;height:58px;
+  border-radius:50%;border:0;display:grid;place-items:center;color:#fff;cursor:pointer;touch-action:none;
+  background:linear-gradient(140deg,var(--urgu),color-mix(in srgb,var(--urgu) 70%,#000));
+  box-shadow:0 12px 28px -8px color-mix(in srgb,var(--urgu) 70%,transparent),0 2px 6px rgba(0,0,0,.18);
+  opacity:0;transform:scale(.4) translateY(20px);pointer-events:none;
+  transition:opacity .25s ease,transform .3s cubic-bezier(.3,1.5,.5,1),left .25s ease,right .25s ease}
+.suzuvchi-savat.kor{opacity:1;transform:none;pointer-events:auto}
+.suzuvchi-savat.chapda{right:auto;left:14px}
+.suzuvchi-savat.surilmoqda{transition:none;transform:scale(1.08)}
+.suzuvchi-savat em{position:absolute;top:-3px;right:-3px;min-width:22px;height:22px;padding:0 6px;border-radius:99px;display:grid;
+  place-items:center;font-style:normal;font-size:12px;font-weight:800;background:var(--k-lime, #bddb7d);color:#22320d;
+  box-shadow:0 0 0 2px var(--panel)}
+.suzuvchi-savat.sakra{animation:suzuvchi-sakra .55s cubic-bezier(.3,1.6,.5,1)}
+@keyframes suzuvchi-sakra{0%{transform:scale(1)}30%{transform:scale(1.25) rotate(-8deg)}60%{transform:scale(.92) rotate(4deg)}100%{transform:scale(1)}}
+body.yozilmoqda .suzuvchi-savat{opacity:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){.suzuvchi-savat,.suzuvchi-savat.sakra{animation:none;transition:opacity .2s}}
 
 /* «Sotib olish» maslahat oynasi */
 .sotib-oyna{padding:18px 18px 4px}

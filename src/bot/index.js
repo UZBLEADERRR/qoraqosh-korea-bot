@@ -32,6 +32,12 @@ export async function yangilanish(upd) {
   if (upd.callback_query) return callback(upd.callback_query);
   // Kanalga kimdir qo'shildi/chiqdi (bot kanalda admin bo'lsa keladi)
   if (upd.chat_member) return kanalHarakati(upd.chat_member);
+  // Telegram Business: egasining shaxsiy akkauntidagi suhbatlar (Nigina javob beradi)
+  if (upd.business_connection || upd.business_message) {
+    const ig = await import('../services/instagram/index.js');
+    if (upd.business_connection) return ig.tgBiznesUlanish(upd.business_connection);
+    return ig.tgBiznesXabar(upd.business_message);
+  }
   const msg = upd.message;
   if (!msg?.chat || msg.chat.type !== 'private') return;
 
@@ -72,7 +78,7 @@ export async function yangilanish(upd) {
     brendNomi().catch(() => null),
   ]);
   if (obuna.kerak) {
-    const x = obunaXabari(obuna.havola, await brendNomi(), obuna.kanal);
+    const x = await obunaXabari(obuna.havola, await brendNomi(), obuna.kanal);
     return yubor(chatId, x.matn, { reply_markup: x.reply_markup });
   }
 
@@ -158,7 +164,8 @@ async function callback(cq) {
     await obunaniUnut(user.telegram_id);
     const h = await obunaHolati(user.telegram_id, user);
     if (h.kerak) return javobBer(cq.id, 'Hali obuna bo‘lmagansiz. Kanalga kiring va qayta bosing.', true);
-    await javobBer(cq.id, '✅ Rahmat!');
+    const { xabar: shablonXabar } = await import('./shablon.js');
+    await javobBer(cq.id, String(await shablonXabar('xabar_obuna_rahmat', {}, '✅ Rahmat!')).replace(/<[^>]+>/g, '').slice(0, 190));
     return dokon.menyuniKorsat(chatId, user);
   }
 

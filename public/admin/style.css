@@ -1179,3 +1179,28 @@ details.filtr label:first-child{margin-top:0}
   border-top:1px solid var(--chiziq)}
 .soz-saqla .tug{max-width:520px;margin:0 auto;display:flex}
 @media (max-width:899px){.soz-saqla{bottom:calc(60px + env(safe-area-inset-bottom))}}
+
+/* Mijoz kategoriyalari */
+.kat-tor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@container ish (min-width:760px){.kat-tor{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container ish (min-width:1150px){.kat-tor{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.kat{display:flex;align-items:center;gap:10px;padding:10px 10px 10px 12px;border:1px solid var(--chiziq);border-radius:12px;background:var(--panel2)}
+.kat.bosh{opacity:.55}
+.kat-ik{width:32px;height:32px;border-radius:10px;flex:none;display:grid;place-items:center;background:var(--fon);color:var(--kul)}
+.kat-tan{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.kat-tan span{font-size:12.5px;color:var(--kul);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kat-tan b{font-size:18px}
+.kat-tan small{font-size:11.5px;color:var(--och)}
+.kat-taqsim{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}
+.kat-taqsim>b{font-size:12px;color:var(--och);text-transform:uppercase;letter-spacing:.04em;margin-right:4px}
+.kat-taqsim .chip em{font-style:normal;color:var(--och);margin-left:3px}
+
+/* Platforma belgisi (Instagram / Telegram) */
+.ig-avatar{position:relative}
+.ig-platforma{position:absolute;right:-2px;bottom:-2px;width:16px;height:16px;border-radius:50%;box-shadow:0 0 0 2px var(--panel)}
+.ig-platforma.ig{background:linear-gradient(135deg,#7b3fe4,#d62976 60%,#f7b733)}
+.ig-platforma.tg{background:#229ed9}
+.ig-platforma.tg::after{content:'';position:absolute;inset:4px 3px 4px 4px;background:#fff;
+  clip-path:polygon(0 45%,100% 0,75% 100%,45% 70%,30% 95%,30% 62%)}
+.tg-qadam{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:13.5px;line-height:1.45}
+#ig-kontent.ishlayapti{animation:ig-puls 1s ease-in-out infinite}

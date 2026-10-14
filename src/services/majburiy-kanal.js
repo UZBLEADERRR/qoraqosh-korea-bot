@@ -102,26 +102,27 @@ export const havolaKeshiniTashla = (kanal) =>
   import('../lib/kesh.js').then(({ keshniTashla }) =>
     keshniTashla(kanal ? `obuna-havola:${kanal}` : undefined));
 
-/** A'zo bo'lmaganga ko'rsatiladigan xabar. */
-export function obunaXabari(havola, brend, kanal = '') {
-  const kb = [];
-  if (havola) kb.push([{ text: '📢 Kanalga obuna bo‘lish', url: havola }]);
-  kb.push([{ text: '✅ Obuna bo‘ldim', callback_data: 'obuna_tekshir' }]);
-
+/**
+ * A'zo bo'lmaganga ko'rsatiladigan xabar — matn admin panelda
+ * (Xabarlar → Majburiy obuna) o'zgartiriladi.
+ */
+export async function obunaXabari(havola, brend, kanal = '') {
+  const { xabar } = await import('../bot/shablon.js');
   const esc = (x) => String(x).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const qatorlar = [
-    `🔒 <b>Avval kanalimizga obuna bo‘ling</b>`, ``,
-    `${esc(brend)} botidan foydalanish uchun kanalimizga a'zo bo‘lishingiz kerak.`,
-    `U yerda chegirmalar, yangi mahsulotlar va teri parvarishi bo‘yicha`,
-    `foydali maslahatlar chiqadi.`, ``,
-  ];
+  const [matn, tugma, tekshir] = await Promise.all([
+    xabar('xabar_obuna', { dokon: esc(brend), havola: esc(havola || kanal || ''), kanal: esc(kanal) }, ''),
+    xabar('xabar_obuna_tugma', {}, '📢 Kanalga obuna bo‘lish'),
+    xabar('xabar_obuna_tekshir', {}, '✅ Obuna bo‘ldim'),
+  ]);
+  const kb = [];
+  if (havola) kb.push([{ text: String(tugma || '📢 Kanalga obuna bo‘lish').replace(/<[^>]+>/g, '').slice(0, 60), url: havola }]);
+  kb.push([{ text: String(tekshir || '✅ Obuna bo‘ldim').replace(/<[^>]+>/g, '').slice(0, 60), callback_data: 'obuna_tekshir' }]);
   // Havolani MATNDA ham beramiz: tugma ba'zi klientlarda ochilmaydi va
-  // odam qayerga borishni bilmay qoladi.
-  if (havola) qatorlar.push(`👉 ${esc(havola)}`, ``);
-  else if (kanal.startsWith('@')) qatorlar.push(`👉 ${esc(kanal)}`, ``);
-  qatorlar.push(`Obuna bo‘lgach «✅ Obuna bo‘ldim» tugmasini bosing.`);
-
-  return { matn: qatorlar.join('\n'), reply_markup: { inline_keyboard: kb } };
+  // odam qayerga borishni bilmay qoladi. Admin {havola} ni olib tashlagan
+  // bo'lsa ham — pastga qo'shiladi.
+  let m = matn || `🔒 <b>Avval kanalimizga obuna bo‘ling</b>\n\n${esc(brend)} botidan foydalanish uchun kanalimizga a'zo bo‘ling.`;
+  if (havola && !m.includes(esc(havola))) m += `\n\n👉 ${esc(havola)}`;
+  return { matn: m, reply_markup: { inline_keyboard: kb } };
 }
 
 /** «Obuna bo'ldim» bosilganda keshni tashlab qayta tekshiramiz. */

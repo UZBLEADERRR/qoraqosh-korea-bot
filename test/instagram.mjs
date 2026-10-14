@@ -414,6 +414,63 @@ test('bitta kommentga «AI javob» tugmasi', ka.kod === 200 && (await qator(`sel
 const { VOSITALAR: V3 } = await import('../src/services/admin-vositalar.js');
 test('AI yordamchida instagram_komment_javob', V3.instagram_komment_javob?.oqish === false);
 
+console.log('\n── NIGINA PERSONA ──');
+tozala();
+await dm('900820', 'mid-persona-1', { text: 'Salom, siz kimsiz?' });
+const pp = globalThis.OXIRGI_IG_PROMPT || '';
+test('AI Nigina nomidan yozadi (asoschi, Koreyada o‘qigan)', /SEN NIGINA/.test(pp) && /Koreyada o'qigansan/.test(pp));
+test('o‘zini AI deb tanishtirmaydi, lekin jiddiy so‘ralsa yolg‘on gapirmaydi', /O'zingni bot, AI yoki «yordamchi» deb tanishtirma/.test(pp)
+  && /yolg'on gapirma: «Nigina nomidan yozadigan yordamchiman/.test(pp) && !/KiOVO'ning AI\s+yordamchisiman/.test(pp));
+await ig.sozlamaniSaqla({ persona: 'Madina' });
+await dm('900820', 'mid-persona-2', { text: 'yana bir savol' });
+test('persona ismi sozlamadan', /SEN MADINA/.test(globalThis.OXIRGI_IG_PROMPT || ''));
+await ig.sozlamaniSaqla({ persona: 'Nigina' });
+
+console.log('\n── TELEGRAM BUSINESS (shaxsiy chatlar) ──');
+const { yangilanish } = await import('../src/bot/index.js');
+yuborilgan.length = 0;
+await yangilanish({ business_connection: { id: 'bc-1', user: { id: 700001, first_name: 'Nigina', username: 'nigina_kiovo' }, user_chat_id: 700001,
+  is_enabled: true, rights: { can_reply: true }, date: 1 } });
+const tgb = await qator(`select value from settings where key = 'tg_biznes'`);
+test('Business ulanish saqlandi va adminga xabar', tgb?.value?.id === 'bc-1' && yuborilgan.some((x) => /Telegram Business ulandi/.test(x.text || '')));
+yuborilgan.length = 0;
+await yangilanish({ business_message: { business_connection_id: 'bc-1', message_id: 11, date: 1, chat: { id: 555001, type: 'private', first_name: 'Dilnoza' },
+  from: { id: 555001, first_name: 'Dilnoza', username: 'dilnoza_t' }, text: 'Assalomu alaykum, quruq teriga nima bor?' } });
+const tgJ = yuborilgan.filter((x) => String(x.chat_id) === '555001' && x.text);
+test('mijozga egasi nomidan javob (business_connection_id bilan)', tgJ.length >= 1 && tgJ.every((x) => x.business_connection_id === 'bc-1'), JSON.stringify(tgJ[0] || {}).slice(0, 120));
+const tgS = await qator(`select * from ig_suhbatlar where igsid = 'tg:555001'`);
+test('suhbat Direct ro‘yxatida (platforma telegram)', tgS?.platforma === 'telegram' && tgS.ism === 'Dilnoza' && tgS.username === 'dilnoza_t');
+test('AI Telegramda ekanini biladi', /bu suhbat TELEGRAM'da/.test(globalThis.OXIRGI_IG_PROMPT || ''));
+yuborilgan.length = 0;
+await yangilanish({ business_message: { business_connection_id: 'bc-1', message_id: 12, date: 1, chat: { id: 555001, type: 'private', first_name: 'Dilnoza' },
+  from: { id: 700001, first_name: 'Nigina' }, text: 'Dilnoza, men o‘zim yozaman' } });
+test('egasi o‘zi yozsa — AI shu suhbatda jim', Boolean((await qator(`select ai_pauza_gacha from ig_suhbatlar where igsid = 'tg:555001'`)).ai_pauza_gacha)
+  && !yuborilgan.some((x) => String(x.chat_id) === '555001'));
+yuborilgan.length = 0;
+await yangilanish({ business_message: { business_connection_id: 'bc-1', message_id: 13, date: 1, chat: { id: 555002, type: 'private', first_name: 'Sevara' },
+  from: { id: 555002, first_name: 'Sevara' }, photo: [{ file_id: 'kichik' }, { file_id: 'katta' }] } });
+const tgR = yuborilgan.find((x) => String(x.chat_id) === '555002' && x.rasm);
+test('Telegramdan yuz rasmi — tahlil natijasi rasm bo‘lib qaytdi', tgR && tgR.business_connection_id === 'bc-1' && /\/media\//.test(tgR.rasm_url || ''), JSON.stringify(tgR || {}).slice(0, 120));
+const srT = await chaqir('/api/admin/ig/suhbatlar?filtr=tg_direct');
+test('Direct filtri: faqat Telegram chatlar', srT.kod === 200 && srT.tana.suhbatlar.length >= 2 && srT.tana.suhbatlar.every((x) => x.platforma === 'telegram'));
+
+console.log('\n── KUNLIK KONTENT G‘OYALARI ──');
+const KT = await import('../src/services/kontent-tavsiya.js');
+yuborilgan.length = 0;
+const kt = await KT.kontentYubor();
+const kp2 = globalThis.OXIRGI_KONTENT_PROMPT || '';
+test('g‘oyalar adminga ketdi (sarlavha + har g‘oya alohida)', kt.yuborildi >= 1 && yuborilgan.some((x) => /Bugungi Instagram g‘oyalari/.test(x.text || ''))
+  && yuborilgan.some((x) => /Kuzda teri nega quriydi/.test(x.text || '') && /Tayyor izoh/.test(x.text || '')));
+test('takrorlanmasin: oldingi g‘oyalar va postlar AI ga beriladi', /OLDIN TAKLIF QILINGAN MAVZULAR/.test(kp2) && /JOYLANGAN POSTLAR/.test(kp2));
+await KT.kontentYubor();
+test('ikkinchi kuni oldingi mavzular promptda', /Kuzda teri nega quriydi/.test(globalThis.OXIRGI_KONTENT_PROMPT || ''));
+await sorov(`delete from settings where key = 'kontent_oxirgi'`); sozlamalarniUnut();
+await ig.sozlamaniSaqla({ kontent_soat: 0, kontent_tavsiya: true });
+const kd1 = await KT.kunlikTekshir(), kd2 = await KT.kunlikTekshir();
+test('kunlik: soat kelganda bir marta', kd1 && kd1.yuborildi >= 1 && kd2 === null);
+const { VOSITALAR: V4 } = await import('../src/services/admin-vositalar.js');
+test('AI yordamchida kontent_goyalari', V4.kontent_goyalari?.oqish === true);
+
 console.log('\n── TEKSHIRUV (javob yo‘q bo‘lsa sabab) ──');
 const SIR2 = 'ab'.repeat(16);
 test('panel: noto‘g‘ri sir rad etiladi', Boolean((await chaqir('/api/admin/ig/sir', 'POST', { sir: 'qisqa' })).tana.error));
