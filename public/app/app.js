@@ -2752,6 +2752,9 @@ async function tahlilQil() {
     };
     holat.natijaKorish = null;
     holat.limit = j.limit || holat.limit;
+    // Profildagi «AI tahlil» / «Natijalarim» soni ilova ochilganda olingan —
+    // yangi tahlil saqlangan bo'lsa shu yerning o'zida oshiramiz
+    if (j.analysisId) holat.stat = { ...(holat.stat || {}), tahlil: (holat.stat?.tahlil || 0) + 1 };
     menikiSaqla();                        // yangi tahlil qurilmada ham tursin
     kor($('#skaner-boshlash'), true);
     tanlanganRasm = null; $('#fayl').value = '';
@@ -4568,6 +4571,7 @@ async function buyurtmaYubor() {
   try {
     const j = await api('/api/order', { method: 'POST', body: JSON.stringify(tana) });
     holat.draft = {}; draftniSaqla();
+    holat.stat = { ...(holat.stat || {}), buyurtma: (holat.stat?.buyurtma || 0) + 1 };
     await savatniYangila(); titra('medium');
     tolovOyna(j.buyurtma);          // to'lov faqat karta orqali
   } catch (e) {
