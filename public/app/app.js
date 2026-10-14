@@ -3996,7 +3996,9 @@ function savatniKorsat() {
 function suzuvchiSavat({ sakra = false } = {}) {
   const soni = holat.savat.reduce((x, r) => x + r.quantity, 0);
   let el = $('#suzuvchi-savat');
-  const kerak = holat.suzuvchiFaol && soni > 0 && holat.tab !== 'savat';
+  // Maslahatda belgi yozish qatorining «Yuborish» tugmasi ustiga tushardi —
+  // u yerda savat soni pastki menyudagi «Savat» belgisida baribir ko'rinadi
+  const kerak = holat.suzuvchiFaol && soni > 0 && holat.tab !== 'savat' && holat.tab !== 'maslahat';
   if (!kerak) { if (el) el.classList.remove('kor'); return; }
   if (!el) {
     el = document.createElement('button');

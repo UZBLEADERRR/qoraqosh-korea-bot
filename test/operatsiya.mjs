@@ -5868,6 +5868,8 @@ console.log('\n── OYNA, NARX, IPHONE, TUNGI QIDIRUV, GMAIL ──');
   test('profil hisoblagichlari yangi tahlil va buyurtmadan keyin oshadi (ilovani qayta ochmasdan)',
     /if \(j\.analysisId\) holat\.stat = \{ \.\.\.\(holat\.stat \|\| \{\}\), tahlil: \(holat\.stat\?\.tahlil \|\| 0\) \+ 1 \}/.test(js)
     && /holat\.stat = \{ \.\.\.\(holat\.stat \|\| \{\}\), buyurtma: \(holat\.stat\?\.buyurtma \|\| 0\) \+ 1 \}/.test(js));
+  test('maslahat bo‘limida suzuvchi savat «Yuborish» tugmasini yopmaydi',
+    /const kerak = holat\.suzuvchiFaol && soni > 0 && holat\.tab !== 'savat' && holat\.tab !== 'maslahat';/.test(js));
   test('toifa plitkasi bosilganda belgi o‘sha plitkaga o‘tadi (Barchasi qolib ketmaydi)',
     /#toifalar \[data-toifa\]'\)\.forEach\(\(x\) => x\.classList\.toggle\('tanlangan', x === b\)\)/.test(js));
   test('suzuvchi savat rasmiylashtirish/to‘lov oynasida tugmalarni yopmaydi (faqat mahsulot oynasida)',
