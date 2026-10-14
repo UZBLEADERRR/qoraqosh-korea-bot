@@ -3,7 +3,7 @@
 // Tekshirish getChatMember orqali. Har xabarda Telegram'ga so'rov yubormaslik
 // uchun natija qisqa vaqt keshlanadi — a'zo bo'lgan odam qayta-qayta
 // tekshirilmaydi.
-import { sozlama } from '../db.js';
+import { sozlama, sorov, qator, qatorlar } from '../db.js';
 import { tg } from '../bot/tg.js';
 import { kesh } from '../lib/kesh.js';
 import { adminmi } from '../lib/admin.js';
@@ -13,6 +13,8 @@ import { adminmi } from '../lib/admin.js';
 const KESH_MS = 10 * 60_000;
 
 const AZO = new Set(['creator', 'administrator', 'member']);
+/** «restricted» bo'lsa ham kanalda turgan bo'lishi mumkin — is_member shuni aytadi. */
+const azomi = (m) => Boolean(m && (AZO.has(m.status) || (m.status === 'restricted' && m.is_member)));
 
 /**
  * @returns {Promise<{kerak:boolean, azo:boolean, kanal:string, havola:string}>}
@@ -50,7 +52,9 @@ export async function obunaHolati(telegramId, user) {
       console.error('MAJBURIY KANAL:', r?.description);
       return true;
     }
-    return AZO.has(r.result?.status);
+    const a = azomi(r.result);
+    await azolikniYoz(telegramId, a).catch(() => {});
+    return a;
   });
 
   return { kerak: !azo, azo, kanal: k, havola: h };
@@ -124,4 +128,100 @@ export function obunaXabari(havola, brend, kanal = '') {
 export function obunaniUnut(telegramId) {
   // kesh moduli kalit bo'yicha o'chiradi
   return import('../lib/kesh.js').then(({ keshniTashla }) => keshniTashla(`obuna:${telegramId}`));
+}
+
+
+// ─────────────── KIM QAYERDAN KELIB QO'SHILDI ───────────────
+
+/**
+ * Bot a'zolikni tekshirgan har safar (10 daqiqada ko'pi bilan bir marta):
+ * a'zo emas — «so'raldi» belgisi; a'zo — birinchi tasdiq vaqti. Shu ikkisi
+ * bilan «bot orqali qo'shildi» va «avvaldan a'zo edi» ajratiladi.
+ */
+export async function azolikniYoz(telegramId, azo) {
+  const id = String(telegramId);
+  if (azo) {
+    await sorov(`update users set kanal_azo_at = now(), kanal_chiqdi_at = null
+                  where telegram_id = $1 and kanal_azo_at is null`, [id]);
+  } else {
+    await sorov(`update users set kanal_soraldi_at = coalesce(kanal_soraldi_at, now()),
+                   kanal_chiqdi_at = case when kanal_azo_at is not null then now() else kanal_chiqdi_at end,
+                   kanal_azo_at = null
+                  where telegram_id = $1`, [id]);
+  }
+}
+
+/** Kanal sozlamadagi kanalmi (@nom yoki -100… id). */
+async function bizningKanalmi(chat) {
+  const k = String(await sozlama('majburiy_kanal', '') || '').replace(/"/g, '').trim();
+  if (!k || !chat) return false;
+  if (k.startsWith('@')) return String(chat.username || '').toLowerCase() === k.slice(1).toLowerCase();
+  return String(chat.id) === k;
+}
+
+/**
+ * Telegram «chat_member» xabari: kimdir kanalga qo'shildi yoki chiqdi.
+ * Bot kanalda ADMIN bo'lsa keladi. Botdan foydalanmaganlar ham yoziladi.
+ */
+export async function kanalHarakati(cm) {
+  if (!cm?.chat || !(await bizningKanalmi(cm.chat))) return null;
+  const edi = azomi(cm.old_chat_member), boldi = azomi(cm.new_chat_member);
+  if (edi === boldi) return null;
+  const u = cm.new_chat_member?.user || cm.from || {};
+  if (u.is_bot) return null;
+  const tid = String(u.id);
+  const user = await qator(`select id from users where telegram_id = $1`, [tid]);
+  await sorov(`insert into kanal_harakatlar (kanal, telegram_id, user_id, ism, username, holat, havola_nomi)
+               values ($1,$2,$3,$4,$5,$6,$7)`,
+    [String(cm.chat.username ? '@' + cm.chat.username : cm.chat.id), tid, user?.id || null,
+     [u.first_name, u.last_name].filter(Boolean).join(' ') || null, u.username || null,
+     boldi ? 'qoshildi' : 'chiqdi', cm.invite_link?.name || (cm.invite_link ? 'taklif havolasi' : null)]);
+  if (user) await azolikniYoz(tid, boldi);
+  const { keshniTashla } = await import('../lib/kesh.js');
+  keshniTashla(`obuna:${tid}`);
+  return { holat: boldi ? 'qoshildi' : 'chiqdi' };
+}
+
+/**
+ * Hisobot: kanalda nechta odam, bot orqali nechtasi qo'shildi, qaysi
+ * manbadan (Instagram, TikTok, taklif havolasi…) va oxirgi qo'shilganlar.
+ */
+export async function kanalHisoboti({ kun = 30 } = {}) {
+  const k = String(await sozlama('majburiy_kanal', '') || '').replace(/"/g, '').trim();
+  const d = Math.max(1, Math.min(3650, Math.round(Number(kun) || 30)));
+  const dan = `now() - interval '${d} days'`;
+  const [soni, umumiy, davr, manbalar, songgi, harakat] = await Promise.all([
+    k ? kesh(`kanal-soni:${k}`, 5 * 60_000, async () => {
+      const r = await tg('getChatMemberCount', { chat_id: k }).catch(() => null);
+      return r?.ok ? r.result : null;
+    }) : null,
+    qator(`select
+        count(*) filter (where telegram_id ~ '^[0-9]+$')::int as bot_foydalanuvchi,
+        count(*) filter (where kanal_azo_at is not null)::int as azo,
+        count(*) filter (where kanal_soraldi_at is not null and kanal_azo_at is not null)::int as bot_orqali,
+        count(*) filter (where kanal_soraldi_at is null and kanal_azo_at is not null)::int as avvaldan,
+        count(*) filter (where kanal_soraldi_at is not null and kanal_azo_at is null)::int as qoshilmagan,
+        count(*) filter (where kanal_chiqdi_at is not null)::int as chiqdi
+      from users`),
+    qator(`select
+        count(*) filter (where kanal_soraldi_at >= ${dan})::int as soraldi,
+        count(*) filter (where kanal_azo_at >= ${dan} and kanal_soraldi_at is not null)::int as qoshildi,
+        count(*) filter (where kanal_chiqdi_at >= ${dan})::int as chiqdi
+      from users`),
+    qatorlar(`select coalesce(h.nom, h.kod, u.manba, 'nomalum') as nom, coalesce(u.manba, 'nomalum') as manba, h.kod,
+        count(*) filter (where u.kanal_soraldi_at is not null)::int as soraldi,
+        count(*) filter (where u.kanal_soraldi_at is not null and u.kanal_azo_at is not null)::int as qoshildi,
+        count(*) filter (where u.kanal_azo_at is not null)::int as azo
+      from users u left join havolalar h on h.id = u.havola_id
+      where u.telegram_id ~ '^[0-9]+$' and (u.kanal_soraldi_at >= ${dan} or u.kanal_azo_at >= ${dan})
+      group by 1, 2, 3 order by qoshildi desc, soraldi desc limit 30`),
+    qatorlar(`select u.id, u.full_name as ism, u.username, u.manba, h.nom as havola, h.kod,
+        u.kanal_azo_at, u.kanal_soraldi_at, u.created_at
+      from users u left join havolalar h on h.id = u.havola_id
+      where u.kanal_azo_at is not null order by u.kanal_azo_at desc limit 40`),
+    qatorlar(`select k.holat, k.ism, k.username, k.havola_nomi, k.created_at, u.manba, h.nom as havola
+      from kanal_harakatlar k left join users u on u.id = k.user_id left join havolalar h on h.id = u.havola_id
+      order by k.created_at desc limit 40`).catch(() => []),
+  ]);
+  return { kanal: k, azolar_soni: soni, kun: d, umumiy, davr, manbalar, songgi, harakatlar: harakat };
 }

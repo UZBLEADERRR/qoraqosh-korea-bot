@@ -26,6 +26,7 @@
     const el = $('#play');
     if (!el || !/^https:\/\/play\.google\.com\//.test(String(havola || ''))) return;
     el.href = havola; el.hidden = false;
+    window.__playniOl?.(havola);
   }
 
   /** Mahsulot vitrinasi. Bo'sh bo'lsa bo'lim butunlay yashirin qoladi. */
@@ -164,39 +165,65 @@
     });
   }
 
-  /* ── Ekranga o'rnatish ──
+  /* ── Ekranga o'rnatish — bir bosishda ──
    *
-   * Android/Chrome `beforeinstallprompt` beradi — tugma shunda
-   * paydo bo'ladi. iOS bunday hodisani umuman bermaydi, shuning
-   * uchun u yerda qo'lda qilinadigan yo'l yozib qo'yilgan (HTML da).
-   * Ilova allaqachon o'rnatilgan bo'lsa butun blok yashiriladi. */
-  const tugma = $('#ornat');
+   *   · Chrome o'rnatish taklifini bergan bo'lsa — darrov oynasi;
+   *   · Android va Google Play'da ilova bor — Play;
+   *   · Instagram/TikTok/Telegram ichki brauzeri (u yerda o'rnatib
+   *     bo'lmaydi) — sahifa Chrome'da ochiladi va o'sha yerda
+   *     «O'rnatish» oynasi o'zi chiqadi (/app/?ornat=1);
+   *   · iPhone — Safari faqat «Ulashish» menyusidan qo'shadi: qisqa
+   *     ko'rsatma oynasi.
+   * Tepada banner yopishib turadi; × bosilsa 7 kun ko'rinmaydi. */
+  const UA = navigator.userAgent;
+  const ANDROID = /android/i.test(UA);
+  const IOS = /iphone|ipad|ipod/i.test(UA);
+  const ICHKI = /Instagram|FBAN|FBAV|FB_IAB|musical_ly|BytedanceWebview|TikTok|Telegram|; wv\)/i.test(UA);
+  const ornatilganmi = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   let taklif = null;
+  let play = null;
+  window.__playniOl = (h) => { play = h || null; };
 
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    taklif = e;
-    if (tugma) tugma.hidden = false;
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); taklif = e; });
+
+  async function ornat() {
+    if (taklif) {
+      taklif.prompt();
+      const r = await taklif.userChoice.catch(() => ({}));
+      taklif = null;
+      if (r && r.outcome === 'accepted') ornatildi();
+      return;
+    }
+    if (ANDROID && play) { location.href = play; return; }
+    const manzil = `${location.origin}/app/?ornat=1`;
+    if (ANDROID && ICHKI) {
+      location.href = `intent://${location.host}/app/?ornat=1#Intent;scheme=https;package=com.android.chrome;`
+        + `S.browser_fallback_url=${encodeURIComponent(manzil)};end`;
+      return;
+    }
+    if (IOS) { const d = $('#ornat-dialog'); if (d?.showModal) d.showModal(); return; }
+    location.href = manzil;
+  }
+  document.querySelectorAll('[data-ornat]').forEach((b) => b.addEventListener('click', ornat));
+  $('#ornat-dialog-yop')?.addEventListener('click', () => $('#ornat-dialog').close());
+
+  const banner = $('#ornat-banner');
+  const YOP = 'kq_ornat_banner';
+  let yopilgan = 0;
+  try { yopilgan = Number(localStorage.getItem(YOP)) || 0; } catch { /* yashirin rejim */ }
+  if (banner && !ornatilganmi() && Date.now() - yopilgan > 7 * 864e5) banner.hidden = false;
+  $('#ob-yop')?.addEventListener('click', () => {
+    banner.hidden = true;
+    try { localStorage.setItem(YOP, String(Date.now())); } catch { /* yashirin rejim */ }
   });
 
-  if (tugma) {
-    tugma.addEventListener('click', async () => {
-      if (!taklif) return;
-      tugma.disabled = true;
-      taklif.prompt();
-      await taklif.userChoice.catch(() => {});
-      taklif = null;
-      tugma.hidden = true;
-      tugma.disabled = false;
-    });
-  }
+  window.addEventListener('appinstalled', ornatildi);
+  if (ornatilganmi()) ornatildi();
 
-  window.addEventListener('appinstalled', () => { ornatilgan(); });
-  if (window.matchMedia('(display-mode: standalone)').matches
-      || window.navigator.standalone) ornatilgan();
-
-  function ornatilgan() {
+  function ornatildi() {
     const karta = $('#ornat-karta');
     if (karta) karta.hidden = true;
+    if (banner) banner.hidden = true;
+    document.querySelectorAll('[data-ornat]').forEach((b) => { b.hidden = true; });
   }
 })();

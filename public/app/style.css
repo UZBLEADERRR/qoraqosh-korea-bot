@@ -2765,3 +2765,57 @@ details.n-yigma[open] .n-ochish::before{transform:rotate(225deg) translate(-3px,
 .dona-satr{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 0;font-size:14px;color:var(--kul)}
 .dona-satr b{color:var(--matn)}
 .dona-satr span{color:var(--och);font-size:13px}
+
+/* ── Mahsulot oynasi: Savatga (ixcham) + Sotib olish ── */
+.oyna-pastki .oyna-savatga{flex:0 0 auto;width:54px;min-width:54px;height:54px;min-height:54px;padding:0;margin:0;display:grid;
+  place-items:center;position:relative;border-radius:16px;transition:background .2s,border-color .2s,color .2s}
+.oyna-pastki .oyna-savatga.bor{border-color:var(--urgu);color:var(--urgu);background:color-mix(in srgb,var(--urgu) 8%,var(--panel))}
+.oyna-pastki .savat-son{position:absolute;top:-6px;right:-6px;min-width:22px;height:22px;padding:0 6px;border-radius:99px;
+  display:grid;place-items:center;font-style:normal;font-size:12px;font-weight:800;background:var(--urgu);color:#fff;
+  box-shadow:0 0 0 2px var(--panel)}
+.oyna-pastki .savat-son.plyus{background:var(--matn);font-size:14px}
+.oyna-pastki .oyna-savatga.sakra{animation:savat-sakra .42s cubic-bezier(.3,1.6,.5,1)}
+@keyframes savat-sakra{0%{transform:scale(1)}35%{transform:scale(.88)}70%{transform:scale(1.08)}100%{transform:scale(1)}}
+.oyna-pastki #t-sotib{flex:1 1 auto}
+@media (max-width:360px){.oyna-pastki-narx small,.oyna-pastki-narx s{display:none}}
+
+/* «Sotib olish» maslahat oynasi */
+.sotib-oyna{padding:18px 18px 4px}
+.sotib-bosh{text-align:center;margin-bottom:14px}
+.sotib-belgi{width:58px;height:58px;border-radius:20px;display:inline-grid;place-items:center;margin-bottom:10px;color:#fff;
+  background:linear-gradient(135deg,var(--urgu),color-mix(in srgb,var(--urgu) 60%,#f0b429));box-shadow:0 10px 24px -10px var(--urgu)}
+.sotib-bosh h2{margin:0;font-size:21px;letter-spacing:-.02em}
+.sotib-bosh p{margin:4px 0 0;color:var(--och);font-size:14px}
+.sotib-foyda{list-style:none;margin:0 0 14px;padding:12px 14px;border-radius:18px;display:flex;flex-direction:column;gap:9px;
+  background:color-mix(in srgb,var(--yashil, #2c7a51) 9%,var(--panel));border:1px solid color-mix(in srgb,var(--yashil, #2c7a51) 22%,transparent)}
+.sotib-foyda li{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;line-height:1.4}
+.sotib-foyda li>i[data-ik]{flex:none;margin-top:1px;color:var(--yashil, #2c7a51)}
+.sotib-taklif-sar{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--och);margin:4px 0 8px}
+.sotib-takliflar{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(132px,1fr);gap:10px;overflow-x:auto;
+  margin:0 -18px;padding:0 18px 6px;scroll-snap-type:x mandatory;scrollbar-width:none}
+.sotib-takliflar::-webkit-scrollbar{display:none}
+.sotib-t{position:relative;scroll-snap-align:start;background:var(--panel);border-radius:18px;padding:8px;box-shadow:var(--sh);
+  display:flex;flex-direction:column;gap:5px;cursor:pointer}
+.sotib-t-rasm{aspect-ratio:1;border-radius:13px;overflow:hidden;background:var(--fon);display:grid;place-items:center;color:var(--och)}
+.sotib-t-rasm img{width:100%;height:100%;object-fit:cover}
+.sotib-t-nom{font-size:12.5px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:2.6em}
+.sotib-t-narx{font-size:13px;font-weight:800;padding-right:34px}
+.sotib-t-narx s{display:block;font-size:11px;font-weight:500;color:var(--och)}
+.sotib-t-qosh{position:absolute;right:8px;bottom:8px;width:32px;height:32px;border-radius:11px;border:0;display:grid;place-items:center;
+  background:var(--urgu);color:#fff;cursor:pointer;transition:transform .15s,background .2s}
+.sotib-t-qosh:active{transform:scale(.9)}
+.sotib-t-qosh.qoshildi{background:var(--yashil, #2c7a51)}
+.sotib-jami{display:flex;justify-content:space-between;align-items:baseline;margin:14px 2px 10px;font-size:14px;color:var(--kul)}
+.sotib-jami b{font-size:20px;color:var(--matn);letter-spacing:-.02em}
+
+/* Bo'limlar orasida yumshoq o'tish (faqat shaffoflik — fixed panellar joyidan siljimaydi) */
+.tab-kirdi{animation:tab-kir .22s ease-out}
+@keyframes tab-kir{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.tab-kirdi,.oyna-pastki .oyna-savatga.sakra{animation:none}}
+
+/* O'rnatish oynasi */
+.ornat-oyna{padding:22px 18px 6px;text-align:center}
+.ornat-ikon{width:72px;height:72px;border-radius:20px;box-shadow:0 10px 26px -12px rgba(120,10,12,.55);margin-bottom:10px}
+.ornat-oyna h2{margin:0 0 4px}
+.ornat-oyna .ozgina{margin:0 0 16px}
+.ornat-oyna .ornat-qadam{text-align:left}

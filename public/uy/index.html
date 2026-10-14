@@ -35,7 +35,16 @@
 </head>
 <body>
 
-<!-- ══ Yuqori panel ══ -->
+<!-- ══ Yuqori panel ══
+     Ilova taklifi ENG TEPADA va panel bilan birga yopishib turadi:
+     sahifa pastga surilsa ham ko'rinadi. × bosilsa 7 kun chiqmaydi. -->
+<div class="tepa">
+<div class="ornat-banner" id="ornat-banner" hidden>
+  <img src="/app/ikon-192.png" alt="" width="40" height="40">
+  <div class="ob-matn"><b>KiOVO ilovasi</b><span>Bir bosishda ochiladi · tezroq va qulayroq</span></div>
+  <button class="tug tug-lime tug-kichik" id="ob-ornat" data-ornat>O‘rnatish</button>
+  <button class="ob-yop" id="ob-yop" aria-label="Yopish">×</button>
+</div>
 <header class="bosh">
   <a class="logo" href="/" aria-label="KiOVO bosh sahifa">__LOGO__</a>
   <nav class="menyu">
@@ -45,6 +54,7 @@
   </nav>
   <a class="tug tug-lime tug-kichik" href="/app/ochish" data-bot>Do‘konni ochish</a>
 </header>
+</div>
 
 <main>
 
@@ -106,7 +116,28 @@
   </div>
 </section>
 
-<!-- ══ 4. MAHSULOTLAR ══ -->
+<!-- ══ 4. ILOVA ICHIDAN — haqiqiy ekranlar ══ -->
+<section class="bolim ilova-bolim" id="ilova">
+  <div class="bolim-bosh">
+    <h2 class="jon">Ilova <em>ichidan</em></h2>
+    <button class="tug tug-lime tug-kichik jon" data-ornat>O‘rnatish</button>
+  </div>
+  <p class="katta-izoh jon" style="margin-top:-6px">Do‘kon, yuz tahlili va AI maslahatchi — hammasi bitta ilovada.</p>
+  <div class="ekranlar" id="ekranlar">
+    <figure class="ekran jon"><div class="telefon"><img src="/uy/ilova-dokon.jpg" alt="Ilova: do‘kon va aksiyalar" loading="lazy" width="390" height="844"></div>
+      <figcaption><b>Do‘kon</b><span>Aksiyalar, qidiruv, toifalar</span></figcaption></figure>
+    <figure class="ekran jon"><div class="telefon"><img src="/uy/ilova-mahsulot.jpg" alt="Ilova: mahsulot sahifasi" loading="lazy" width="390" height="844"></div>
+      <figcaption><b>Mahsulot</b><span>Tarkib, sharhlar, bir bosishda savatga</span></figcaption></figure>
+    <figure class="ekran jon"><div class="telefon"><img src="/uy/ilova-skaner.jpg" alt="Ilova: yuz skaneri" loading="lazy" width="390" height="844"></div>
+      <figcaption><b>Yuz skaneri</b><span>30 soniyada teri tahlili</span></figcaption></figure>
+    <figure class="ekran jon"><div class="telefon"><img src="/uy/ilova-maslahat.jpg" alt="Ilova: AI maslahatchi" loading="lazy" width="390" height="844"></div>
+      <figcaption><b>AI maslahat</b><span>Teringiz haqida yozing — mos parvarish</span></figcaption></figure>
+    <figure class="ekran jon"><div class="telefon"><img src="/uy/ilova-savat.jpg" alt="Ilova: savat va chegirma" loading="lazy" width="390" height="844"></div>
+      <figcaption><b>Savat</b><span>Ko‘proq olsangiz arzonroq</span></figcaption></figure>
+  </div>
+</section>
+
+<!-- ══ 5. MAHSULOTLAR ══ -->
 <section class="bolim" id="mahsulot">
   <div class="bolim-bosh">
     <h2 class="jon">Do‘kondan</h2>
@@ -140,10 +171,7 @@
           <path fill="#ff3a44" d="M18.8 18.4 2.9 26.8c-.7.4-1.4.4-1.9 0L14.3 14z"/>
           <path fill="#ffd500" d="m24.2 12.4-5.4-2.8L14.3 14l4.5 4.4 5.4-2.8c1.2-.7 1.2-2.5 0-3.2z"/></svg>
         <span><small>YUKLAB OLING</small><b>Google Play</b></span></a>
-      <button class="tug tug-lime tug-katta" id="ornat" hidden>Ekranga o‘rnatish</button>
-      <p class="mayda" id="ornat-izoh">
-        <b>iPhone:</b> «Ulashish» → «Bosh ekranga qo‘shish»<br>
-        <b>Android:</b> menyu → «Ilovani o‘rnatish»</p>
+      <button class="tug tug-lime tug-katta" id="ornat" data-ornat>Ekranga o‘rnatish</button>
     </div>
   </div>
 </section>
@@ -163,6 +191,18 @@
   </div>
   <p class="oyoq-mayda">AI tahlili tibbiy tashxis emas — kosmetologik tavsiya.</p>
 </footer>
+
+<!-- iPhone: Safari o'rnatishni faqat «Ulashish» menyusidan beradi -->
+<dialog class="ornat-dialog" id="ornat-dialog">
+  <img src="/app/ikon-192.png" alt="" width="64" height="64">
+  <h3>KiOVO’ni ekranga qo‘shish</h3>
+  <ol>
+    <li>Pastdagi <b>Ulashish</b> tugmasini bosing <span class="ul-belgi">⬆︎</span></li>
+    <li><b>Bosh ekranga qo‘shish</b> ni tanlang</li>
+    <li><b>Qo‘shish</b> ni bosing — tayyor</li>
+  </ol>
+  <button class="tug tug-lime tug-katta" id="ornat-dialog-yop">Tushunarli</button>
+</dialog>
 
 <script src="/uy/app.js"></script>
 </body>

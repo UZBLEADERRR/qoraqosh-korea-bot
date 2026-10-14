@@ -77,7 +77,8 @@ em{font-style:normal;color:var(--lime)}
 /* ── Yuqori panel ──
    Yopishib turadi: sahifa uzun va do'kon tugmasi har doim qo'l
    ostida bo'lishi kerak. */
-.bosh{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:18px;
+.tepa{position:sticky;top:0;z-index:20}
+.bosh{position:relative;z-index:1;display:flex;align-items:center;gap:18px;
   padding:12px clamp(16px,4vw,44px);background:rgba(42,7,9,.82);
   backdrop-filter:blur(16px);border-bottom:1px solid var(--chiziq)}
 .logo{display:flex;align-items:center;gap:9px;text-decoration:none;
@@ -252,3 +253,44 @@ h2{font-size:clamp(28px,5vw,44px);font-weight:800}
 .play-nishon span{display:flex;flex-direction:column;line-height:1.15;text-align:left}
 .play-nishon small{font-size:11.5px;font-weight:600;opacity:.8;letter-spacing:.02em}
 .play-nishon b{font-size:18px;font-weight:700;letter-spacing:-.01em}
+
+/* ── Tepadagi ilova taklifi (panel bilan birga yopishadi) ── */
+.ornat-banner{display:flex;align-items:center;gap:12px;padding:9px clamp(12px,4vw,44px);
+  background:linear-gradient(90deg,var(--qizil) 0%,#7d0a0d 100%);border-bottom:1px solid rgba(189,219,125,.22)}
+.ornat-banner[hidden]{display:none}
+.ornat-banner img{width:40px;height:40px;border-radius:11px;flex:none;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.ob-matn{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.ob-matn b{font-size:14.5px;color:var(--krem)}
+.ob-matn span{font-size:12.5px;color:var(--oq-kul);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ornat-banner .tug{flex:none}
+.ob-yop{flex:none;width:32px;height:32px;border-radius:50%;border:0;background:rgba(250,246,240,.12);color:var(--krem);
+  font-size:20px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.ob-yop:hover{background:rgba(250,246,240,.2)}
+
+/* ── Ilova ichidan: haqiqiy ekranlar ── */
+.ekranlar{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(200px,240px);gap:clamp(14px,2.4vw,26px);
+  overflow-x:auto;padding:8px clamp(16px,4vw,44px) 18px;margin:0 calc(-1 * clamp(16px,4vw,44px));
+  scroll-snap-type:x mandatory;scrollbar-width:none}
+.ekranlar::-webkit-scrollbar{display:none}
+@media (min-width:1240px){.ekranlar{grid-auto-flow:row;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible}}
+.ekran{margin:0;scroll-snap-align:start}
+.telefon{position:relative;border-radius:34px;padding:9px;background:linear-gradient(160deg,#2b0507,#120203);
+  box-shadow:0 30px 60px -28px rgba(0,0,0,.75),inset 0 0 0 1px rgba(250,246,240,.12)}
+.telefon::before{content:'';position:absolute;top:15px;left:50%;width:70px;height:18px;margin-left:-35px;border-radius:12px;
+  background:#120203;z-index:2}
+.telefon img{display:block;width:100%;height:auto;aspect-ratio:390/844;object-fit:cover;object-position:top;border-radius:26px;
+  background:#f2f6ea}
+.ekran figcaption{display:flex;flex-direction:column;gap:2px;padding:12px 4px 0}
+.ekran figcaption b{font-size:16px;color:var(--krem)}
+.ekran figcaption span{font-size:13.5px;color:var(--oq-kul)}
+
+/* iPhone yo'riqnomasi */
+.ornat-dialog{border:0;border-radius:24px;padding:24px 22px 20px;max-width:360px;width:calc(100% - 32px);text-align:center;
+  background:var(--krem);color:#2a0709;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.ornat-dialog::backdrop{background:rgba(20,3,4,.6);backdrop-filter:blur(3px)}
+.ornat-dialog img{border-radius:16px;margin-bottom:8px}
+.ornat-dialog h3{margin:0 0 12px;font-size:19px}
+.ornat-dialog ol{text-align:left;margin:0 0 18px;padding-left:22px;line-height:1.7;font-size:15px}
+.ornat-dialog .tug{width:100%}
+.ul-belgi{display:inline-block;padding:0 6px;border-radius:6px;background:rgba(0,0,0,.07)}
+section[id]{scroll-margin-top:140px}

@@ -386,6 +386,21 @@ globalThis.AZO = true;
 await yoz('800001','/start');
 test('a‘zo bo‘lgach o‘tkaziladi', !/obuna bo‘ling/i.test(hammasi()));
 globalThis.AZO = false;
+{
+  const u = (await qq(`select kanal_soraldi_at, kanal_azo_at from users where telegram_id = '800001'`))[0];
+  test('kanal: so‘ralgan va bot orqali qo‘shilgani yozildi', u?.kanal_soraldi_at && u?.kanal_azo_at);
+  const { kanalHarakati, kanalHisoboti } = await import('../src/services/majburiy-kanal.js');
+  const azo = { status: 'member', user: { id: 800777, first_name: 'Sevara', username: 'sevara_k' } };
+  const r1 = await kanalHarakati({ chat: { id: -100, username: 'meduza_kanal' }, from: azo.user,
+    old_chat_member: { status: 'left', user: azo.user }, new_chat_member: azo, invite_link: { name: 'Instagram bio' } });
+  const r2 = await kanalHarakati({ chat: { id: -555, username: 'boshqa_kanal' }, from: azo.user,
+    old_chat_member: { status: 'left', user: azo.user }, new_chat_member: azo });
+  test('kanal harakati: qo‘shilish yozildi, begona kanal e’tiborsiz', r1?.holat === 'qoshildi' && r2 === null);
+  const h = await kanalHisoboti({ kun: 30 });
+  test('kanal hisoboti: bot orqali, manba, oxirgilar, harakatlar', h.kanal === '@meduza_kanal' && h.umumiy.bot_orqali >= 1
+    && h.songgi.some((x) => x.kanal_soraldi_at) && h.harakatlar.some((x) => x.username === 'sevara_k' && x.havola_nomi === 'Instagram bio'),
+    JSON.stringify(h.umumiy));
+}
 
 // ── Havola qayerdan topiladi ──
 console.log('  · havola manbalari:');
@@ -2505,7 +2520,7 @@ console.log('\n── BOSH SAHIFA / kiovo.shop ──');
   test('seans bo‘lsa ilova to‘liq ishlaydi',
     /if \(seansToken\(\)\) return false/.test(ilovaKod));
   test('kirish ekranida ham service worker ulanadi — oq ekran bo‘lmaydi',
-    /serviceWorker\?\.register\('\/app\/sw\.js'\)[\s\S]{0,120}if \(telegramdanTashqarida\(\)\) return/
+    /serviceWorker\?\.register\('\/app\/sw\.js'\)[\s\S]{0,400}if \(telegramdanTashqarida\(\)\) return/
       .test(ilovaKod));
 
   // Qahramon: plakat rasmi va ikkita asosiy amal
@@ -2792,15 +2807,28 @@ console.log('\n── MASLAHAT EKRANI ──');
   // ── Ekranga qo'shish: ikki xil yorliq ──
   // Telegram ichidan qo'shilgan yorliq HAR DOIM Telegramni ochadi —
   // bu Telegram API sining ishlash usuli, sozlab bo'lmaydi.
-  test('Telegram ichida TANLOV beriladi',
-    js.includes('Haqiqiy ilova') && js.includes('Telegram yorlig‘i'));
-  test('jimgina Telegram yorlig‘i yasalmaydi',
-    !/if \(tg\?\.addToHomeScreen\) \{\s*try \{ tg\.addToHomeScreen\(\); return;/.test(js));
-  test('Telegram yorlig‘i nima qilishi ochiq aytiladi',
-    js.includes('Telegram ochiladi'));
-  test('brauzer havolasi ko‘rsatiladi va nusxalanadi',
-    js.includes('clipboard.writeText') && js.includes('ornat-havola'));
-  test('nusxa olinmasa havola belgilanadi', js.includes('selectNodeContents'));
+  // O'rnatish BIR BOSISHDA — havola nusxalash yo'q
+  test('o‘rnatishda havola nusxalash yo‘q', !js.includes('ornat-havola') && !js.includes('t-havola-nusxa'));
+  test('Android: Google Play havolasi bo‘lsa — Play’da ochiladi', /const play = ANDROID \? await playHavola\(\)/.test(js));
+  test('Telegram ichida (Android) — Chrome’da /app/?ornat=1 ochiladi', /tg\.openLink\(`\$\{location\.origin\}\/app\/\?ornat=1`\)/.test(js));
+  test('?ornat=1 — o‘rnatish oynasi o‘zi chiqadi (kirish ekranida ham)', /function ornatParametri/.test(js)
+    && /pwaniUla\(\);\s*\n\s*ornatParametri\(\);\s*\n\s*if \(telegramdanTashqarida\(\)\) return/.test(js));
+  test('brauzer taklifi bo‘lsa — darrov o‘rnatish oynasi', /ornatishHodisasi\.prompt\(\)/.test(js));
+  // Mahsulot oynasi: savatga DARHOL, oyna yopilmaydi; «Sotib olish» + maslahat
+  test('savatga bosilganda oyna yopilmaydi va kutmaydi', !/await savatga\(p\.id\); modalYop\(\)/.test(js) && /t\.innerHTML = savatgaYorliq\(n\)/.test(js));
+  test('«Sotib olish» tugmasi va «ko‘proq olsangiz arzonroq» oynasi', js.includes('id="t-sotib"') && /function sotibOlishOyna/.test(js)
+    && js.includes('Ko‘proq olsangiz — arzonroq tushadi') && js.includes('data-sotib-qosh'));
+  test('bo‘limlar orasida yumshoq o‘tish', /tab-kirdi/.test(js) && /@keyframes tab-kir/.test(css));
+  {
+    const fsS = await import('node:fs');
+    const uy = fsS.readFileSync('public/uy/index.html', 'utf8'), uyJs = fsS.readFileSync('public/uy/app.js', 'utf8');
+    test('sayt: tepada yopishqoq «O‘rnatish» banneri (× bilan)', /<div class="tepa">\s*<div class="ornat-banner"/.test(uy) && uy.includes('id="ob-yop"')
+      && /\.tepa\{position:sticky;top:0/.test(fsS.readFileSync('public/uy/style.css', 'utf8')));
+    test('sayt: ilova ekranlari namunasi (rasmlar bor)', ['dokon', 'mahsulot', 'skaner', 'maslahat', 'savat']
+      .every((n) => uy.includes(`/uy/ilova-${n}.jpg`) && fsS.existsSync(`public/uy/ilova-${n}.jpg`)));
+    test('sayt: o‘rnatish bir bosishda (Play, ichki brauzer → Chrome, iPhone yo‘riqnoma)', /async function ornat\(\)/.test(uyJs)
+      && uyJs.includes('package=com.android.chrome') && uyJs.includes('ornat-dialog'));
+  }
   test('izoh ichidagi qalin so‘z matnni buzmaydi',
     /\.ornat-tanlov > b\{display:block/.test(css));
 }

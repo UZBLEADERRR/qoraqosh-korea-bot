@@ -4,7 +4,7 @@ import { yubor, javobBer, tg } from './tg.js';
 import { asosiyMenyu, ortga } from './keyboards.js';
 import { adminmi } from '../lib/admin.js';
 import * as admin from './handlers/admin.js';
-import { obunaHolati, obunaXabari, obunaniUnut } from '../services/majburiy-kanal.js';
+import { obunaHolati, obunaXabari, obunaniUnut, kanalHarakati } from '../services/majburiy-kanal.js';
 import { brendNomi } from '../lib/brend.js';
 import * as reg from './handlers/register.js';
 import * as skaner from './handlers/scanner.js';
@@ -30,6 +30,8 @@ async function foydalanuvchi(from) {
 
 export async function yangilanish(upd) {
   if (upd.callback_query) return callback(upd.callback_query);
+  // Kanalga kimdir qo'shildi/chiqdi (bot kanalda admin bo'lsa keladi)
+  if (upd.chat_member) return kanalHarakati(upd.chat_member);
   const msg = upd.message;
   if (!msg?.chat || msg.chat.type !== 'private') return;
 

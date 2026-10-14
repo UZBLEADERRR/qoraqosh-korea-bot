@@ -407,6 +407,13 @@ async function havolaYaratVosita(a = {}) {
 }
 
 export const BIZNES_VOSITALAR = {
+  kanal_hisoboti: {
+    oqish: true,
+    ishla: async (a = {}) => (await import('./majburiy-kanal.js')).kanalHisoboti({ kun: a.kun || 30 }),
+    tavsif: 'MAJBURIY KANAL hisoboti: kanalda nechta a’zo, bot orqali nechtasi qo‘shildi (so‘raldi → qo‘shildi), '
+          + 'nechtasi avvaldan a’zo, nechtasi chiqib ketdi, qaysi manba/havoladan kelganlar qo‘shildi va oxirgi qo‘shilganlar.',
+    parametrlar: 'kun (standart 30)',
+  },
   manbalar: {
     oqish: true, ishla: manbalarVosita,
     tavsif: 'MIJOZ QAYERDAN KELDI: Instagram, TikTok, Telegram… har manba va har havola bo‘yicha '

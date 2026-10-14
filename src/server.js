@@ -649,7 +649,7 @@ async function botniUla() {
     const r = await tg('setWebhook', {
       url,
       secret_token: config.webhookSecret || undefined,
-      allowed_updates: ['message', 'callback_query'],
+      allowed_updates: ['message', 'callback_query', 'chat_member'],
       drop_pending_updates: false,
     });
     console.log(r.ok ? `✅ Webhook ulandi: ${config.publicUrl}${WEBHOOK_YOL.slice(0, 12)}…`
@@ -663,7 +663,7 @@ async function botniUla() {
   let offset = 0;
   for (;;) {
     try {
-      const r = await tg('getUpdates', { offset, timeout: 30, allowed_updates: ['message', 'callback_query'] });
+      const r = await tg('getUpdates', { offset, timeout: 30, allowed_updates: ['message', 'callback_query', 'chat_member'] });
       if (r.ok) {
         for (const upd of r.result) {
           offset = upd.update_id + 1;

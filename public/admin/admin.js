@@ -550,6 +550,63 @@ const MANBA_RANG = { taklif: '#2c7a51', instagram: '#d62976', tiktok: '#111111',
 const MANBA_QISQA = { taklif: 'TK', instagram: 'IG', tiktok: 'TT', telegram: 'TG', youtube: 'YT', facebook: 'FB', google: 'G', boshqa: '•' };
 const manbaBelgi = (m) => `<span class="mb-belgi" style="--mb:${MANBA_RANG[m] || MANBA_RANG.boshqa}">${MANBA_QISQA[m] || '•'}</span>`;
 const MANBA_DAVR = [[7, '7 kun'], [30, '30 kun'], [90, '90 kun'], [0, 'Hammasi']];
+const MANBA_NOM = { taklif: 'Taklif', instagram: 'Instagram', tiktok: 'TikTok', telegram: 'Telegram', youtube: 'YouTube',
+  facebook: 'Facebook', google: 'Google', boshqa: 'Boshqa' };
+
+/** Majburiy kanal: bot orqali kim qo'shildi, qaysi manbadan. */
+async function kanalHisobotiniChiz(kun) {
+  const quti = $('#kanal-hisobot'); if (!quti) return;
+  try {
+    const r = await api(`/api/admin/kanal-hisobot?kun=${kun || 30}`);
+    if (!r.kanal) {
+      quti.innerHTML = `<div class="karta-bosh"><h2>Majburiy kanal</h2></div>
+        <div class="hammasi-joyida">${ik('xat', 22)}<b>Majburiy kanal sozlanmagan</b>
+        <span>Sozlamalar → Aloqa va kanallar → Majburiy obuna</span></div>`;
+      return;
+    }
+    const u = r.umumiy || {}, d = r.davr || {};
+    const foiz = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : '—');
+    const maks = Math.max(1, ...r.manbalar.map((x) => x.soraldi || x.azo));
+    const odam = (x) => esc(x.ism || (x.username ? '@' + x.username : 'Foydalanuvchi'));
+    quti.innerHTML = `
+      <div class="karta-bosh"><h2>Majburiy kanal</h2><span class="yor kul">${esc(r.kanal)}</span></div>
+      <div class="mini-stat kanal-stat">
+        <div><span>Kanalda a’zo</span><b>${r.azolar_soni != null ? som(r.azolar_soni) : '—'}</b></div>
+        <div><span>Bot orqali qo‘shildi</span><b>${som(u.bot_orqali || 0)}</b></div>
+        <div><span>Avvaldan a’zo</span><b>${som(u.avvaldan || 0)}</b></div>
+        <div><span>Hali qo‘shilmagan</span><b>${som(u.qoshilmagan || 0)}</b></div>
+        <div><span>${r.kun} kunda so‘raldi → qo‘shildi</span><b>${som(d.soraldi || 0)} → ${som(d.qoshildi || 0)} <small>${foiz(d.qoshildi, d.soraldi)}</small></b></div>
+        <div><span>Chiqib ketdi</span><b>${som(u.chiqdi || 0)}</b></div>
+      </div>
+      <div class="ustunlar" style="margin-top:14px">
+        <div><h4 class="kanal-sar">Qaysi manbadan kelib qo‘shildi</h4>
+          ${r.manbalar.length ? `<div class="mb-royxat">${r.manbalar.map((x) => `
+            <div class="mb-qator">
+              ${manbaBelgi(x.manba === 'nomalum' ? 'boshqa' : x.manba)}
+              <div class="mb-tan">
+                <div class="mb-nom"><b>${esc(x.nom === 'nomalum' ? 'Manbasi noma’lum' : x.nom)}</b>
+                  <span>${som(x.soraldi)} so‘raldi · ${som(x.qoshildi)} qo‘shildi · ${foiz(x.qoshildi, x.soraldi)}</span></div>
+                <div class="mb-yol"><i style="width:${Math.round((x.soraldi || x.azo) / maks * 100)}%;--mb:${MANBA_RANG[x.manba] || '#888'}"></i>
+                  <i class="ichki" style="width:${Math.round(x.qoshildi / maks * 100)}%;--mb:${MANBA_RANG[x.manba] || '#888'}"></i></div>
+              </div>
+              <div class="mb-son"><b>${som(x.azo)}</b><span>a’zo</span></div>
+            </div>`).join('')}</div>` : '<p class="mayda">Shu davrda hali hech kim so‘ralmagan.</p>'}
+        </div>
+        <div><h4 class="kanal-sar">Oxirgi qo‘shilganlar</h4>
+          ${r.songgi.length ? `<ul class="kanal-royxat">${r.songgi.slice(0, 15).map((x) => `<li>
+            <span class="kanal-av">${esc(((x.ism || x.username || '?').trim()[0] || '?').toUpperCase())}</span>
+            <div><b>${odam(x)}</b><small>${esc(x.havola || (x.manba ? (MANBA_NOM[x.manba] || x.manba) : 'manbasi noma’lum'))}
+              · ${x.kanal_soraldi_at ? 'bot orqali' : 'avvaldan a’zo'}</small></div>
+            <em>${igVaqt(x.kanal_azo_at)}</em></li>`).join('')}</ul>` : '<p class="mayda">Hali hech kim yo‘q.</p>'}
+          ${r.harakatlar.length ? `<details class="kanal-har"><summary class="mayda">Kanal harakatlari (${r.harakatlar.length})</summary>
+            <ul class="kanal-royxat">${r.harakatlar.map((x) => `<li><span class="kanal-av ${x.holat === 'chiqdi' ? 'chiq' : ''}">${x.holat === 'chiqdi' ? '−' : '+'}</span>
+              <div><b>${odam(x)}</b><small>${x.holat === 'chiqdi' ? 'chiqdi' : 'qo‘shildi'}${x.havola_nomi ? ` · ${esc(x.havola_nomi)}` : ''}${x.havola ? ` · ${esc(x.havola)}` : ''}</small></div>
+              <em>${igVaqt(x.created_at)}</em></li>`).join('')}</ul></details>` : ''}
+        </div>
+      </div>
+      <p class="mayda" style="margin-top:10px">${ik('info', 13)} Bot kanalda <b>admin</b> bo‘lsa, botdan foydalanmasdan qo‘shilganlar ham «Kanal harakatlari» da chiqadi.</p>`;
+  } catch (e) { quti.innerHTML = `<div class="xabar-quti xato">${esc(e.message)}</div>`; }
+}
 
 async function manbalarBolimi() {
   holat.mkun = holat.mkun ?? 30;
@@ -619,15 +676,19 @@ async function manbalarBolimi() {
         <div class="hv-royxat" id="hv-royxat"></div>
       </section>
 
+      <section class="karta" id="kanal-hisobot"><div class="karta-bosh"><h2>Majburiy kanal</h2></div><div class="skelet"></div></section>
+
       <section class="ai-chaqiriq">
         <div class="ai-chaqiriq-bosh">${ik('ai', 20)}<b>AI dan so‘rang</b></div>
         <div class="ai-chiplar">
+          <button data-mai="Majburiy kanalga kim qayerdan kelib qo‘shildi? Bot orqali nechtasi qo‘shildi, qaysi manba eng ko‘p a’zo berdi, nechtasi chiqib ketdi?">${ik('xat', 15)}Kanalga kim qo‘shildi?</button>
           <button data-mai="Qaysi manba eng yaxshi ishlayapti? Instagram va TikTokni solishtir: kelgan, ro‘yxatdan o‘tgan, sotib olgan, daromad. Grafik chiz va nima qilishni ayt.">${ik('osish', 15)}Qaysi manba yaxshi ishlayapti?</button>
           <button data-mai="Yangi TikTok videosi uchun alohida havola yarat (bepul tahlilga olib borsin).">${ik('plyus', 15)}TikTok video uchun havola</button>
           <button data-mai="Kim eng ko‘p odam taklif qildi? Taklifchilar reytingini ko‘rsat: kirgan, ro‘yxatdan o‘tgan, sotib olgan, daromad. Eng yaxshilarini ajrat.">${ik('odamlar', 15)}Kim ko‘p taklif qildi?</button>
         </div>
       </section>`;
 
+    kanalHisobotiniChiz(holat.mkun || 30);
     $$('[data-mkun]').forEach((b) => b.onclick = () => { holat.mkun = Number(b.dataset.mkun); manbalarBolimi(); });
     $$('[data-mai]').forEach((b) => b.onclick = () => aiSora(b.dataset.mai));
     havolalarniChiz(d);
@@ -3864,6 +3925,7 @@ async function sozlamalar() {
         <button class="tug asos keng" id="s-saqla">Barcha sozlamalarni saqlash</button>
       </div>`;
 
+    sozlamaGuruhla();
     pogonalarniChiz();
     $('#p-qosh').onclick = () => { holat.kesh.pogonalar.push({ dan: 0, chegirma: 0 }); pogonalarniChiz(); };
     donaNamunaChiz();
@@ -3895,6 +3957,55 @@ async function sozlamalar() {
     };
     adminlarniChiz();
   } catch (e) { xatoChiz(e); }
+}
+
+// Sozlamalar guruhlari: uzun ro'yxat o'rniga mavzular bo'yicha bo'limlar.
+// Kartalar ichidagi kirish maydonlari (id) bo'yicha joylanadi — saqlash
+// funksiyasi o'zgarmaydi, hamma maydon DOM da qoladi, faqat ko'rinmaydi.
+const SOZ_GURUH = [
+  { k: 'savdo', nom: 'Savdo va to‘lov', izoh: 'Karta, chegirmalar, minimal summa', ik: 'pul', id: ['s-karta', 'pogonalar', 's-dona-chegirma', 's-minimal'] },
+  { k: 'yetkazish', nom: 'Yetkazish', izoh: 'Tarif, pochta, xarid', ik: 'quti', id: ['s-fee', 's-provayder', 's-xarid-kanal'] },
+  { k: 'aloqa', nom: 'Aloqa va kanallar', izoh: 'Menejer, majburiy obuna, kanallar', ik: 'xat', id: ['s-konsult', 's-majburiy', 's-kanal-buyurtma'] },
+  { k: 'brend', nom: 'Brend va dizayn', izoh: 'Nom, logotip, ranglar, karusel', ik: 'barg', id: ['s-brend', 's-mv-asosiy', 'karusel-royxat', 'namuna-oldi'] },
+  { k: 'ilova', nom: 'Ilova va skaner', izoh: 'Android, Mini App, limitlar', ik: 'skaner', id: ['s-android-sha', 's-miniapp', 's-limit-yoq'] },
+  { k: 'huquq', nom: 'Huquqiy', izoh: 'Sotuvchi, oferta', ik: 'hujjat', id: ['s-sot-ism', 's-oferta'] },
+  { k: 'admin', nom: 'Adminlar', izoh: 'Kim boshqaradi', ik: 'odamlar', id: ['adminlar'] },
+];
+function sozlamaGuruhla() {
+  const tan = $('#tan');
+  const kartalar = $$('.karta.tor', tan);
+  const guruhlar = Object.fromEntries(SOZ_GURUH.map((g) => [g.k, []]));
+  for (const k of kartalar) {
+    const g = SOZ_GURUH.find((x) => x.id.some((id) => k.querySelector(`#${id}`))) || SOZ_GURUH[0];
+    guruhlar[g.k].push(k);
+    const h2 = k.querySelector('.karta-bosh h2');
+    if (h2) h2.textContent = h2.textContent.replace(/^[\p{Extended_Pictographic}\uFE0F\u200d\s]+/u, '');
+    k.classList.remove('tor');
+  }
+  const bosh = $('.bosh', tan);
+  const nav = document.createElement('nav');
+  nav.className = 'soz-nav';
+  nav.innerHTML = SOZ_GURUH.map((g) => `<button data-sozg="${g.k}">${ik(g.ik, 18)}<span><b>${g.nom}</b><small>${g.izoh}</small></span></button>`).join('');
+  bosh.after(nav);
+  let oxirgi = nav;
+  for (const g of SOZ_GURUH) {
+    const sec = document.createElement('section');
+    sec.className = 'soz-guruh'; sec.dataset.sozg = g.k;
+    sec.innerHTML = `<header class="soz-guruh-bosh">${ik(g.ik, 20)}<div><h2>${g.nom}</h2><p>${g.izoh}</p></div></header><div class="soz-kartalar"></div>`;
+    const ich = sec.querySelector('.soz-kartalar');
+    guruhlar[g.k].forEach((k) => ich.appendChild(k));
+    oxirgi.after(sec); oxirgi = sec;
+  }
+  // Saqlash tugmasi — pastda yopishib turadi
+  const saqla = $('#s-saqla')?.parentElement;
+  if (saqla) saqla.className = 'soz-saqla';
+  const och = (k) => {
+    holat.sozG = k;
+    $$('.soz-guruh', tan).forEach((x) => { x.hidden = x.dataset.sozg !== k; });
+    $$('.soz-nav button', tan).forEach((x) => x.classList.toggle('faol', x.dataset.sozg === k));
+  };
+  $$('.soz-nav button', tan).forEach((b) => b.onclick = () => { och(b.dataset.sozg); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  och(SOZ_GURUH.some((g) => g.k === holat.sozG) ? holat.sozG : 'savdo');
 }
 
 function pogonalarniChiz() {

@@ -649,11 +649,14 @@ async function boshla() {
   // ilova har safar noldan yuklanadi va tarmoq sekin bo'lganda oq
   // ekran ko'rinadi.
   navigator.serviceWorker?.register('/app/sw.js').catch(() => { /* HTTPS yo'q */ });
+  // O'rnatish kirish ekranida ham ishlaydi: Telegramdan «O'rnatish»
+  // bosib Chrome'da ochilgan odam hali tizimga kirmagan bo'ladi
+  pwaniUla();
+  ornatParametri();
   if (telegramdanTashqarida()) return;
   // Statik razmetkadagi <i data-ik> larni chizma ikonga to'ldiramiz
   ikonlarniChiz();
   suhbatniYukla();
-  pwaniUla();
   try {
     const k = await api('/api/catalog');
     holat.kategoriyalar = (k.kategoriyalar || []).map((x) => ({ ...x, name: tutuq(x.name) }));
@@ -1476,17 +1479,33 @@ function mahsulotOyna(id) {
         ${p.old_price && p.old_price > p.price ? `<s>${narx(p.old_price)}</s>`
           : `<small>${esc(p.dona_soni > 1 ? `${p.dona_soni} dona` : p.volume || '')}</small>`}
       </div>
-      <button class="asosiy" id="t-savatga" ${p.stock > 0 ? '' : 'disabled'}>
-        ${p.stock > 0
-          ? `${ik('savat', 18)}<span class="toliq">${savatda ? `Savatda ${savatda} · yana` : 'Savatga qo‘shish'}</span><span class="qisqa">${savatda ? `Yana (${savatda})` : 'Savatga'}</span>`
-          : 'Omborda yo‘q'}
-      </button>
+      ${p.stock > 0 ? `
+      <button class="ikkilamchi oyna-savatga ${savatda ? 'bor' : ''}" id="t-savatga" aria-label="Savatga qo‘shish">
+        ${savatgaYorliq(savatda)}</button>
+      <button class="asosiy" id="t-sotib">${ik('pul', 17)}<span>Sotib olish</span></button>`
+      : '<button class="asosiy" disabled>Omborda yo‘q</button>'}
     </div>`;
   modalOch();
   $('#modal .oyna').classList.add('pastli');
   $$('#modal-tan [data-sharhlar]').forEach((b) => b.onclick = () => sharhlarSahifa(p.id));
+  // Savatga — DARHOL: oyna yopilmaydi, tugma «Savatda N ✓» bo'ladi.
+  // Server javobini kutib turish va oynani yopish ilgari «qotib»
+  // qolgandek tuyulardi va odam mahsulotdan chiqib ketardi.
   const t = $('#t-savatga');
-  if (t && p.stock > 0) t.onclick = async () => { await savatga(p.id); modalYop(); };
+  if (t && p.stock > 0) t.onclick = () => {
+    savatga(p.id);
+    const n = holat.savat.find((x) => x.products.id === p.id)?.quantity || 1;
+    t.innerHTML = savatgaYorliq(n);
+    t.classList.add('bor');
+    t.classList.remove('sakra'); void t.offsetWidth; t.classList.add('sakra');
+    tost(n > 1 ? `Savatda ${n} ta` : 'Savatga qo‘shildi');
+  };
+  const sb = $('#t-sotib');
+  if (sb) sb.onclick = () => {
+    if (!holat.savat.some((x) => x.products.id === p.id)) savatga(p.id);
+    titra('medium');
+    sotibOlishOyna(p);
+  };
   const y = $('#modal-tan [data-yurak]');
   if (y) y.onclick = (e) => { e.stopPropagation(); sevimliAlmash(p.id); };
   // Variant tanlansa — o'sha variantning narxi, rasmi va qoldig'i
@@ -1495,6 +1514,89 @@ function mahsulotOyna(id) {
     if (vid !== p.id) mahsulotOyna(vid);
   });
 }
+function savatgaYorliq(n) {
+  return `${ik('savat', 21)}${n ? `<em class="savat-son">${n}</em>` : '<em class="savat-son plyus">+</em>'}`;
+}
+
+/**
+ * «Sotib olish» — rasmiylashtirishdan oldin yumshoq maslahat: ko'proq
+ * olsa NIMA uchun arzonroq ekanini ANIQ raqam bilan aytadi (dona
+ * chegirmasi, keyingi pog'ona, bitta jo'natma) va 3-4 ta mos mahsulot.
+ */
+function sotibOlishOyna(p) {
+  const oraliq = holat.savat.reduce((x, r) => x + r.products.price * r.quantity, 0);
+  const dona = donaSoni();
+  const d = holat.donaChegirma || { narx: 0, dan: 1 };
+  const keyingi = holat.chegirmalar.map((x) => ({ dan: Number(x.dan), ch: Number(x.chegirma) }))
+    .filter((x) => oraliq < x.dan).sort((a, b) => a.dan - b.dan)[0];
+  const foydalar = [];
+  if (d.narx > 0) {
+    const qoldi = Math.max(0, (d.dan || 1) - dona);
+    foydalar.push(qoldi
+      ? `Yana <b>${qoldi} ta</b> qo‘shsangiz har mahsulotga <b>${qisqaNarx(d.narx)} so‘m</b> chegirma boshlanadi`
+      : `Har qo‘shgan mahsulotingizga yana <b>${qisqaNarx(d.narx)} so‘m</b> chegirma`);
+  }
+  if (keyingi) foydalar.push(`Yana <b>${narx(keyingi.dan - oraliq)}</b>lik qo‘shsangiz <b>${narx(keyingi.ch)}</b> chegirma`);
+  foydalar.push('Hammasi <b>bitta jo‘natmada</b> keladi — yetkazish har biriga alohida to‘lanmaydi');
+
+  // Takliflar: yetishmayotgan bosqich + ko'p sotilganlar (savatdagilarsiz)
+  const savatdagi = new Set(holat.savat.map((r) => r.products.id));
+  const teri = holat.user?.teri_turi || '';
+  const t = qoshimchaTavsiya();
+  const bosqichlar = new Set([...holat.savat.map((r) => r.products.step)]);
+  const nomzod = holat.mahsulotlar.filter((x) => x.stock > 0 && !savatdagi.has(x.id) && x.id !== t?.p.id && !x.variant_of)
+    .sort((a, b) => {
+      const ball = (x) => (teri && (x.skin_types || []).includes(teri) ? 2 : 0) + (bosqichlar.has(x.step) ? 0 : 1)
+        + (x.old_price > x.price ? 1 : 0);
+      return ball(b) - ball(a) || (b.sold_count || 0) - (a.sold_count || 0);
+    });
+  const takliflar = [...(t ? [t.p] : []), ...nomzod].slice(0, 4);
+  const yetmaydi = holat.minimal > 0 && oraliq < holat.minimal;
+
+  $('#modal-tan').innerHTML = `
+    <div class="sotib-oyna">
+      <div class="sotib-bosh">
+        <span class="sotib-belgi">${ik('sovga', 26)}</span>
+        <h2>Yana biror narsa olasizmi?</h2>
+        <p>Ko‘proq olsangiz — arzonroq tushadi</p>
+      </div>
+      <ul class="sotib-foyda">${foydalar.map((f) => `<li>${ik('tasdiq', 15)}<span>${f}</span></li>`).join('')}</ul>
+      ${takliflar.length ? `<div class="sotib-taklif-sar">Sizga mos keladi</div>
+      <div class="sotib-takliflar">${takliflar.map((x) => `
+        <div class="sotib-t" data-sotib-ochir="${x.id}">
+          <div class="sotib-t-rasm">${x.poster_id ? `<img src="/media/${esc(x.poster_id)}?w=240" alt="" loading="lazy">` : ik('shisha', 30)}</div>
+          <div class="sotib-t-nom">${esc(nomi(x))}</div>
+          <div class="sotib-t-narx">${qisqaNarx(x.price)} so‘m${x.old_price > x.price ? `<s>${qisqaNarx(x.old_price)}</s>` : ''}</div>
+          <button class="sotib-t-qosh" data-sotib-qosh="${x.id}" aria-label="Savatga qo‘shish">${ik('plyus', 17)}</button>
+        </div>`).join('')}</div>` : ''}
+      <div class="sotib-jami"><span>Savatda ${donaSoni()} ta</span><b id="sotib-jami">${narx(oraliq - chegirmaHisobla(oraliq))}</b></div>
+      <button class="asosiy" id="t-sotib-davom" ${yetmaydi ? 'disabled' : ''}>${yetmaydi
+        ? `Minimal buyurtma ${qisqaNarx(holat.minimal)} so‘m` : `${ik('keyingi', 17)}Rasmiylashtirishga o‘tish`}</button>
+      <button class="ikkilamchi" id="t-sotib-yana" style="margin-top:9px">Yana tanlayman</button>
+    </div>`;
+  modalOch();
+  const yangila = () => {
+    const o = holat.savat.reduce((x, r) => x + r.products.price * r.quantity, 0);
+    const j = $('#sotib-jami'); if (j) j.textContent = narx(o - chegirmaHisobla(o));
+    const s = $('.sotib-jami span'); if (s) s.textContent = `Savatda ${donaSoni()} ta`;
+    const b = $('#t-sotib-davom');
+    if (b && holat.minimal > 0) {
+      const y = o < holat.minimal; b.disabled = y;
+      b.innerHTML = y ? `Minimal buyurtma ${qisqaNarx(holat.minimal)} so‘m` : `${ik('keyingi', 17)}Rasmiylashtirishga o‘tish`;
+    }
+  };
+  $$('#modal-tan [data-sotib-qosh]').forEach((b) => b.onclick = (e) => {
+    e.stopPropagation();
+    if (b.classList.contains('qoshildi')) return;
+    savatga(Number(b.dataset.sotibQosh));
+    b.classList.add('qoshildi'); b.innerHTML = ik('tasdiq', 17);
+    yangila();
+  });
+  $$('#modal-tan [data-sotib-ochir]').forEach((k) => k.onclick = () => mahsulotOyna(Number(k.dataset.sotibOchir)));
+  $('#t-sotib-davom').onclick = () => { titra('medium'); checkoutOch(); };
+  $('#t-sotib-yana').onclick = () => { modalYop(); tabOch('katalog'); };
+}
+
 // ================= SHARHLAR =================
 // Sharh HAQIQIY: uni faqat shu mahsulotni SOTIB OLGAN odam yozadi
 // (serverda tekshiriladi), reyting esa shu sharhlardan hisoblanadi.
@@ -5704,88 +5806,88 @@ function pwaniUla() {
  * Shuning uchun Telegram ichida turganda TANLOV beramiz, jimgina
  * Telegram yorlig'ini yasab qo'ymaymiz.
  */
+const ANDROID = /android/i.test(navigator.userAgent);
+const IOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+/** Google Play havolasi (admin kiritgan bo'lsa) — haqiqiy Android ilova. */
+async function playHavola() {
+  if (holat.play !== undefined) return holat.play;
+  try {
+    const j = await fetch('/api/ochiq/sayt').then((r) => (r.ok ? r.json() : {}));
+    holat.play = /^https:\/\/play\.google\.com\//.test(String(j.play || '')) ? j.play : null;
+  } catch { holat.play = null; }
+  return holat.play;
+}
+
+/**
+ * Ilovani telefonga o'rnatish — BIR BOSISHDA, havola nusxalashsiz:
+ *   · brauzerda va o'rnatish taklifi bor — darrov o'rnatish oynasi;
+ *   · Android va Google Play'da ilova bor — Play'da ochiladi;
+ *   · Telegram ichida (Android) — sahifa Chrome'da ochiladi va o'sha
+ *     yerda «O'rnatish» oynasi o'zi chiqadi (/app/?ornat=1);
+ *   · Telegram ichida (iPhone) — Telegram'ning o'z «bosh ekranga
+ *     qo'shish» oynasi (Safari'da bu yo'l Telegram ichidan ishlamaydi);
+ *   · qolganida — qisqa yo'riqnoma.
+ */
 async function ilovaniOrnat() {
   titra('medium');
-
-  // ── Brauzerda: haqiqiy o'rnatish taklifi bo'lsa darrov ishlatamiz
-  if (!tg?.initData && ornatishHodisasi) {
-    ornatishHodisasi.prompt();
-    const { outcome } = await ornatishHodisasi.userChoice;
-    if (outcome === 'accepted') { ornatishHodisasi = null; holat.ornatishMumkin = false; }
-    profilniChiz();
+  if (!tg?.initData && ornatishHodisasi) return ornatishTaklifi();
+  const play = ANDROID ? await playHavola() : null;
+  if (play) {
+    if (tg?.initData && tg.openLink) tg.openLink(play); else location.href = play;
     return;
   }
-
-  // ── Telegram ichida: ikki yo'lni ochiq aytamiz
   if (tg?.initData) {
-    const havola = location.origin + '/app/';
-    $('#modal-tan').innerHTML = `
-      <div style="padding:18px 18px 0">
-        <h2 style="margin-bottom:6px">Ilovani qo‘shish</h2>
-        <p class="ozgina" style="margin-bottom:16px">Ikki xil yorliq bor —
-          qaysi biri kerakligini tanlang.</p>
-
-        <div class="ornat-tanlov">
-          <b>📱 Haqiqiy ilova</b>
-          <span>Telegramsiz, alohida oyna bo‘lib ochiladi. Buning uchun
-            havolani <b>Chrome</b> yoki <b>Safari</b> da oching va
-            menyudan «Ekranga qo‘shish» ni bosing.</span>
-          <div class="ornat-havola" id="ornat-havola">${esc(havola)}</div>
-          <button class="asosiy" id="t-havola-nusxa">Havoladan nusxa olish</button>
-        </div>
-
-        <div class="ornat-tanlov ikkilamchi-quti">
-          <b>💬 Telegram yorlig‘i</b>
-          <span>Tez qo‘shiladi, lekin bosilganda <b>Telegram ochiladi</b>
-            va ilova uning ichida ko‘rinadi.</span>
-          <button class="ikkilamchi" id="t-tg-yorliq">Telegramga qo‘shish</button>
-        </div>
-
-        <button class="ikkilamchi" id="t-ornat-yop"
-          style="margin-top:4px;width:100%">Yopish</button>
-      </div>`;
-    modalOch();
-
-    $('#t-havola-nusxa').onclick = async () => {
-      try {
-        await navigator.clipboard.writeText(havola);
-        $('#t-havola-nusxa').textContent = '✓ Nusxa olindi';
-      } catch {
-        // Clipboard ishlamasa havolani belgilab beramiz — qo'lda nusxa olsin
-        const el = $('#ornat-havola');
-        const r = document.createRange(); r.selectNodeContents(el);
-        const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
-        $('#t-havola-nusxa').textContent = 'Belgilandi — nusxa oling';
-      }
-      titra();
-    };
-    $('#t-tg-yorliq').onclick = () => {
-      try { tg.addToHomeScreen(); } catch { ogohlantir('Telegramni yangilang.'); }
-      modalYop();
-    };
-    $('#t-ornat-yop').onclick = modalYop;
-    return;
+    if (ANDROID && tg.openLink) {
+      tg.openLink(`${location.origin}/app/?ornat=1`);
+      tost('Brauzerda ochildi — «O‘rnatish» ni bosing');
+      return;
+    }
+    if (tg.addToHomeScreen) { try { tg.addToHomeScreen(); return; } catch { /* eski klient */ } }
   }
+  ornatishYoriqnomasi();
+}
 
-  // ── Brauzerda, lekin avtomatik taklif yo'q — qo'lda yo'riqnoma
-  const iOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+async function ornatishTaklifi() {
+  if (!ornatishHodisasi) return ornatishYoriqnomasi();
+  ornatishHodisasi.prompt();
+  const { outcome } = await ornatishHodisasi.userChoice.catch(() => ({}));
+  if (outcome === 'accepted') { ornatishHodisasi = null; holat.ornatishMumkin = false; tost('KiOVO ekranga qo‘shildi'); }
+  if (holat.tab === 'profil') profilniChiz();
+}
+
+/** O'rnatish oynasi: bitta katta tugma (brauzer taklif bersa) yoki qisqa yo'riqnoma. */
+function ornatishYoriqnomasi({ tugma = false } = {}) {
   $('#modal-tan').innerHTML = `
-    <div style="padding:18px 18px 0">
-      <h2 style="margin-bottom:12px">Ilovani telefonga qo‘shish</h2>
-      ${iOS ? `
+    <div class="ornat-oyna">
+      <img class="ornat-ikon" src="/app/ikon-192.png" alt="" width="72" height="72">
+      <h2>KiOVO ilovasi</h2>
+      <p class="ozgina">Bosh ekranda o‘z belgisi bo‘ladi — Telegramsiz, bir bosishda ochiladi.</p>
+      ${tugma ? `<button class="asosiy" id="t-ornat-ha">${ik('ornatish', 18)}O‘rnatish</button>` : IOS ? `
         <div class="ornat-qadam"><i>1</i><span>Pastdagi <b>Ulashish</b> tugmasini bosing
           (kvadrat ichidan chiqayotgan strelka).</span></div>
-        <div class="ornat-qadam"><i>2</i><span><b>Add to Home Screen</b> ni tanlang.</span></div>
-        <div class="ornat-qadam"><i>3</i><span><b>Add</b> ni bosing — KiOVO ikonkasi
-          ekranda paydo bo‘ladi.</span></div>` : `
+        <div class="ornat-qadam"><i>2</i><span><b>Bosh ekranga qo‘shish</b> (Add to Home Screen) ni tanlang.</span></div>
+        <div class="ornat-qadam"><i>3</i><span><b>Qo‘shish</b> ni bosing — KiOVO belgisi ekranda paydo bo‘ladi.</span></div>` : `
         <div class="ornat-qadam"><i>1</i><span>Brauzer menyusini oching — yuqori o‘ngdagi uch nuqta.</span></div>
-        <div class="ornat-qadam"><i>2</i><span><b>Ilovani o‘rnatish</b> yoki
-          <b>Bosh ekranga qo‘shish</b> ni tanlang.</span></div>
-        <div class="ornat-qadam"><i>3</i><span>Tasdiqlang — KiOVO ikonkasi ekranda paydo bo‘ladi.</span></div>`}
-      <button class="ikkilamchi" id="t-ornat-yop" style="margin-top:16px">Tushunarli</button>
+        <div class="ornat-qadam"><i>2</i><span><b>Ilovani o‘rnatish</b> yoki <b>Bosh ekranga qo‘shish</b> ni tanlang.</span></div>`}
+      <button class="ikkilamchi" id="t-ornat-yop" style="margin-top:10px">${tugma ? 'Keyinroq' : 'Tushunarli'}</button>
     </div>`;
   modalOch();
   $('#t-ornat-yop').onclick = modalYop;
+  const ha = $('#t-ornat-ha');
+  if (ha) ha.onclick = () => { modalYop(); ornatishTaklifi(); };
+}
+
+/** /app/?ornat=1 — Telegram yoki saytdan «O'rnatish» bosib kelingan: oyna o'zi chiqadi. */
+function ornatParametri() {
+  if (tg?.initData || !/[?&]ornat=1/.test(location.search)) return;
+  history.replaceState(history.state, '', location.pathname + location.search.replace(/[?&]ornat=1/, '').replace(/^&/, '?') + location.hash);
+  if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) return;
+  const korsat = () => ornatishYoriqnomasi({ tugma: Boolean(ornatishHodisasi) });
+  if (ornatishHodisasi) return korsat();
+  let bo = false;
+  window.addEventListener('beforeinstallprompt', () => { if (!bo) { bo = true; setTimeout(korsat, 50); } }, { once: true });
+  setTimeout(() => { if (!bo) { bo = true; korsat(); } }, 2500);
 }
 
 // ---------------- Tablar ----------------
@@ -5876,6 +5978,11 @@ function tabOch(nom, { tarixsiz = false } = {}) {
     // batareyani yeydi va odam uni ko'rmay qoladi
     if (nom !== 'skaner' && kamOqim) kameraniYop();
   });
+  // Yangi bo'lim birdaniga «sakrab» chiqmasin — yumshoq paydo bo'ladi
+  if (oldingi && oldingi !== nom && nom !== 'maslahat') {
+    const el = $(`#tab-${nom}`);
+    if (el) { el.classList.remove('tab-kirdi'); void el.offsetWidth; el.classList.add('tab-kirdi'); }
+  }
   // Kaskad ~270 KB — skaner bo'limi ochilishi bilan yuklab qo'yamiz,
   // kamera bosilganda kutib turmasin
   if (nom === 'skaner') kaskadniYukla();

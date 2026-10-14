@@ -328,6 +328,10 @@ export async function adminRoutes(req, res, yol) {
   }
 
   // ================= MANBALAR: Instagram, TikTok… =================
+  if (yol === '/api/admin/kanal-hisobot' && req.method === 'GET') {
+    const { kanalHisoboti } = await import('../services/majburiy-kanal.js');
+    return ok(res, await kanalHisoboti({ kun: new URL(req.url, 'http://x').searchParams.get('kun') || 30 }));
+  }
   if (yol === '/api/admin/manbalar' && req.method === 'GET') {
     const kun = new URL(req.url, 'http://x').searchParams.get('kun') ?? 30;
     return ok(res, { ...(await manba.manbaHisoboti({ kun }, config.saytUrl)),
