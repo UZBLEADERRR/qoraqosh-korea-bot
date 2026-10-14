@@ -2792,7 +2792,7 @@ details.n-yigma[open] .n-ochish::before{transform:rotate(225deg) translate(-3px,
   box-shadow:0 0 0 2px var(--panel)}
 .suzuvchi-savat.sakra{animation:suzuvchi-sakra .55s cubic-bezier(.3,1.6,.5,1)}
 @keyframes suzuvchi-sakra{0%{transform:scale(1)}30%{transform:scale(1.25) rotate(-8deg)}60%{transform:scale(.92) rotate(4deg)}100%{transform:scale(1)}}
-body.yozilmoqda .suzuvchi-savat{opacity:0;pointer-events:none}
+body.yozilmoqda .suzuvchi-savat,body.oyna-ochiq .suzuvchi-savat{opacity:0;pointer-events:none}
 @media (prefers-reduced-motion:reduce){.suzuvchi-savat,.suzuvchi-savat.sakra{animation:none;transition:opacity .2s}}
 
 /* «Sotib olish» maslahat oynasi */

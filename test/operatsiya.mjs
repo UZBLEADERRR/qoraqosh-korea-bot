@@ -5865,6 +5865,10 @@ console.log('\n── OYNA, NARX, IPHONE, TUNGI QIDIRUV, GMAIL ──');
     && js.includes('Savatga qo‘shish') && /\.oyna-pastki\.ikki-tugma>button\{flex:1 1 0/.test(css));
   test('savatga qo‘shilganda suzuvchi savat (surib qo‘yiladi, bosilsa savat)', /function suzuvchiSavat/.test(js)
     && /suzuvchiSavat\(\{ sakra: true \}\)/.test(js) && /tabOch\('savat'\)/.test(js) && /\.suzuvchi-savat\{position:fixed/.test(css));
+  test('suzuvchi savat rasmiylashtirish/to‘lov oynasida tugmalarni yopmaydi (faqat mahsulot oynasida)',
+    /classList\.add\('oyna-ochiq'\)/.test(js) && /classList\.add\('pastli'\);[\s\S]{0,160}classList\.remove\('oyna-ochiq'\)/.test(js)
+    && /modalYop = \(\) => \{[\s\S]{0,80}classList\.remove\('oyna-ochiq'\)/.test(js)
+    && /body\.oyna-ochiq \.suzuvchi-savat\{opacity:0;pointer-events:none\}/.test(css));
   test('iPhone: har bo‘lim kamida bir ekran (menyu bir joyda)', /body\{min-height:calc\(100lvh \+ 1px\)\}/.test(css));
   const tun = [...css.matchAll(/--qidiruv-fon:(#[0-9a-f]{6})/g)].map((m) => m[1]);
   test('tungi mavzuda qidiruv och yashil', tun.length === 3 && tun.slice(1).every((x) => x === '#d6ecae'), tun.join());

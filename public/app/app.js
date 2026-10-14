@@ -1482,6 +1482,8 @@ function mahsulotOyna(id) {
     </div>`;
   modalOch();
   $('#modal .oyna').classList.add('pastli');
+  // Mahsulot oynasida suzuvchi savat ko'rinadi — u yerdan savatga o'tiladi
+  document.body.classList.remove('oyna-ochiq');
   $$('#modal-tan [data-sharhlar]').forEach((b) => b.onclick = () => sharhlarSahifa(p.id));
   // Savatga — DARHOL: oyna yopilmaydi, tugma «Savatda N ✓» bo'ladi.
   // Server javobini kutib turish va oynani yopish ilgari «qotib»
@@ -1850,6 +1852,9 @@ const qtr = (k, v) => `<div class="qtr"><span class="k">${k}</span><span class="
 function modalOch() {
   // Mahsulot oynasidagi doimiy pastki tugma faqat o'sha oynada
   $('#modal .oyna')?.classList.remove('pastli');
+  // Rasmiylashtirish, to'lov, ro'yxat oynalarida suzuvchi savat tugmalarni
+  // yopib qo'ymasin (masalan «Chek rasmini yuklash» ustiga tushardi)
+  document.body.classList.add('oyna-ochiq');
   kor($('#modal'), true);
   try { tg?.BackButton?.show?.(); } catch {}
   // Android «orqaga» tugmasi oynani yopsin — ilovadan chiqib ketmasin
@@ -1857,6 +1862,7 @@ function modalOch() {
 }
 const modalYop = () => {
   kor($('#modal'), false);
+  document.body.classList.remove('oyna-ochiq');
   try { if (!sahifalar.length) tg?.BackButton?.hide?.(); } catch {}
   // Oyna tugma bilan yopildi — tarixdagi yozuvi oddiy yozuvga aylanadi
   // (orqaga bosilganda takroriy yozuv o'tkazib yuboriladi, pastga qarang)
