@@ -61,6 +61,23 @@ export async function obunaHolati(telegramId, user) {
 }
 
 /**
+ * Admin yozgan havolani Telegram tugmasi qabul qiladigan ko'rinishga keltiradi.
+ * `@kiovo_shop`, `kiovo_shop`, `t.me/kiovo_shop` → `https://t.me/kiovo_shop`.
+ * Tugmaga faqat http(s) manzil qo'yiladi: aks holda Telegram BUTUN xabarni
+ * rad etadi («Wrong HTTP URL») va obuna so'rovi odamga umuman yetmaydi —
+ * bot jim qolgandek ko'rinadi.
+ * @returns {string} to'g'ri havola yoki '' (yaroqsiz)
+ */
+export function havolaTozala(x) {
+  let h = String(x || '').replace(/["']/g, '').trim();
+  if (!h || /\s/.test(h)) return '';
+  if (/^@?[A-Za-z][A-Za-z0-9_]{3,31}$/.test(h)) return `https://t.me/${h.replace(/^@/, '')}`;
+  if (/^(t\.me|telegram\.me|www\.t\.me)\//i.test(h)) h = `https://${h}`;
+  if (/^http:\/\/(t\.me|telegram\.me)\//i.test(h)) h = h.replace(/^http:/i, 'https:');
+  return /^https?:\/\/[^\s/]+\.[^\s]+$/i.test(h) ? h : '';
+}
+
+/**
  * Kanalga kirish havolasi.
  *
  * Tartib:
@@ -72,8 +89,11 @@ export async function obunaHolati(telegramId, user) {
  * Natija keshlanadi: har xabarda Telegram'ga so'rov yubormaymiz.
  */
 async function havolaniTop(kanal, qoldaYozilgan) {
-  const qolda = String(qoldaYozilgan || '').replace(/"/g, '').trim();
+  const qolda = havolaTozala(qoldaYozilgan);
   if (qolda) return qolda;
+  if (String(qoldaYozilgan || '').replace(/"/g, '').trim()) {
+    console.error('MAJBURIY KANAL: havola yaroqsiz —', qoldaYozilgan, '· https://t.me/... ko‘rinishida yozing');
+  }
   if (kanal.startsWith('@')) return `https://t.me/${kanal.slice(1)}`;
 
   return kesh(`obuna-havola:${kanal}`, 30 * 60_000, async () => {
@@ -115,6 +135,7 @@ export async function obunaXabari(havola, brend, kanal = '') {
     xabar('xabar_obuna_tekshir', {}, '✅ Obuna bo‘ldim'),
   ]);
   const kb = [];
+  havola = havolaTozala(havola);
   if (havola) kb.push([{ text: String(tugma || '📢 Kanalga obuna bo‘lish').replace(/<[^>]+>/g, '').slice(0, 60), url: havola }]);
   kb.push([{ text: String(tekshir || '✅ Obuna bo‘ldim').replace(/<[^>]+>/g, '').slice(0, 60), callback_data: 'obuna_tekshir' }]);
   // Havolani MATNDA ham beramiz: tugma ba'zi klientlarda ochilmaydi va

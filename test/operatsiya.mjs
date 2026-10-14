@@ -422,6 +422,11 @@ const havolaSinovi = async (nom, kanal, qoldaHavola, kutilgan) => {
 globalThis.KANAL = 'ochiq';
 await havolaSinovi('@nom dan', '@meduza_kanal', '', 'https://t.me/meduza_kanal');
 await havolaSinovi('qo‘lda yozilgan', '-1001234567890', 'https://t.me/+qolda', 'https://t.me/+qolda');
+// Admin havola o'rniga «@kanal» yozgan: Telegram tugmani rad etib, BUTUN
+// xabar yetmasdi («Wrong HTTP URL») va bot jim qolardi
+await havolaSinovi('qo‘lda «@nom» yozilgan — https ga aylanadi', '-1001234567890', '@kiovo_shop', 'https://t.me/kiovo_shop');
+await havolaSinovi('qo‘lda «t.me/nom» — https qo‘shiladi', '-1001234567890', 't.me/kiovo_shop', 'https://t.me/kiovo_shop');
+await havolaSinovi('yaroqsiz havola tashlanadi, kanal nomidan olinadi', '@meduza_kanal', 'kanal havolasi', 'https://t.me/meduza_kanal');
 await havolaSinovi('kanal nomidan (getChat)', '-1001234567890', '', 'https://t.me/meduza_kanal');
 globalThis.KANAL = 'yopiq_havolali';
 await havolaSinovi('kanalning taklif havolasi', '-1001234567890', '', 'https://t.me/+eskiHavola');

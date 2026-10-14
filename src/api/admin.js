@@ -1283,7 +1283,8 @@ export async function adminRoutes(req, res, yol) {
 
     const { havolaKeshiniTashla } = await import('../services/majburiy-kanal.js');
     await havolaKeshiniTashla(kanal);
-    const qolda = String(await sozlama('majburiy_kanal_havola', '') || '').replace(/"/g, '').trim();
+    const { havolaTozala } = await import('../services/majburiy-kanal.js');
+    const qolda = havolaTozala(await sozlama('majburiy_kanal_havola', ''));
 
     let havola = qolda;
     let manba = 'qo‘lda yozilgan';
