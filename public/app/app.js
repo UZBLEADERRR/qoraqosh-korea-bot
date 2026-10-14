@@ -1084,6 +1084,9 @@ function toifalarniChiz() {
     </button>`).join('');
   $$('#toifalar [data-toifa]').forEach((b) => b.onclick = () => {
     holat.kategoriya = b.dataset.toifa; titra();
+    // Belgi bosilgan plitkaga o'tadi. Qatorni qayta chizmaymiz —
+    // aks holda gorizontal sirg'alish boshiga qaytib ketadi
+    $$('#toifalar [data-toifa]').forEach((x) => x.classList.toggle('tanlangan', x === b));
     katalogniChiz(); filtrlarniChiz();
     $('#tab-katalog').scrollIntoView({ block:'start' });
   });

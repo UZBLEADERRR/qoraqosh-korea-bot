@@ -5865,6 +5865,8 @@ console.log('\n── OYNA, NARX, IPHONE, TUNGI QIDIRUV, GMAIL ──');
     && js.includes('Savatga qo‘shish') && /\.oyna-pastki\.ikki-tugma>button\{flex:1 1 0/.test(css));
   test('savatga qo‘shilganda suzuvchi savat (surib qo‘yiladi, bosilsa savat)', /function suzuvchiSavat/.test(js)
     && /suzuvchiSavat\(\{ sakra: true \}\)/.test(js) && /tabOch\('savat'\)/.test(js) && /\.suzuvchi-savat\{position:fixed/.test(css));
+  test('toifa plitkasi bosilganda belgi o‘sha plitkaga o‘tadi (Barchasi qolib ketmaydi)',
+    /#toifalar \[data-toifa\]'\)\.forEach\(\(x\) => x\.classList\.toggle\('tanlangan', x === b\)\)/.test(js));
   test('suzuvchi savat rasmiylashtirish/to‘lov oynasida tugmalarni yopmaydi (faqat mahsulot oynasida)',
     /classList\.add\('oyna-ochiq'\)/.test(js) && /classList\.add\('pastli'\);[\s\S]{0,160}classList\.remove\('oyna-ochiq'\)/.test(js)
     && /modalYop = \(\) => \{[\s\S]{0,80}classList\.remove\('oyna-ochiq'\)/.test(js)
