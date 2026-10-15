@@ -61,13 +61,15 @@ export async function hisobniOchir(userId) {
     `delete from media where id in (
        select yuz_rasm_id from analyses where user_id = $1 and yuz_rasm_id is not null
        union all
-       select natija_rasm_id from analyses where user_id = $1 and natija_rasm_id is not null)`,
+       select natija_rasm_id from analyses where user_id = $1 and natija_rasm_id is not null
+       union all
+       select yuz_rasm_id from makiyaj_profillar where user_id = $1 and yuz_rasm_id is not null)`,
     [userId]);
   // Sharh rasmlari — sharh bilan birga (ular odamning o'z surati)
   await sorov(
     `delete from media where tur = 'sharh' and id in (
        select unnest(rasmlar) from sharhlar where user_id = $1)`, [userId]);
-  for (const jadval of ['analyses', 'cart_items', 'sevimlilar', 'sharhlar',
+  for (const jadval of ['analyses', 'makiyaj_profillar', 'cart_items', 'sevimlilar', 'sharhlar',
                         'kirish_sorovlari', 'ilova_seanslar', 'push_obunalar']) {
     await sorov(`delete from ${jadval} where user_id = $1`, [userId]);
   }

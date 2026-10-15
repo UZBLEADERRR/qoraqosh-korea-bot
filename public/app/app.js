@@ -6219,6 +6219,9 @@ function rangimniChiz() {
 
   el.innerHTML = `
     <div class="rg-bosh" style="--rg:${esc(r.teri_hex || '#e8c4a8')}">
+      ${r.yuz_rasm_id ? `<div class="rg-surat">
+        <img src="/media/${esc(r.yuz_rasm_id)}?w=800" alt="Sizning suratingiz" onerror="this.parentNode.remove()">
+        <span class="rg-surat-ton"><i class="rg-doira"></i>${esc(r.ton_kodi)}</span></div>` : ''}
       <span class="rg-chip">💄 Mening rangim</span>
       <h2>${esc(p.emoji || '🎨')} ${esc(r.rang_tipi_nom)} rang tipi</h2>
       <p>${esc(p.izoh || '')}</p>

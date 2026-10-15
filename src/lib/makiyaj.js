@@ -44,8 +44,37 @@ export function erkaklarUchunmi(p) {
 }
 export const MAKIYAJ_KALITLARI = MAKIYAJ_BOSQICHLAR.map((b) => b.kalit);
 const MAKIYAJ_TOPLAM = new Set(MAKIYAJ_KALITLARI);
+/* Admin mahsulotni «Makiyaj» toifasiga qo'yib, bosqichini tanlamay qoldirsa
+   (yoki teri bosqichi qolib ketsa) — bosqich nomidan topiladi. Tartib muhim:
+   «hair pomade» — soch, «skin tint» — ton, «eyebrow» — qosh. */
+const NOMDAN_BOSQICH = [
+  ['soch',     /(soch|hair|vosk|\bwax\b|pomade\b|styling|gel\s*for\s*hair)/i],
+  ['fiksator', /(fiksator|fixer|fixing|setting\s*spray|makeup\s*fix|mist\s*fix)/i],
+  ['baza',     /(praymer|primer|\bbaza\b|makeup\s*base|base\s*primer)/i],
+  ['konsiler', /(konsiler|concealer|korrektor|corrector)/i],
+  ['ton',      /(kushon|cushion|foundation|tonal|\bbb\b|\bcc\b|bb\s*cream|cc\s*cream|skin\s*tint)/i],
+  ['pudra',    /(pudra|powder|pact\b)/i],
+  ['qosh',     /(qosh|brow)/i],
+  ['kozlar',   /(ko.?z|eye|mascara|tush\b|layner|liner|palet|palette|shadow|soya)/i],
+  ['rumyana',  /(rumyana|blush|cheek|kontur|contour|highlight|xaylayter|bronzer)/i],
+  ['lab',      /(\blab\b|lip|tint|pomada|lipstick|gloss|glos)/i],
+];
+const nomMatni = (p) => [p?.name, p?.nom_uz, ...(Array.isArray(p?.kalit_sozlar) ? p.kalit_sozlar : [])].filter(Boolean).join(' ');
+
+/**
+ * Makiyaj bosqichi: o'zi makiyaj bosqichida bo'lsa — o'sha; «Makiyaj»
+ * toifasida bo'lsa — nomidan. Makiyaj emas bo'lsa null.
+ */
+export function makiyajBosqichi(p) {
+  if (MAKIYAJ_TOPLAM.has(p?.step)) return p.step;
+  if (p?.toifa_slug !== 'makiyaj') return null;
+  const n = nomMatni(p);
+  for (const [k, re] of NOMDAN_BOSQICH) if (re.test(n)) return k;
+  return null;
+}
+
 /** Mahsulot makiyajmi (teri tahlili tavsiyasiga tushmasligi kerak). */
-export const makiyajmi = (p) => MAKIYAJ_TOPLAM.has(p?.step);
+export const makiyajmi = (p) => MAKIYAJ_TOPLAM.has(p?.step) || p?.toifa_slug === 'makiyaj';
 
 export const TUSLAR = { iliq: 'Iliq', sovuq: 'Sovuq', neytral: 'Neytral', zaytun: 'Zaytun' };
 export const CHUQURLIK = ['', 'Juda och', 'Och', 'Och-o‘rta', 'O‘rta', 'Qoramtir', 'To‘q'];

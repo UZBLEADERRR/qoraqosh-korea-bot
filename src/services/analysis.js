@@ -55,8 +55,10 @@ const KATALOG_SQL = `
          p.warnings, p.concerns, p.skin_types, p.actives, p.stock, p.description,
          p.gradient, p.category_id, p.poster_id, p.old_price, p.sold_count,
          p.kalit_sozlar, p.reyting, p.sharh_soni, p.manba_reyting, p.manba_sharh,
-         p.variant_of, p.variant_nom, p.variant_tur, p.rang_hex, p.dona_soni
+         p.variant_of, p.variant_nom, p.variant_tur, p.rang_hex, p.dona_soni,
+         c.slug as toifa_slug
     from products p
+    left join categories c on c.id = p.category_id
    where p.is_active
    order by p.id`;
 

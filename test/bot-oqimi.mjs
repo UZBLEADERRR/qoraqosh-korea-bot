@@ -718,6 +718,8 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
   const o2 = yuborilgan.length;
   await rasmYubor();
   const rangXabar = yuborilgan.slice(o2).find((y) => /Sizning rangingiz/.test(y.text || ''));
+  test('natija RASM bo‘lib keldi (kartochka + izoh + tugmalar)', rangXabar?.rasm === true
+    && (rangXabar.reply_markup?.inline_keyboard || []).flat().some((t) => t.callback_data === 'makiyaj'), JSON.stringify(rangXabar || {}).slice(0, 160));
   test('rasm rang tahliliga ketdi (teri skaneriga emas)', Boolean(rangXabar) && /Kuz/.test(rangXabar?.text || '')
     && !yuborilgan.slice(o2).some((y) => /Teri tahlilingiz/.test(y.text || '')));
   test('holat tozalandi — keyingi rasm yana teri skaneriga', (await qator('select state from users where telegram_id = $1', [TG])).state === null);

@@ -2,12 +2,12 @@
 //
 // Tugma bosiladi → bot ko'rsatma beradi va 15 daqiqa «makiyaj rasmi»ni
 // kutadi. Shu orada kelgan rasm teri skaneriga emas, rang tahliliga ketadi.
-import { yubor, faylOl, harakat, tg } from '../tg.js';
+import { yubor, faylOl, harakat, tg, rasmYubor } from '../tg.js';
 import { sorov } from '../../db.js';
 import { appTugma } from '../keyboards.js';
 import { radXabari } from '../render.js';
 import { esc } from '../format.js';
-import { makiyajRuxsat, rangimniTahlilQil, rangimMatni } from '../../services/makiyaj.js';
+import { makiyajRuxsat, rangimniTahlilQil, rangimMatni, rangimKartochkasi } from '../../services/makiyaj.js';
 import { xatoniTushuntir } from '../../lib/xatolar.js';
 
 export const HOLAT = 'makiyaj_rasm';
@@ -44,7 +44,8 @@ export async function makiyajRasmi(msg, user) {
   const kutish = await yubor(chatId, '🎨 <b>Rangingiz aniqlanmoqda…</b>\n<i>10–15 soniya</i>');
   try {
     const { base64 } = await faylOl(foto ? foto.file_id : hujjat.file_id);
-    const r = await rangimniTahlilQil(user, base64, hujjat ? hujjat.mime_type : 'image/jpeg');
+    const mime = hujjat ? hujjat.mime_type : 'image/jpeg';
+    const r = await rangimniTahlilQil(user, base64, mime);
     if (!r.yaroqli) {
       await yubor(chatId, await radXabari(r.sabab, r.izoh), {
         reply_markup: { inline_keyboard: [[{ text: '🔄 Qayta yuborish', callback_data: 'makiyaj' }]] } });
@@ -52,11 +53,20 @@ export async function makiyajRasmi(msg, user) {
     }
     const nomlar = new Map(r.mahsulotlar.map((p) => [p.id, esc(`${p.brand ? p.brand + ' ' : ''}${p.nom_uz || p.name}${p.variant_nom ? ' — ' + p.variant_nom : ''}`)]));
     const ochish = appTugma('💄 To‘liq natija va makiyaj tartibi', '/app/?tab=rangim');
-    await yubor(chatId, rangimMatni(r.rangim, nomlar), {
-      reply_markup: { inline_keyboard: [
-        ...(ochish ? [[ochish]] : []),
-        [{ text: '🔄 Qayta aniqlash', callback_data: 'makiyaj' }],
-      ] } });
+    const tugmalar = { reply_markup: { inline_keyboard: [
+      ...(ochish ? [[ochish]] : []),
+      [{ text: '🔄 Qayta aniqlash', callback_data: 'makiyaj' }],
+    ] } };
+    // Natija — RASM: surat, rang tipi, ton, palitra va mahsulotlar bitta
+    // kartochkada (teri tahlilidagi kabi). Chizib bo'lmasa — matn.
+    const bayt = await rangimKartochkasi({ rangim: r.rangim, mahsulotlar: r.mahsulotlar, rasmBase64: base64, mime });
+    const matn = rangimMatni(r.rangim, nomlar);
+    if (bayt) {
+      const izoh = matn.length <= 1000 ? matn : rangimMatni(r.rangim, nomlar, { qisqa: true });
+      const j = await rasmYubor(chatId, bayt, izoh, { parse_mode: 'HTML', ...tugmalar }).catch(() => null);
+      if (j?.ok !== false) return true;
+    }
+    await yubor(chatId, matn, tugmalar);
     return true;
   } catch (e) {
     if (e.message === 'MAKIYAJ_LIMIT') {

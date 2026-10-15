@@ -5504,6 +5504,13 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     test('makiyaj: hammaga ko‘rinadi, o‘zi o‘chirsa — yo‘q',
       MK.makiyajKorinadimi({ gender: 'ayol' }) && MK.makiyajKorinadimi({ gender: 'erkak' }) && MK.makiyajKorinadimi({})
       && !MK.makiyajKorinadimi({ gender: 'ayol', makiyaj: false }) && !MK.makiyajKorinadimi(null));
+    test('makiyaj: «Makiyaj» toifasida bosqichi tanlanmagan mahsulot — nomidan',
+      MK.makiyajBosqichi({ name: 'Tirtir Mask Fit Red Cushion', toifa_slug: 'makiyaj', step: 'namlash' }) === 'ton'
+      && MK.makiyajBosqichi({ name: 'Romand Juicy Lasting Tint', toifa_slug: 'makiyaj' }) === 'lab'
+      && MK.makiyajBosqichi({ name: 'Gatsby Hair Pomade', toifa_slug: 'makiyaj' }) === 'soch'
+      && MK.makiyajBosqichi({ name: 'Etude Drawing Eye Brow', toifa_slug: 'makiyaj' }) === 'qosh'
+      && MK.makiyajBosqichi({ name: 'Cushion', toifa_slug: 'krem', step: 'namlash' }) === null
+      && MK.makiyajmi({ toifa_slug: 'makiyaj', step: 'namlash' }));
     test('makiyaj: erkaklar mahsuloti nomidan taniladi',
       MK.erkaklarUchunmi({ name: 'Dr.G BB Cream for Men' }) && MK.erkaklarUchunmi({ nom_uz: 'Erkaklar uchun pomada' })
       && MK.erkaklarUchunmi({ name: 'X', kalit_sozlar: ['erkak'] }) && !MK.erkaklarUchunmi({ name: 'Romand Juicy Lasting Tint 09 Litchi Coral' })
@@ -5542,6 +5549,23 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     test('makiyaj: ayolga erkaklar mahsuloti tavsiya qilinmaydi',
       !(rg.tavsiya || []).some((x) => x.product_id === mk[5] || x.product_id === mk[6]) && rg.erkak === false);
     test('makiyaj: /api/me da oxirgi rang saqlangan', (await chaqirIlova('/api/me', 'GET', null, token)).tana.rangim?.rang_tipi === 'kuz');
+    test('makiyaj: odamning surati saqlandi', Boolean(rg.yuz_rasm_id)
+      && (await qator('select tur from media where id = $1', [rg.yuz_rasm_id]))?.tur === 'yuz');
+    // Rang aniqlangandan KEYIN qo'shilgan mahsulot ham darhol chiqadi (toifasi
+    // Makiyaj, bosqichi teriniki — nomidan «rumyana» deb topiladi)
+    mk.push((await qator(`insert into products (name, brand, price, cost_price, stock, is_active, step, category_id, variant_nom, rang_hex)
+      values ('Sinov Blush Terra', 'MKSINOV', 90000, 40000, 5, true, 'namlash', $1, 'Terra', '#C76E55') returning id`, [kat])).id);
+    const keyin = (await chaqirIlova('/api/me', 'GET', null, token)).tana.rangim || {};
+    test('makiyaj: keyin qo‘shilgan mahsulot eski natijada ham chiqadi',
+      (keyin.tavsiya || []).find((x) => x.bosqich === 'rumyana')?.product_id === mk[mk.length - 1], JSON.stringify(keyin.tavsiya));
+    {
+      const S = await import('../src/services/makiyaj.js');
+      const yuz = fsY.readFileSync('test/namuna-yuz.b64', 'utf8').trim();
+      const png = await S.rangimKartochkasi({ rangim: keyin, mahsulotlar: await (await import('../src/services/analysis.js')).faolMahsulotlar(),
+        rasmBase64: yuz, mime: 'image/jpeg' });
+      test('makiyaj: natija kartochkasi (PNG) chiziladi', png?.length > 20000 && png.subarray(1, 4).toString() === 'PNG', String(png?.length));
+      if (png) fsY.writeFileSync(process.env.MAKIYAJ_PNG || '/dev/null', png);
+    }
     // Erkak: BB krem — erkaklarniki, soch pomadasi, lab/rumyana (ayollarniki) — yo'q
     await sorov(`update users set gender = 'erkak' where id = $1`, [u.id]);
     const rE = (await chaqirIlova('/api/makiyaj', 'POST', { image: rasmMk, mime: 'image/jpeg' }, token)).tana.rangim || {};
@@ -5562,6 +5586,7 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     await chaqirIlova('/api/makiyaj/sozlama', 'POST', { yoqiq: true }, token);
     test('makiyaj: qayta yoqadi', (await chaqirIlova('/api/me', 'GET', null, token)).tana.makiyaj === true);
     await sorov('update users set gender = null, makiyaj = null where id = $1', [u.id]);
+    await sorov('delete from media where id in (select yuz_rasm_id from makiyaj_profillar where user_id = $1)', [u.id]);
     await sorov('delete from makiyaj_profillar where user_id = $1', [u.id]);
     await sorov('delete from products where id = any($1)', [mk]);
 
@@ -5574,6 +5599,7 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     // tashqariga yozilgan kod ilova ochilishida xato berib, uni buzadi
     test('ilova: hamma kod asosiy blok ichida (oxiri «boshla(); });»)', /\nboshla\(\);\n\}\);\s*$/.test(jsM));
     test('ilova: natija sahifasida makiyaj kartasi yo‘q (rejim — skaner tepasida)', !/t-makiyajga/.test(jsM));
+    test('ilova: rangim sahifasida odamning surati', /class="rg-surat"/.test(jsM) && /\/media\/\$\{esc\(r\.yuz_rasm_id\)\}/.test(jsM));
   }
 
   // Ilova

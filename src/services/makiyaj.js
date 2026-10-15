@@ -3,12 +3,16 @@
 // Rasm → AI rang tahlili (src/ai/makiyaj.js) + yonoqdan o'lchangan teri rangi
 // (src/rasm/teri-rangi.js) → katalogdan har bosqichga mos mahsulot
 // (src/lib/makiyaj.js qoidalari) → bazaga. Ilova ham, bot ham shu yerdan.
-import { qator, qatorlar, sorov } from '../db.js';
+import { qator, qatorlar, sorov, sozlama } from '../db.js';
 import { rangniTahlilQil } from '../ai/makiyaj.js';
 import { teriRangi } from '../rasm/teri-rangi.js';
+import { makiyajSvg } from '../rasm/makiyaj-kartochka.js';
+import { svgdanPng } from '../rasm/chiz.js';
+import { brendNomi } from '../lib/brend.js';
 import {
   MAKIYAJ_BOSQICHLAR, RANG_TIPLARI, TUSLAR, CHUQURLIK, makiyajmi, makiyajKorinadimi,
   tonlarniSarala, rangBoyichaSarala, chuqurlikRaqami, bosqichlarJins, erkaklarUchunmi, ERKAK_FAQAT_OZI,
+  makiyajBosqichi,
 } from '../lib/makiyaj.js';
 
 const KUNLIK = 6;   // bir kunda nechta rang tahlili (AI chaqiruvi qimmat)
@@ -32,7 +36,9 @@ const TON_HARF = { iliq: 'W', sovuq: 'C', neytral: 'N', zaytun: 'N' };
 export function mahsulotTanla(profil, katalog) {
   const erkak = profil.jins === 'erkak';
   // Ayolga erkaklar mahsuloti tavsiya qilinmaydi; erkakka — avval o'zinikilar
-  const bor = katalog.filter((p) => makiyajmi(p) && (erkak || !erkaklarUchunmi(p)));
+  // Bosqich — mahsulotniki yoki (Makiyaj toifasida, bosqichi tanlanmagan) nomidan
+  const bor = katalog.filter((p) => makiyajmi(p) && (erkak || !erkaklarUchunmi(p)))
+    .map((p) => ({ ...p, step: makiyajBosqichi(p) })).filter((p) => p.step);
   const omborda = bor.filter((p) => p.stock > 0);
   const manba = omborda.length ? omborda : bor;
   const bosqichda = (k) => {
@@ -73,14 +79,42 @@ function korinish(r) {
     rang_tipi: r.rang_tipi, rang_tipi_nom: RANG_TIPLARI[r.rang_tipi]?.nom || r.rang_tipi,
     palitra: RANG_TIPLARI[r.rang_tipi] || null,
     yuz_shakli: r.yuz_shakli, kozlar: r.kozlar, teri_hex: r.teri_hex,
+    yuz_rasm_id: r.yuz_rasm_id || null,
     yoruglik: n.yoruglik || 'kunduzgi', kontrast: n.kontrast, lab: n.lab,
     izoh: n.izoh || '', maslahat: n.maslahat || {}, tavsiya: n.tavsiya || [],
     bosqichlar: bosqichlarJins(n.jins),
   };
 }
 
-export const oxirgiRangim = async (userId) => korinish(await qator(
-  'select * from makiyaj_profillar where user_id = $1 order by created_at desc limit 1', [userId]).catch(() => null));
+/** Tavsiya joriy katalogdan QAYTA tanlanadi: rang aniqlangandan keyin
+ *  qo'shilgan mahsulot ham darhol chiqadi, sotuvdan olingani — yo'qoladi. */
+async function yangiTavsiya(r, katalog) {
+  if (!r) return r;
+  const k = katalog || await (await import('./analysis.js')).faolMahsulotlar();
+  const tavsiya = mahsulotTanla({ tus: r.tus, chuqurlik: r.chuqurlik, rang_tipi: r.rang_tipi,
+    teri_hex: r.teri_hex, jins: r.jins }, k);
+  return { ...r, tavsiya };
+}
+
+export const oxirgiRangim = async (userId) => yangiTavsiya(korinish(await qator(
+  'select * from makiyaj_profillar where user_id = $1 order by created_at desc limit 1', [userId]).catch(() => null)));
+
+/** Odamning suratini saqlaydi (teri tahlilidagi qoida bilan). */
+async function suratniSaqla(profilId, base64, mime) {
+  if (!/^image\/(jpe?g|png)$/i.test(String(mime || ''))) return null;
+  if (!(await sozlama('yuz_rasm_saqlansin', true))) return null;
+  try {
+    const bayt = Buffer.from(base64, 'base64');
+    if (bayt.length > 3 * 1024 * 1024) return null;
+    const m = await qator(`insert into media (tur, mime, bayt, hajm, goya)
+      values ('yuz', $1, $2, $3, $4) returning id`, [mime, bayt, bayt.length, `Makiyaj #${profilId}`]);
+    await sorov('update makiyaj_profillar set yuz_rasm_id = $1 where id = $2', [m.id, profilId]);
+    return m.id;
+  } catch (e) {
+    console.error('MAKIYAJ SURATI SAQLANMADI:', e.message);
+    return null;
+  }
+}
 
 /**
  * @returns {Promise<{yaroqli:boolean, sabab?, izoh?, rangim?, mahsulotlar?}>}
@@ -108,12 +142,41 @@ export async function rangimniTahlilQil(user, base64, mime) {
     [user.id, a.tus, a.chuqurlik, a.rang_tipi, a.yuz_shakli, a.kozlar, teri_hex,
      JSON.stringify({ jins, yoruglik: a.yoruglik, tus_ishonch: a.tus_ishonch, kontrast: a.kontrast, lab: a.lab,
        izoh: a.izoh, maslahat: a.maslahat, tavsiya })]);
+  r.yuz_rasm_id = await suratniSaqla(r.id, base64, mime);
   const idlar = new Set(tavsiya.map((x) => x.product_id));
   return { yaroqli: true, rangim: korinish(r), mahsulotlar: katalog.filter((p) => idlar.has(p.id)) };
 }
 
+/**
+ * Natija kartochkasi (PNG) — botga yuboriladi. Chizib bo'lmasa null:
+ * unda bot matn bilan javob beradi.
+ */
+export async function rangimKartochkasi({ rangim, mahsulotlar = [], rasmBase64 = null, mime = 'image/jpeg' }) {
+  try {
+    const kerak = mahsulotlar.filter((p) => (rangim.tavsiya || []).some((t) => t.product_id === p.id && !t.muqobil));
+    const posterlar = kerak.map((p) => p.poster_id).filter(Boolean);
+    const rasmlar = posterlar.length ? await qatorlar(
+      'select id, mime, bayt from media where id = any($1::uuid[])', [posterlar]) : [];
+    const rk = new Map(rasmlar.map((m) => [String(m.id), m]));
+    const karta = new Map(kerak.map((p) => {
+      const m = p.poster_id ? rk.get(String(p.poster_id)) : null;
+      const ochiladi = m?.bayt && /^image\/(png|jpe?g)$/i.test(m.mime || '');
+      return [p.id, {
+        nom: `${p.brand ? p.brand + ' ' : ''}${p.nom_uz || p.name}${p.variant_nom ? ' — ' + p.variant_nom : ''}`,
+        rang_hex: p.rang_hex, rasmBase64: ochiladi ? Buffer.from(m.bayt).toString('base64') : null, rasmMime: m?.mime,
+      }];
+    }));
+    const surat = rasmBase64 && /^image\/(jpe?g|png)$/i.test(mime) ? rasmBase64 : null;
+    const svg = makiyajSvg({ rangim, mahsulotlar: karta, rasmBase64: surat, mime, brend: await brendNomi() });
+    return await svgdanPng(svg, 1080);
+  } catch (e) {
+    console.error('MAKIYAJ RASMI CHIZILMADI:', e.message);
+    return null;
+  }
+}
+
 /** Bot uchun qisqa matn (HTML). */
-export function rangimMatni(r, nomlar = new Map()) {
+export function rangimMatni(r, nomlar = new Map(), { qisqa = false } = {}) {
   const p = r.palitra || {};
   const q = (k) => r.maslahat?.[k] ? `\n• ${r.maslahat[k]}` : '';
   const ton = r.tavsiya.find((x) => x.bosqich === 'ton' && !x.muqobil);
@@ -124,7 +187,7 @@ export function rangimMatni(r, nomlar = new Map()) {
     `🧴 Sizga mos ${r.erkak ? 'BB krem' : 'kushon'} toni: <b>${r.ton_kodi}</b> atrofida`,
     ton && nomlar.get(ton.product_id) ? `   ✓ Katalogdan: ${nomlar.get(ton.product_id)}` : '',
     p.izoh ? `\n<i>${p.izoh}</i>` : '',
-    ``, `<b>Maslahat:</b>${q('ton')}${r.erkak ? q('qosh') : q('rumyana')}${q('lab')}`,
+    qisqa ? '' : `\n<b>Maslahat:</b>${q('ton')}${r.erkak ? q('qosh') : q('rumyana')}${q('lab')}`,
     r.yoruglik !== 'kunduzgi' ? `\n⚠️ <i>Rasm xona chirog'ida olingan — ranglar biroz farq qilishi mumkin. Aniqroq natija uchun deraza yonida qayta oling.</i>` : '',
   ].filter((x) => x !== '').join('\n');
 }
