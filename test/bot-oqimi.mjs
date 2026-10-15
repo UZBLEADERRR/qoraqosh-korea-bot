@@ -636,7 +636,8 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
   const chatda = (matnQism) => korinadigan().filter((y) => odamlar.includes(String(y.chat_id)) && String(y.text || '').includes(matnQism));
 
   // 1) id lar saqlanadi va shular bilan o'chiriladi
-  const b1 = await B.broadcastBoshla({ matn: '<b>Xato aksiya</b>, {ism}: hammasi 90% arzon', userIdlar: ids });
+  const nr = Date.now().toString(36);
+  const b1 = await B.broadcastBoshla({ matn: `<b>Xato aksiya</b>, {ism}: hammasi 90% arzon ${nr}`, userIdlar: ids });
   await kutTugash(`select holat <> 'ketmoqda' as t from yuborishlar where id = $1`, b1.id);
   test('ommaviy xabar id lari saqlanadi', (await qator('select count(*)::int as n from yuborish_xabarlar where yuborish_id = $1', [b1.id])).n === 3);
   test('xabar 3 ta chatda ko‘rinadi', chatda('Xato aksiya').length === 3);
@@ -646,7 +647,7 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
     && (await qator('select ochirildi from yuborishlar where id = $1', [b1.id])).ochirildi === 3);
 
   // 2) id lar saqlanmagan eski xabar — matni bo'yicha qidirib o'chiriladi, boshqa xabarga tegmaydi
-  const b2 = await B.broadcastBoshla({ matn: 'Eski xato xabar: {ism}, ertaga do‘kon yopiq', userIdlar: ids });
+  const b2 = await B.broadcastBoshla({ matn: `Eski xato xabar: {ism}, ertaga do‘kon yopiq ${nr}`, userIdlar: ids });
   await kutTugash(`select holat <> 'ketmoqda' as t from yuborishlar where id = $1`, b2.id);
   await sorov('delete from yuborish_xabarlar where yuborish_id = $1', [b2.id]);
   const { yubor: botYubor } = await import('../src/bot/tg.js');
@@ -664,6 +665,25 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
   test('qidiruv: boshqa xabarga tegmadi', chatda('Boshqa muhim xabar').length === 1);
   test('qidiruv: yordamchi «·» va forward nusxalari chatda qolmadi',
     !korinadigan().some((y) => (odamlar.includes(String(y.chat_id)) || String(y.chat_id) === '700001') && y.text === '·'));
+
+  // 2b) Bir xil xabar 10 daqiqada qayta ommaviy ketmaydi (qaysi yo'l bilan kelmasin)
+  const t1 = await B.broadcastBoshla({ matn: `Takror himoyasi sinovi ${nr}`, userIdlar: ids });
+  const t2 = await B.broadcastBoshla({ matn: `Takror himoyasi sinovi ${nr}`, userIdlar: ids });
+  test('bir xil xabar 10 daqiqa ichida qayta yuborilmaydi', !t1.takror && t2.takror === true && t2.id === t1.id && t2.jami === 0);
+  await kutTugash(`select holat <> 'ketmoqda' as t from yuborishlar where id = $1`, t1.id);
+
+  // 2c) Takror ketgan nusxalar GURUH bo'lib birga o'chiriladi
+  await sorov(`insert into yuborishlar (matn, holat, jami, yuborildi, created_at, tugadi_at)
+    select matn, 'tugadi', jami, yuborildi, created_at + interval '1 minute', tugadi_at + interval '1 minute' from yuborishlar where id = $1`, [t1.id]);
+  const nusxaId = (await qator('select max(id) as id from yuborishlar where matn = $1', [`Takror himoyasi sinovi ${nr}`])).id;
+  for (const t of odamlar) {
+    const m = await botYubor(t, `Takror himoyasi sinovi ${nr}`);
+    await sorov('insert into yuborish_xabarlar (yuborish_id, telegram_id, message_id) values ($1, $2, $3)', [nusxaId, t, m.result.message_id]);
+  }
+  test('nusxa bilan har chatda 2 tadan', odamlar.every((t) => korinadigan().filter((y) => String(y.chat_id) === t && y.text === `Takror himoyasi sinovi ${nr}`).length === 2));
+  const rG = await B.yuborishniOchir({ id: t1.id });
+  await kutTugash(`select ochirish_holat = 'tugadi' as t from yuborishlar where id = $1`, nusxaId);
+  test('takror nusxalar birga o‘chdi', rG.nusxa === 2 && chatda(`Takror himoyasi sinovi ${nr}`).length === 0, `${chatda(`Takror himoyasi sinovi ${nr}`).length} qoldi`);
 
   // 3) 48 soatdan eski — Telegram o'chirmaydi, aniq aytiladi
   await sorov(`update yuborishlar set created_at = now() - interval '3 days', ochirish_holat = null where id = $1`, [b2.id]);

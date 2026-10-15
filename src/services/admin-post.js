@@ -203,6 +203,8 @@ export async function postYubor(a = {}) {
   if (!idlar.length) return { yuborildi: 0, xabar: 'Bu kategoriyada Telegramda hech kim yo‘q.' };
   const { broadcastBoshla } = await import('./broadcast.js');
   const b = await broadcastBoshla({ matn: tana, fileId: rasm || undefined, userIdlar: idlar, tugma });
+  if (b.takror) return { yuborildi: 0, takror: true, yuborish_id: b.id,
+    xabar: `Bu xabar 10 daqiqa ichida allaqachon yuborilgan (#${b.id}) — qayta yuborilmadi.` };
   return { yuborildi: b.jami, bajarildi: true, yuborish_id: b.id, rasm: Boolean(rasm),
     natija: `${b.jami} kishiga yuborish boshlandi (fonda, sekundiga ~10 ta).` };
 }

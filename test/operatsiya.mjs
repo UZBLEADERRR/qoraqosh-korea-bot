@@ -2310,6 +2310,26 @@ console.log('\n── ADMIN YORDAMCHISI ──');
   test('cheklovda ham tushunarli javob', /bo‘laklarga/.test(a3.tana.javob || ''),
     a3.tana.javob?.slice(0, 60));
 
+  // ── TAKROR: model bitta post_yubor ni 16 marta chaqirsa ham rejada BITTA ──
+  // (haqiqiy hodisa: bitta tasdiq bilan bitta xabar hammaga 16 marta ketdi)
+  globalThis.AGENT_QADAMLAR = Array.from({ length: 20 }, () => (
+    { fikr: 'Yuboraman', amal: 'vosita', vosita: 'post_yubor',
+      argumentlar_json: JSON.stringify({ kimga: 'bot', matn: 'Takror sinov posti', kategoriya: 'hammasi' }),
+      javob: '', reja_izoh: 'Hammaga post', takliflar: [] }));
+  const aT = await agentSora({ savol: 'Hammaga post yubor' });
+  test('bir xil yozish amali rejaga BIR MARTA tushadi', aT.tana.reja?.qadamlar?.length === 1,
+    `${aT.tana.reja?.qadamlar?.length} qadam`);
+  test('takror aniqlangach sikl to‘xtaydi (16 qadamgacha aylanmaydi)', (aT.tana.qadamlar || []).length <= 4,
+    `${aT.tana.qadamlar?.length} qadam`);
+  globalThis.AGENT_QADAMLAR = [1, 2, 3, 4, 5].map((i) => (
+    { fikr: 'Yuboraman', amal: 'vosita', vosita: 'ommaviy_xabar',
+      argumentlar_json: JSON.stringify({ segment: 'hammasi', matn: `Har xil xabar ${i}` }),
+      javob: '', reja_izoh: 'Ommaviy', takliflar: [] }));
+  const aO = await agentSora({ savol: 'Besh xil xabar yubor' });
+  test('bitta taklifda 3 tadan ortiq ommaviy yuborish yo‘q', aO.tana.reja?.qadamlar?.length === 3,
+    `${aO.tana.reja?.qadamlar?.length} qadam`);
+  globalThis.AGENT_QADAMLAR = [];
+
   // Model yo'q vositani tanlasa yiqilmaydi
   globalThis.AGENT_QADAMLAR = [
     { fikr: 'x', amal: 'vosita', vosita: 'yoq_vosita', argumentlar_json: '{}',

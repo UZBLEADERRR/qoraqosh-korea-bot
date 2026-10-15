@@ -52,6 +52,14 @@ const DAVO = /(o[‘'`ʻ]?chir|yop|o[‘'`ʻ]?zgartir|bajar|qo[‘'`ʻ]?sh|saqla
  * @param {Array}  tarix  [{kim:'admin'|'ai', matn}]
  * @param {Array}  [rasmlar] [{base64, mime}] — admin biriktirgan suratlar
  */
+/** Amalni solishtirish uchun kalit: vosita + argumentlar (kalitlar tartibidan qat'i nazar). */
+function amalKaliti(vosita, a) {
+  const tartib = (x) => (Array.isArray(x) ? x.map(tartib)
+    : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, tartib(x[k])])) : x);
+  return `${vosita}|${JSON.stringify(tartib(a || {}))}`;
+}
+const OMMAVIY = new Set(['post_yubor', 'ommaviy_xabar']);
+
 export async function agentJavobi(savol, tarix = [], rasmlar = [], kuzat = null, kontekst = '') {
   // `kuzat` — har qadamda chaqiriladi. Admin agent NIMA ustida
   // ishlayotganini jonli ko'rsin: ilgari u faqat aylanayotgan
@@ -62,6 +70,7 @@ export async function agentJavobi(savol, tarix = [], rasmlar = [], kuzat = null,
   // oxirida BITTA taklif bo'lib ko'rsatiladi. Shunda admin bir
   // xabarda bir necha ish so'rasa ham hammasi bajariladi.
   const yoziladigan = [];
+  let takrorSoni = 0;
   // Grafiklar — model chizishni so'ragan, biz esa javob bilan birga
   // adminga uzatamiz
   const grafiklar = [];
@@ -95,6 +104,27 @@ export async function agentJavobi(savol, tarix = [], rasmlar = [], kuzat = null,
 
     // ── YOZISH: navbatga qo'yamiz va ISHNI DAVOM ETTIRAMIZ ──
     if (yozishmi(q.vosita)) {
+      // TAKROR: model «tasdiq kutmoqda» ni ko'rib o'sha amalni qayta-qayta
+      // chaqirardi — 16 qadamning hammasi bir xil post_yubor bo'lib, bitta
+      // tasdiq bilan bitta xabar hammaga 16 MARTA ketgan. Bir xil amal
+      // ikkinchi marta navbatga qo'yilmaydi; uchinchisida sikl to'xtaydi.
+      const kalit = amalKaliti(q.vosita, q.argumentlar);
+      if (yoziladigan.some((x) => amalKaliti(x.vosita, x.argumentlar) === kalit)) {
+        takrorSoni++;
+        qadamlar.push({ vosita: q.vosita, argumentlar: q.argumentlar,
+          natija: { holat: 'allaqachon_navbatda',
+            eslatma: 'Bu AYNAN SHU amal allaqachon navbatda. Uni QAYTA CHAQIRMA — admin tasdiqlasa bir marta bajariladi. '
+                   + 'Endi javob yoz.' } });
+        if (takrorSoni >= 2) break;
+        continue;
+      }
+      // Ommaviy yuborish bitta rejada ko'pi bilan 3 ta (har xil segment/matn)
+      if (OMMAVIY.has(q.vosita) && q.argumentlar?.kimga !== 'sinov'
+          && yoziladigan.filter((x) => OMMAVIY.has(x.vosita) && x.argumentlar?.kimga !== 'sinov').length >= 3) {
+        qadamlar.push({ vosita: q.vosita, argumentlar: q.argumentlar,
+          natija: { holat: 'rad', eslatma: 'Bitta taklifda 3 tadan ortiq ommaviy yuborish bo‘lmaydi. Javob yoz.' } });
+        continue;
+      }
       yoziladigan.push({
         vosita: q.vosita,
         argumentlar: q.argumentlar,
@@ -203,7 +233,11 @@ export async function rejaniBajar(token) {
   // baribir bajariladi va hisobotda qaysi biri yiqilgani ko'rinadi —
   // «hammasi yiqildi» deb qaytarish adminni chalg'itadi.
   const natijalar = [];
+  const bajarilgan = new Set();
   for (const q of reja.qadamlar) {
+    const kalit = amalKaliti(q.vosita, q.argumentlar);
+    if (bajarilgan.has(kalit)) continue;          // bir xil qadam ikki marta bajarilmaydi
+    bajarilgan.add(kalit);
     try {
       const n = await vositaniBajar(q.vosita, q.argumentlar);
       // MUHIM: vosita xato TASHLAMAY ham ishni bajarmagan bo'lishi

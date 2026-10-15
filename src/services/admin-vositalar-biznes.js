@@ -343,6 +343,8 @@ export async function ommaviyXabar(a = {}) {
   const { broadcastBoshla } = await import('./broadcast.js');
   const { xavfsizHtml } = await import('./admin-post.js');
   const b = await broadcastBoshla({ matn: xavfsizHtml(tana), userIdlar: idlar });
+  if (b.takror) return { yuborildi: 0, takror: true, yuborish_id: b.id,
+    xabar: `Bu xabar 10 daqiqa ichida allaqachon yuborilgan (#${b.id}) — qayta yuborilmadi.` };
   return { yuborildi: b.jami, bajarildi: true, yuborish_id: b.id,
     natija: `${b.jami} kishiga yuborish boshlandi (fonda, sekundiga ~10 ta).` };
 }

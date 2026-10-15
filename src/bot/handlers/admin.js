@@ -421,6 +421,9 @@ async function reklamaniYubor(cq, user) {
   const yuborish = await broadcastBoshla({
     matn: d.matn || '', fileId: d.file_id || null, adminId: user.id, chatId: cq.message.chat.id,
   });
+  if (yuborish.takror) {
+    return yubor(cq.message.chat.id, `⚠️ Bu xabar 10 daqiqa ichida allaqachon yuborilgan (#${yuborish.id}) — qayta yuborilmadi.`);
+  }
   return yubor(cq.message.chat.id,
     `📤 <b>Yuborilmoqda…</b>\n\n${yuborish.jami} ta foydalanuvchiga.\n` +
     `<i>Tugagach hisobot yuboraman.</i>`);
@@ -711,11 +714,19 @@ export async function adminHolati(msg, user) {
 // ─── Noto'g'ri ketgan ommaviy xabarni hammadan o'chirish ───
 async function yuborishlarRoyxati(chatId) {
   const { oxirgiYuborishlar } = await import('../../services/broadcast.js');
-  const r = await oxirgiYuborishlar(5);
-  if (!r.length) return yubor(chatId, 'Hali ommaviy xabar yuborilmagan.');
+  const xom = await oxirgiYuborishlar(20);
+  if (!xom.length) return yubor(chatId, 'Hali ommaviy xabar yuborilmagan.');
+  // Bir xil matn ketma-ket ko'p marta ketgan bo'lsa — bitta qator, «×16»
+  const r = [];
+  for (const y of xom) {
+    const oxirgi = r[r.length - 1];
+    if (oxirgi && oxirgi.matn === y.matn) { oxirgi.nusxa++; continue; }
+    if (r.length >= 5) break;
+    r.push({ ...y, nusxa: 1 });
+  }
   const sana = (d) => new Date(d).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const matnBosh = (m) => esc(String(m || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').slice(0, 70));
-  const qator = (y) => `<b>#${y.id}</b> · ${sana(y.created_at)} · ${y.yuborildi}/${y.jami}`
+  const qator = (y) => `<b>#${y.id}</b>${y.nusxa > 1 ? ` <b>×${y.nusxa}</b> ⚠️` : ''} · ${sana(y.created_at)} · ${y.yuborildi}/${y.jami}`
     + (y.ochirish_holat === 'tugadi' ? ` · 🗑 o‘chirilgan (${y.ochirildi})` : y.ochirish_holat === 'ketmoqda' ? ' · ⏳ o‘chirilmoqda' : '')
     + `\n<i>${matnBosh(y.matn) || '(rasm)'}</i>`;
   return yubor(chatId, [`📨 <b>Oxirgi yuborishlar</b>`, ``, ...r.map(qator).flatMap((x) => [x, ``]),
@@ -728,12 +739,16 @@ async function yuborishlarRoyxati(chatId) {
 async function ochirishTasdigi(cq) {
   const id = Number(cq.data.split(':')[1]);
   await javobBer(cq.id);
-  const y = await qator('select id, yuborildi, matn from yuborishlar where id = $1', [id]);
+  const y = await qator('select id, yuborildi, matn, created_at from yuborishlar where id = $1', [id]);
   if (!y) return yubor(cq.message.chat.id, 'Bu yuborish topilmadi.');
+  const nusxa = (await qator(`select count(*)::int as n from yuborishlar where matn = $1
+    and created_at between $2::timestamptz - interval '2 hours' and $2::timestamptz + interval '2 hours'
+    and coalesce(ochirish_holat, '') <> 'tugadi'`, [y.matn, y.created_at]))?.n || 1;
   return yubor(cq.message.chat.id, [
-    `⚠️ <b>#${y.id} xabar ${y.yuborildi} ta odamning chatidan o‘chiriladi.</b>`, ``,
+    `⚠️ <b>#${y.id} xabar ${y.yuborildi} ta odamning chatidan o‘chiriladi.</b>`,
+    nusxa > 1 ? `Bu xabar <b>${nusxa} marta</b> ketgan — hamma nusxalari o‘chiriladi.` : null, ``,
     `<i>${esc(String(y.matn || '').replace(/<[^>]+>/g, '').slice(0, 200))}</i>`, ``,
-    `Buni qaytarib bo‘lmaydi. Davom etamizmi?`].join('\n'), {
+    `Buni qaytarib bo‘lmaydi. Davom etamizmi?`].filter((x) => x !== null).join('\n'), {
     reply_markup: { inline_keyboard: [[{ text: '✅ Ha, hammadan o‘chirish', callback_data: `yoh:${y.id}` }],
       [{ text: 'Bekor', callback_data: 'rek_bekor' }]] },
   });

@@ -28,6 +28,15 @@ export async function broadcastBoshla({ matn, fileId, adminId, chatId, userIdlar
   // `userIdlar` — faqat shu segmentga (AI yordamchi «tahlil qilib sotib
   // olmaganlarga yoz» deganda). Berilmasa — hammaga.
   const segment = Array.isArray(userIdlar);
+  // TAKROR HIMOYASI: qaysi yo'l bilan kelmasin (AI, /reklama, ikki marta
+  // bosish) — AYNAN SHU xabar 10 daqiqa ichida qayta ommaviy ketmaydi.
+  const oldingi = await qator(
+    `select id, jami from yuborishlar where matn = $1 and created_at > now() - interval '10 minutes'
+       and coalesce(holat, '') <> 'bekor' order by id desc limit 1`, [matn || '']);
+  if (oldingi && (matn || '').length >= 3) {
+    console.warn('BROADCAST: takror yuborish to‘xtatildi — #' + oldingi.id);
+    return { id: oldingi.id, jami: 0, takror: true };
+  }
   const oluvchilar = await qatorlar(
     // Faqat HAQIQIY Telegram id (raqam). Google/telefon bilan kirganlar,
     // ochiq skaner mehmonlari va o'chirilgan hisoblar (`google:…`,
@@ -137,7 +146,7 @@ export const broadcastHolati = (id) => qator('select * from yuborishlar where id
 //      forward qilish (darhol o'chiriladi). Odamning o'z xabariga tegmaymiz.
 
 const OCHIR_ORALIQ = globalThis.OCHIR_ORALIQ ?? 45;   // ~20 so'rov/sekund — Telegram chegarasidan past
-const CHUQUR = 15;                    // har chatda nechta oxirgi xabarga qaraymiz
+const CHUQUR = globalThis.OCHIR_CHUQUR ?? 40;   // har chatda nechta oxirgi xabarga qaraymiz (bir xabar 16 marta ketgan holat ham)
 
 /** 429 bo'lsa Telegram aytgan vaqt kutib qayta uradi. */
 async function chaqir(usul, tana) {
@@ -198,38 +207,48 @@ export async function yuborishniOchir(o = {}) {
   }
   if (y?.ochirish_holat === 'ketmoqda') return { xato: 'Bu xabar hozir o‘chirilmoqda — tugashini kuting.' };
 
+  // GURUH: aynan shu matn 2 soat ichida bir necha marta ketgan bo'lsa
+  // (takror yuborish), hammasi BIRGA o'chiriladi
+  const guruh = y ? await qatorlar(
+    `select id, created_at, tugadi_at from yuborishlar where matn = $1
+       and created_at between $2::timestamptz - interval '2 hours' and $2::timestamptz + interval '2 hours'
+       and coalesce(ochirish_holat, '') <> 'tugadi' order by id`, [y.matn, y.created_at]) : [];
+  const gIdlar = guruh.length ? guruh.map((g) => g.id) : (y ? [y.id] : []);
   const tekshir = moslovchi(o.namuna || y?.matn || '');
-  const idlar = y ? await qatorlar('select telegram_id, message_id from yuborish_xabarlar where yuborish_id = $1', [y.id]) : [];
+  const idlar = y ? await qatorlar('select telegram_id, message_id from yuborish_xabarlar where yuborish_id = any($1)', [gIdlar]) : [];
   if (!idlar.length && !tekshir) return { xato: 'Xabar matni yo‘q — qaysi xabarni o‘chirishni aniqlab bo‘lmaydi. Matnning boshini yozing.' };
 
   const admin = idlar.length ? null : await adminChati(o.adminChat);
   if (!idlar.length && !admin) return { xato: 'Admin Telegram chati topilmadi (ADMIN_TELEGRAM_IDS).' };
 
-  if (y) await sorov(`update yuborishlar set ochirish_holat = 'ketmoqda' where id = $1`, [y.id]);
-  const oxir = y?.tugadi_at ? new Date(y.tugadi_at).getTime() + 120e3 : Date.now() + 60e3;
+  if (y) await sorov(`update yuborishlar set ochirish_holat = 'ketmoqda' where id = any($1)`, [gIdlar]);
+  const boshG = guruh.length ? Math.min(...guruh.map((g) => new Date(g.created_at).getTime())) : bosh.getTime();
+  const oxirlar = guruh.map((g) => (g.tugadi_at ? new Date(g.tugadi_at).getTime() : Date.now()));
+  const oxir = (oxirlar.length ? Math.max(...oxirlar) : (y?.tugadi_at ? new Date(y.tugadi_at).getTime() : Date.now())) + 120e3;
   const ish = idlar.length
     ? idBilanOchir(idlar)
-    : qidiribOchir({ tekshir, admin, dan: bosh.getTime() - 60e3, gacha: oxir });
+    : qidiribOchir({ tekshir, admin, dan: boshG - 60e3, gacha: oxir });
 
   ish.then(async (r) => {
-    if (y) await sorov(`update yuborishlar set ochirish_holat = 'tugadi', ochirildi = $2, ochirildi_at = now() where id = $1`, [y.id, r.ochirildi]);
-    if (y && idlar.length) await sorov('delete from yuborish_xabarlar where yuborish_id = $1', [y.id]).catch(() => {});
+    if (y) await sorov(`update yuborishlar set ochirish_holat = 'tugadi', ochirildi = $2, ochirildi_at = now() where id = any($1)`, [gIdlar, r.ochirildi]);
+    if (y && idlar.length) await sorov('delete from yuborish_xabarlar where yuborish_id = any($1)', [gIdlar]).catch(() => {});
     if (o.hisobotChat) {
       await yubor(o.hisobotChat, [
         `🗑 <b>Xabar o‘chirildi</b>`, ``,
-        `✅ O‘chirildi: <b>${r.ochirildi}</b> ta chatdan`,
+        gIdlar.length > 1 ? `Bir xil xabar ${gIdlar.length} marta ketgan edi — hammasi o‘chirildi.` : '',
+        `✅ O‘chirildi: <b>${r.ochirildi}</b> ta xabar${r.chatlar ? ` (${r.chatlar} ta chatda)` : ''}`,
         r.topilmadi ? `ℹ️ Topilmadi yoki allaqachon yo‘q: ${r.topilmadi}` : '',
         r.xato ? `⚠️ O‘chirib bo‘lmadi: ${r.xato}` : '',
       ].filter(Boolean).join('\n')).catch(() => {});
     }
   }).catch(async (e) => {
     console.error('YUBORISH O‘CHIRISH:', e.message);
-    if (y) await sorov(`update yuborishlar set ochirish_holat = 'xato' where id = $1`, [y.id]).catch(() => {});
+    if (y) await sorov(`update yuborishlar set ochirish_holat = 'xato' where id = any($1)`, [gIdlar]).catch(() => {});
     if (o.hisobotChat) await yubor(o.hisobotChat, `⚠️ O‘chirish to‘xtadi: ${e.message}`).catch(() => {});
   });
 
   return { boshlandi: true, yuborish_id: y?.id || null, usul: idlar.length ? 'id' : 'qidiruv',
-    jami: idlar.length || null };
+    jami: idlar.length || null, nusxa: gIdlar.length };
 }
 
 async function idBilanOchir(idlar) {
@@ -245,7 +264,7 @@ async function idBilanOchir(idlar) {
 }
 
 async function qidiribOchir({ tekshir, admin, dan, gacha }) {
-  let ochirildi = 0, topilmadi = 0, xato = 0;
+  let ochirildi = 0, topilmadi = 0, xato = 0, chatlar = 0;
   const odamlar = await qatorlar(
     `select telegram_id from users where telegram_id ~ '^[0-9]+$' and not is_blocked and bot_bloklagan_at is null
        and created_at <= to_timestamp($1 / 1000.0) order by id`, [gacha]);
@@ -255,7 +274,7 @@ async function qidiribOchir({ tekshir, admin, dan, gacha }) {
     if (!p?.ok) { topilmadi++; await kut(OCHIR_ORALIQ); continue; }
     const P = p.result.message_id;
     await chaqir('deleteMessage', { chat_id: tid, message_id: P });
-    let topildi = false;
+    let topildi = 0;
     for (let k = 1; k <= CHUQUR && P - k > 0; k++) {
       await kut(OCHIR_ORALIQ);
       const f = await chaqir('forwardMessage', { chat_id: admin, from_chat_id: tid, message_id: P - k, disable_notification: true });
@@ -268,11 +287,11 @@ async function qidiribOchir({ tekshir, admin, dan, gacha }) {
       if (!botdan || (vaqt && vaqt > gacha)) continue;
       if (!tekshir(m.text || m.caption || '')) continue;
       const d = await chaqir('deleteMessage', { chat_id: tid, message_id: P - k });
-      if (d?.ok) { ochirildi++; topildi = true; } else xato++;
-      break;
+      if (d?.ok) { ochirildi++; topildi++; } else xato++;
+      // to'xtamaymiz: xabar bir chatga bir necha marta ketgan bo'lishi mumkin
     }
-    if (!topildi) topilmadi++;
+    if (topildi) chatlar++; else topilmadi++;
     await kut(OCHIR_ORALIQ);
   }
-  return { ochirildi, topilmadi, xato };
+  return { ochirildi, topilmadi, xato, chatlar };
 }
