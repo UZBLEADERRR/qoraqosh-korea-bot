@@ -354,6 +354,7 @@ export function soxtaServer(port = 4444) {
           return j({ ok: false, error_code: 400, description: 'Bad Request: PEER_FLOOD' });
         }
         b.id = ++xabarId;
+        b.sana = Math.floor(Date.now() / 1000);
         yuborilgan.push(b);
         urinishlar.push({ usul: 'sendMessage', chat_id: b.chat_id });
         return j({ ok: true, result: { message_id: b.id, chat: { id: b.chat_id } } });
@@ -390,6 +391,16 @@ export function soxtaServer(port = 4444) {
       }
       // O'chirilgan xabar chatda qolmaydi — sinov aynan foydalanuvchi
       // ko'radigan holatni tekshirishi uchun belgilab qo'yamiz.
+      // Bot o'z chatidagi xabarni forward qila oladi — «hammadan o'chirish»
+      // qidiruvi shu bilan xabar matnini o'qiydi
+      if (yol.endsWith('/forwardMessage')) {
+        const b = JSON.parse(await tana(req) || '{}');
+        const x = yuborilgan.find((y) => y.id === Number(b.message_id) && String(y.chat_id) === String(b.from_chat_id) && !y.ochirilgan);
+        if (!x) return j({ ok: false, error_code: 400, description: 'Bad Request: message to forward not found' });
+        return j({ ok: true, result: { message_id: ++xabarId, chat: { id: b.chat_id },
+          text: String(x.text || '').replace(/<[^>]+>/g, ''),
+          forward_origin: { type: 'user', sender_user: { id: 111111, is_bot: true }, date: x.sana || Math.floor(Date.now() / 1000) } } });
+      }
       if (yol.endsWith('/deleteMessage')) {
         const b = JSON.parse(await tana(req) || '{}');
         const x = yuborilgan.find((y) => y.id === Number(b.message_id));

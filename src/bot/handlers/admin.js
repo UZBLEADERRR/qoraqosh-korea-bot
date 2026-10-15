@@ -30,6 +30,7 @@ export const BUYRUQLAR = [
   ['/orders',   'Xarid ro‘yxati (Coupang/Daiso)'],
   ['/partiya',  'Partiyalar va pochta hujjati'],
   ['/reklama',  'Hammaga xabar yuborish'],
+  ['/yuborishlar', 'Yuborilgan xabarni hammadan o‘chirish'],
   ['/reja',     'Kanal rejasi (agent)'],
   ['/tanitish', 'Mahsulotni kanalda reklama qilish'],
   ['/brend',    'Brend nomini o‘zgartirish'],
@@ -624,6 +625,7 @@ async function buyruqniBajar(buyruq, argument, chatId, user) {
     case '/orders':  await xaridRoyxatiniYubor(chatId, user); return true;
     case '/partiya': await partiyalarniKorsat(chatId); return true;
     case '/reklama': await reklamaBoshla(chatId, user); return true;
+    case '/yuborishlar': await yuborishlarRoyxati(chatId); return true;
     case '/reja':    await rejaMenyusi(chatId); return true;
     case '/tanitish': await tanitishBoshla(chatId, argument); return true;
     case '/panel':   await panelHavolasi(chatId); return true;
@@ -706,6 +708,50 @@ export async function adminHolati(msg, user) {
 }
 
 /** Admin inline tugmasi. */
+// ─── Noto'g'ri ketgan ommaviy xabarni hammadan o'chirish ───
+async function yuborishlarRoyxati(chatId) {
+  const { oxirgiYuborishlar } = await import('../../services/broadcast.js');
+  const r = await oxirgiYuborishlar(5);
+  if (!r.length) return yubor(chatId, 'Hali ommaviy xabar yuborilmagan.');
+  const sana = (d) => new Date(d).toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const matnBosh = (m) => esc(String(m || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').slice(0, 70));
+  const qator = (y) => `<b>#${y.id}</b> · ${sana(y.created_at)} · ${y.yuborildi}/${y.jami}`
+    + (y.ochirish_holat === 'tugadi' ? ` · 🗑 o‘chirilgan (${y.ochirildi})` : y.ochirish_holat === 'ketmoqda' ? ' · ⏳ o‘chirilmoqda' : '')
+    + `\n<i>${matnBosh(y.matn) || '(rasm)'}</i>`;
+  return yubor(chatId, [`📨 <b>Oxirgi yuborishlar</b>`, ``, ...r.map(qator).flatMap((x) => [x, ``]),
+    `Noto‘g‘ri ketganini tanlang — hammaning chatidan o‘chiriladi (48 soat ichida).`].join('\n'), {
+    reply_markup: { inline_keyboard: r.filter((y) => y.ochirish_holat !== 'tugadi' && y.ochirish_holat !== 'ketmoqda')
+      .map((y) => [{ text: `🗑 #${y.id} ni hammadan o‘chirish`, callback_data: `yo:${y.id}` }]) },
+  });
+}
+
+async function ochirishTasdigi(cq) {
+  const id = Number(cq.data.split(':')[1]);
+  await javobBer(cq.id);
+  const y = await qator('select id, yuborildi, matn from yuborishlar where id = $1', [id]);
+  if (!y) return yubor(cq.message.chat.id, 'Bu yuborish topilmadi.');
+  return yubor(cq.message.chat.id, [
+    `⚠️ <b>#${y.id} xabar ${y.yuborildi} ta odamning chatidan o‘chiriladi.</b>`, ``,
+    `<i>${esc(String(y.matn || '').replace(/<[^>]+>/g, '').slice(0, 200))}</i>`, ``,
+    `Buni qaytarib bo‘lmaydi. Davom etamizmi?`].join('\n'), {
+    reply_markup: { inline_keyboard: [[{ text: '✅ Ha, hammadan o‘chirish', callback_data: `yoh:${y.id}` }],
+      [{ text: 'Bekor', callback_data: 'rek_bekor' }]] },
+  });
+}
+
+async function ochirishniBoshla(cq) {
+  const id = Number(cq.data.split(':')[1]);
+  const chat = cq.message.chat.id;
+  const { yuborishniOchir } = await import('../../services/broadcast.js');
+  const r = await yuborishniOchir({ id, hisobotChat: chat, adminChat: chat });
+  await javobBer(cq.id, r.xato ? 'Bo‘lmadi' : 'Boshlandi');
+  if (cq.message) await tg('editMessageReplyMarkup', { chat_id: chat, message_id: cq.message.message_id, reply_markup: { inline_keyboard: [] } }).catch(() => {});
+  if (r.xato) return yubor(chat, `⚠️ ${esc(r.xato)}`);
+  return yubor(chat, r.usul === 'id'
+    ? `🗑 O‘chirish boshlandi — ${r.jami} ta chat. Tugagach hisobot keladi.`
+    : `🗑 O‘chirish boshlandi. Bu xabarning id lari saqlanmagan edi, shuning uchun bot har chatda oxirgi xabarlarni matni bo‘yicha qidirib o‘chiradi — bir necha daqiqa oladi. Shu payt bu chatga bir lahzalik xabarlar kelib-o‘chib turishi mumkin. Tugagach hisobot keladi.`);
+}
+
 export async function adminCallback(cq, user) {
   if (!adminmi(user)) return false;
   const d = cq.data || '';
@@ -720,6 +766,8 @@ export async function adminCallback(cq, user) {
   if (d.startsWith('pl:'))  { await partiyaRoyxati(cq); return true; }
   if (d.startsWith('p:'))   { await partiyaKarta(cq); return true; }
   if (d === 'rek_yubor')    { await reklamaniYubor(cq, user); return true; }
+  if (d.startsWith('yo:'))  { await ochirishTasdigi(cq); return true; }
+  if (d.startsWith('yoh:')) { await ochirishniBoshla(cq); return true; }
   if (d === 'rek_qayta')    { await javobBer(cq.id); await reklamaBoshla(cq.message.chat.id, user); return true; }
   if (d === 'rek_bekor')    { await javobBer(cq.id); await holatTozala(user.id);
                               await yubor(cq.message.chat.id, '❌ Bekor qilindi.'); return true; }

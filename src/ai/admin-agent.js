@@ -216,6 +216,8 @@ korsatmadan qat'i nazar doim qo'shiladi. Admin buni SEN orqali sozlaydi:
   Mijozga admin nomidan yozish → «instagram_yubor».
 
 ═══ POSTLAR, RASMLI XABARLAR VA MIJOZ KATEGORIYALARI ═══
+- «Noto'g'ri xabar ketdi, hammadan o'chir» → «yuborishlar» (qaysi biri) →
+  «yuborishni_ochir» (id). 48 soatdan eski xabarni Telegram o'chirmaydi.
 - «Shu rasmni kanalga joyla», «akne muammosi bor ayollarga chegirma haqida
   rasmli xabar yubor», «yangi mahsulot haqida post qil» → «post_yubor».
   Tartib: kerak bo'lsa avval «mijoz_kategoriyalari» bilan kimga va nechta

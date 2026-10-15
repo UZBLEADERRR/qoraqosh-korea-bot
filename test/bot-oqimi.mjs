@@ -622,6 +622,56 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
     (await qator('select bot_bloklagan_at is null as t from users where telegram_id = $1', [TG])).t === true);
 }
 
+// ═══ Noto'g'ri ketgan ommaviy xabarni hammadan o'chirish ═══
+{
+  globalThis.OCHIR_ORALIQ = 0;
+  const B = await import('../src/services/broadcast.js');
+  const odamlar = ['900101', '900102', '900103'];
+  for (const t of odamlar) {
+    await sorov(`insert into users (telegram_id, full_name) values ($1, 'Oluvchi') on conflict (telegram_id)
+      do update set is_blocked = false, bot_bloklagan_at = null`, [t]);
+  }
+  const ids = (await sorov(`select id from users where telegram_id = any($1)`, [odamlar])).rows.map((r) => r.id);
+  const kutTugash = async (sql, id) => { for (let i = 0; i < 200; i++) { const r = await qator(sql, [id]); if (r?.t) return true; await new Promise((z) => setTimeout(z, 50)); } return false; };
+  const chatda = (matnQism) => korinadigan().filter((y) => odamlar.includes(String(y.chat_id)) && String(y.text || '').includes(matnQism));
+
+  // 1) id lar saqlanadi va shular bilan o'chiriladi
+  const b1 = await B.broadcastBoshla({ matn: '<b>Xato aksiya</b>, {ism}: hammasi 90% arzon', userIdlar: ids });
+  await kutTugash(`select holat <> 'ketmoqda' as t from yuborishlar where id = $1`, b1.id);
+  test('ommaviy xabar id lari saqlanadi', (await qator('select count(*)::int as n from yuborish_xabarlar where yuborish_id = $1', [b1.id])).n === 3);
+  test('xabar 3 ta chatda ko‘rinadi', chatda('Xato aksiya').length === 3);
+  const r1 = await B.yuborishniOchir({ id: b1.id });
+  await kutTugash(`select ochirish_holat = 'tugadi' as t from yuborishlar where id = $1`, b1.id);
+  test('id bilan: hammaning chatidan o‘chdi', r1.usul === 'id' && chatda('Xato aksiya').length === 0
+    && (await qator('select ochirildi from yuborishlar where id = $1', [b1.id])).ochirildi === 3);
+
+  // 2) id lar saqlanmagan eski xabar — matni bo'yicha qidirib o'chiriladi, boshqa xabarga tegmaydi
+  const b2 = await B.broadcastBoshla({ matn: 'Eski xato xabar: {ism}, ertaga do‘kon yopiq', userIdlar: ids });
+  await kutTugash(`select holat <> 'ketmoqda' as t from yuborishlar where id = $1`, b2.id);
+  await sorov('delete from yuborish_xabarlar where yuborish_id = $1', [b2.id]);
+  const { yubor: botYubor } = await import('../src/bot/tg.js');
+  await botYubor(odamlar[0], 'Boshqa muhim xabar — o‘chmasligi kerak');
+  // Soxta serverda message_id hamma chat uchun UMUMIY (Telegram'da — har chatga alohida).
+  // Bazadagi boshqa yuzlab odamlarni qidiruv vaqtida chetga olamiz, aks holda
+  // id lar orasidagi masofa qidiruv chuqurligidan oshib ketadi.
+  const chetda = (await sorov(`update users set bot_bloklagan_at = now() where telegram_id ~ '^[0-9]+$'
+    and telegram_id <> all($1) and bot_bloklagan_at is null returning telegram_id`, [odamlar])).rows.map((r) => r.telegram_id);
+  const r2 = await B.yuborishniOchir({ id: b2.id, adminChat: '700001' });
+  await kutTugash(`select ochirish_holat = 'tugadi' as t from yuborishlar where id = $1`, b2.id);
+  await sorov('update users set bot_bloklagan_at = null where telegram_id = any($1)', [chetda]);
+  test('qidiruv bilan: matni mos xabar hammadan o‘chdi', r2.usul === 'qidiruv' && chatda('Eski xato xabar').length === 0,
+    `${chatda('Eski xato xabar').length} qoldi`);
+  test('qidiruv: boshqa xabarga tegmadi', chatda('Boshqa muhim xabar').length === 1);
+  test('qidiruv: yordamchi «·» va forward nusxalari chatda qolmadi',
+    !korinadigan().some((y) => (odamlar.includes(String(y.chat_id)) || String(y.chat_id) === '700001') && y.text === '·'));
+
+  // 3) 48 soatdan eski — Telegram o'chirmaydi, aniq aytiladi
+  await sorov(`update yuborishlar set created_at = now() - interval '3 days', ochirish_holat = null where id = $1`, [b2.id]);
+  test('48 soatdan eski xabar — tushunarli rad', /48 soat/.test((await B.yuborishniOchir({ id: b2.id })).xato || ''));
+  test('matnni moslovchi {ism} va HTML ni hisobga oladi',
+    B.moslovchi('<b>Salom</b>, {ism}! Aksiya')('Salom, Malika! Aksiya bugun') && !B.moslovchi('Salom, {ism}! Aksiya')('Boshqa matn'));
+}
+
 console.log(`\n${xato ? '❌' : '✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close();
 process.exit(xato ? 1 : 0);

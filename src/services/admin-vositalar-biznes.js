@@ -492,6 +492,30 @@ export const BIZNES_VOSITALAR = {
           + 'Matnni O‘ZING yoz — samimiy, qisqa, o‘zbekcha.',
     parametrlar: 'user_id yoki telefon, matn',
   },
+  yuborishlar: {
+    oqish: true,
+    ishla: async (a = {}) => ({ yuborishlar: await (await import('./broadcast.js')).oxirgiYuborishlar(a.soni || 5) }),
+    tavsif: 'OXIRGI OMMAVIY XABARLAR (bot orqali hammaga/segmentga): id, matn boshi, nechta odamga yetdi, '
+          + 'o‘chirilganmi. Qaysi birini «yuborishni_ochir» bilan o‘chirishni aniqlash uchun.',
+    parametrlar: 'soni (standart 5)',
+  },
+  yuborishni_ochir: {
+    oqish: false,
+    ishla: async (a = {}) => {
+      const b = await import('./broadcast.js');
+      const admin = await b.adminChati();
+      const r = await b.yuborishniOchir({ id: a.id || a.yuborish_id, namuna: a.namuna || a.matn,
+        dan: a.soat ? new Date(Date.now() - Number(a.soat) * 3600e3) : undefined, hisobotChat: admin, adminChat: admin });
+      if (r.xato) return { bajarildi: false, xabar: r.xato };
+      return { bajarildi: true, ...r, natija: r.usul === 'id'
+        ? `${r.jami} ta chatdan o‘chirish boshlandi. Tugagach adminga Telegramda hisobot keladi.`
+        : 'Id lar saqlanmagan edi — bot har chatda xabarni matni bo‘yicha qidirib o‘chiryapti (bir necha daqiqa). Tugagach hisobot keladi.' };
+    },
+    tavsif: 'NOTO‘G‘RI KETGAN OMMAVIY XABARNI HAMMANING CHATIDAN O‘CHIRADI (Telegram: 48 soat ichida). '
+          + '«Hammaga noto‘g‘ri xabar ketdi, o‘chir» → avval «yuborishlar» bilan qaysi biri ekanini aniqla, '
+          + 'keyin id bilan chaqir. Xabar ro‘yxatda bo‘lmasa (boshqa joydan ketgan) — namuna (matnning boshi) va soat (necha soat oldin) ber.',
+    parametrlar: 'id (yuborish id, berilmasa oxirgisi) YOKI namuna (xabar matnining boshi) + soat',
+  },
   ommaviy_xabar: {
     oqish: false, ishla: ommaviyXabar,
     tavsif: 'SEGMENTGA ommaviy Telegram xabari (fonda, xavfsiz tezlikda). Avval «segmentlar» '
