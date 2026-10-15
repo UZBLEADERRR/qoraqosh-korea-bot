@@ -100,6 +100,10 @@
   function tayyorla(rgba, W, H, yuz) {
     const N = W * H;
     const L = new Float32Array(N), qz = new Float32Array(N), teri = new Float32Array(N);
+    // Yaltiroq (yorug'lik aksi): yorug' va deyarli rangsiz. Teri rang
+    // oralig'idan chiqib ketadi va niqobdan tushib, qatlamda peshona/burun
+    // o'rnida QORA DOG' paydo bo'lardi. Yuz markazida ular teri hisoblanadi.
+    const parlak = new Uint8Array(N);
     let teriSoni = 0;
     for (let i = 0; i < N; i++) {
       const r = rgba[i * 4], g = rgba[i * 4 + 1], b = rgba[i * 4 + 2];
@@ -109,6 +113,7 @@
       L[i] = yy / 255;
       qz[i] = (r - g) / (r + g + 1);
       if (yy > 35 && cr >= 133 && cr <= 182 && cb >= 76 && cb <= 132) { teri[i] = 1; teriSoni++; }
+      else if (yy > 150 && cr >= 122 && cr <= 160 && cb >= 100 && cb <= 136) parlak[i] = 1;
     }
     const Lb = xiralash(L, W, H, Math.max(1, Math.round(W / 220)));
     const teriB = xiralash(teri, W, H, Math.max(2, Math.round(W / 90)));
@@ -122,6 +127,8 @@
       const d = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2;
       const ell = d <= 1 ? 1 : Math.max(0, 1 - (Math.sqrt(d) - 1) * 4);
       M[i] = teriKam ? ell : Math.min(1, teriB[i] * 1.5) * ell;
+      // Yuzning ichki qismidagi yaltiroq joy — teri (fon devori bu yerga yetmaydi)
+      if (parlak[i] && d <= 0.6) M[i] = Math.max(M[i], 1);
       S[i] = d <= 2.2 ? 1 : 0;                // soch va yuz atrofi
       HP[i] = L[i] - Lb[i];
     }

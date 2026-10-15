@@ -285,6 +285,13 @@ QADAM 2b — O'LCHOVLAR. Yettita ko'rsatkichning HAMMASIGA baho ber,
            yaltiraydi (yoki tortishib qolgan quruq) · 35: juda yog'li ·
            15: kuchli yog' va tiqilish
 
+  YOSHGA NISBATAN baho ber: ajin va ko'z atrofi taxminiy yoshga solishtiriladi.
+  30 yoshdagi ko'z chetidagi mayda chiziqlar — normal (ajin 75-82), 25 yoshda
+  chuqur peshona ajini — muammo. Yoshiga xos normal holatni muammo qilma.
+  Yorug'lik aksi (peshona/burundagi oq yaltirash) — yog'lilik belgisi bo'lishi
+  mumkin, lekin dog' ham, teri nuqsoni ham EMAS. Rasm sifati past bo'lsa
+  (shovqin, siqilish) donadorlikni teri teksturasi deb o'ylama.
+
   Mezonlar ORASIDAGI sonlar ham bo'ladi (masalan 83, 64, 47). 5 ga
   karrali sonlardan qoch. Hamma ko'rsatkichga bir xil raqam qo'yma:
   teri hech qachon hamma o'lchovda bir xil bo'lmaydi. Toza teriga

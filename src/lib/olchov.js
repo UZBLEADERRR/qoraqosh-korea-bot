@@ -165,9 +165,12 @@ export function olchovlarniTozala(xom) {
  *   • o'lchovlarning tortilgan o'rtachasi (tekstura va pigment ko'proq
  *     ko'rinadi — salmog'i katta);
  *   • ENG ZAIF o'lchov ham hisobga olinadi: odam terisiga eng yaqqol
- *     muammosi bo'yicha baho beradi;
- *   • har aniq ko'ringan muammo (ishonch ≥ 60) kuchiga qarab ayiradi.
- * Bir xil rasm — bir xil ball; toza teri 85+, muammoli teri 40-55. */
+ *     muammosi bo'yicha baho beradi.
+ * Muammolar ALOHIDA AYIRILMAYDI: ular o'lchovlarda allaqachon bor
+ * (model o'lchovni muammo bilan ziddiyatsiz beradi, bermasa o'lchov
+ * muammodan hisoblanadi). Ilgari ikkalasi qo'shilib, o'rtacha teri
+ * ikki marta jazolanardi (61 o'rniga 52).
+ * Bir xil rasm — bir xil ball; toza teri 85+, o'rtacha 55-65, kuchli muammo < 45. */
 const SALMOQ = { pora: 1, ajin: 0.9, pigment: 1.1, qizarish: 1, tekstura: 1.2, namlik: 0.8, yoglilik: 0.8 };
 
 export function umumiyBall(xom = null, muammolar = []) {
@@ -176,10 +179,5 @@ export function umumiyBall(xom = null, muammolar = []) {
   for (const x of o) { const k = SALMOQ[x.kalit] ?? 1; s += x.ball * k; w += k; }
   const ortacha = w ? s / w : MUAMMOSIZ;
   const eng = Math.min(...o.map((x) => x.ball));
-  let jarima = 0;
-  for (const m of Array.isArray(muammolar) ? muammolar : []) {
-    if (m?.ishonch != null && Number(m.ishonch) < 60) continue;
-    jarima += Math.max(0, chegara(m?.foiz, 0) - 30) * 0.08;
-  }
-  return Math.round(Math.min(97, Math.max(5, 0.75 * ortacha + 0.25 * eng - Math.min(20, jarima))));
+  return Math.round(Math.min(97, Math.max(5, 0.8 * ortacha + 0.2 * eng)));
 }

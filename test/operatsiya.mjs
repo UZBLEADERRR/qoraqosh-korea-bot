@@ -4720,8 +4720,10 @@ console.log('\n── KARTOCHKA SHABLONI ──');
   const bA = O.umumiyBall({ pora: 38, ajin: 82, pigment: 55, qizarish: 40, tekstura: 28, namlik: 60, yoglilik: 35 },
     [{ kalit: 'akne', foiz: 78, ishonch: 90 }, { kalit: 'qizarish', foiz: 60, ishonch: 80 }]);
   test('umumiy ball keng oraliqda: toza teri A’lo, muammoli O‘rtacha, akne past',
-    bT >= 80 && bS >= 45 && bS < 65 && bA < 45 && bT - bA > 40, `${bT} / ${bS} / ${bA}`);
-  test('ko‘rinib turgan muammolar ballni tushiradi', O.umumiyBall(skrin, uchMuammo) < O.umumiyBall(skrin, []));
+    bT >= 80 && bS >= 50 && bS < 65 && bA < 46 && bT - bA > 40, `${bT} / ${bS} / ${bA}`);
+  test('o‘lchov berilmasa muammolar o‘lchov orqali ballni tushiradi', O.umumiyBall(null, uchMuammo) < O.umumiyBall(null, []));
+  test('muammo IKKI MARTA jazolanmaydi — o‘lchovda allaqachon bor', O.umumiyBall(skrin, uchMuammo) === O.umumiyBall(skrin, []));
+  test('o‘rtacha teri (55-70 o‘lchovlar) 58-65 oralig‘ida', (() => { const b = O.umumiyBall({ pora: 58, ajin: 62, pigment: 70, qizarish: 65, tekstura: 60, namlik: 68, yoglilik: 55 }, []); return b >= 58 && b <= 65; })());
   test('ishonchi past muammo ballga ta’sir qilmaydi',
     O.umumiyBall(skrin, [{ kalit: 'dog', foiz: 80, ishonch: 40 }]) === O.umumiyBall(skrin, []));
   test('bir xil rasm — bir xil ball (tasodif yo‘q)', O.umumiyBall(skrin, uchMuammo) === O.umumiyBall(skrin, uchMuammo));

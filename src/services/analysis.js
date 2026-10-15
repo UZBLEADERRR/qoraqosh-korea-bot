@@ -165,7 +165,7 @@ export const tahlilniOl = (userId, id) => qator(
  * «teringiz yomonlashdi» degan noto'g'ri xulosa chiqardi.
  */
 export async function ballarniQaytaHisobla() {
-  if (await sozlama('ball_hisob_v2', false)) return 0;
+  if (await sozlama('ball_hisob_v3', false)) return 0;
   let n = 0, oxirgi = 0;
   for (;;) {
     const r = await qatorlar(
@@ -179,7 +179,7 @@ export async function ballarniQaytaHisobla() {
       n++;
     }
   }
-  await sorov(`insert into settings (key, value, updated_at) values ('ball_hisob_v2', 'true'::jsonb, now())
+  await sorov(`insert into settings (key, value, updated_at) values ('ball_hisob_v3', 'true'::jsonb, now())
     on conflict (key) do update set value = excluded.value, updated_at = now()`);
   return n;
 }
