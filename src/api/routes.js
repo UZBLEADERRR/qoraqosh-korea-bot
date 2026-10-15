@@ -297,8 +297,10 @@ export async function apiRoutes(req, res, yol) {
         royxatdan_otgan: Boolean(user.phone && user.full_name && user.agreed_at),
       },
       oxirgi_tahlil: await oxirgiTahlil(user.id),
-      // Makiyaj bo'limi — hammaga (profilda o'zi o'chirib qo'yishi mumkin)
+      // Makiyaj bo'limi — admin paneldagi holat (yopiq | admin | ochiq) va
+      // odamning o'z tanlovi. `mavjud` — o'zi o'chirgan bo'lsa ham bo'lim bormi
       makiyaj: await makiyaj.makiyajRuxsat(user),
+      makiyaj_mavjud: await makiyaj.makiyajRuxsat({ ...user, makiyaj: null }),
       makiyaj_sozlama: user.makiyaj ?? null,
       rangim: await makiyaj.oxirgiRangim(user.id),
     });
@@ -318,8 +320,10 @@ export async function apiRoutes(req, res, yol) {
     if (!base64 || base64.length < 1000)  return xato(res, 400, 'Rasm yuborilmadi.');
     if (base64.length > 12 * 1024 * 1024) return xato(res, 413, 'Rasm juda katta.');
     try {
-      return ok(res, await makiyaj.rangimniTahlilQil(user, base64, tozaMime(b.mime)));
+      const r = await makiyaj.rangimniTahlilQil(user, base64, tozaMime(b.mime));
+      return ok(res, { ...r, limit: await limitHolati(user.id) });
     } catch (e) {
+      if (e.message === 'LIMIT_TUGADI') return json(res, 429, { error: 'Bugungi limit tugadi.', limit: e.limit });
       if (e.message === 'MAKIYAJ_LIMIT') return json(res, 429, { error: 'Bugun rang tahlili limiti tugadi — ertaga yana urinib ko‘ring.' });
       const x = xatoniTushuntir(e);
       console.error('MAKIYAJ XATOSI', x.log);

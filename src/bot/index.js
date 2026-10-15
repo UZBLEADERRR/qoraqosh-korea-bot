@@ -228,7 +228,11 @@ async function callback(cq) {
       return reg.boshla(chatId, user);
     }
     const r = await amal(chatId, user);
-    if (data === 'makiyaj' && r === false) return yubor(chatId, '💄 Makiyaj bo‘limini o‘chirib qo‘ygansiz — ilovada Profil → Ilova bo‘limidan qayta yoqishingiz mumkin.');
+    if (data === 'makiyaj' && r === false) {
+      return yubor(chatId, user.makiyaj === false
+        ? '💄 Makiyaj bo‘limini o‘chirib qo‘ygansiz — ilovada Profil → Ilova bo‘limidan qayta yoqishingiz mumkin.'
+        : '💄 Makiyaj bo‘limi tez orada ochiladi. Hozircha «🔬 Yuz skaneri» bilan teringizni tahlil qiling.');
+    }
     return r;
   }
   await javobBer(cq.id);

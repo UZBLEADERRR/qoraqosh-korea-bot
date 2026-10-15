@@ -12,7 +12,7 @@ import { xatoniTushuntir } from '../../lib/xatolar.js';
 import { adminmi } from '../../lib/admin.js';
 import { limitHolati } from '../../services/analysis.js';
 import { appTugma } from '../keyboards.js';
-import { makiyajKorinadimi } from '../../lib/makiyaj.js';
+import { makiyajRuxsat } from '../../services/makiyaj.js';
 
 /**
  * «Yuz skaneri» bosilganda — ko'rsatma va NAMUNA SURAT.
@@ -48,7 +48,7 @@ async function skanerNamunasi() {
 }
 
 /** Kunlik limit tugaganda — sotuvga yo'naltiruvchi xabar. */
-async function limitXabari(chatId, limit) {
+export async function limitXabari(chatId, limit) {
   const kb = [];
   const dokon = appTugma('🛍 Do‘konni ochish');
   if (dokon) kb.push([dokon]);
@@ -106,7 +106,7 @@ export async function rasmniQabulQil(msg, user) {
       // qolib, hech kim bosmasdi.
       await rasmYubor(chatId, rasm.bayt,
         await qisqaIzoh(natija.tahlil, tavsiyalar.length),
-        { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user) }) });
+        { reply_markup: natijaTugmalari({ makiyaj: await makiyajRuxsat(user) }) });
       kanalgaTahlil(rasm.bayt, user, natija.tahlil, 'bot').catch(() => {});
     } else {
       // Rasm chizilmadi (motor yoki shrift yo'q) — natija yo'qolmasin,
@@ -115,7 +115,7 @@ export async function rasmniQabulQil(msg, user) {
       const qismlar = bolakla(matn);
       for (let i = 0; i < qismlar.length; i++) {
         await yubor(chatId, qismlar[i],
-          i === qismlar.length - 1 ? { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user) }) } : {});
+          i === qismlar.length - 1 ? { reply_markup: natijaTugmalari({ makiyaj: await makiyajRuxsat(user) }) } : {});
       }
     }
 
@@ -172,13 +172,13 @@ export async function natijaniQaytaYubor(chatId, user, analysisId = null) {
     // bo'lmasa ilovaga yo'l ko'rsatamiz
     await yubor(chatId,
       '💡 Bu tahlilning rasmi saqlanmagan, lekin to‘liq natija ilovada turibdi.',
-      { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user) }) });
+      { reply_markup: natijaTugmalari({ makiyaj: await makiyajRuxsat(user) }) });
     return true;
   }
 
   await rasmYubor(chatId, bayt,
     '📸 <b>Teri tahlilingiz</b>\n\nRasmni bosib turib saqlang yoki '
     + 'do‘stlaringizga ulashing. To‘liq tavsiya — quyidagi tugmada.',
-    { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user) }) });
+    { reply_markup: natijaTugmalari({ makiyaj: await makiyajRuxsat(user) }) });
   return true;
 }

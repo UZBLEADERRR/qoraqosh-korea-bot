@@ -12,14 +12,24 @@ import { brendNomi } from '../lib/brend.js';
 import {
   MAKIYAJ_BOSQICHLAR, RANG_TIPLARI, TUSLAR, CHUQURLIK, makiyajmi, makiyajKorinadimi,
   tonlarniSarala, rangBoyichaSarala, chuqurlikRaqami, bosqichlarJins, erkaklarUchunmi, ERKAK_FAQAT_OZI,
-  makiyajBosqichi,
+  makiyajBosqichi, MAKIYAJ_HOLATLARI, MAKIYAJ_HOLAT_STANDART,
 } from '../lib/makiyaj.js';
+import { adminmi } from '../lib/admin.js';
 
-const KUNLIK = 6;   // bir kunda nechta rang tahlili (AI chaqiruvi qimmat)
+// Asosiy chegara — teri tahlili bilan UMUMIY kunlik limit (skaner_limiti).
+// Bu — admin limitni o'chirib qo'ysa ham AI xarajati cheksiz bo'lmasin.
+const KUNLIK = 20;
 
-/** Shu odamga makiyaj bo'limi ko'rinadimi (hammaga; profilda o'chirib qo'ymagan bo'lsa). */
+/** Admin panelda tanlangan umumiy holat: yopiq | admin | ochiq. */
+export async function makiyajHolati() {
+  const h = await sozlama('makiyaj_holat', MAKIYAJ_HOLAT_STANDART).catch(() => MAKIYAJ_HOLAT_STANDART);
+  return MAKIYAJ_HOLATLARI.includes(h) ? h : MAKIYAJ_HOLAT_STANDART;
+}
+
+/** Shu odamga makiyaj bo'limi ko'rinadimi (umumiy holat + odamning o'z tanlovi). */
 export async function makiyajRuxsat(user) {
-  return makiyajKorinadimi(user);
+  if (!user) return false;
+  return makiyajKorinadimi(user, await makiyajHolati(), adminmi(user));
 }
 
 /** Odamning jinsi: profil → oxirgi teri tahlili. Noma'lum bo'lsa null. */
@@ -118,9 +128,13 @@ async function suratniSaqla(profilId, base64, mime) {
 
 /**
  * @returns {Promise<{yaroqli:boolean, sabab?, izoh?, rangim?, mahsulotlar?}>}
- * @throws Error('MAKIYAJ_LIMIT') kunlik chegara tugasa
+ * @throws Error('LIMIT_TUGADI') umumiy kunlik limit tugasa (e.limit bilan),
+ *         Error('MAKIYAJ_LIMIT') xavfsizlik chegarasi tugasa
  */
 export async function rangimniTahlilQil(user, base64, mime) {
+  const { limitHolati } = await import('./analysis.js');
+  const limit = await limitHolati(user.id);
+  if (limit.tugadi) throw Object.assign(new Error('LIMIT_TUGADI'), { limit });
   const bugun = await qator(`select count(*)::int as n from makiyaj_profillar
     where user_id = $1 and created_at > now() - interval '24 hours'`, [user.id]);
   if ((bugun?.n || 0) >= KUNLIK) throw new Error('MAKIYAJ_LIMIT');

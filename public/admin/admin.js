@@ -3985,6 +3985,19 @@ async function sozlamalar() {
           <div><label>Xarid qilgan mijoz</label>
             <input id="s-limit-mijoz" type="number" inputmode="numeric" min="0" value="${Number(st.limit_mijoz) || 10}"></div>
         </div>
+        <p class="mayda" style="margin:10px 0 0">Teri tahlili va makiyaj rang tahlili bitta limitdan hisoblanadi.</p>
+      </div>
+
+      <div class="karta tor">
+        <div class="karta-bosh"><h2>💄 Makiyaj bo‘limi</h2></div>
+        <p class="mayda" style="margin:0 0 10px">Skanerdagi «Makiyaj» rejimi, botdagi «Menga mos makiyaj»
+          tugmasi va «Mening rangim» sahifasi. Sinov paytida faqat adminlar ko‘radi — mijozlar bezovta bo‘lmaydi.</p>
+        ${[['yopiq', 'O‘chiq', 'Hech kimga ko‘rinmaydi'],
+           ['admin', 'Faqat adminlar (sinov)', 'Siz va boshqa adminlar sinab ko‘rasiz'],
+           ['ochiq', 'Hammaga ochiq', 'Barcha foydalanuvchilarga chiqadi']].map(([k, n, iz]) => `
+          <label class="belgi-qator"><input type="radio" name="s-makiyaj" value="${k}"
+            ${(st.makiyaj_holat || 'admin') === k ? 'checked' : ''}> <span><b>${n}</b>
+            <span class="mayda" style="display:block">${iz}</span></span></label>`).join('')}
       </div>
 
       <div class="karta tor" id="admin-quti">
@@ -4345,6 +4358,7 @@ async function sozlamalarniSaqla() {
       limit_yoqilgan:     $('#s-limit-yoq').checked,
       limit_bepul:        Math.max(0, Number($('#s-limit-bepul').value) || 0),
       limit_mijoz:        Math.max(0, Number($('#s-limit-mijoz').value) || 0),
+      makiyaj_holat:      document.querySelector('input[name="s-makiyaj"]:checked')?.value || 'admin',
       dokon_nomi:            $('#s-brend').value.trim() || 'KiOVO',
       oferta_matni:          $('#s-oferta').value.trim(),
       kanal_buyurtma:        $('#s-kanal-buyurtma').value.trim(),

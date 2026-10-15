@@ -69,6 +69,11 @@ export async function makiyajRasmi(msg, user) {
     await yubor(chatId, matn, tugmalar);
     return true;
   } catch (e) {
+    if (e.message === 'LIMIT_TUGADI') {
+      const { limitXabari } = await import('./scanner.js');
+      await limitXabari(chatId, e.limit);
+      return true;
+    }
     if (e.message === 'MAKIYAJ_LIMIT') {
       await yubor(chatId, '⏳ Bugungi rang tahlili limiti tugadi — ertaga yana urinib ko‘ring.');
       return true;

@@ -5501,9 +5501,13 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     const tonlar = [{ id: 1, variant_nom: '13N' }, { id: 2, variant_nom: '21N' }, { id: 3, variant_nom: '21W' }, { id: 4, variant_nom: '25W' }];
     test('makiyaj: iliq, och-o‘rta teriga 21W birinchi, 13N oxirida',
       MK.tonlarniSarala({ tus: 'iliq', chuqurlik: 3 }, tonlar).map((x) => x.id).join() === '3,2,4,1');
-    test('makiyaj: hammaga ko‘rinadi, o‘zi o‘chirsa — yo‘q',
-      MK.makiyajKorinadimi({ gender: 'ayol' }) && MK.makiyajKorinadimi({ gender: 'erkak' }) && MK.makiyajKorinadimi({})
-      && !MK.makiyajKorinadimi({ gender: 'ayol', makiyaj: false }) && !MK.makiyajKorinadimi(null));
+    test('makiyaj: ochiq — hammaga, o‘zi o‘chirsa — yo‘q',
+      MK.makiyajKorinadimi({ gender: 'ayol' }, 'ochiq') && MK.makiyajKorinadimi({ gender: 'erkak' }, 'ochiq') && MK.makiyajKorinadimi({}, 'ochiq')
+      && !MK.makiyajKorinadimi({ gender: 'ayol', makiyaj: false }, 'ochiq') && !MK.makiyajKorinadimi(null, 'ochiq'));
+    test('makiyaj: yopiq — hech kimga, admin — faqat adminga (sinov)',
+      !MK.makiyajKorinadimi({}, 'yopiq', true) && !MK.makiyajKorinadimi({}, 'admin', false)
+      && MK.makiyajKorinadimi({}, 'admin', true) && !MK.makiyajKorinadimi({ makiyaj: false }, 'admin', true)
+      && MK.MAKIYAJ_HOLAT_STANDART === 'admin');
     test('makiyaj: «Makiyaj» toifasida bosqichi tanlanmagan mahsulot — nomidan',
       MK.makiyajBosqichi({ name: 'Tirtir Mask Fit Red Cushion', toifa_slug: 'makiyaj', step: 'namlash' }) === 'ton'
       && MK.makiyajBosqichi({ name: 'Romand Juicy Lasting Tint', toifa_slug: 'makiyaj' }) === 'lab'
@@ -5521,6 +5525,21 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
 
     await sorov('update users set gender = null, makiyaj = null where id = $1', [u.id]);
     await sorov('delete from makiyaj_profillar where user_id = $1', [u.id]);
+    const holatQoy = (h) => h ? sorov(`insert into settings (key, value) values ('makiyaj_holat', $1)
+      on conflict (key) do update set value = excluded.value`, [JSON.stringify(h)]) : sorov(`delete from settings where key = 'makiyaj_holat'`);
+    const { sozlamalarniUnut: kTozala } = await import('../src/db.js');
+    const holatga = async (h) => { await holatQoy(h); kTozala?.(); };
+    // Admin hech narsa tanlamagan — sinov rejimi: oddiy foydalanuvchiga yo'q
+    await holatga(null);
+    const mA = await chaqirIlova('/api/me', 'GET', null, token);
+    test('makiyaj: standart (sinov) — oddiy odamga ko‘rinmaydi', mA.tana.makiyaj === false && mA.tana.makiyaj_mavjud === false);
+    test('makiyaj: sinovda oddiy odam — 403', (await chaqirIlova('/api/makiyaj', 'POST', { image: 'x'.repeat(2000) }, token)).kod === 403);
+    await sorov('update users set is_admin = true where id = $1', [u.id]);
+    test('makiyaj: sinovda admin ko‘radi', (await chaqirIlova('/api/me', 'GET', null, token)).tana.makiyaj === true);
+    await holatga('yopiq');
+    test('makiyaj: yopiq — admin ham ko‘rmaydi', (await chaqirIlova('/api/me', 'GET', null, token)).tana.makiyaj === false);
+    await sorov('update users set is_admin = false where id = $1', [u.id]);
+    await holatga('ochiq');
     const rasmMk = 'data:image/jpeg;base64,' + Buffer.alloc(1600, 7).toString('base64');
     const m0 = await chaqirIlova('/api/me', 'GET', null, token);
     test('makiyaj: jinsi noma’lumga ham ko‘rinadi', m0.tana.makiyaj === true);
@@ -5549,6 +5568,23 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     test('makiyaj: ayolga erkaklar mahsuloti tavsiya qilinmaydi',
       !(rg.tavsiya || []).some((x) => x.product_id === mk[5] || x.product_id === mk[6]) && rg.erkak === false);
     test('makiyaj: /api/me da oxirgi rang saqlangan', (await chaqirIlova('/api/me', 'GET', null, token)).tana.rangim?.rang_tipi === 'kuz');
+    {
+      const { limitHolati } = await import('../src/services/analysis.js');
+      const L0 = await limitHolati(u.id);
+      // Xizmat orqali (API da 5 daqiqalik so'rov cheklovi bor)
+      const { rangimniTahlilQil } = await import('../src/services/makiyaj.js');
+      await rangimniTahlilQil(await qator('select * from users where id = $1', [u.id]), rasmMk.split(',')[1], 'image/jpeg');
+      const L1 = await limitHolati(u.id);
+      test('limit: makiyaj ham kunlik limitdan hisoblanadi', L1.ishlatilgan === L0.ishlatilgan + 1, `${L0.ishlatilgan} → ${L1.ishlatilgan}`);
+      const eski = await qatorlar(`select key, value from settings where key in ('limit_bepul','limit_mijoz','limit_yoqilgan')`);
+      for (const k of ['limit_bepul', 'limit_mijoz']) await sorov(`insert into settings (key, value) values ($1, $2)
+        on conflict (key) do update set value = excluded.value`, [k, JSON.stringify(L1.ishlatilgan)]);
+      await sorov(`insert into settings (key, value) values ('limit_yoqilgan', 'true') on conflict (key) do update set value = excluded.value`);
+      const rL = await chaqirIlova('/api/makiyaj', 'POST', { image: rasmMk, mime: 'image/jpeg' }, token);
+      test('limit: tugasa makiyaj ham to‘xtaydi (429 + limit)', rL.kod === 429 && rL.tana.limit?.tugadi === true, JSON.stringify(rL.tana));
+      await sorov(`delete from settings where key in ('limit_bepul','limit_mijoz','limit_yoqilgan')`);
+      for (const e of eski) await sorov('insert into settings (key, value) values ($1, $2)', [e.key, JSON.stringify(e.value)]);
+    }
     test('makiyaj: odamning surati saqlandi', Boolean(rg.yuz_rasm_id)
       && (await qator('select tur from media where id = $1', [rg.yuz_rasm_id]))?.tur === 'yuz');
     // Rang aniqlangandan KEYIN qo'shilgan mahsulot ham darhol chiqadi (toifasi
@@ -5589,6 +5625,7 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     await sorov('delete from media where id in (select yuz_rasm_id from makiyaj_profillar where user_id = $1)', [u.id]);
     await sorov('delete from makiyaj_profillar where user_id = $1', [u.id]);
     await sorov('delete from products where id = any($1)', [mk]);
+    await holatga(null);
 
     const jsM = fsY.readFileSync('public/app/app.js', 'utf8'), htmlM = fsY.readFileSync('public/app/index.html', 'utf8');
     test('ilova: skanerda «💄 Makiyaj» rejimi va «Mening rangim» bo‘limi',
@@ -5599,7 +5636,11 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     // tashqariga yozilgan kod ilova ochilishida xato berib, uni buzadi
     test('ilova: hamma kod asosiy blok ichida (oxiri «boshla(); });»)', /\nboshla\(\);\n\}\);\s*$/.test(jsM));
     test('ilova: natija sahifasida makiyaj kartasi yo‘q (rejim — skaner tepasida)', !/t-makiyajga/.test(jsM));
-    test('ilova: rangim sahifasida odamning surati', /class="rg-surat"/.test(jsM) && /\/media\/\$\{esc\(r\.yuz_rasm_id\)\}/.test(jsM));
+    test('ilova: rangim sahifasida odamning surati', /rg-qahramon/.test(jsM) && /\/media\/\$\{esc\(r\.yuz_rasm_id\)\}/.test(jsM));
+    test('ilova: «Sizga tanlangan to‘plam» va jami narx bilan panel', /Sizga tanlangan to‘plam/.test(jsM) && /class="rg-panel"/.test(jsM));
+    test('ilova: server limit yuborsa — limit oynasi', /\.\.\.\(data\.limit \? \{ limit: data\.limit \} : \{\}\)/.test(jsM));
+    const adm = fsY.readFileSync('public/admin/admin.js', 'utf8');
+    test('admin: makiyaj bo‘limi holati (o‘chiq / sinov / ochiq)', /name="s-makiyaj"/.test(adm) && /makiyaj_holat:/.test(adm));
   }
 
   // Ilova
@@ -6026,8 +6067,8 @@ console.log('\n── OYNA, NARX, IPHONE, TUNGI QIDIRUV, GMAIL ──');
   test('profil hisoblagichlari yangi tahlil va buyurtmadan keyin oshadi (ilovani qayta ochmasdan)',
     /if \(j\.analysisId\) holat\.stat = \{ \.\.\.\(holat\.stat \|\| \{\}\), tahlil: \(holat\.stat\?\.tahlil \|\| 0\) \+ 1 \}/.test(js)
     && /holat\.stat = \{ \.\.\.\(holat\.stat \|\| \{\}\), buyurtma: \(holat\.stat\?\.buyurtma \|\| 0\) \+ 1 \}/.test(js));
-  test('maslahat bo‘limida suzuvchi savat «Yuborish» tugmasini yopmaydi',
-    /const kerak = holat\.suzuvchiFaol && soni > 0 && holat\.tab !== 'savat' && holat\.tab !== 'maslahat';/.test(js));
+  test('maslahat va rangim bo‘limida suzuvchi savat tugmalarni yopmaydi',
+    /const kerak = holat\.suzuvchiFaol && soni > 0 && !\['savat', 'maslahat', 'rangim'\]\.includes\(holat\.tab\);/.test(js));
   test('toifa plitkasi bosilganda belgi o‘sha plitkaga o‘tadi (Barchasi qolib ketmaydi)',
     /#toifalar \[data-toifa\]'\)\.forEach\(\(x\) => x\.classList\.toggle\('tanlangan', x === b\)\)/.test(js));
   test('suzuvchi savat rasmiylashtirish/to‘lov oynasida tugmalarni yopmaydi (faqat mahsulot oynasida)',

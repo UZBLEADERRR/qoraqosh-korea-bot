@@ -704,7 +704,11 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
   // Oldingi /ochir sinovi hisobni o'chirgan — ro'yxatdan o'tgan holatni tiklaymiz
   await sorov(`insert into users (telegram_id, full_name, phone, age, agreed_at) values ($1, 'Sinov', '+998901112233', 24, now())
     on conflict (telegram_id) do update set agreed_at = now(), full_name = 'Sinov', phone = '+998901112233', age = 24, is_blocked = false`, [TG]);
+  // Standart — sinov rejimi: oddiy foydalanuvchiga tugma YO'Q
+  await sorov(`delete from settings where key = 'makiyaj_holat'`);
   await sorov(`update users set gender = 'erkak', makiyaj = null, state = null where telegram_id = $1`, [TG]);
+  test('sinov rejimi: oddiy odam menyusida makiyaj YO‘Q', !(await menyuKor()).some((y) => tugmalar(y).some((b) => b.callback_data === 'makiyaj')));
+  await sorov(`insert into settings (key, value) values ('makiyaj_holat', '"ochiq"') on conflict (key) do update set value = excluded.value`);
   test('erkak: menyuda ham makiyaj tugmasi bor', (await menyuKor()).some((y) => tugmalar(y).some((b) => b.callback_data === 'makiyaj')));
   await sorov(`update users set makiyaj = false where telegram_id = $1`, [TG]);
   test('o‘chirgan odam: menyuda makiyaj tugmasi YO‘Q', !(await menyuKor()).some((y) => tugmalar(y).some((b) => b.callback_data === 'makiyaj')));
@@ -731,6 +735,7 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
     && (await qator('select state from users where telegram_id = $1', [TG])).state === null);
   await sorov(`update users set gender = null, makiyaj = null where telegram_id = $1`, [TG]);
   await sorov(`delete from makiyaj_profillar where user_id = (select id from users where telegram_id = $1)`, [TG]);
+  await sorov(`delete from settings where key = 'makiyaj_holat'`);
 }
 
 console.log(`\n${xato ? '❌' : '✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);

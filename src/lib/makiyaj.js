@@ -161,10 +161,19 @@ export function rangBoyichaSarala(palitra, mahsulotlar) {
   }).sort((a, b) => (a.farq ?? 999) - (b.farq ?? 999) || (b.sold_count || 0) - (a.sold_count || 0));
 }
 
+/** Admin paneldagi umumiy holat (settings.makiyaj_holat). */
+export const MAKIYAJ_HOLATLARI = ['yopiq', 'admin', 'ochiq'];
+export const MAKIYAJ_HOLAT_STANDART = 'admin';   // sinov davri: faqat adminlar ko'radi
+
 /**
- * Makiyaj bo'limi hammaga ko'rinadi (erkaklarga — o'z tartibi bilan).
- * Faqat odam profilda o'zi o'chirib qo'ygan bo'lsa yashiriladi.
+ * Makiyaj bo'limi kimga ko'rinadi:
+ *   yopiq — hech kimga; admin — faqat adminlarga (sinov); ochiq — hammaga
+ *   (erkaklarga o'z tartibi bilan). Har holda odam profilda o'zi o'chirgan
+ *   bo'lsa yashiriladi.
  */
-export function makiyajKorinadimi(user) {
-  return Boolean(user) && user.makiyaj !== false;
+export function makiyajKorinadimi(user, holat = 'ochiq', adminmi = false) {
+  if (!user || user.makiyaj === false) return false;
+  if (holat === 'yopiq') return false;
+  if (holat === 'admin') return Boolean(adminmi);
+  return true;
 }
