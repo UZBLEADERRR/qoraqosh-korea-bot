@@ -2836,7 +2836,7 @@ body.yozilmoqda .suzuvchi-savat,body.oyna-ochiq .suzuvchi-savat{opacity:0;pointe
 .ornat-oyna .ozgina{margin:0 0 16px}
 .ornat-oyna .ornat-qadam{text-align:left}
 
-/* ===== MAKIYAJ — «Mening rangim» (faqat ayollar) ===== */
+/* ===== MAKIYAJ — «Mening rangim» ===== */
 .skan-rejim{display:flex;gap:6px;margin:12px 16px 4px;padding:4px;border-radius:999px;background:var(--panel);
   box-shadow:var(--sh)}
 .skan-rejim button{flex:1;border:0;background:none;padding:10px 8px;border-radius:999px;font:600 14.5px var(--sans);
@@ -2875,9 +2875,3 @@ body.yozilmoqda .suzuvchi-savat,body.oyna-ochiq .suzuvchi-savat{opacity:0;pointe
   background:var(--yashil-och);color:var(--yashil)}
 .rg-kontur{margin-top:12px;padding:12px;border-radius:var(--r);background:var(--fon)}
 .rg-kontur p{margin:4px 0 0;font-size:14px}
-.rg-taklif{display:flex;gap:12px;align-items:center;width:calc(100% - 32px);margin:14px 16px 0;padding:14px 16px;border:0;
-  border-radius:var(--r-katta);background:linear-gradient(135deg,var(--qizil-och),var(--panel));color:var(--matn);
-  text-align:left;cursor:pointer;box-shadow:var(--sh);font:inherit}
-.rg-taklif-b{font-size:26px;flex:none}
-.rg-taklif b{display:block;font-size:15.5px}.rg-taklif small{display:block;color:var(--kul);font-size:13px;margin-top:2px}
-.rg-taklif>span:nth-child(2){flex:1}

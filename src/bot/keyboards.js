@@ -24,7 +24,7 @@ export function appTugma(matn, yol = '/app/') {
  */
 export async function asosiyMenyu(adminmi = false, { makiyaj = false } = {}) {
   const qatorlar = [[{ text: '🔬 Yuz skaneri', callback_data: 'skaner' }]];
-  // Faqat ayollarga (src/lib/makiyaj.js → makiyajKorinadimi)
+  // Profilda o'chirib qo'ymaganlarga (src/lib/makiyaj.js → makiyajKorinadimi)
   if (makiyaj) qatorlar.push([{ text: '💄 Menga mos makiyaj', callback_data: 'makiyaj' }]);
 
   // Do'kon tugmasi: qisqa nom sozlangan bo'lsa to'g'ridan-to'g'ri

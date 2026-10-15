@@ -1,4 +1,4 @@
-// MAKIYAJ — botda «💄 Menga mos makiyaj» (faqat ayollarga).
+// MAKIYAJ — botda «💄 Menga mos makiyaj» (hammaga; erkaklarga o'z tartibi).
 //
 // Tugma bosiladi → bot ko'rsatma beradi va 15 daqiqa «makiyaj rasmi»ni
 // kutadi. Shu orada kelgan rasm teri skaneriga emas, rang tahliliga ketadi.

@@ -119,7 +119,7 @@ export async function tahlilQil(user, base64, mime) {
 
   await hodisa(user.id, 'scan', { ball: a.ball, muammo: a.muammolar.length });
   // Jins hech qayerda so'ralmaydi — AI aniq aytgan bo'lsa profilga yoziladi
-  // (makiyaj bo'limi faqat ayollarga; odam profilda o'zi o'zgartira oladi)
+  // (makiyaj bo'limida erkaklarga o'z tartibi ko'rsatiladi)
   if (a.jins === 'ayol' || a.jins === 'erkak') {
     sorov('update users set gender = $1 where id = $2 and gender is null', [a.jins, user.id]).catch(() => {});
   }

@@ -13,7 +13,35 @@ export const MAKIYAJ_BOSQICHLAR = [
   { kalit: 'rumyana',  nom: 'Rumyana',                 izoh: 'Yuzga jonli tus beradi' },
   { kalit: 'lab',      nom: 'Lab',                     izoh: 'Obrazni yakunlaydi' },
   { kalit: 'fiksator', nom: 'Fiksator',                izoh: 'Makiyajni kun bo‘yi saqlaydi' },
+  { kalit: 'soch',     nom: 'Soch turmagi',            izoh: 'Pomada, vosk yoki gel — obrazni tartibli yakunlaydi' },
 ];
+
+/* Erkaklarga — tabiiy «grooming»: ko'z soyasi va rumyana yo'q (faqat
+   erkaklar uchun chiqarilgan mahsulot bo'lsa), nomlar ham boshqacha. */
+const ERKAK_NOM = {
+  baza:     { nom: 'Baza (mat praymer)',  izoh: 'Yog‘lanish va teshiklarni yashiradi' },
+  ton:      { nom: 'BB / CC krem',        izoh: 'Qizarish va notekislikni bilinmas qiladi — tabiiy ko‘rinadi' },
+  konsiler: { nom: 'Konsiler',            izoh: 'Ko‘z osti qorayishi va dog‘larni yopadi' },
+  pudra:    { nom: 'Mat pudra',           izoh: 'Kun bo‘yi yaltiramaslik uchun' },
+  qosh:     { nom: 'Qosh (gel / qalam)',  izoh: 'Qoshni tartibga soladi' },
+  kozlar:   { nom: 'Ko‘z',                izoh: 'Erkaklar uchun yengil vosita' },
+  rumyana:  { nom: 'Yuzga tus',           izoh: 'Charchoq ko‘rinishini oladi' },
+  lab:      { nom: 'Lab (balzam / pomada)', izoh: 'Lab qurimaydi, tabiiy tus beradi' },
+  fiksator: { nom: 'Fiksator',            izoh: 'Ko‘rinishni kun bo‘yi saqlaydi' },
+  soch:     { nom: 'Soch turmagi',        izoh: 'Pomada, vosk yoki gel' },
+};
+/** Erkakka faqat erkaklar mahsuloti bo'lsa ko'rsatiladigan bosqichlar. */
+export const ERKAK_FAQAT_OZI = new Set(['kozlar', 'rumyana', 'lab']);
+export const bosqichlarJins = (jins) => (jins === 'erkak'
+  ? MAKIYAJ_BOSQICHLAR.map((b) => ({ ...b, ...ERKAK_NOM[b.kalit] }))
+  : MAKIYAJ_BOSQICHLAR);
+
+/** Mahsulot erkaklar uchunmi — nomida yoki kalit so'zida «erkak», «men», «homme». */
+const ERKAK_RE = /(erkak|\bmen\b|\bman\b|for\s*men|\bhomme\b|мужск|\bmale\b)/i;
+export function erkaklarUchunmi(p) {
+  const k = Array.isArray(p?.kalit_sozlar) ? p.kalit_sozlar.join(' ') : (p?.kalit_sozlar || '');
+  return ERKAK_RE.test([p?.name, p?.nom_uz, k].filter(Boolean).join(' '));
+}
 export const MAKIYAJ_KALITLARI = MAKIYAJ_BOSQICHLAR.map((b) => b.kalit);
 const MAKIYAJ_TOPLAM = new Set(MAKIYAJ_KALITLARI);
 /** Mahsulot makiyajmi (teri tahlili tavsiyasiga tushmasligi kerak). */
@@ -105,13 +133,9 @@ export function rangBoyichaSarala(palitra, mahsulotlar) {
 }
 
 /**
- * Makiyaj bo'limi kimga ko'rinadi: FAQAT ayollarga.
- * Tartib: odamning o'z tanlovi → profildagi jins → oxirgi tahlilda AI
- * aniqlagan jins. Noma'lum bo'lsa — ko'rsatilmaydi (profilda yoqib oladi).
+ * Makiyaj bo'limi hammaga ko'rinadi (erkaklarga — o'z tartibi bilan).
+ * Faqat odam profilda o'zi o'chirib qo'ygan bo'lsa yashiriladi.
  */
-export function makiyajKorinadimi(user, oxirgiJins = null) {
-  if (user?.makiyaj === true) return true;
-  if (user?.makiyaj === false) return false;
-  const j = user?.gender || oxirgiJins;
-  return j === 'ayol';
+export function makiyajKorinadimi(user) {
+  return Boolean(user) && user.makiyaj !== false;
 }

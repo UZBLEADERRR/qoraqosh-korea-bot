@@ -108,9 +108,19 @@ const SIFAT_CHEGARASI = 45;
 /**
  * @returns {Promise<{yaroqli:boolean, sabab?:string, izoh?:string, natija?:object}>}
  */
-export async function rangniTahlilQil(base64, mime) {
+const ERKAK_KORSATMA = `
+
+BU ODAM ERKAK. Maslahatlar erkaklar «grooming»i haqida — ko'rinishi TABIIY
+qolishi kerak: ton — yengil BB/CC krem yoki mat qoplama (qizarish, notekislikni
+yashirish); konsiler — faqat ko'z osti qorayishi va dog'ga; qosh — tartibga
+solish (gel, siyrak joyni to'ldirish), shaklini keskin o'zgartirma; lab — rangsiz
+yoki tabiiy tusli balzam; kozlar, rumyana — bo'sh qator ("") qoldir;
+kontur — faqat jag' chizig'ini yengil aniqlash kerak bo'lsa, aks holda "".`;
+
+export async function rangniTahlilQil(base64, mime, { jins = null } = {}) {
   if (!aiBormi()) throw new Error('AI hozir ishlamayapti — birozdan keyin urinib ko‘ring.');
-  const javob = await aiJson([{ text: KORSATMA }, rasmPart(base64, mime)], SXEMA,
+  const korsatma = KORSATMA + (jins === 'erkak' ? ERKAK_KORSATMA : '');
+  const javob = await aiJson([{ text: korsatma }, rasmPart(base64, mime)], SXEMA,
     { temperature: 0.2, maxTokens: 2500, qayerda: 'makiyaj' });
   const s = javob?.sifat || {};
   if (!s.yaroqli || (Number.isFinite(Number(s.ishonch)) && Number(s.ishonch) < SIFAT_CHEGARASI)) {

@@ -12,7 +12,7 @@ const SXEMA = {
     name:       { type: 'string' },
     brand:      { type: 'string' },
     category:   { type: 'string', enum: ['tozalash','toner','serum','krem','niqob','quyosh','lab','toplam','ichimlik','makiyaj'] },
-    step:       { type: 'string', enum: ['tozalash','toner','davolash','namlash','himoya','qoshimcha','ichki','baza','ton','konsiler','pudra','qosh','kozlar','rumyana','fiksator','lab'] },
+    step:       { type: 'string', enum: ['tozalash','toner','davolash','namlash','himoya','qoshimcha','ichki','baza','ton','konsiler','pudra','qosh','kozlar','rumyana','fiksator','lab','soch'] },
     volume:     { type: 'string' },
     country:    { type: 'string' },
     description:{ type: 'string' },
@@ -54,8 +54,10 @@ Qoidalar:
 - MAKIYAJ mahsuloti bo'lsa: category = "makiyaj", step — qaysi bosqich:
   baza (praymer), ton (kushon, tonal krem, BB/CC), konsiler, pudra, qosh,
   kozlar (soya, tush, ko'z qalami, layner), rumyana (rumyana, kontur, xaylayter),
-  lab (lab bo'yog'i, tint, glos), fiksator (fiksator sprey). Ton/konsilerda
-  rang raqamini (masalan 21N, 23W) nomga qo'sh. Lab balzami va lab parvarishi —
+  lab (lab bo'yog'i, tint, glos), fiksator (fiksator sprey), soch (soch
+  pomadasi, vosk, gel — soch turmagi uchun). Ton/konsilerda
+  rang raqamini (masalan 21N, 23W) nomga qo'sh. Erkaklar uchun chiqarilgan
+  bo'lsa nomiga «for Men» yoki «erkaklar uchun» qo'sh. Lab balzami va lab parvarishi —
   makiyaj EMAS: category "lab", step "qoshimcha".
 - Narx yozma — uni admin o'zi qo'yadi.
 

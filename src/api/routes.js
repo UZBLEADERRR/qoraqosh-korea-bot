@@ -297,7 +297,7 @@ export async function apiRoutes(req, res, yol) {
         royxatdan_otgan: Boolean(user.phone && user.full_name && user.agreed_at),
       },
       oxirgi_tahlil: await oxirgiTahlil(user.id),
-      // Makiyaj bo'limi — faqat ayollarga (profilda o'zi yoqadi/o'chiradi)
+      // Makiyaj bo'limi — hammaga (profilda o'zi o'chirib qo'yishi mumkin)
       makiyaj: await makiyaj.makiyajRuxsat(user),
       makiyaj_sozlama: user.makiyaj ?? null,
       rangim: await makiyaj.oxirgiRangim(user.id),

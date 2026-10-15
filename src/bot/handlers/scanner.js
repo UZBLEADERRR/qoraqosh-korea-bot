@@ -106,7 +106,7 @@ export async function rasmniQabulQil(msg, user) {
       // qolib, hech kim bosmasdi.
       await rasmYubor(chatId, rasm.bayt,
         await qisqaIzoh(natija.tahlil, tavsiyalar.length),
-        { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user, natija.tahlil.jins) }) });
+        { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user) }) });
       kanalgaTahlil(rasm.bayt, user, natija.tahlil, 'bot').catch(() => {});
     } else {
       // Rasm chizilmadi (motor yoki shrift yo'q) — natija yo'qolmasin,
@@ -115,7 +115,7 @@ export async function rasmniQabulQil(msg, user) {
       const qismlar = bolakla(matn);
       for (let i = 0; i < qismlar.length; i++) {
         await yubor(chatId, qismlar[i],
-          i === qismlar.length - 1 ? { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user, natija.tahlil.jins) }) } : {});
+          i === qismlar.length - 1 ? { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user) }) } : {});
       }
     }
 

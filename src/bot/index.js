@@ -228,7 +228,7 @@ async function callback(cq) {
       return reg.boshla(chatId, user);
     }
     const r = await amal(chatId, user);
-    if (data === 'makiyaj' && r === false) return yubor(chatId, '🔬 Teri tahlili uchun «Yuz skaneri» ni bosing.');
+    if (data === 'makiyaj' && r === false) return yubor(chatId, '💄 Makiyaj bo‘limini o‘chirib qo‘ygansiz — ilovada Profil → Ilova bo‘limidan qayta yoqishingiz mumkin.');
     return r;
   }
   await javobBer(cq.id);

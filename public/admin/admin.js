@@ -1486,7 +1486,8 @@ const BOSQICHLAR = { tozalash:'🫧 Tozalash', toner:'💧 Toner', davolash:'�
                      baza:'💄 Makiyaj: baza (praymer)', ton:'💄 Makiyaj: ton (kushon / tonal krem)',
                      konsiler:'💄 Makiyaj: konsiler', pudra:'💄 Makiyaj: pudra', qosh:'💄 Makiyaj: qosh',
                      kozlar:'💄 Makiyaj: ko‘z (soya, tush, qalam)', rumyana:'💄 Makiyaj: rumyana / kontur',
-                     lab:'💄 Makiyaj: lab (bo‘yoq, tint)', fiksator:'💄 Makiyaj: fiksator' };
+                     lab:'💄 Makiyaj: lab (bo‘yoq, tint)', fiksator:'💄 Makiyaj: fiksator',
+                     soch:'💈 Makiyaj: soch turmagi (pomada, vosk)' };
 const MUAMMOLAR = ['akne','teshik','yoglilik','quruqlik','qizarish','dog','ajin','xiralik','sezgirlik','quyosh'];
 const TERILAR = ['quruq','yogli','aralash','normal','sezgir','barcha'];
 

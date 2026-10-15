@@ -682,7 +682,7 @@ async function boshla() {
     holat.tahlil = me.oxirgi_tahlil;
     holat.limit = me.limit;
     holat.stat = me.stat || {};
-    // Makiyaj bo'limi — faqat ayollarga (server hal qiladi)
+    // Makiyaj bo'limi — hammaga (profilda o'chirib qo'yilmagan bo'lsa)
     holat.makiyaj = Boolean(me.makiyaj);
     holat.makiyajSozlama = me.makiyaj_sozlama ?? null;
     holat.rangim = me.rangim || null;
@@ -3359,14 +3359,6 @@ function natijaniChiz() {
     </div>
   </div>
 
-  ${holat.makiyaj ? `
-  <button class="rg-taklif" id="t-makiyajga">
-    <span class="rg-taklif-b">💄</span>
-    <span><b>Endi sizga mos makiyajni tanlaymiz</b>
-      <small>Teri osti tusi, rang tipi va mos kushon toni — bitta selfidan</small></span>
-    ${ik('keyingi', 18)}
-  </button>` : ''}
-
   <div class="n-karta n-oxir">
     <button class="ikkilamchi" id="t-qayta">${ik('kamera',18)}Qayta tahlil qilish</button>
   </div>
@@ -3378,8 +3370,6 @@ function natijaniChiz() {
     KiOVO · Better Skin, Brighter You</p>`;
 
   // ── Ulanishlar ──
-  const tMk = $('#t-makiyajga', el);
-  if (tMk) tMk.onclick = () => { titra(); makiyajniBoshla(); };
 
   // Suratdagi nishonni bosish — pastdagi o'sha muammoni ochadi va
   // ko'rsatadi. «Qayerini aytyapti?» degan savol shu bilan yopiladi.
@@ -6126,11 +6116,9 @@ $('#t-xabarlar').onclick = () => { titra(); xabarlarOyna(); };
 $('#t-savatga-otish').onclick = () => { titra(); tabOch('savat'); };
 $('#t-qid-skaner').onclick = () => { titra('medium'); tabOch('skaner'); };
 
-boshla();
-});
-
-
-// ================= MAKIYAJ — «MENING RANGIM» (faqat ayollar) =================
+// ================= MAKIYAJ — «MENING RANGIM» =================
+// DIQQAT: ilova kodining ICHIDA turishi shart — `holat`, `$`, `kor` shu
+// yerda e'lon qilingan. Tashqarida yozilsa ilova ochilishida xato beradi.
 // Skaner ichidagi rejim: bitta selfi → teri osti tusi, rang tipi, mos kushon
 // toni, palitra va makiyaj tartibi (server: src/services/makiyaj.js).
 holat.skanRejim = 'teri';
@@ -6212,10 +6200,12 @@ function rangimniChiz() {
   const doira = (h) => `<i class="rg-doira" style="background:${esc(h)}"></i>`;
   const palQ = (nom, ranglar) => (ranglar?.length ? `<div class="rg-pal-q"><span>${nom}</span><div>${ranglar.map(doira).join('')}</div></div>` : '');
   const asosiy = r.tavsiya.filter((x) => !x.muqobil && karta.has(x.product_id));
-  const bosqichlar = (r.bosqichlar || []).map((b, i) => {
-    const t = r.tavsiya.filter((x) => x.bosqich === b.kalit && karta.has(x.product_id));
-    const masl = RG_MASLAHAT[b.kalit] ? r.maslahat?.[RG_MASLAHAT[b.kalit]] : '';
-    if (!t.length && !masl) return '';
+  // Mahsuloti ham, maslahati ham yo'q bosqich tushib qoladi — raqamlar
+  // ko'rinadiganlar bo'yicha (1, 2, 3…), oraliqsiz
+  const bosqichlar = (r.bosqichlar || []).map((b) => ({ b,
+    t: r.tavsiya.filter((x) => x.bosqich === b.kalit && karta.has(x.product_id)),
+    masl: RG_MASLAHAT[b.kalit] ? r.maslahat?.[RG_MASLAHAT[b.kalit]] : '' }))
+  .filter((q) => q.t.length || q.masl).map(({ b, t, masl }, i) => {
     return `<li class="rg-qadam">
       <span class="rg-raqam">${i + 1}</span>
       <div class="rg-qadam-ich">
@@ -6233,7 +6223,7 @@ function rangimniChiz() {
       <h2>${esc(p.emoji || '🎨')} ${esc(r.rang_tipi_nom)} rang tipi</h2>
       <p>${esc(p.izoh || '')}</p>
       <div class="rg-teri"><i class="rg-doira katta"></i>
-        <div><b>Kushon toni: ${esc(r.ton_kodi)} atrofida</b>
+        <div><b>${r.erkak ? 'BB krem' : 'Kushon'} toni: ${esc(r.ton_kodi)} atrofida</b>
           <span>${esc(r.tus_nom)} tus · ${esc(r.chuqurlik_nom)}</span></div></div>
       <div class="rg-teglar">
         ${r.yuz_shakli ? `<span>Yuz: ${esc(RG_YUZ[r.yuz_shakli] || r.yuz_shakli)}</span>` : ''}
@@ -6245,16 +6235,16 @@ function rangimniChiz() {
       ${ik('ogoh', 15)} Rasm xona chirog‘ida olingan — ranglar biroz farq qilishi mumkin.
       Aniqroq natija uchun deraza yonida qayta oling.</div>` : ''}
 
-    <section class="rg-karta"><h3>Sizga mos ranglar</h3>
+    ${r.erkak ? '' : `<section class="rg-karta"><h3>Sizga mos ranglar</h3>
       ${palQ('Lab', p.lab)}${palQ('Rumyana', p.rumyana)}${palQ('Ko‘z soyasi', p.kozlar)}
-    </section>
+    </section>`}
 
-    <section class="rg-karta"><h3>Makiyaj tartibi</h3>
+    <section class="rg-karta"><h3>${r.erkak ? 'Ko‘rinish tartibi' : 'Makiyaj tartibi'}</h3>
       <p class="ozgina" style="margin:-4px 0 10px">Aynan shu ketma-ketlikda surting.</p>
       <ol class="rg-tartib">${bosqichlar}</ol>
       ${r.maslahat?.kontur ? `<div class="rg-kontur"><b>Kontur</b><p>${esc(r.maslahat.kontur)}</p></div>` : ''}
       ${asosiy.length ? `<button class="asosiy" id="t-rg-savat" style="margin-top:14px">${ik('savat', 18)}Hammasini savatga</button>` : `
-        <p class="ozgina" style="margin-top:10px">Makiyaj mahsulotlari tez orada do‘konda paydo bo‘ladi.</p>`}
+        <p class="ozgina" style="margin-top:10px">${r.erkak ? 'Mos mahsulotlar' : 'Makiyaj mahsulotlari'} tez orada do‘konda paydo bo‘ladi.</p>`}
       <button class="ikkilamchi" id="t-rg-qayta" style="margin-top:9px">${ik('kamera', 18)}Qayta aniqlash</button>
     </section>
     <p class="n-eslatma">Rang tahlili suratdan — taxminiy. Kunduzgi yorug‘likda aniqroq.</p>`;
@@ -6270,3 +6260,6 @@ function rangimniChiz() {
     titra('medium'); tost('Savatga qo‘shildi'); tS.disabled = false;
   };
 }
+
+boshla();
+});

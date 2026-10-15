@@ -93,8 +93,8 @@ await bosish('menyu');
 const menyuTugmalari = (oxirgi().reply_markup?.inline_keyboard || []).flat();
 // Menyu ataylab qisqa: skaner va do'kon. Tahlili BORLARGA yana
 // bittasi qo'shiladi — «Natijani olish»: odam eski rasmni chatdan
-// qidirib o'tirmasin.
-test('asosiy menyuda ortiqcha tugma yo‘q', menyuTugmalari.length <= 3,
+// qidirib o'tirmasin. «💄 Menga mos makiyaj» — to'rtinchisi.
+test('asosiy menyuda ortiqcha tugma yo‘q', menyuTugmalari.length <= 4,
   menyuTugmalari.map((b) => b.text).join(' | '));
 test('menyuda skaner va do‘kon bor',
   menyuTugmalari.some((b) => /skaner/i.test(b.text)) &&
@@ -692,7 +692,7 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
     B.moslovchi('<b>Salom</b>, {ism}! Aksiya')('Salom, Malika! Aksiya bugun') && !B.moslovchi('Salom, {ism}! Aksiya')('Boshqa matn'));
 }
 
-// ═══ Makiyaj: «💄 Menga mos makiyaj» — faqat ayollarga ═══
+// ═══ Makiyaj: «💄 Menga mos makiyaj» — hammaga (o'chirganlarga yo'q) ═══
 {
   const tugmalar = (y) => (y?.reply_markup?.inline_keyboard || []).flat();
   const menyuKor = async () => {
@@ -705,8 +705,10 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
   await sorov(`insert into users (telegram_id, full_name, phone, age, agreed_at) values ($1, 'Sinov', '+998901112233', 24, now())
     on conflict (telegram_id) do update set agreed_at = now(), full_name = 'Sinov', phone = '+998901112233', age = 24, is_blocked = false`, [TG]);
   await sorov(`update users set gender = 'erkak', makiyaj = null, state = null where telegram_id = $1`, [TG]);
-  test('erkak: menyuda makiyaj tugmasi YO‘Q', !(await menyuKor()).some((y) => tugmalar(y).some((b) => b.callback_data === 'makiyaj')));
-  await sorov(`update users set gender = 'ayol' where telegram_id = $1`, [TG]);
+  test('erkak: menyuda ham makiyaj tugmasi bor', (await menyuKor()).some((y) => tugmalar(y).some((b) => b.callback_data === 'makiyaj')));
+  await sorov(`update users set makiyaj = false where telegram_id = $1`, [TG]);
+  test('o‘chirgan odam: menyuda makiyaj tugmasi YO‘Q', !(await menyuKor()).some((y) => tugmalar(y).some((b) => b.callback_data === 'makiyaj')));
+  await sorov(`update users set gender = 'ayol', makiyaj = null where telegram_id = $1`, [TG]);
   test('ayol: menyuda «💄 Menga mos makiyaj»', (await menyuKor()).some((y) => tugmalar(y).some((b) => b.callback_data === 'makiyaj')));
   const o1 = yuborilgan.length;
   await bosish('makiyaj');
@@ -719,10 +721,10 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
   test('rasm rang tahliliga ketdi (teri skaneriga emas)', Boolean(rangXabar) && /Kuz/.test(rangXabar?.text || '')
     && !yuborilgan.slice(o2).some((y) => /Teri tahlilingiz/.test(y.text || '')));
   test('holat tozalandi — keyingi rasm yana teri skaneriga', (await qator('select state from users where telegram_id = $1', [TG])).state === null);
-  await sorov(`update users set gender = 'erkak' where telegram_id = $1`, [TG]);
+  await sorov(`update users set makiyaj = false where telegram_id = $1`, [TG]);
   const o3 = yuborilgan.length;
   await bosish('makiyaj');
-  test('erkak eski tugmani bossa — makiyaj boshlanmaydi',
+  test('o‘chirgan odam eski tugmani bossa — makiyaj boshlanmaydi',
     !yuborilgan.slice(o3).some((y) => /Sizga mos makiyajni/.test(y.text || ''))
     && (await qator('select state from users where telegram_id = $1', [TG])).state === null);
   await sorov(`update users set gender = null, makiyaj = null where telegram_id = $1`, [TG]);
