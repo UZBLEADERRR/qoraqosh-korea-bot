@@ -231,6 +231,10 @@ export function soxtaServer(port = 4444) {
         const n = () => `${Date.now()}${Math.floor(Math.random() * 1e6)}`;
         const tanaXom = req.method === 'POST' ? await tana(req) : '';
         const b = (() => { try { return JSON.parse(tanaXom || '{}'); } catch { return {}; } })();
+        if (u.searchParams.get('access_token') === 'parol-ozgardi') {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: { message: 'Error validating access token: The session has been invalidated because the user changed their password', type: 'OAuthException', code: 190, error_subcode: 460 } }));
+        }
         if (u.searchParams.get('access_token') === 'eskirgan') {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ error: { message: 'Error validating access token', type: 'OAuthException', code: 190 } }));

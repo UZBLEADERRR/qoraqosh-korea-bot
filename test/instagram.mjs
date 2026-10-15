@@ -52,6 +52,18 @@ test('token yo‘q — tushunarli xato', await igApi.ig('/me').then(() => false,
 const ul = await igApi.tokenniSaqla('IGAA' + 'x'.repeat(40));
 test('panelda token saqlandi, akkaunt aniqlandi', ul.username === 'kiovo.uz' && ul.akkaunt_id === AKK, JSON.stringify(ul));
 test('eskirgan token — aniq sabab', await igApi.ig('/me', { token: 'eskirgan' }).then(() => false, (e) => /eskirgan yoki noto/.test(e.message)));
+test('parol o‘zgargan — sababi aytiladi va qayerga kiritish', await igApi.ig('/me', { token: 'parol-ozgardi' })
+  .then(() => false, (e) => /paroli o‘zgargani/.test(e.message) && /Ulanish/.test(e.message)));
+{
+  // Railway'dagi eski token bor, panelda yangisi kiritildi — panel ustun
+  const { config } = await import('../src/config.js');
+  const eski = config.instagramToken;
+  config.instagramToken = 'eskirgan';
+  igApi.ulanishniUnut();
+  const u = await igApi.ulanish();
+  test('panelda kiritilgan token Railway’dagidan ustun', u.manba === 'panel' && u.token !== 'eskirgan' && u.env_ham === true);
+  config.instagramToken = eski; igApi.ulanishniUnut();
+}
 const xom = Buffer.from('{"object":"instagram"}');
 test('Meta imzosi to‘g‘ri — qabul', ig.imzoTogri(xom, 'sha256=' + crypto.createHmac('sha256', 'meta-sir').update(xom).digest('hex')));
 test('soxta imzo — rad', !ig.imzoTogri(xom, 'sha256=' + 'a'.repeat(64)) && !ig.imzoTogri(xom, ''));

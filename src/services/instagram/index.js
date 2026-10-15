@@ -751,7 +751,7 @@ export async function igHolat() {
         where o.olindi_id is not null`).catch(() => ({ soni: 0 })),
   ]);
   return {
-    ulangan: Boolean(u.token), username: u.username, akkaunt_id: u.akkaunt_id, token_manba: u.manba,
+    ulangan: Boolean(u.token), username: u.username, akkaunt_id: u.akkaunt_id, token_manba: u.manba, token_env_ham: Boolean(u.env_ham),
     imzo_sir: sirlar().length > 0, imzo_sir_panel: Boolean(panelSiri),
     tg_biznes: await sozlama('tg_biznes', null).catch(() => null),
     diag: await diag.diagnostika(),

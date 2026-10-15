@@ -17,11 +17,15 @@ let kesh = null;
 export async function ulanish() {
   if (kesh && Date.now() - kesh.vaqt < KESH_MS) return kesh.u;
   const s = await sozlama('instagram_ulanish', {}).catch(() => ({}));
+  // Panelda kiritilgan token USTUN: parol o'zgarsa Meta tokenni bekor
+  // qiladi va admin yangisini telefondan, panel orqali kiritadi. Ilgari
+  // Railway'dagi eski token ustun edi — panelda almashtirib bo'lmasdi.
   const u = {
-    token: config.instagramToken || s?.token || '',
+    token: s?.token || config.instagramToken || '',
     akkaunt_id: s?.akkaunt_id || '',
     username: s?.username || '',
-    manba: config.instagramToken ? 'env' : s?.token ? 'panel' : '',
+    manba: s?.token ? 'panel' : config.instagramToken ? 'env' : '',
+    env_ham: Boolean(config.instagramToken),
     yangilangan: s?.yangilangan || null,
   };
   kesh = { u, vaqt: Date.now() };
@@ -33,7 +37,14 @@ export const ulanganmi = async () => Boolean((await ulanish()).token);
 /** Graph API xatosini tushunarli qiladi. */
 function xatoMatni(kod, e = {}) {
   const c = e.code, sub = e.error_subcode;
-  if (c === 190 || kod === 401) return 'Instagram tokeni eskirgan yoki noto‘g‘ri — Sozlamalarda yangi token kiriting.';
+  if (c === 190 || kod === 401) {
+    // Meta subkodlari: 460 — parol o'zgardi, 463 — muddati tugadi, 467/458 — chiqildi/ruxsat olindi
+    const sabab = sub === 460 ? 'Instagram paroli o‘zgargani uchun Meta eski tokenni bekor qildi'
+      : sub === 463 ? 'Token muddati tugagan'
+      : sub === 467 || sub === 458 ? 'Akkauntdan chiqilgan yoki ilovaga ruxsat olib tashlangan'
+      : 'Instagram tokeni eskirgan yoki noto‘g‘ri';
+    return `${sabab} — Sozlamalar → Ulanish'ga yangi token kiriting (Meta Developers → «Generate token»).`;
+  }
   if (c === 10 && /window|outside/i.test(e.message || '') || sub === 2534022 || sub === 2018278) {
     return 'Mijoz 24 soatdan beri yozmagan — Instagram bu suhbatga hozir xabar yuborishga ruxsat bermaydi.';
   }

@@ -1288,10 +1288,10 @@ function igSozlama() {
     <div class="ustunlar">
       <section class="karta">
         <div class="karta-bosh"><h2>Ulanish</h2><span class="yor ${h.ulangan ? 'yashil' : 'qizil'}">${h.ulangan ? `@${esc(h.username || '')}` : 'ulanmagan'}</span></div>
-        ${h.token_manba === 'env' ? '<p class="mayda">Token Railway → Variables dagi INSTAGRAM_ACCESS_TOKEN dan olinmoqda.</p>' : `
-        <label>Instagram access token<span class="yordam">Meta Developers → ilovangiz → Instagram → API setup → «Generate token»</span></label>
+        ${h.token_manba === 'env' ? '<p class="mayda">Hozir token Railway → Variables dagi INSTAGRAM_ACCESS_TOKEN dan olinmoqda. Shu yerga yangisini kiritsangiz — u ustun turadi.</p>' : ''}
+        <label>Instagram access token<span class="yordam">Meta Developers → ilovangiz → Instagram → API setup → «Generate token». Instagram parolini o‘zgartirsangiz token bekor bo‘ladi — yangisini shu yerga kiriting.</span></label>
         <input id="ig-token" type="password" autocomplete="off" placeholder="${h.ulangan ? 'Yangi token (almashtirish uchun)' : 'IGAA…'}">
-        <button class="tug asos keng" id="ig-token-saqla" style="margin-top:10px">${ik('tasdiq', 16)}Tokenni saqlash</button>`}
+        <button class="tug asos keng" id="ig-token-saqla" style="margin-top:10px">${ik('tasdiq', 16)}Tokenni saqlash</button>
         <label>Webhook manzili (Meta’ga kiriting)</label>
         <div class="ig-nusxa"><code>${esc(h.webhook_url || '')}</code><button class="ik-tugma" data-nusxa="${esc(h.webhook_url || '')}">${ik('nusxa')}</button></div>
         <label>Verify token</label>
