@@ -22,8 +22,10 @@ export function appTugma(matn, yol = '/app/') {
  *
  * @param {boolean} adminmi  admin bo'lsa panel tugmasi ham qo'shiladi
  */
-export async function asosiyMenyu(adminmi = false) {
+export async function asosiyMenyu(adminmi = false, { makiyaj = false } = {}) {
   const qatorlar = [[{ text: '🔬 Yuz skaneri', callback_data: 'skaner' }]];
+  // Faqat ayollarga (src/lib/makiyaj.js → makiyajKorinadimi)
+  if (makiyaj) qatorlar.push([{ text: '💄 Menga mos makiyaj', callback_data: 'makiyaj' }]);
 
   // Do'kon tugmasi: qisqa nom sozlangan bo'lsa to'g'ridan-to'g'ri
   // ilova havolasi bo'ladi — shunda bosh ekrandagi yorliq ham
@@ -68,12 +70,13 @@ export function shartnomaTugmalari() {
  * to'liq natijani qaytadan olishi kerak: yangi skaner qilib, kvota
  * yoqib o'tirmasin.
  */
-export function natijaTugmalari() {
+export function natijaTugmalari({ makiyaj = false } = {}) {
   const qatorlar = [[{ text: '📥 Natijani olish', callback_data: 'natija_ol' }]];
   const toliq = appTugma('💡 Tavsiyani ochish', '/app/?tab=natija');
   const savatga = appTugma('🛒 Hammasini savatga', '/app/?tavsiya=1');
   if (toliq)   qatorlar.push([toliq]);
   if (savatga) qatorlar.push([savatga]);
+  if (makiyaj) qatorlar.push([{ text: '💄 Menga mos makiyaj', callback_data: 'makiyaj' }]);
   qatorlar.push([{ text: '🔄 Qayta skanerlash', callback_data: 'skaner' }]);
   return { inline_keyboard: qatorlar };
 }

@@ -682,6 +682,11 @@ async function boshla() {
     holat.tahlil = me.oxirgi_tahlil;
     holat.limit = me.limit;
     holat.stat = me.stat || {};
+    // Makiyaj bo'limi — faqat ayollarga (server hal qiladi)
+    holat.makiyaj = Boolean(me.makiyaj);
+    holat.makiyajSozlama = me.makiyaj_sozlama ?? null;
+    holat.rangim = me.rangim || null;
+    skanRejimChiz();
     if (!me.user.royxatdan_otgan) return royxatEkrani();
     menikiSaqla();
   } catch (e) {
@@ -2721,6 +2726,7 @@ async function kichiklashtir(fayl, max = 1024, sifat = 0.85) {
 
 async function tahlilQil() {
   if (!tanlanganRasm) return;
+  if (holat.skanRejim === 'makiyaj' && holat.makiyaj) return rangimTahlil();
   kor($('#skaner-oldindan'), false); kor($('#skaner-yuklanmoqda'), true);
   try {
     const j = await api('/api/scan', { method: 'POST',
@@ -3353,6 +3359,14 @@ function natijaniChiz() {
     </div>
   </div>
 
+  ${holat.makiyaj ? `
+  <button class="rg-taklif" id="t-makiyajga">
+    <span class="rg-taklif-b">💄</span>
+    <span><b>Endi sizga mos makiyajni tanlaymiz</b>
+      <small>Teri osti tusi, rang tipi va mos kushon toni — bitta selfidan</small></span>
+    ${ik('keyingi', 18)}
+  </button>` : ''}
+
   <div class="n-karta n-oxir">
     <button class="ikkilamchi" id="t-qayta">${ik('kamera',18)}Qayta tahlil qilish</button>
   </div>
@@ -3364,6 +3378,8 @@ function natijaniChiz() {
     KiOVO · Better Skin, Brighter You</p>`;
 
   // ── Ulanishlar ──
+  const tMk = $('#t-makiyajga', el);
+  if (tMk) tMk.onclick = () => { titra(); makiyajniBoshla(); };
 
   // Suratdagi nishonni bosish — pastdagi o'sha muammoni ochadi va
   // ko'rsatadi. «Qayerini aytyapti?» degan savol shu bilan yopiladi.
@@ -4916,6 +4932,40 @@ function profilniChiz() {
       profilniChiz();
     }; }) : '';
 
+  // Makiyaj: «Mening rangim» (faqat yoqilganlarga) va bo'limni yoqish/o'chirish
+  const rangimQ = holat.makiyaj ? qator('rangim', 'yurak', 'Mening rangim',
+    holat.rangim?.rang_tipi_nom || 'Aniqlanmagan', () => `<div id="p-rangim"></div>`,
+    (t) => {
+      const r = holat.rangim;
+      $('#p-rangim', t).innerHTML = r ? `
+        <div class="sahifa-karta"><b>${esc(r.palitra?.emoji || '🎨')} ${esc(r.rang_tipi_nom)} rang tipi</b>
+          <p class="ozgina" style="margin-top:6px">${esc(r.tus_nom)} tus · ${esc(r.chuqurlik_nom)} · kushon toni ${esc(r.ton_kodi)}</p></div>
+        <button class="asosiy" id="t-rangim-och" style="margin-top:12px">To‘liq natija va makiyaj tartibi</button>`
+        : `<div class="bosh-holat"><p>Hali aniqlanmagan</p></div>
+        <button class="asosiy" id="t-rangim-och" style="margin-top:12px">💄 Rangimni aniqlash</button>`;
+      $('#t-rangim-och', t).onclick = () => { sahifaYop(); r ? tabOch('rangim') : makiyajniBoshla(); };
+    }) : '';
+  const makiyajQ = qator('makiyaj', 'yurak', 'Makiyaj bo‘limi', holat.makiyaj ? 'Yoqiq' : 'O‘chiq', () => `
+    <div class="sahifa-karta sozlama-almash">
+      <div><b>Makiyaj tanlash</b>
+        <span>Skanerda «💄 Makiyaj» rejimi: rang tipi, mos kushon toni va makiyaj tartibi.</span></div>
+      <button class="almash ${holat.makiyaj ? 'yoqiq' : ''}" id="t-makiyaj-sozla" role="switch"
+        aria-checked="${holat.makiyaj}" aria-label="Makiyaj bo‘limi"><i></i></button>
+    </div>`,
+    (t) => { $('#t-makiyaj-sozla', t).onclick = async () => {
+      const b = $('#t-makiyaj-sozla', t); b.disabled = true;
+      try {
+        const j = await api('/api/makiyaj/sozlama', { method: 'POST', body: JSON.stringify({ yoqiq: !holat.makiyaj }) });
+        holat.makiyaj = Boolean(j.makiyaj); holat.makiyajSozlama = j.makiyaj_sozlama;
+        if (!holat.makiyaj) holat.skanRejim = 'teri';
+        skanRejimChiz(); holat.natijaKesh = false; titra('medium');
+      } catch (e) { ogohlantir(e.message); }
+      b.disabled = false;
+      b.classList.toggle('yoqiq', holat.makiyaj);
+      b.setAttribute('aria-checked', String(holat.makiyaj));
+      profilniChiz();
+    }; });
+
   const korinish = qator('korinish', 'quyosh', 'Ko‘rinish',
     MAVZULAR.find((x) => x.kalit === mavzuOqi())?.nom || 'Tizim', () => `
     <div class="sahifa-izoh">${ik('oy', 16)}Tungi ko‘rinish kechqurun ko‘zni charchatmaydi.
@@ -4990,9 +5040,9 @@ function profilniChiz() {
         <span>Ilovani o‘rnatish<small>Telefon ekraniga qo‘shiladi — bir bosishda ochiladi</small></span>
         ${ik('keyingi', 18)}
       </button>` : ''}
-    ${sozGuruh('Mening faoliyatim', natijalar + buyurtmalar + sevimli)}
+    ${sozGuruh('Mening faoliyatim', natijalar + rangimQ + buyurtmalar + sevimli)}
     ${sozGuruh('Hisobim', shaxsiy + teriB + manzil)}
-    ${sozGuruh('Ilova', bildirish + korinish)}
+    ${sozGuruh('Ilova', bildirish + makiyajQ + korinish)}
     ${sozGuruh('Yordam', aloqa + hisob)}`;
 
   // --- Ulanishlar ---
@@ -5965,7 +6015,7 @@ function ornatParametri() {
 }
 
 // ---------------- Tablar ----------------
-const TABLAR = ['katalog','skaner','maslahat','savat','profil','natija'];
+const TABLAR = ['katalog','skaner','maslahat','savat','profil','natija','rangim'];
 // Eski havolalar (botdagi «?tab=buyurtma») profilga olib boradi —
 // buyurtmalar ro'yxati endi shu yerda.
 const TAB_TAQMOQ = { buyurtma: 'profil' };
@@ -6046,7 +6096,7 @@ function tabOch(nom, { tarixsiz = false } = {}) {
     TABLAR.forEach((t) => kor($(`#tab-${t}`), t === nom));
     $$('.menyu button').forEach((b) =>
       b.classList.toggle('tanlangan',
-        b.dataset.tab === nom || (nom === 'natija' && b.dataset.tab === 'skaner')));
+        b.dataset.tab === nom || ((nom === 'natija' || nom === 'rangim') && b.dataset.tab === 'skaner')));
     if (nom !== 'maslahat') document.body.classList.remove('yozilmoqda');
     // Boshqa bo'limga o'tilsa kamera o'chadi: yonib turgan kamera
     // batareyani yeydi va odam uni ko'rmay qoladi
@@ -6064,6 +6114,7 @@ function tabOch(nom, { tarixsiz = false } = {}) {
   if (nom === 'profil') profilniChiz();   // buyurtmalar bo'lim ochilganda yuklanadi
   if (nom === 'maslahat') maslahatniChiz();
   if (nom === 'natija' && !holat.natijaKesh) natijaniChiz();
+  if (nom === 'rangim') rangimniChiz();
   // Qaytib kelganda o'sha joyidan davom etadi; birinchi marta
   // ochilayotgan bo'lim esa tepadan boshlanadi
   const joy = oldingi === nom ? window.scrollY : (tabSurish[nom] || 0);
@@ -6077,3 +6128,145 @@ $('#t-qid-skaner').onclick = () => { titra('medium'); tabOch('skaner'); };
 
 boshla();
 });
+
+
+// ================= MAKIYAJ — «MENING RANGIM» (faqat ayollar) =================
+// Skaner ichidagi rejim: bitta selfi → teri osti tusi, rang tipi, mos kushon
+// toni, palitra va makiyaj tartibi (server: src/services/makiyaj.js).
+holat.skanRejim = 'teri';
+const SKAN_MATN = {
+  teri: null,   // birinchi chaqiruvda HTML dagi asl matn eslab qolinadi
+  makiyaj: { h: 'Rangingizni aniqlaymiz',
+    p: 'Pardozsiz, deraza yonida kunduzgi yorug‘likda selfi oling — teri osti tusi, rang tipi va mos kushon tonini topamiz.' },
+};
+
+function skanRejimChiz() {
+  const quti = $('#skan-rejim');
+  if (!quti) return;
+  if (!holat.makiyaj) holat.skanRejim = 'teri';
+  kor(quti, holat.makiyaj);
+  const h = $('#skaner-boshlash .ekran-bosh h2'), p = $('#skaner-boshlash .ekran-bosh p');
+  if (!SKAN_MATN.teri && h && p) SKAN_MATN.teri = { h: h.textContent, p: p.textContent };
+  const m = SKAN_MATN[holat.skanRejim] || SKAN_MATN.teri;
+  if (h && m) h.textContent = m.h;
+  if (p && m) p.textContent = m.p;
+  // Teri belgilari (akne, quruqlik…) makiyaj rejimida kerak emas
+  kor($('#skan-belgilar'), holat.skanRejim === 'teri');
+  $$('[data-rejim]', quti).forEach((b) => {
+    b.classList.toggle('tanlangan', b.dataset.rejim === holat.skanRejim);
+    b.onclick = () => { holat.skanRejim = b.dataset.rejim; titra(); skanRejimChiz(); };
+  });
+}
+
+function makiyajniBoshla() {
+  if (!holat.makiyaj) return;
+  holat.skanRejim = 'makiyaj';
+  skanRejimChiz();
+  tabOch('skaner');
+}
+
+async function rangimTahlil() {
+  kor($('#skaner-oldindan'), false); kor($('#skaner-yuklanmoqda'), true);
+  const yuk = $('#skaner-yuklanmoqda');
+  const b = $('b', yuk), mayda = $('.mayda', yuk);
+  const asl = [b?.textContent, mayda?.textContent];
+  if (b) b.textContent = 'Rangingiz aniqlanmoqda…';
+  if (mayda) mayda.textContent = 'Teri osti tusi, rang tipi va mos tonlar tanlanmoqda';
+  try {
+    const j = await api('/api/makiyaj', { method: 'POST',
+      body: JSON.stringify({ image: tanlanganRasm, mime: tanlanganMime }) });
+    kor(yuk, false);
+    kor($('#skaner-boshlash'), true);
+    if (!j.yaroqli) return radOyna(j);
+    holat.rangim = j.rangim;
+    tanlanganRasm = null; $('#fayl').value = '';
+    tabSurish.rangim = 0;
+    tabOch('rangim'); titra('medium');
+  } catch (e) {
+    kor(yuk, false); kor($('#skaner-boshlash'), true);
+    ogohlantir(e.message);
+  } finally {
+    if (b) b.textContent = asl[0]; if (mayda) mayda.textContent = asl[1];
+  }
+}
+
+const RG_YUZ = { oval: 'Oval', dumaloq: 'Dumaloq', kvadrat: 'Kvadrat', yurak: 'Yurak', uzunchoq: 'Uzunchoq', olmos: 'Olmos' };
+const RG_KOZ = { bodom: 'Bodomsimon', dumaloq: 'Dumaloq', osilgan: 'Osilgan qovoq', monolid: 'Monolid', chuqur: 'Chuqur', ensiz: 'Ensiz' };
+const RG_MASLAHAT = { ton: 'ton', konsiler: 'konsiler', qosh: 'qosh', kozlar: 'kozlar', rumyana: 'rumyana', lab: 'lab' };
+
+function rangimniChiz() {
+  const el = $('#rangim-tan');
+  if (!el) return;
+  if (!holat.makiyaj) { el.innerHTML = ''; return void tabOch('katalog'); }
+  const r = holat.rangim;
+  if (!r) {
+    el.innerHTML = `<div class="bosh-holat"><div class="belgi">💄</div>
+      <p>Rangingiz hali aniqlanmagan</p>
+      <span class="ozgina">Bitta selfi — mos kushon toni, palitra va makiyaj tartibi.</span>
+      <button class="asosiy" style="max-width:260px;margin:16px auto 0" id="t-rg-bosh">Rangimni aniqlash</button></div>`;
+    $('#t-rg-bosh').onclick = makiyajniBoshla;
+    return;
+  }
+  const p = r.palitra || {};
+  const karta = new Map(holat.mahsulotlar.map((x) => [x.id, x]));
+  const doira = (h) => `<i class="rg-doira" style="background:${esc(h)}"></i>`;
+  const palQ = (nom, ranglar) => (ranglar?.length ? `<div class="rg-pal-q"><span>${nom}</span><div>${ranglar.map(doira).join('')}</div></div>` : '');
+  const asosiy = r.tavsiya.filter((x) => !x.muqobil && karta.has(x.product_id));
+  const bosqichlar = (r.bosqichlar || []).map((b, i) => {
+    const t = r.tavsiya.filter((x) => x.bosqich === b.kalit && karta.has(x.product_id));
+    const masl = RG_MASLAHAT[b.kalit] ? r.maslahat?.[RG_MASLAHAT[b.kalit]] : '';
+    if (!t.length && !masl) return '';
+    return `<li class="rg-qadam">
+      <span class="rg-raqam">${i + 1}</span>
+      <div class="rg-qadam-ich">
+        <b>${esc(b.nom)}</b><span class="ozgina">${esc(b.izoh)}</span>
+        ${masl ? `<p class="rg-masl">${esc(masl)}</p>` : ''}
+        ${t.length ? `<div class="rg-mahsulotlar">${t.map((x) => `
+          <div class="rg-m">${x.moslik != null ? `<span class="rg-moslik">${x.muqobil ? 'Muqobil · ' : '✓ '}${x.moslik}% mos</span>` : ''}
+            ${kartaHtml(karta.get(x.product_id))}</div>`).join('')}</div>` : ''}
+      </div></li>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="rg-bosh" style="--rg:${esc(r.teri_hex || '#e8c4a8')}">
+      <span class="rg-chip">💄 Mening rangim</span>
+      <h2>${esc(p.emoji || '🎨')} ${esc(r.rang_tipi_nom)} rang tipi</h2>
+      <p>${esc(p.izoh || '')}</p>
+      <div class="rg-teri"><i class="rg-doira katta"></i>
+        <div><b>Kushon toni: ${esc(r.ton_kodi)} atrofida</b>
+          <span>${esc(r.tus_nom)} tus · ${esc(r.chuqurlik_nom)}</span></div></div>
+      <div class="rg-teglar">
+        ${r.yuz_shakli ? `<span>Yuz: ${esc(RG_YUZ[r.yuz_shakli] || r.yuz_shakli)}</span>` : ''}
+        ${r.kozlar ? `<span>Ko‘z: ${esc(RG_KOZ[r.kozlar] || r.kozlar)}</span>` : ''}
+      </div>
+      ${r.izoh ? `<p class="rg-izoh">${esc(r.izoh)}</p>` : ''}
+    </div>
+    ${r.yoruglik && r.yoruglik !== 'kunduzgi' ? `<div class="ogoh" style="margin:12px 16px 0">
+      ${ik('ogoh', 15)} Rasm xona chirog‘ida olingan — ranglar biroz farq qilishi mumkin.
+      Aniqroq natija uchun deraza yonida qayta oling.</div>` : ''}
+
+    <section class="rg-karta"><h3>Sizga mos ranglar</h3>
+      ${palQ('Lab', p.lab)}${palQ('Rumyana', p.rumyana)}${palQ('Ko‘z soyasi', p.kozlar)}
+    </section>
+
+    <section class="rg-karta"><h3>Makiyaj tartibi</h3>
+      <p class="ozgina" style="margin:-4px 0 10px">Aynan shu ketma-ketlikda surting.</p>
+      <ol class="rg-tartib">${bosqichlar}</ol>
+      ${r.maslahat?.kontur ? `<div class="rg-kontur"><b>Kontur</b><p>${esc(r.maslahat.kontur)}</p></div>` : ''}
+      ${asosiy.length ? `<button class="asosiy" id="t-rg-savat" style="margin-top:14px">${ik('savat', 18)}Hammasini savatga</button>` : `
+        <p class="ozgina" style="margin-top:10px">Makiyaj mahsulotlari tez orada do‘konda paydo bo‘ladi.</p>`}
+      <button class="ikkilamchi" id="t-rg-qayta" style="margin-top:9px">${ik('kamera', 18)}Qayta aniqlash</button>
+    </section>
+    <p class="n-eslatma">Rang tahlili suratdan — taxminiy. Kunduzgi yorug‘likda aniqroq.</p>`;
+
+  $$('.rg-m .mahsulot', el).forEach((m) => m.onclick = (e) => kartaBosildi(e, m));
+  $('#t-rg-qayta', el).onclick = makiyajniBoshla;
+  const tS = $('#t-rg-savat', el);
+  if (tS) tS.onclick = async () => {
+    tS.disabled = true;
+    for (const x of asosiy) {
+      if (!holat.savat.some((s) => s.products.id === x.product_id)) await savatga(x.product_id);
+    }
+    titra('medium'); tost('Savatga qo‘shildi'); tS.disabled = false;
+  };
+}

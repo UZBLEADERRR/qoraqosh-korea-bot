@@ -169,6 +169,20 @@ function javobMatni(sxemaMatni, prompt = '') {
       ],
       takliflar: ['Qishda nima mos?', 'Kechqurun tartib qanday?'] });
   }
+  // Makiyaj rang tahlili. globalThis.MAKIYAJ_RAD — rad etish sinovi
+  if (sxemaMatni.includes('rang_tipi')) {
+    if (globalThis.MAKIYAJ_RAD) return JSON.stringify({ sifat: { yaroqli: false, sabab: 'qorongi', ishonch: 20, izoh: 'Qorong‘i' } });
+    return JSON.stringify({
+      sifat: { yaroqli: true, sabab: 'yaroqli', ishonch: 90, izoh: '' },
+      yuz: { ymin: 150, xmin: 250, ymax: 800, xmax: 750 },
+      yoruglik: 'kunduzgi', tus: 'iliq', tus_ishonch: 80, chuqurlik: 3, rang_tipi: 'kuz',
+      kontrast: 'orta', yuz_shakli: 'oval', kozlar: 'bodom', lab: 'orta',
+      izoh: 'Kunduzgi yorug‘likda, sochi to‘q jigarrang.',
+      maslahat: { ton: 'Tabiiy qoplamali iliq ton mos.', konsiler: 'Ko‘z ostiga shaftoli tusli konsiler.',
+        qosh: 'Yumshoq yoysimon qosh.', kozlar: 'Jigarrang soya bilan ko‘zning tashqi burchagi.',
+        rumyana: 'Yonoq olmasiga, chakkaga qarab.', lab: 'Terrakota va g‘isht tuslari.', kontur: 'Yonoq ostiga yengil soya.' },
+    });
+  }
   // Admin yordamchisi. globalThis.AGENT_QADAMLAR — ketma-ket
   // qaytariladigan javoblar ro'yxati (har chaqiruvda bittasi).
   if (sxemaMatni.includes('argumentlar_json')) {

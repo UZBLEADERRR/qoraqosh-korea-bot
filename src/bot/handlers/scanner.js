@@ -12,6 +12,7 @@ import { xatoniTushuntir } from '../../lib/xatolar.js';
 import { adminmi } from '../../lib/admin.js';
 import { limitHolati } from '../../services/analysis.js';
 import { appTugma } from '../keyboards.js';
+import { makiyajKorinadimi } from '../../lib/makiyaj.js';
 
 /**
  * «Yuz skaneri» bosilganda — ko'rsatma va NAMUNA SURAT.
@@ -105,7 +106,7 @@ export async function rasmniQabulQil(msg, user) {
       // qolib, hech kim bosmasdi.
       await rasmYubor(chatId, rasm.bayt,
         await qisqaIzoh(natija.tahlil, tavsiyalar.length),
-        { reply_markup: natijaTugmalari() });
+        { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user, natija.tahlil.jins) }) });
       kanalgaTahlil(rasm.bayt, user, natija.tahlil, 'bot').catch(() => {});
     } else {
       // Rasm chizilmadi (motor yoki shrift yo'q) — natija yo'qolmasin,
@@ -114,7 +115,7 @@ export async function rasmniQabulQil(msg, user) {
       const qismlar = bolakla(matn);
       for (let i = 0; i < qismlar.length; i++) {
         await yubor(chatId, qismlar[i],
-          i === qismlar.length - 1 ? { reply_markup: natijaTugmalari() } : {});
+          i === qismlar.length - 1 ? { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user, natija.tahlil.jins) }) } : {});
       }
     }
 
@@ -171,13 +172,13 @@ export async function natijaniQaytaYubor(chatId, user, analysisId = null) {
     // bo'lmasa ilovaga yo'l ko'rsatamiz
     await yubor(chatId,
       '💡 Bu tahlilning rasmi saqlanmagan, lekin to‘liq natija ilovada turibdi.',
-      { reply_markup: natijaTugmalari() });
+      { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user) }) });
     return true;
   }
 
   await rasmYubor(chatId, bayt,
     '📸 <b>Teri tahlilingiz</b>\n\nRasmni bosib turib saqlang yoki '
     + 'do‘stlaringizga ulashing. To‘liq tavsiya — quyidagi tugmada.',
-    { reply_markup: natijaTugmalari() });
+    { reply_markup: natijaTugmalari({ makiyaj: makiyajKorinadimi(user) }) });
   return true;
 }

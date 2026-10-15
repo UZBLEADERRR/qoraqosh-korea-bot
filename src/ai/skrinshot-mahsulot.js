@@ -7,8 +7,8 @@
 // ham rasmning o'zidan olinishi kerak.
 import { aiJson, rasmPart, aiBormi } from './index.js';
 
-const TOIFALAR = ['tozalash','toner','serum','krem','niqob','quyosh','lab','toplam','ichimlik'];
-const BOSQICHLAR = ['tozalash','toner','davolash','namlash','himoya','qoshimcha','ichki'];
+const TOIFALAR = ['tozalash','toner','serum','krem','niqob','quyosh','lab','toplam','ichimlik','makiyaj'];
+const BOSQICHLAR = ['tozalash','toner','davolash','namlash','himoya','qoshimcha','ichki','baza','ton','konsiler','pudra','qosh','kozlar','rumyana','fiksator','lab'];
 const MUAMMOLAR = ['akne','teshik','yoglilik','quruqlik','qizarish','dog','ajin','xiralik','sezgirlik','quyosh'];
 const TERILAR = ['quruq','yogli','aralash','normal','sezgir','barcha'];
 
@@ -75,7 +75,11 @@ OG'IRLIK:
 
 TOIFA:
 - Mavjud toifalar: tozalash, toner, serum, krem, niqob, quyosh, lab,
-  toplam, ichimlik.
+  toplam, ichimlik, makiyaj.
+- MAKIYAJ (kushon, tonal krem, konsiler, pudra, qosh qalami, soya, tush,
+  rumyana, kontur, lab bo'yog'i/tint, fiksator) — category = "makiyaj",
+  step: baza | ton | konsiler | pudra | qosh | kozlar | rumyana | lab | fiksator.
+  Ton/konsilerda rang raqamini (21N, 23W) nomga qo'sh. Lab balzami — makiyaj emas.
 - Mahsulot shulardan BIRORTASIGA ham to'g'ri kelmasa (masalan tuk
   oluvchi, soch qisqichi, pinset, sochiq, oyoq plasteri) —
   category = "yangi" va yangi_toifa ga o'zbekcha qisqa nom yoz

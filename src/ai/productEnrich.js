@@ -11,8 +11,8 @@ const SXEMA = {
     izoh:       { type: 'string' },
     name:       { type: 'string' },
     brand:      { type: 'string' },
-    category:   { type: 'string', enum: ['tozalash','toner','serum','krem','niqob','quyosh','lab','toplam','ichimlik'] },
-    step:       { type: 'string', enum: ['tozalash','toner','davolash','namlash','himoya','qoshimcha','ichki'] },
+    category:   { type: 'string', enum: ['tozalash','toner','serum','krem','niqob','quyosh','lab','toplam','ichimlik','makiyaj'] },
+    step:       { type: 'string', enum: ['tozalash','toner','davolash','namlash','himoya','qoshimcha','ichki','baza','ton','konsiler','pudra','qosh','kozlar','rumyana','fiksator','lab'] },
     volume:     { type: 'string' },
     country:    { type: 'string' },
     description:{ type: 'string' },
@@ -51,6 +51,12 @@ Qoidalar:
 - Ichki qabul qilinadigan qo'shimcha (kollagen, jenshen, vitamin, biotin)
   bo'lsa: step = "ichki", category = "ichimlik". usage_text da kuniga
   qancha va qachon ichilishini yoz.
+- MAKIYAJ mahsuloti bo'lsa: category = "makiyaj", step — qaysi bosqich:
+  baza (praymer), ton (kushon, tonal krem, BB/CC), konsiler, pudra, qosh,
+  kozlar (soya, tush, ko'z qalami, layner), rumyana (rumyana, kontur, xaylayter),
+  lab (lab bo'yog'i, tint, glos), fiksator (fiksator sprey). Ton/konsilerda
+  rang raqamini (masalan 21N, 23W) nomga qo'sh. Lab balzami va lab parvarishi —
+  makiyaj EMAS: category "lab", step "qoshimcha".
 - Narx yozma — uni admin o'zi qo'yadi.
 
 Butun javob o'zbek tilida (lotin alifbosida). Faqat JSON qaytar.`;

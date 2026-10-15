@@ -103,7 +103,8 @@ export async function menyuniKorsat(chatId, user) {
   const ism = esc((user.full_name || '').split(' ')[0] || 'do‘stim');
   const qatorlar = [`🌸 <b>${esc(brend)}</b>`, ``, `Nima qilamiz, ${ism}?`];
   if (admin) qatorlar.push('', '⚙️ <i>Siz adminsiz — panel tugmasi quyida.</i>');
-  const menyu = await asosiyMenyu(admin);
+  const { makiyajRuxsat } = await import('../../services/makiyaj.js');
+  const menyu = await asosiyMenyu(admin, { makiyaj: await makiyajRuxsat(user) });
   if (tahlili?.bor) {
     menyu.inline_keyboard.unshift([{ text: '📥 Natijani olish', callback_data: 'natija_ol' }]);
   }

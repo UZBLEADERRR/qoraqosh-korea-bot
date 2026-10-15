@@ -5493,6 +5493,70 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
   test('oxirgi tahlilda oldingi ball bor', me.tana.oxirgi_tahlil?.oldingi_ball === 55);
   await sorov('delete from analyses where user_id = $1', [u.id]);
 
+  // ── MAKIYAJ: «Mening rangim» — faqat ayollarga ──
+  {
+    const MK = await import('../src/lib/makiyaj.js');
+    test('makiyaj: kushon tonlari o‘qiladi (21N, 23W, 17C1)',
+      MK.tonOqi('No.21N')?.tus === 'neytral' && MK.tonOqi('23W')?.raqam === 23 && MK.tonOqi('17C1')?.tus === 'sovuq' && MK.tonOqi('150ml') === null);
+    const tonlar = [{ id: 1, variant_nom: '13N' }, { id: 2, variant_nom: '21N' }, { id: 3, variant_nom: '21W' }, { id: 4, variant_nom: '25W' }];
+    test('makiyaj: iliq, och-o‘rta teriga 21W birinchi, 13N oxirida',
+      MK.tonlarniSarala({ tus: 'iliq', chuqurlik: 3 }, tonlar).map((x) => x.id).join() === '3,2,4,1');
+    test('makiyaj: kimga ko‘rinadi — faqat ayol; o‘z tanlovi ustun',
+      MK.makiyajKorinadimi({ gender: 'ayol' }) && !MK.makiyajKorinadimi({ gender: 'erkak' }) && !MK.makiyajKorinadimi({})
+      && MK.makiyajKorinadimi({}, 'ayol') && !MK.makiyajKorinadimi({ gender: 'ayol', makiyaj: false })
+      && MK.makiyajKorinadimi({ gender: 'erkak', makiyaj: true }));
+    test('makiyaj mahsuloti teri tahliliga tushmaydi',
+      MK.makiyajmi({ step: 'ton' }) && !MK.makiyajmi({ step: 'namlash' })
+      && /const parvarish = mahsulotlar\.filter\(\(p\) => !makiyajmi\(p\)\)/.test(fsY.readFileSync('src/services/analysis.js', 'utf8')));
+
+    await sorov('update users set gender = null, makiyaj = null where id = $1', [u.id]);
+    await sorov('delete from makiyaj_profillar where user_id = $1', [u.id]);
+    const rasmMk = 'data:image/jpeg;base64,' + Buffer.alloc(1600, 7).toString('base64');
+    const m0 = await chaqirIlova('/api/me', 'GET', null, token);
+    test('makiyaj: jinsi noma’lumga ko‘rinmaydi', m0.tana.makiyaj === false);
+    test('makiyaj: ruxsatsiz — 403', (await chaqirIlova('/api/makiyaj', 'POST', { image: rasmMk }, token)).kod === 403);
+    await sorov(`update users set gender = 'erkak' where id = $1`, [u.id]);
+    test('makiyaj: erkakka ko‘rinmaydi', (await chaqirIlova('/api/me', 'GET', null, token)).tana.makiyaj === false);
+    await sorov(`update users set gender = 'ayol' where id = $1`, [u.id]);
+    test('makiyaj: ayolga ko‘rinadi', (await chaqirIlova('/api/me', 'GET', null, token)).tana.makiyaj === true);
+
+    const kat = (await qator(`select id from categories where slug = 'makiyaj'`))?.id;
+    test('makiyaj kategoriyasi bor', Boolean(kat));
+    const mk = [];
+    for (const [nom, step, vn, hex] of [['Sinov Kushon', 'ton', '17C', null], ['Sinov Kushon', 'ton', '21W', null], ['Sinov Kushon', 'ton', '23N', null],
+      ['Sinov Tint', 'lab', 'Coral', '#F27A6B'], ['Sinov Tint', 'lab', 'Brick', '#A8483A']]) {
+      mk.push((await qator(`insert into products (name, brand, price, cost_price, stock, is_active, step, category_id, variant_nom, rang_hex)
+        values ($1, 'MKSINOV', 150000, 60000, 5, true, $2, $3, $4, $5) returning id`, [nom, step, kat, vn, hex])).id);
+    }
+    const r1 = await chaqirIlova('/api/makiyaj', 'POST', { image: rasmMk, mime: 'image/jpeg' }, token);
+    const rg = r1.tana.rangim || {};
+    test('makiyaj: rang aniqlandi (rang tipi, tus, ton kodi)', r1.kod === 200 && r1.tana.yaroqli && rg.rang_tipi === 'kuz' && rg.tus === 'iliq' && rg.ton_kodi === '21W',
+      JSON.stringify({ k: r1.kod, t: rg.rang_tipi, ton: rg.ton_kodi, e: r1.tana.error }));
+    const tonT = (rg.tavsiya || []).find((x) => x.bosqich === 'ton' && !x.muqobil);
+    test('makiyaj: kushon — 21W tanlandi, muqobil ham bor', tonT?.product_id === mk[1] && (rg.tavsiya || []).some((x) => x.bosqich === 'ton' && x.muqobil));
+    test('makiyaj: kuz tipiga g‘isht tusli lab tanlandi', (rg.tavsiya || []).find((x) => x.bosqich === 'lab')?.product_id === mk[4]);
+    test('makiyaj: tartib bosqichlar bilan va maslahat', rg.bosqichlar?.[0]?.kalit === 'baza' && /terrakota/i.test(rg.maslahat?.lab || ''));
+    test('makiyaj: /api/me da oxirgi rang saqlangan', (await chaqirIlova('/api/me', 'GET', null, token)).tana.rangim?.rang_tipi === 'kuz');
+    globalThis.MAKIYAJ_RAD = true;
+    const r2 = await chaqirIlova('/api/makiyaj', 'POST', { image: rasmMk }, token);
+    globalThis.MAKIYAJ_RAD = false;
+    test('makiyaj: yaroqsiz rasm — tushunarli rad', r2.kod === 200 && r2.tana.yaroqli === false && r2.tana.sabab === 'qorongi');
+    const s1 = await chaqirIlova('/api/makiyaj/sozlama', 'POST', { yoqiq: false }, token);
+    test('makiyaj: ayol o‘zi o‘chirsa — ko‘rinmaydi', s1.tana.makiyaj === false && (await chaqirIlova('/api/me', 'GET', null, token)).tana.makiyaj === false);
+    await sorov(`update users set gender = 'erkak' where id = $1`, [u.id]);
+    await chaqirIlova('/api/makiyaj/sozlama', 'POST', { yoqiq: true }, token);
+    test('makiyaj: AI «erkak» deb adashsa ham o‘zi yoqib oladi', (await chaqirIlova('/api/me', 'GET', null, token)).tana.makiyaj === true);
+    await sorov('update users set gender = null, makiyaj = null where id = $1', [u.id]);
+    await sorov('delete from makiyaj_profillar where user_id = $1', [u.id]);
+    await sorov('delete from products where id = any($1)', [mk]);
+
+    const jsM = fsY.readFileSync('public/app/app.js', 'utf8'), htmlM = fsY.readFileSync('public/app/index.html', 'utf8');
+    test('ilova: skanerda «💄 Makiyaj» rejimi va «Mening rangim» bo‘limi',
+      /id="skan-rejim"/.test(htmlM) && /id="tab-rangim"/.test(htmlM) && /'natija','rangim'\]/.test(jsM)
+      && /function rangimniChiz/.test(jsM) && /api\('\/api\/makiyaj', \{ method: 'POST'/.test(jsM));
+    test('ilova: rejim faqat ruxsat bo‘lsa ko‘rinadi', /kor\(quti, holat\.makiyaj\)/.test(jsM) && /holat\.makiyaj = Boolean\(me\.makiyaj\)/.test(jsM));
+  }
+
   // Ilova
   const js = fsY.readFileSync('public/app/app.js', 'utf8');
   const css = fsY.readFileSync('public/app/style.css', 'utf8');

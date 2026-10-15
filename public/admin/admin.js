@@ -1481,7 +1481,12 @@ function buyurtmalar() {
 // ═══════════ 3. MAHSULOTLAR ═══════════
 const BOSQICHLAR = { tozalash:'🫧 Tozalash', toner:'💧 Toner', davolash:'🧪 Davolash (serum)',
                      namlash:'🫙 Namlash', himoya:'☀️ Quyoshdan himoya', qoshimcha:'🎭 Qo‘shimcha',
-                     ichki:'💊 Ichki qabul' };
+                     ichki:'💊 Ichki qabul',
+                     // Makiyaj — qo'llash tartibida (src/lib/makiyaj.js)
+                     baza:'💄 Makiyaj: baza (praymer)', ton:'💄 Makiyaj: ton (kushon / tonal krem)',
+                     konsiler:'💄 Makiyaj: konsiler', pudra:'💄 Makiyaj: pudra', qosh:'💄 Makiyaj: qosh',
+                     kozlar:'💄 Makiyaj: ko‘z (soya, tush, qalam)', rumyana:'💄 Makiyaj: rumyana / kontur',
+                     lab:'💄 Makiyaj: lab (bo‘yoq, tint)', fiksator:'💄 Makiyaj: fiksator' };
 const MUAMMOLAR = ['akne','teshik','yoglilik','quruqlik','qizarish','dog','ajin','xiralik','sezgirlik','quyosh'];
 const TERILAR = ['quruq','yogli','aralash','normal','sezgir','barcha'];
 

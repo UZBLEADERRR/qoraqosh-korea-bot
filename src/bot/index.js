@@ -9,6 +9,7 @@ import { brendNomi } from '../lib/brend.js';
 import * as reg from './handlers/register.js';
 import * as skaner from './handlers/scanner.js';
 import * as dokon from './handlers/shop.js';
+import * as mk from './handlers/makiyaj.js';
 import { esc } from './format.js';
 import { sorovJavobi, telegramKirishniTasdiqla } from '../services/ilova-kirish.js';
 import * as ochiq from '../services/ochiq-skan.js';
@@ -151,10 +152,13 @@ export async function yangilanish(upd) {
   if (matn === '/skaner') return skaner.skanerYordami(chatId);
 
   // ---- Rasm ----
+  // «💄 Menga mos makiyaj» bosilgan bo'lsa — rasm rang tahliliga ketadi
+  if (await mk.makiyajRasmi(msg, user)) return;
   if (await skaner.rasmniQabulQil(msg, user)) return;
 
+  const { makiyajRuxsat } = await import('../services/makiyaj.js');
   await yubor(chatId, '📸 Yuz tahlili uchun rasm yuboring yoki menyudan tanlang.',
-    { reply_markup: await asosiyMenyu(adminmi(user)) });
+    { reply_markup: await asosiyMenyu(adminmi(user), { makiyaj: await makiyajRuxsat(user) }) });
 }
 
 // ---------- Inline tugmalar ----------
@@ -162,6 +166,7 @@ const AMALLAR = {
   menyu:         (chatId, user) => dokon.menyuniKorsat(chatId, user),
   natija_ol:     (chatId, user) => skaner.natijaniQaytaYubor(chatId, user),
   skaner:        (chatId)       => skaner.skanerYordami(chatId),
+  makiyaj:       (chatId, user) => mk.makiyajBoshla(chatId, user),
   buyurtmalar:   (chatId, user) => dokon.buyurtmalarniKorsat(chatId, user),
   profil:        (chatId, user) => dokon.profilniKorsat(chatId, user),
   konsultatsiya: (chatId)       => dokon.konsultatsiya(chatId),
@@ -222,7 +227,9 @@ async function callback(cq) {
     if (!reg.royxatdanOtganmi(user) && data !== 'menyu') {
       return reg.boshla(chatId, user);
     }
-    return amal(chatId, user);
+    const r = await amal(chatId, user);
+    if (data === 'makiyaj' && r === false) return yubor(chatId, '🔬 Teri tahlili uchun «Yuz skaneri» ni bosing.');
+    return r;
   }
   await javobBer(cq.id);
 }

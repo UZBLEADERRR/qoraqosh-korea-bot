@@ -692,6 +692,43 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
     B.moslovchi('<b>Salom</b>, {ism}! Aksiya')('Salom, Malika! Aksiya bugun') && !B.moslovchi('Salom, {ism}! Aksiya')('Boshqa matn'));
 }
 
+// ═══ Makiyaj: «💄 Menga mos makiyaj» — faqat ayollarga ═══
+{
+  const tugmalar = (y) => (y?.reply_markup?.inline_keyboard || []).flat();
+  const menyuKor = async () => {
+    const o = yuborilgan.length;
+    await yangilanish({ update_id: Math.random(), message: { message_id: 300, date: Math.floor(Date.now() / 1000),
+      chat: { id: Number(TG), type: 'private' }, from: { id: Number(TG), first_name: 'Sinov' }, text: '/menyu' } });
+    return yuborilgan.slice(o).filter((y) => String(y.chat_id) === TG);
+  };
+  // Oldingi /ochir sinovi hisobni o'chirgan — ro'yxatdan o'tgan holatni tiklaymiz
+  await sorov(`insert into users (telegram_id, full_name, phone, age, agreed_at) values ($1, 'Sinov', '+998901112233', 24, now())
+    on conflict (telegram_id) do update set agreed_at = now(), full_name = 'Sinov', phone = '+998901112233', age = 24, is_blocked = false`, [TG]);
+  await sorov(`update users set gender = 'erkak', makiyaj = null, state = null where telegram_id = $1`, [TG]);
+  test('erkak: menyuda makiyaj tugmasi YO‘Q', !(await menyuKor()).some((y) => tugmalar(y).some((b) => b.callback_data === 'makiyaj')));
+  await sorov(`update users set gender = 'ayol' where telegram_id = $1`, [TG]);
+  test('ayol: menyuda «💄 Menga mos makiyaj»', (await menyuKor()).some((y) => tugmalar(y).some((b) => b.callback_data === 'makiyaj')));
+  const o1 = yuborilgan.length;
+  await bosish('makiyaj');
+  test('tugma bosilsa — selfi ko‘rsatmasi va rasm kutiladi',
+    yuborilgan.slice(o1).some((y) => /Sizga mos makiyajni tanlaymiz/.test(y.text || ''))
+    && (await qator('select state from users where telegram_id = $1', [TG])).state === 'makiyaj_rasm');
+  const o2 = yuborilgan.length;
+  await rasmYubor();
+  const rangXabar = yuborilgan.slice(o2).find((y) => /Sizning rangingiz/.test(y.text || ''));
+  test('rasm rang tahliliga ketdi (teri skaneriga emas)', Boolean(rangXabar) && /Kuz/.test(rangXabar?.text || '')
+    && !yuborilgan.slice(o2).some((y) => /Teri tahlilingiz/.test(y.text || '')));
+  test('holat tozalandi — keyingi rasm yana teri skaneriga', (await qator('select state from users where telegram_id = $1', [TG])).state === null);
+  await sorov(`update users set gender = 'erkak' where telegram_id = $1`, [TG]);
+  const o3 = yuborilgan.length;
+  await bosish('makiyaj');
+  test('erkak eski tugmani bossa — makiyaj boshlanmaydi',
+    !yuborilgan.slice(o3).some((y) => /Sizga mos makiyajni/.test(y.text || ''))
+    && (await qator('select state from users where telegram_id = $1', [TG])).state === null);
+  await sorov(`update users set gender = null, makiyaj = null where telegram_id = $1`, [TG]);
+  await sorov(`delete from makiyaj_profillar where user_id = (select id from users where telegram_id = $1)`, [TG]);
+}
+
 console.log(`\n${xato ? '❌' : '✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close();
 process.exit(xato ? 1 : 0);

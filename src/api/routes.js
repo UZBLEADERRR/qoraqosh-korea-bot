@@ -26,6 +26,7 @@ import { ochiqKalit, obunaSaqla, obunaOchir, foydalanuvchigaPush } from '../serv
 import { natijaHavolasi, natijaHavolasiniOch } from '../lib/natija-havola.js';
 import { supabaseBilanKir } from '../services/ilova-kirish.js';
 import { manbaBelgila, sorovBelgisi } from '../services/manba.js';
+import * as makiyaj from '../services/makiyaj.js';
 
 // Kuniga minglab foydalanuvchi bo'lganda katalog eng ko'p so'raladigan yo'l.
 // 30 soniyalik kesh bazaga ketadigan bir xil so'rovlarni yig'ib bitta qiladi.
@@ -296,7 +297,39 @@ export async function apiRoutes(req, res, yol) {
         royxatdan_otgan: Boolean(user.phone && user.full_name && user.agreed_at),
       },
       oxirgi_tahlil: await oxirgiTahlil(user.id),
+      // Makiyaj bo'limi — faqat ayollarga (profilda o'zi yoqadi/o'chiradi)
+      makiyaj: await makiyaj.makiyajRuxsat(user),
+      makiyaj_sozlama: user.makiyaj ?? null,
+      rangim: await makiyaj.oxirgiRangim(user.id),
     });
+  }
+
+  // ── MAKIYAJ: «Mening rangim» ──
+  if (yol === '/api/makiyaj' && req.method === 'GET') {
+    if (!(await makiyaj.makiyajRuxsat(user))) return xato(res, 403, 'Bu bo‘lim yoqilmagan.');
+    return ok(res, { rangim: await makiyaj.oxirgiRangim(user.id) });
+  }
+  if (yol === '/api/makiyaj' && req.method === 'POST') {
+    if (!(await makiyaj.makiyajRuxsat(user))) return xato(res, 403, 'Bu bo‘lim yoqilmagan.');
+    const c = cheklov('makiyaj:' + user.id, 4, 5 * 60_000);
+    if (!c.ruxsat) return json(res, 429, { error: `Juda tez-tez. ${c.kutish} soniyadan keyin urinib ko‘ring.` });
+    const b = await tana(req);
+    const base64 = String(b.image || '').replace(/^data:image\/\w+;base64,/, '');
+    if (!base64 || base64.length < 1000)  return xato(res, 400, 'Rasm yuborilmadi.');
+    if (base64.length > 12 * 1024 * 1024) return xato(res, 413, 'Rasm juda katta.');
+    try {
+      return ok(res, await makiyaj.rangimniTahlilQil(user, base64, tozaMime(b.mime)));
+    } catch (e) {
+      if (e.message === 'MAKIYAJ_LIMIT') return json(res, 429, { error: 'Bugun rang tahlili limiti tugadi — ertaga yana urinib ko‘ring.' });
+      const x = xatoniTushuntir(e);
+      console.error('MAKIYAJ XATOSI', x.log);
+      return xato(res, 502, x.matn);
+    }
+  }
+  if (yol === '/api/makiyaj/sozlama' && req.method === 'POST') {
+    const b = await tana(req);
+    const v = await makiyaj.makiyajSozla(user.id, b.yoqiq);
+    return ok(res, { makiyaj_sozlama: v, makiyaj: await makiyaj.makiyajRuxsat({ ...user, makiyaj: v }) });
   }
 
   if (yol === '/api/register' && req.method === 'POST') {

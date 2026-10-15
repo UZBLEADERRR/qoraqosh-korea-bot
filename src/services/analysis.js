@@ -2,6 +2,7 @@
 // shuning uchun ikkala kanalda natija bir xil bo'ladi.
 import { qatorlar, qator, hodisa, sozlama, sorov } from '../db.js';
 import { umumiyBall } from '../lib/olchov.js';
+import { makiyajmi } from '../lib/makiyaj.js';
 import { yuzniTahlilQil } from '../ai/faceAnalysis.js';
 import { kartochkaSozlamasi } from '../lib/kartochka.js';
 
@@ -81,10 +82,12 @@ export async function tahlilQil(user, base64, mime) {
     // mumkin («soqol olishdan keyingi qirilishga e'tibor ber» kabi)
     sozlama('natija_kartochka', {}),
   ]);
-  const omborda = mahsulotlar.filter((p) => p.stock > 0);
+  // Makiyaj mahsulotlari teri parvarishi tavsiyasiga tushmaydi (kushon «namlash» emas)
+  const parvarish = mahsulotlar.filter((p) => !makiyajmi(p));
+  const omborda = parvarish.filter((p) => p.stock > 0);
 
   const natija = await yuzniTahlilQil(
-    base64, mime, omborda.length ? omborda : mahsulotlar, eskiTavsiyalar,
+    base64, mime, omborda.length ? omborda : parvarish, eskiTavsiyalar,
     kartochkaSozlamasi(kartochka).ai_qoshimcha);
 
   if (!natija.yaroqli) {
@@ -115,6 +118,11 @@ export async function tahlilQil(user, base64, mime) {
   );
 
   await hodisa(user.id, 'scan', { ball: a.ball, muammo: a.muammolar.length });
+  // Jins hech qayerda so'ralmaydi — AI aniq aytgan bo'lsa profilga yoziladi
+  // (makiyaj bo'limi faqat ayollarga; odam profilda o'zi o'zgartira oladi)
+  if (a.jins === 'ayol' || a.jins === 'erkak') {
+    sorov('update users set gender = $1 where id = $2 and gender is null', [a.jins, user.id]).catch(() => {});
+  }
 
   return {
     yaroqli: true,
