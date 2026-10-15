@@ -1760,7 +1760,7 @@ console.log('\n── TELEGRAM CHEKLOVI ──');
   globalThis.TG_FLOOD = true;
   urinishlar.length = 0;
   yuborilgan.length = 0;
-  const y = await bc.broadcastBoshla({ matn: 'Sinov reklama', chatId: '700001' });
+  const y = await bc.broadcastBoshla({ matn: `Sinov reklama ${Date.now().toString(36)}`, chatId: '700001' });
   // Fon vazifasi tugashini kutamiz
   for (let i = 0; i < 60; i++) {
     const h = await bc.broadcastHolati(y.id);
@@ -4712,6 +4712,25 @@ console.log('\n── KARTOCHKA SHABLONI ──');
   test('muammo TEGMAGAN o‘lchov izohi bo‘sh — matn o‘ylab topilmaydi',
     bilan.find((o) => o.kalit === 'namlik').izoh === '');
 
+  // UMUMIY BALL — model emas, o'lchov va muammolardan (hammaga 68/78 chiqardi)
+  const skrin = { pora: 55, ajin: 60, pigment: 50, qizarish: 75, tekstura: 65, namlik: 58, yoglilik: 62 };
+  const uchMuammo = [{ kalit: 'dog', foiz: 65, ishonch: 80 }, { kalit: 'teshik', foiz: 55, ishonch: 80 }, { kalit: 'ajin', foiz: 50, ishonch: 75 }];
+  const bT = O.umumiyBall({ pora: 90, ajin: 93, pigment: 88, qizarish: 91, tekstura: 89, namlik: 86, yoglilik: 84 }, []);
+  const bS = O.umumiyBall(skrin, uchMuammo);
+  const bA = O.umumiyBall({ pora: 38, ajin: 82, pigment: 55, qizarish: 40, tekstura: 28, namlik: 60, yoglilik: 35 },
+    [{ kalit: 'akne', foiz: 78, ishonch: 90 }, { kalit: 'qizarish', foiz: 60, ishonch: 80 }]);
+  test('umumiy ball keng oraliqda: toza teri A’lo, muammoli O‘rtacha, akne past',
+    bT >= 80 && bS >= 45 && bS < 65 && bA < 45 && bT - bA > 40, `${bT} / ${bS} / ${bA}`);
+  test('ko‘rinib turgan muammolar ballni tushiradi', O.umumiyBall(skrin, uchMuammo) < O.umumiyBall(skrin, []));
+  test('ishonchi past muammo ballga ta’sir qilmaydi',
+    O.umumiyBall(skrin, [{ kalit: 'dog', foiz: 80, ishonch: 40 }]) === O.umumiyBall(skrin, []));
+  test('bir xil rasm — bir xil ball (tasodif yo‘q)', O.umumiyBall(skrin, uchMuammo) === O.umumiyBall(skrin, uchMuammo));
+  {
+    const fa = (await import('node:fs')).readFileSync('src/ai/faceAnalysis.js', 'utf8');
+    test('tahlilda ball modeldan emas, umumiyBall dan', /ball:\s+umumiyBall\(olchovlarniTozala\(javob\.olchovlar\), muammolar\)/.test(fa)
+      && /pora\s+92: teshiklar deyarli ko'rinmaydi/.test(fa));
+  }
+
   // Bir o'lchovga ikki muammo tushsa — eng kuchlisi
   const ikki = O.olchovlarniHisobla(
     [{ kalit: 'dog', foiz: 30 }, { kalit: 'qora_doira', foiz: 70 }], null);
@@ -4742,7 +4761,7 @@ console.log('\n── KARTOCHKA SHABLONI ──');
   test('modelga muammolar bilan ziddiyatsiz bo‘lishi aytilgan',
     /ZIDDIYATSIZ/.test(aiKod));
   test('dumaloq raqamlardan qochish aytilgan',
-    /dumaloq sonlardan qoch/.test(aiKod));
+    /5 ga\s+karrali sonlardan qoch/.test(aiKod));
 
   // Bazaga tushadimi — sahifa yangilangach yo'qolmasin
   const servis = fs4.readFileSync('src/services/analysis.js', 'utf8');
@@ -5999,7 +6018,7 @@ console.log('\n── AI BIZNES VOSITALARI ──');
   test('xabar HTML sifatida emas, matn sifatida', yuborilgan.some((x) => String(x.chat_id) === '880001'
     && /&lt;b&gt;sinov/.test(x.text || '')));
   test('topilmagan mijoz — tushunarli javob', (await vositaniBajar('mijozga_xabar', { telefon: '000', matn: 'x y' })).yuborildi === 0);
-  const ox = await vositaniBajar('ommaviy_xabar', { segment: 'tahlil_xaridsiz', kun: 14, matn: 'Sizga mos krem bor!' });
+  const ox = await vositaniBajar('ommaviy_xabar', { segment: 'tahlil_xaridsiz', kun: 14, matn: `Sizga mos krem bor! ${Date.now().toString(36)}` });
   const yb = await qator(`select jami from yuborishlar where id = $1`, [ox.yuborish_id]);
   test('ommaviy xabar FAQAT segmentga', ox.yuborildi >= 1 && yb.jami === ox.yuborildi
     && ox.yuborildi < Number(await qiymat(`select count(*) from users where telegram_id ~ '^[0-9]+$'`)),

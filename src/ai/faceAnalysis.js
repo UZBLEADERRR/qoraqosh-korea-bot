@@ -3,7 +3,7 @@
 // shuning uchun u mavjud bo'lmagan mahsulotni "o'ylab topa olmaydi".
 // Qaytgan id'lar baribir katalogga solishtirib tekshiriladi.
 import { aiJson, rasmPart, aiBormi } from './index.js';
-import { OLCHOV_KALITLARI, olchovlarniTozala } from '../lib/olchov.js';
+import { OLCHOV_KALITLARI, olchovlarniTozala, umumiyBall } from '../lib/olchov.js';
 import { zonaMosmi } from '../lib/zona.js';
 
 export const RAD_SABABLARI = {
@@ -234,7 +234,8 @@ QADAM 2 — faqat sifat yaroqli bo'lsa tahlil qil:
                          o'sgan tuk) qo'shimcha muammo bo'ladi.
   umumiy.teri_rangi    — o'zbekcha tavsif, masalan "och bug'doyrang, iliq tonli"
   umumiy.teri_turi     — bitta qiymat
-  umumiy.ball          — terining umumiy holati 0-100 (100 = ideal)
+  umumiy.ball          — terining umumiy holati 0-100. Server uni o'lchovlar va
+                         muammolardan O'ZI hisoblaydi — taxminiy son yoz.
   umumiy.tavsif        — «MEN RASMDA NIMA KO'RYAPMAN», 1-2 qisqa jumla.
                          Odam o'z suratini tanishi uchun: bu tahlil
                          AYNAN uning rasmidan chiqqaniga ishonch hosil
@@ -261,14 +262,33 @@ QADAM 2b — O'LCHOVLAR. Yettita ko'rsatkichning HAMMASIGA baho ber,
   olchovlar.namlik   — namlanganlik darajasi
   olchovlar.yoglilik — yog' muvozanati
 
-  HAR BIRI 0-100 va QANCHA YUQORI BO'LSA SHUNCHA YAXSHI:
-  100 — muammo umuman yo'q, 85 — a'lo, 70 — yaxshi, 55 — o'rtacha,
-  40 — e'tibor kerak, 25 — zaif. Ya'ni «yog'lilik 30» degani teri
-  JUDA YOG'LI degani, «yog'lilik 85» esa yog' muvozanati yaxshi.
+  HAR BIRI 0-100 va QANCHA YUQORI BO'LSA SHUNCHA YAXSHI. Har birini
+  RASMDA KO'RGANINGNI shu mezonlarga solishtirib qo'y — «o'rtacha
+  bo'lsin» deb taxmin qilma:
 
-  Aniq raqam ber — 50, 60, 70 kabi dumaloq sonlardan qoch.
-  Hamma ko'rsatkichga bir xil raqam qo'yma: teri hech qachon hamma
-  o'lchovda bir xil bo'lmaydi.
+  pora     92: teshiklar deyarli ko'rinmaydi · 75: faqat burunda mayda ·
+           55: burun va yonoqlarda aniq ko'rinadi · 35: kengaygan, ko'p
+           qora nuqta · 15: juda kengaygan va tiqilgan, butun yuzda
+  ajin     92: ajin yo'q · 75: ko'z chetida mayda chiziqlar · 55: peshona
+           va ko'z atrofida aniq · 35: chuqur ajinlar, burun-lab burmasi ·
+           15: ko'p chuqur ajin, teri bo'shashgan
+  pigment  92: ton tekis · 75: 1-2 mayda dog' yoki sepkil · 55: bir nechta
+           aniq dog' · 35: keng dog'lar, ton notekis · 15: yuzning katta
+           qismi dog'li
+  qizarish 92: qizarish yo'q · 75: bir joyda yengil · 55: yonoq/burunda
+           aniq · 35: keng qizargan sohalar · 15: kuchli, yallig'langan
+  tekstura 92: silliq · 75: biroz notekis · 55: relef aniq (post-akne,
+           g'adir-budir) · 35: ko'p toshma yoki chandiq · 15: juda notekis
+  namlik   92: tiniq, to'la · 75: yaxshi · 55: xira, quruqlik belgilari ·
+           35: qipiqlanish · 15: kuchli quruqlik, yorilish
+  yoglilik 92: muvozanatli · 75: T-zonada biroz yaltiraydi · 55: aniq
+           yaltiraydi (yoki tortishib qolgan quruq) · 35: juda yog'li ·
+           15: kuchli yog' va tiqilish
+
+  Mezonlar ORASIDAGI sonlar ham bo'ladi (masalan 83, 64, 47). 5 ga
+  karrali sonlardan qoch. Hamma ko'rsatkichga bir xil raqam qo'yma:
+  teri hech qachon hamma o'lchovda bir xil bo'lmaydi. Toza teriga
+  85-95, kuchli muammoga 20-40 berishdan qo'rqma — halol baho kerak.
 
   MUHIM: o'lchov QADAM 3 dagi muammolar bilan ZIDDIYATSIZ bo'lsin.
   Kuchli akne yozib «tekstura: 90» deb qo'yma. Aksincha ham: o'lchovi
@@ -596,7 +616,8 @@ function tozala(javob, products) {
     jins: ['erkak', 'ayol'].includes(u.jins) ? u.jins : 'nomalum',
     teri_rangi:    String(u.teri_rangi || "aniqlanmadi").slice(0, 60),
     teri_turi:     String(u.teri_turi || 'normal').slice(0, 20),
-    ball:          Math.min(100, Math.max(0, Number(u.ball) || 60)),
+    // Model bergan ball emas — o'lchov va muammolardan (src/lib/olchov.js)
+    ball:          umumiyBall(olchovlarniTozala(javob.olchovlar), muammolar),
     tavsif:        kasallikniOlib(String(u.tavsif || '')).slice(0, 240),
     xulosa:        String(u.xulosa || '').slice(0, 400),
     // Tavsiya soni TERI HOLATIGA qarab: 10 tagacha to'liq to'plam

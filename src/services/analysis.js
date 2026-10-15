@@ -1,6 +1,7 @@
 // Tahlil xizmati — bot ham, Mini App ham SHU funksiyani chaqiradi,
 // shuning uchun ikkala kanalda natija bir xil bo'ladi.
-import { qatorlar, qator, hodisa, sozlama } from '../db.js';
+import { qatorlar, qator, hodisa, sozlama, sorov } from '../db.js';
+import { umumiyBall } from '../lib/olchov.js';
 import { yuzniTahlilQil } from '../ai/faceAnalysis.js';
 import { kartochkaSozlamasi } from '../lib/kartochka.js';
 
@@ -155,3 +156,30 @@ export const tahlilniOl = (userId, id) => qator(
   `select a.*, (select b.score from analyses b where b.user_id = a.user_id
                   and b.created_at < a.created_at order by b.created_at desc limit 1) as oldingi_ball
      from analyses a where a.user_id = $1 and a.id = $2`, [userId, id]);
+
+/**
+ * BIR MARTALIK: eski tahlillarning umumiy balli yangi qoida bo'yicha
+ * (o'lchov + muammolardan, src/lib/olchov.js → umumiyBall) qayta
+ * hisoblanadi. Aks holda «oldingi tahlilga nisbatan» eski (model
+ * qo'ygan, deyarli doim 68/78) ball bilan solishtirilib, odamga
+ * «teringiz yomonlashdi» degan noto'g'ri xulosa chiqardi.
+ */
+export async function ballarniQaytaHisobla() {
+  if (await sozlama('ball_hisob_v2', false)) return 0;
+  let n = 0, oxirgi = 0;
+  for (;;) {
+    const r = await qatorlar(
+      `select id, problems, raw from analyses where id > $1 and not is_offline and coalesce(score, 0) > 0
+        order by id limit 500`, [oxirgi]);
+    if (!r.length) break;
+    for (const a of r) {
+      oxirgi = a.id;
+      const yangi = umumiyBall(a.raw?.olchovlar || null, Array.isArray(a.problems) ? a.problems : []);
+      await sorov('update analyses set score = $1 where id = $2', [yangi, a.id]);
+      n++;
+    }
+  }
+  await sorov(`insert into settings (key, value, updated_at) values ('ball_hisob_v2', 'true'::jsonb, now())
+    on conflict (key) do update set value = excluded.value, updated_at = now()`);
+  return n;
+}

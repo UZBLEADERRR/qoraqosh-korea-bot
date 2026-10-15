@@ -697,6 +697,10 @@ async function boshla() {
 
   console.log('   Migratsiyalar:');
   await migratsiyalarniQoll();
+  // Bir martalik: eski tahlil ballari yangi qoida bo'yicha (fonda)
+  import('./services/analysis.js').then((m) => m.ballarniQaytaHisobla())
+    .then((n) => { if (n) console.log(`ℹ️  ${n} ta tahlil bali qayta hisoblandi`); })
+    .catch((e) => console.error('Ball qayta hisobi:', e.message));
 
   server.listen(config.port, () => {
     const asos = config.publicUrl || `http://localhost:${config.port}`;

@@ -153,3 +153,33 @@ export function olchovlarniTozala(xom) {
   }
   return bormi ? t : null;
 }
+
+/* UMUMIY BALL — MODEL EMAS, O'LCHOVLARDAN HISOBLANADI.
+ *
+ * Ilgari umumiy ballni model o'zi yozardi va u JAVOBNING BOSHIDA —
+ * rasmni batafsil ko'rib chiqishdan oldin — turardi. Natijada deyarli
+ * hammaga 68 yoki 78 chiqardi: model «xavfsiz» o'rtacha-yuqori son
+ * tanlardi, ko'rsatkichlar va topilgan muammolar bilan bog'liq emasdi.
+ *
+ * Endi ball yettita o'lchov va aniq ko'ringan muammolardan:
+ *   • o'lchovlarning tortilgan o'rtachasi (tekstura va pigment ko'proq
+ *     ko'rinadi — salmog'i katta);
+ *   • ENG ZAIF o'lchov ham hisobga olinadi: odam terisiga eng yaqqol
+ *     muammosi bo'yicha baho beradi;
+ *   • har aniq ko'ringan muammo (ishonch ≥ 60) kuchiga qarab ayiradi.
+ * Bir xil rasm — bir xil ball; toza teri 85+, muammoli teri 40-55. */
+const SALMOQ = { pora: 1, ajin: 0.9, pigment: 1.1, qizarish: 1, tekstura: 1.2, namlik: 0.8, yoglilik: 0.8 };
+
+export function umumiyBall(xom = null, muammolar = []) {
+  const o = olchovlarniHisobla(muammolar, xom);
+  let s = 0, w = 0;
+  for (const x of o) { const k = SALMOQ[x.kalit] ?? 1; s += x.ball * k; w += k; }
+  const ortacha = w ? s / w : MUAMMOSIZ;
+  const eng = Math.min(...o.map((x) => x.ball));
+  let jarima = 0;
+  for (const m of Array.isArray(muammolar) ? muammolar : []) {
+    if (m?.ishonch != null && Number(m.ishonch) < 60) continue;
+    jarima += Math.max(0, chegara(m?.foiz, 0) - 30) * 0.08;
+  }
+  return Math.round(Math.min(97, Math.max(5, 0.75 * ortacha + 0.25 * eng - Math.min(20, jarima))));
+}

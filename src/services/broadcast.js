@@ -31,8 +31,10 @@ export async function broadcastBoshla({ matn, fileId, adminId, chatId, userIdlar
   // TAKROR HIMOYASI: qaysi yo'l bilan kelmasin (AI, /reklama, ikki marta
   // bosish) — AYNAN SHU xabar 10 daqiqa ichida qayta ommaviy ketmaydi.
   const oldingi = await qator(
+    // To'xtab qolgan (Telegram cheklovi) yoki hech kimga yetmagan yuborishni
+    // qayta boshlash mumkin — faqat ketayotgan yoki yetib borgani takror.
     `select id, jami from yuborishlar where matn = $1 and created_at > now() - interval '10 minutes'
-       and coalesce(holat, '') <> 'bekor' order by id desc limit 1`, [matn || '']);
+       and (holat = 'ketmoqda' or (holat = 'tugadi' and yuborildi > 0)) order by id desc limit 1`, [matn || '']);
   if (oldingi && (matn || '').length >= 3) {
     console.warn('BROADCAST: takror yuborish to‘xtatildi — #' + oldingi.id);
     return { id: oldingi.id, jami: 0, takror: true };
