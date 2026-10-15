@@ -2730,7 +2730,6 @@ async function kichiklashtir(fayl, max = 1024, sifat = 0.85) {
 
 async function tahlilQil() {
   if (!tanlanganRasm) return;
-  if (holat.skanRejim === 'makiyaj' && holat.makiyaj) return rangimTahlil();
   kor($('#skaner-oldindan'), false); kor($('#skaner-yuklanmoqda'), true);
   try {
     const j = await api('/api/scan', { method: 'POST',
@@ -2761,6 +2760,8 @@ async function tahlilQil() {
       oldingi_ball: holat.tahlil?.score ?? null,
     };
     holat.natijaKorish = null;
+    // Bitta selfi — ikkala natija: makiyaj ham shu javobda keladi
+    if (j.rangim) { holat.rangim = j.rangim; tabSurish.rangim = 0; }
     holat.limit = j.limit || holat.limit;
     // Profildagi «AI tahlil» / «Natijalarim» soni ilova ochilganda olingan —
     // yangi tahlil saqlangan bo'lsa shu yerning o'zida oshiramiz
@@ -4953,7 +4954,6 @@ function profilniChiz() {
       try {
         const j = await api('/api/makiyaj/sozlama', { method: 'POST', body: JSON.stringify({ yoqiq: !holat.makiyaj }) });
         holat.makiyaj = Boolean(j.makiyaj); holat.makiyajSozlama = j.makiyaj_sozlama;
-        if (!holat.makiyaj) holat.skanRejim = 'teri';
         skanRejimChiz(); holat.natijaKesh = false; titra('medium');
       } catch (e) { ogohlantir(e.message); }
       b.disabled = false;
@@ -6111,6 +6111,7 @@ function tabOch(nom, { tarixsiz = false } = {}) {
   if (nom === 'maslahat') maslahatniChiz();
   if (nom === 'natija' && !holat.natijaKesh) natijaniChiz();
   if (nom === 'rangim') rangimniChiz();
+  if (nom === 'natija' || nom === 'rangim') natijaAlmashChiz();
   // Qaytib kelganda o'sha joyidan davom etadi; birinchi marta
   // ochilayotgan bo'lim esa tepadan boshlanadi
   const joy = oldingi === nom ? window.scrollY : (tabSurish[nom] || 0);
@@ -6127,63 +6128,39 @@ $('#t-qid-skaner').onclick = () => { titra('medium'); tabOch('skaner'); };
 // yerda e'lon qilingan. Tashqarida yozilsa ilova ochilishida xato beradi.
 // Skaner ichidagi rejim: bitta selfi → teri osti tusi, rang tipi, mos kushon
 // toni, palitra va makiyaj tartibi (server: src/services/makiyaj.js).
-holat.skanRejim = 'teri';
-const SKAN_MATN = {
-  teri: null,   // birinchi chaqiruvda HTML dagi asl matn eslab qolinadi
-  makiyaj: { h: 'Rangingizni aniqlaymiz',
-    p: 'Pardozsiz, deraza yonida kunduzgi yorug‘likda selfi oling — teri osti tusi, rang tipi va mos kushon tonini topamiz.' },
-};
+const SKAN_MATN = { teri: null };   // skaner matni (HTML dagi asli eslab qolinadi)
 
+/* Skaner boshida rejim tanlanmaydi: bitta selfi ikkala natijani beradi
+   (server: services/makiyaj.js → skanVaRang). Almashtirgich natija
+   sahifalarining tepasida — teri va makiyaj orasida (natijaAlmashChiz). */
 function skanRejimChiz() {
-  const quti = $('#skan-rejim');
-  if (!quti) return;
-  if (!holat.makiyaj) holat.skanRejim = 'teri';
-  kor(quti, holat.makiyaj);
-  const h = $('#skaner-boshlash .ekran-bosh h2'), p = $('#skaner-boshlash .ekran-bosh p');
-  if (!SKAN_MATN.teri && h && p) SKAN_MATN.teri = { h: h.textContent, p: p.textContent };
-  const m = SKAN_MATN[holat.skanRejim] || SKAN_MATN.teri;
-  if (h && m) h.textContent = m.h;
-  if (p && m) p.textContent = m.p;
-  // Teri belgilari (akne, quruqlik…) makiyaj rejimida kerak emas
-  kor($('#skan-belgilar'), holat.skanRejim === 'teri');
-  $$('[data-rejim]', quti).forEach((b) => {
-    b.classList.toggle('tanlangan', b.dataset.rejim === holat.skanRejim);
-    b.onclick = () => { holat.skanRejim = b.dataset.rejim; titra(); skanRejimChiz(); };
-  });
+  const pEl = $('#skaner-boshlash .ekran-bosh p');
+  if (pEl && SKAN_MATN.teri === null) SKAN_MATN.teri = pEl.textContent;
+  if (pEl) pEl.textContent = holat.makiyaj
+    ? 'Bitta selfi — teri tahlili va sizga mos makiyaj. Yaxshi yoritilgan joyda, pardozsiz oling.'
+    : SKAN_MATN.teri;
+  natijaAlmashChiz();
 }
 
 function makiyajniBoshla() {
   if (!holat.makiyaj) return;
-  holat.skanRejim = 'makiyaj';
-  skanRejimChiz();
   tabOch('skaner');
 }
 
-async function rangimTahlil() {
-  kor($('#skaner-oldindan'), false); kor($('#skaner-yuklanmoqda'), true);
-  const yuk = $('#skaner-yuklanmoqda');
-  const b = $('b', yuk), mayda = $('.mayda', yuk);
-  const asl = [b?.textContent, mayda?.textContent];
-  if (b) b.textContent = 'Rangingiz aniqlanmoqda…';
-  if (mayda) mayda.textContent = 'Teri osti tusi, rang tipi va mos tonlar tanlanmoqda';
-  try {
-    const j = await api('/api/makiyaj', { method: 'POST',
-      body: JSON.stringify({ image: tanlanganRasm, mime: tanlanganMime }) });
-    kor(yuk, false);
-    kor($('#skaner-boshlash'), true);
-    if (j.limit) { holat.limit = j.limit; limitniChiz(); }
-    if (!j.yaroqli) return radOyna(j);
-    holat.rangim = j.rangim;
-    tanlanganRasm = null; $('#fayl').value = '';
-    tabSurish.rangim = 0;
-    tabOch('rangim'); titra('medium');
-  } catch (e) {
-    kor(yuk, false); kor($('#skaner-boshlash'), true);
-    if (e.limit) { holat.limit = e.limit; limitniChiz(); limitOyna(e.limit); return; }
-    ogohlantir(e.message);
-  } finally {
-    if (b) b.textContent = asl[0]; if (mayda) mayda.textContent = asl[1];
-  }
+/** Natija sahifalari tepasidagi almashtirgich: 🔬 Teri ⇄ 💄 Makiyaj. Hech qachon yo'qolmaydi. */
+function natijaAlmashChiz() {
+  $$('.natija-almash').forEach((q) => {
+    kor(q, holat.makiyaj);
+    $$('[data-almash]', q).forEach((b) => {
+      b.classList.toggle('tanlangan', (b.dataset.almash === 'makiyaj') === (holat.tab === 'rangim'));
+      b.onclick = () => {
+        if (b.classList.contains('tanlangan')) return;
+        titra();
+        if (b.dataset.almash === 'makiyaj') return tabOch('rangim');
+        return tabOch(holat.tahlil ? 'natija' : 'skaner');
+      };
+    });
+  });
 }
 
 const RG_YUZ = { oval: 'Oval', dumaloq: 'Dumaloq', kvadrat: 'Kvadrat', yurak: 'Yurak', uzunchoq: 'Uzunchoq', olmos: 'Olmos' };
@@ -6209,8 +6186,8 @@ function rangimniChiz() {
     el.innerHTML = `<div class="rg-bosh-holat">
       <div class="rg-bh-doiralar"><i></i><i></i><i></i></div>
       <h2>Rangingizni aniqlaymiz</h2>
-      <p>Bitta selfi — mos ton, ranglar palitrasi va qadamma-qadam makiyaj tartibi.</p>
-      <button class="asosiy" id="t-rg-bosh">${ik('kamera', 18)}Rangimni aniqlash</button></div>`;
+      <p>Bitta selfi — teri tahlili bilan birga mos ton, ranglar palitrasi va qadamma-qadam makiyaj tartibi.</p>
+      <button class="asosiy" id="t-rg-bosh">${ik('kamera', 18)}Selfi olish</button></div>`;
     $('#t-rg-bosh').onclick = makiyajniBoshla;
     return;
   }
@@ -6313,7 +6290,7 @@ function rangimniChiz() {
       <p class="ozgina" style="margin:-4px 0 12px">Aynan shu ketma-ketlikda surting.</p>
       <ol class="rg-vaqt">${qadamHtml}</ol>
       ${r.maslahat?.kontur ? `<div class="rg-kontur"><b>Kontur</b><p>${esc(r.maslahat.kontur)}</p></div>` : ''}
-      <button class="ikkilamchi" id="t-rg-qayta" style="margin-top:14px">${ik('kamera', 18)}Qayta aniqlash</button>
+      <button class="ikkilamchi" id="t-rg-qayta" style="margin-top:14px">${ik('kamera', 18)}Yangi selfi</button>
     </section>
     <p class="n-eslatma">Rang tahlili suratdan — taxminiy. Kunduzgi yorug‘likda aniqroq.</p>
     ${asosiy.length ? `<div class="rg-panel">

@@ -106,8 +106,88 @@ async function yangiTavsiya(r, katalog) {
   return { ...r, tavsiya };
 }
 
+// Skan bilan birga kelgan natijaning surati — o'sha teri tahlilining surati
+const RANGIM_SQL = `select mp.*, coalesce(mp.yuz_rasm_id, a.yuz_rasm_id) as yuz_rasm_id
+    from makiyaj_profillar mp left join analyses a on a.id = mp.analysis_id`;
+
 export const oxirgiRangim = async (userId) => yangiTavsiya(korinish(await qator(
-  'select * from makiyaj_profillar where user_id = $1 order by created_at desc limit 1', [userId]).catch(() => null)));
+  `${RANGIM_SQL} where mp.user_id = $1 order by mp.created_at desc limit 1`, [userId]).catch(() => null)));
+
+/**
+ * BITTA SELFI — IKKALA NATIJA. Teri tahlili va makiyaj rangi parallel
+ * so'raladi (vaqt qo'shilmaydi). Makiyaj bo'limi yopiq bo'lsa — faqat teri.
+ * Teri tahlili rad etilsa yoki yiqilsa makiyaj natijasi ham bekor bo'ladi:
+ * odam ikki xil javob olmasin, limit ham bitta skan bo'lib qoladi.
+ *
+ * @returns teri natijasi (tahlilQil) + `rangim`, `rangimMahsulotlar`
+ */
+export async function skanVaRang(user, base64, mime) {
+  const { tahlilQil, limitHolati } = await import('./analysis.js');
+  const ruxsat = await makiyajRuxsat(user);
+  if (ruxsat) {
+    // Limit tugagan bo'lsa makiyaj AI siga ham bekorga murojaat qilmaymiz
+    const limit = await limitHolati(user.id);
+    if (limit.tugadi) throw Object.assign(new Error('LIMIT_TUGADI'), { limit });
+  }
+  const [teri, rang] = await Promise.allSettled([
+    tahlilQil(user, base64, mime),
+    ruxsat ? rangimniTahlilQil(user, base64, mime, { birga: true }) : Promise.resolve(null),
+  ]);
+  const rangId = rang.status === 'fulfilled' && rang.value?.yaroqli ? rang.value.rangim.id : null;
+  if (teri.status === 'rejected' || !teri.value.yaroqli) {
+    if (rangId) await sorov('delete from makiyaj_profillar where id = $1', [rangId]).catch(() => {});
+    if (teri.status === 'rejected') throw teri.reason;
+    return teri.value;
+  }
+  const natija = teri.value;
+  if (rang.status === 'rejected') console.error('MAKIYAJ (skan bilan):', rang.reason?.message);
+  if (rangId) {
+    await sorov('update makiyaj_profillar set analysis_id = $1 where id = $2', [natija.analysisId, rangId]);
+    natija.rangim = rang.value.rangim;
+    natija.rangimMahsulotlar = rang.value.mahsulotlar;
+  }
+  return natija;
+}
+
+/** Teri suratini saqlagandan keyin — makiyaj natijasi ham o'sha suratni ko'rsatadi. */
+export function rangimgaSurat(natija, yuzRasmId) {
+  if (natija?.rangim && yuzRasmId) natija.rangim.yuz_rasm_id = yuzRasmId;
+}
+
+/** Oxirgi natija kartochkasi — saqlangan surat va JORIY katalog bilan. */
+export async function oxirgiRangimKartochkasi(userId) {
+  const rangim = await oxirgiRangim(userId);
+  if (!rangim) return null;
+  const surat = rangim.yuz_rasm_id
+    ? await qator('select mime, bayt from media where id = $1', [rangim.yuz_rasm_id]).catch(() => null) : null;
+  const { faolMahsulotlar } = await import('./analysis.js');
+  const katalog = await faolMahsulotlar();
+  const bayt = await rangimKartochkasi({ rangim, mahsulotlar: katalog,
+    rasmBase64: surat?.bayt ? Buffer.from(surat.bayt).toString('base64') : null, mime: surat?.mime || 'image/jpeg' });
+  const idlar = new Set(rangim.tavsiya.map((x) => x.product_id));
+  return { rangim, bayt, mahsulotlar: katalog.filter((p) => idlar.has(p.id)) };
+}
+
+/**
+ * Makiyaj natijasini tahlillar kanaliga yuboradi (teri tahlili bilan bir
+ * qoida: admin `kanal_tahlil_yoqilgan` ni yoqmaguncha hech narsa ketmaydi).
+ */
+export async function kanalgaMakiyaj(bayt, user, rangim, manba = 'bot') {
+  const [kanal, yoqilgan] = await Promise.all([sozlama('kanal_tahlil', ''), sozlama('kanal_tahlil_yoqilgan', false)]);
+  if (!kanal || !yoqilgan || !bayt || !rangim) return;
+  const { rasmYubor } = await import('../bot/tg.js');
+  const { MANBA_NOMI } = await import('./natija-rasm.js');
+  const e = (x) => String(x ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const izoh = [
+    `💄 <b>Makiyaj natijasi</b>`, ``,
+    `📍 ${e(MANBA_NOMI[manba] || MANBA_NOMI.bot)}`,
+    `👤 ${e(user?.full_name || 'Mijoz')}${user?.username ? ` (@${e(user.username)})` : ''}`,
+    `🎨 Rang tipi: <b>${e(rangim.rang_tipi_nom)}</b> · ${rangim.erkak ? 'BB krem' : 'kushon'} toni <b>${e(rangim.ton_kodi)}</b>`,
+    `🌡 ${e(rangim.tus_nom)} tus · ${e(rangim.chuqurlik_nom)}`,
+    `🛍 Tavsiya: ${(rangim.tavsiya || []).filter((t) => !t.muqobil).length} ta mahsulot`,
+  ].join('\n');
+  await rasmYubor(kanal, bayt, izoh).catch((x) => console.error('MAKIYAJ KANALI:', x.message));
+}
 
 /** Odamning suratini saqlaydi (teri tahlilidagi qoida bilan). */
 async function suratniSaqla(profilId, base64, mime) {
@@ -131,13 +211,17 @@ async function suratniSaqla(profilId, base64, mime) {
  * @throws Error('LIMIT_TUGADI') umumiy kunlik limit tugasa (e.limit bilan),
  *         Error('MAKIYAJ_LIMIT') xavfsizlik chegarasi tugasa
  */
-export async function rangimniTahlilQil(user, base64, mime) {
-  const { limitHolati } = await import('./analysis.js');
-  const limit = await limitHolati(user.id);
-  if (limit.tugadi) throw Object.assign(new Error('LIMIT_TUGADI'), { limit });
-  const bugun = await qator(`select count(*)::int as n from makiyaj_profillar
-    where user_id = $1 and created_at > now() - interval '24 hours'`, [user.id]);
-  if ((bugun?.n || 0) >= KUNLIK) throw new Error('MAKIYAJ_LIMIT');
+export async function rangimniTahlilQil(user, base64, mime, { birga = false } = {}) {
+  // Teri skani bilan BIRGA bo'lsa limitni skan o'zi tekshiradi va surat ham
+  // o'shaniki bo'ladi (skanVaRang). Alohida bo'lsa — o'z tekshiruvlari.
+  if (!birga) {
+    const { limitHolati } = await import('./analysis.js');
+    const limit = await limitHolati(user.id);
+    if (limit.tugadi) throw Object.assign(new Error('LIMIT_TUGADI'), { limit });
+    const bugun = await qator(`select count(*)::int as n from makiyaj_profillar
+      where user_id = $1 and created_at > now() - interval '24 hours'`, [user.id]);
+    if ((bugun?.n || 0) >= KUNLIK) throw new Error('MAKIYAJ_LIMIT');
+  }
 
   const jins = await jinsi(user);
   const t = await rangniTahlilQil(base64, mime, { jins });
@@ -156,7 +240,7 @@ export async function rangimniTahlilQil(user, base64, mime) {
     [user.id, a.tus, a.chuqurlik, a.rang_tipi, a.yuz_shakli, a.kozlar, teri_hex,
      JSON.stringify({ jins, yoruglik: a.yoruglik, tus_ishonch: a.tus_ishonch, kontrast: a.kontrast, lab: a.lab,
        izoh: a.izoh, maslahat: a.maslahat, tavsiya })]);
-  r.yuz_rasm_id = await suratniSaqla(r.id, base64, mime);
+  if (!birga) r.yuz_rasm_id = await suratniSaqla(r.id, base64, mime);
   const idlar = new Set(tavsiya.map((x) => x.product_id));
   return { yaroqli: true, rangim: korinish(r), mahsulotlar: katalog.filter((p) => idlar.has(p.id)) };
 }

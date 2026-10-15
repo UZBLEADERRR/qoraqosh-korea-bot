@@ -320,7 +320,12 @@ export async function apiRoutes(req, res, yol) {
     if (!base64 || base64.length < 1000)  return xato(res, 400, 'Rasm yuborilmadi.');
     if (base64.length > 12 * 1024 * 1024) return xato(res, 413, 'Rasm juda katta.');
     try {
-      const r = await makiyaj.rangimniTahlilQil(user, base64, tozaMime(b.mime));
+      const mime = tozaMime(b.mime);
+      const r = await makiyaj.rangimniTahlilQil(user, base64, mime);
+      if (r.yaroqli) {
+        makiyaj.rangimKartochkasi({ rangim: r.rangim, mahsulotlar: r.mahsulotlar, rasmBase64: base64, mime })
+          .then((k) => makiyaj.kanalgaMakiyaj(k, user, r.rangim, 'ilova')).catch(() => {});
+      }
       return ok(res, { ...r, limit: await limitHolati(user.id) });
     } catch (e) {
       if (e.message === 'LIMIT_TUGADI') return json(res, 429, { error: 'Bugungi limit tugadi.', limit: e.limit });
@@ -374,7 +379,8 @@ export async function apiRoutes(req, res, yol) {
     if (base64.length > 12 * 1024 * 1024)     return xato(res, 413, 'Rasm juda katta.');
     try {
       const mime = tozaMime(b.mime);
-      const natija = await tahlilQil(user, base64, mime);
+      // Bitta selfi — teri tahlili VA makiyaj rangi (bo'lim ochiq bo'lsa)
+      const natija = await makiyaj.skanVaRang(user, base64, mime);
 
       // Natija rasmini SHU YERDA chizamiz — asl suratni saqlamaymiz, keyin
       // qayta chizib bo'lmaydi. Chizish ~170 ms, AI chaqiruvi yonida sezilmaydi.
@@ -387,6 +393,7 @@ export async function apiRoutes(req, res, yol) {
         // Surat ilovadagi tahlil bo'limida belgilar bilan ko'rsatiladi
         natija.yuz_rasm_id = await yuzniSaqla({
           analysisId: natija.analysisId, rasmBase64: base64, mime });
+        makiyaj.rangimgaSurat(natija, natija.yuz_rasm_id);
         if (rasm) {
           kanalgaTahlil(rasm.bayt, user, natija.tahlil, 'ilova').catch(() => {});
           // Natija rasmi BOTGA ham o'zi keladi. Ilgari odam «Saqlash»
@@ -400,7 +407,19 @@ export async function apiRoutes(req, res, yol) {
               { analysis_id: natija.analysisId, avto: true }); })
             .catch(() => {});
         }
+        // Makiyaj natijasi ham — kanalga va botga ikkinchi rasm bo'lib
+        if (natija.rangim) {
+          const { rangim, rangimMahsulotlar } = natija;
+          makiyaj.rangimKartochkasi({ rangim, mahsulotlar: rangimMahsulotlar, rasmBase64: base64, mime })
+            .then(async (k) => {
+              if (!k) return;
+              await makiyaj.kanalgaMakiyaj(k, user, rangim, 'ilova');
+              await rasmYubor(user.telegram_id, k, '💄 <b>Sizga mos makiyaj tayyor</b>\n\n'
+                + `${rangim.rang_tipi_nom} rang tipi · ton <b>${rangim.ton_kodi}</b> atrofida.`).catch(() => {});
+            }).catch(() => {});
+        }
       }
+      delete natija.rangimMahsulotlar;
       return ok(res, natija);
     } catch (e) {
       if (e.message === 'LIMIT_TUGADI') {

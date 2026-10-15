@@ -5585,6 +5585,20 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
       await sorov(`delete from settings where key in ('limit_bepul','limit_mijoz','limit_yoqilgan')`);
       for (const e of eski) await sorov('insert into settings (key, value) values ($1, $2)', [e.key, JSON.stringify(e.value)]);
     }
+    {
+      // BITTA SELFI — ikkala natija, limitdan BITTA skan
+      const S = await import('../src/services/makiyaj.js');
+      const { limitHolati } = await import('../src/services/analysis.js');
+      const L0 = await limitHolati(u.id);
+      const nB = await S.skanVaRang(await qator('select * from users where id = $1', [u.id]), rasmMk.split(',')[1], 'image/jpeg');
+      const L1 = await limitHolati(u.id);
+      const bog = nB.rangim ? await qator('select analysis_id from makiyaj_profillar where id = $1', [nB.rangim.id]) : null;
+      test('bitta selfi: teri + makiyaj natijasi birga', nB.yaroqli && Boolean(nB.tahlil) && nB.rangim?.rang_tipi === 'kuz',
+        JSON.stringify({ y: nB.yaroqli, r: Boolean(nB.rangim) }));
+      test('bitta selfi: makiyaj o‘sha tahlilga bog‘landi va limitdan 1 ta ketdi',
+        String(bog?.analysis_id) === String(nB.analysisId) && L1.ishlatilgan === L0.ishlatilgan + 1, `${L0.ishlatilgan} → ${L1.ishlatilgan}`);
+      await sorov('delete from analyses where id = $1', [nB.analysisId]);
+    }
     test('makiyaj: odamning surati saqlandi', Boolean(rg.yuz_rasm_id)
       && (await qator('select tur from media where id = $1', [rg.yuz_rasm_id]))?.tur === 'yuz');
     // Rang aniqlangandan KEYIN qo'shilgan mahsulot ham darhol chiqadi (toifasi
@@ -5628,10 +5642,12 @@ console.log('\n── YUZ NUQTALARI, NATIJALAR TARIXI, YANGI DIZAYN ──');
     await holatga(null);
 
     const jsM = fsY.readFileSync('public/app/app.js', 'utf8'), htmlM = fsY.readFileSync('public/app/index.html', 'utf8');
-    test('ilova: skanerda «💄 Makiyaj» rejimi va «Mening rangim» bo‘limi',
-      /id="skan-rejim"/.test(htmlM) && /id="tab-rangim"/.test(htmlM) && /'natija','rangim'\]/.test(jsM)
-      && /function rangimniChiz/.test(jsM) && /api\('\/api\/makiyaj', \{ method: 'POST'/.test(jsM));
-    test('ilova: rejim faqat ruxsat bo‘lsa ko‘rinadi', /kor\(quti, holat\.makiyaj\)/.test(jsM) && /holat\.makiyaj = Boolean\(me\.makiyaj\)/.test(jsM));
+    test('ilova: natija va rangim tepasida teri ⇄ makiyaj almashtirgichi',
+      (htmlM.match(/class="natija-almash/g) || []).length === 2 && /id="tab-rangim"/.test(htmlM) && /'natija','rangim'\]/.test(jsM)
+      && /function rangimniChiz/.test(jsM) && /function natijaAlmashChiz/.test(jsM) && !/id="skan-rejim"/.test(htmlM));
+    test('ilova: almashtirgich faqat ruxsat bo‘lsa; skan javobidagi makiyaj olinadi',
+      /kor\(q, holat\.makiyaj\)/.test(jsM) && /holat\.makiyaj = Boolean\(me\.makiyaj\)/.test(jsM)
+      && /if \(j\.rangim\) \{ holat\.rangim = j\.rangim;/.test(jsM));
     // app.js butunlay bitta blok ichida (holat, $, kor shu yerda) — undan
     // tashqariga yozilgan kod ilova ochilishida xato berib, uni buzadi
     test('ilova: hamma kod asosiy blok ichida (oxiri «boshla(); });»)', /\nboshla\(\);\n\}\);\s*$/.test(jsM));

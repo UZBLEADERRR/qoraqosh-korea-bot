@@ -3,7 +3,6 @@ import { harakat, yubor, faylOl, tg, rasmYubor } from '../tg.js';
 import { qator, sozlama } from '../../db.js';
 import { natijaRasminiYarat, kanalgaTahlil, yuzniSaqla, saqlanganRasm }
   from '../../services/natija-rasm.js';
-import { tahlilQil } from '../../services/analysis.js';
 import { radXabari, tahlilXabari, tavsiyaMatni, qisqaIzoh } from '../render.js';
 import { natijaTugmalari, appUrl, ortga } from '../keyboards.js';
 import { bolakla, esc } from '../format.js';
@@ -12,7 +11,8 @@ import { xatoniTushuntir } from '../../lib/xatolar.js';
 import { adminmi } from '../../lib/admin.js';
 import { limitHolati } from '../../services/analysis.js';
 import { appTugma } from '../keyboards.js';
-import { makiyajRuxsat } from '../../services/makiyaj.js';
+import { makiyajRuxsat, skanVaRang, rangimgaSurat, rangimKartochkasi, kanalgaMakiyaj } from '../../services/makiyaj.js';
+import { rangimniYubor } from './makiyaj.js';
 
 /**
  * «Yuz skaneri» bosilganda — ko'rsatma va NAMUNA SURAT.
@@ -82,7 +82,8 @@ export async function rasmniQabulQil(msg, user) {
 
   try {
     const { base64 } = await faylOl(fileId);
-    const natija = await tahlilQil(user, base64, mime);
+    // Bitta selfi — teri tahlili VA makiyaj rangi (bo'lim ochiq bo'lsa)
+    const natija = await skanVaRang(user, base64, mime);
 
     if (!natija.yaroqli) {
       await yubor(chatId, await radXabari(natija.sabab, natija.izoh), { reply_markup: ortga() });
@@ -98,7 +99,9 @@ export async function rasmniQabulQil(msg, user) {
       rasmBase64: base64, mime, tahlil: natija.tahlil, mahsulotlar: natija.mahsulotlar,
     });
     // Surat ilovadagi tahlil bo'limida belgilar bilan ko'rsatiladi
-    await yuzniSaqla({ analysisId: natija.analysisId, rasmBase64: base64, mime });
+    rangimgaSurat(natija, await yuzniSaqla({ analysisId: natija.analysisId, rasmBase64: base64, mime }));
+    // Makiyaj natijasi keyingi rasmda keladi — teri natijasida uning tugmasi ortiqcha
+    const mkTugma = !natija.rangim && await makiyajRuxsat(user);
     if (rasm) {
       // BITTA xabar: rasm + qisqa izoh + tugmalar.
       // Ilgari rasm va uzun matn alohida ketardi, matn esa rasmda
@@ -106,7 +109,7 @@ export async function rasmniQabulQil(msg, user) {
       // qolib, hech kim bosmasdi.
       await rasmYubor(chatId, rasm.bayt,
         await qisqaIzoh(natija.tahlil, tavsiyalar.length),
-        { reply_markup: natijaTugmalari({ makiyaj: await makiyajRuxsat(user) }) });
+        { reply_markup: natijaTugmalari({ makiyaj: mkTugma }) });
       kanalgaTahlil(rasm.bayt, user, natija.tahlil, 'bot').catch(() => {});
     } else {
       // Rasm chizilmadi (motor yoki shrift yo'q) — natija yo'qolmasin,
@@ -115,8 +118,16 @@ export async function rasmniQabulQil(msg, user) {
       const qismlar = bolakla(matn);
       for (let i = 0; i < qismlar.length; i++) {
         await yubor(chatId, qismlar[i],
-          i === qismlar.length - 1 ? { reply_markup: natijaTugmalari({ makiyaj: await makiyajRuxsat(user) }) } : {});
+          i === qismlar.length - 1 ? { reply_markup: natijaTugmalari({ makiyaj: mkTugma }) } : {});
       }
+    }
+
+    // 2) MAKIYAJ — ikkinchi rasm: surat, rang tipi, ton, palitra va mahsulotlar
+    if (natija.rangim) {
+      const bayt = await rangimKartochkasi({ rangim: natija.rangim, mahsulotlar: natija.rangimMahsulotlar,
+        rasmBase64: base64, mime });
+      await rangimniYubor(chatId, { rangim: natija.rangim, mahsulotlar: natija.rangimMahsulotlar, bayt });
+      if (bayt) kanalgaMakiyaj(bayt, user, natija.rangim, 'bot').catch(() => {});
     }
 
     // Mini App yo'q bo'lsa (PUBLIC_URL sozlanmagan) — tavsiyani matnda beramiz

@@ -7,28 +7,51 @@ import { sorov } from '../../db.js';
 import { appTugma } from '../keyboards.js';
 import { radXabari } from '../render.js';
 import { esc } from '../format.js';
-import { makiyajRuxsat, rangimniTahlilQil, rangimMatni, rangimKartochkasi } from '../../services/makiyaj.js';
+import { makiyajRuxsat, rangimniTahlilQil, rangimMatni, rangimKartochkasi,
+  oxirgiRangimKartochkasi, kanalgaMakiyaj } from '../../services/makiyaj.js';
 import { xatoniTushuntir } from '../../lib/xatolar.js';
 
 export const HOLAT = 'makiyaj_rasm';
 const KUTISH_MS = 15 * 60_000;
 
+/** Makiyaj natijasi — rasm (kartochka) + qisqa izoh + tugmalar. Rasm bo'lmasa matn. */
+export async function rangimniYubor(chatId, { rangim, mahsulotlar = [], bayt = null }) {
+  const nomlar = new Map(mahsulotlar.map((p) => [p.id, esc(`${p.brand ? p.brand + ' ' : ''}${p.nom_uz || p.name}${p.variant_nom ? ' — ' + p.variant_nom : ''}`)]));
+  const ochish = appTugma('💄 To‘liq natija va makiyaj tartibi', '/app/?tab=rangim');
+  const tugmalar = { reply_markup: { inline_keyboard: [
+    ...(ochish ? [[ochish]] : []),
+    [{ text: '🔄 Yangi selfi', callback_data: 'skaner' }],
+  ] } };
+  const matn = rangimMatni(rangim, nomlar);
+  if (bayt) {
+    const izoh = matn.length <= 1000 ? matn : rangimMatni(rangim, nomlar, { qisqa: true });
+    const j = await rasmYubor(chatId, bayt, izoh, { parse_mode: 'HTML', ...tugmalar }).catch(() => null);
+    if (j?.ok !== false) return true;
+  }
+  await yubor(chatId, matn, tugmalar);
+  return true;
+}
+
+/**
+ * «💄 Menga mos makiyaj» tugmasi. Makiyaj endi teri skani bilan BIRGA
+ * aniqlanadi: natija bo'lsa — o'sha (joriy katalog bilan), bo'lmasa —
+ * bitta selfi yuborishni so'raymiz (u ikkala natijani beradi).
+ */
 export async function makiyajBoshla(chatId, user) {
   if (!(await makiyajRuxsat(user))) return false;
-  await sorov(`update users set state = $1, state_data = coalesce(state_data, '{}'::jsonb) || $2::jsonb where id = $3`,
-    [HOLAT, JSON.stringify({ makiyaj_vaqt: Date.now() }), user.id]);
+  const oxirgi = await oxirgiRangimKartochkasi(user.id).catch(() => null);
+  if (oxirgi) return rangimniYubor(chatId, oxirgi);
   await yubor(chatId, [
     `💄 <b>Sizga mos makiyajni tanlaymiz</b>`, ``,
-    `Bitta selfi yuboring:`,
+    `Bitta selfi yuboring — <b>teri tahlili va mos makiyaj</b> birga keladi:`,
     `☀️ Deraza yonida, <b>kunduzgi yorug‘likda</b>`,
     `🧼 <b>Pardozsiz</b> (yoki faqat yengil qosh/kiprik)`,
-    `🤳 Yuz to‘g‘ridan, soch yuzni yopmasin`, ``,
-    `<i>Teri osti tusingiz, rang tipingiz va mos kushon toningizni aniqlab, makiyaj tartibini tuzib beraman.</i>`,
+    `🤳 Yuz to‘g‘ridan, soch yuzni yopmasin`,
   ].join('\n'));
   return true;
 }
 
-/** Makiyaj rasmi kutilayotgan bo'lsa — shu yerda qayta ishlanadi. */
+/** Eski oqim: makiyaj rasmi kutilayotgan bo'lsa (holat avvaldan qolgan) — shu yerda. */
 export async function makiyajRasmi(msg, user) {
   if (user.state !== HOLAT) return false;
   const foto = Array.isArray(msg.photo) && msg.photo.length ? msg.photo[msg.photo.length - 1] : null;
@@ -51,23 +74,9 @@ export async function makiyajRasmi(msg, user) {
         reply_markup: { inline_keyboard: [[{ text: '🔄 Qayta yuborish', callback_data: 'makiyaj' }]] } });
       return true;
     }
-    const nomlar = new Map(r.mahsulotlar.map((p) => [p.id, esc(`${p.brand ? p.brand + ' ' : ''}${p.nom_uz || p.name}${p.variant_nom ? ' — ' + p.variant_nom : ''}`)]));
-    const ochish = appTugma('💄 To‘liq natija va makiyaj tartibi', '/app/?tab=rangim');
-    const tugmalar = { reply_markup: { inline_keyboard: [
-      ...(ochish ? [[ochish]] : []),
-      [{ text: '🔄 Qayta aniqlash', callback_data: 'makiyaj' }],
-    ] } };
-    // Natija — RASM: surat, rang tipi, ton, palitra va mahsulotlar bitta
-    // kartochkada (teri tahlilidagi kabi). Chizib bo'lmasa — matn.
     const bayt = await rangimKartochkasi({ rangim: r.rangim, mahsulotlar: r.mahsulotlar, rasmBase64: base64, mime });
-    const matn = rangimMatni(r.rangim, nomlar);
-    if (bayt) {
-      const izoh = matn.length <= 1000 ? matn : rangimMatni(r.rangim, nomlar, { qisqa: true });
-      const j = await rasmYubor(chatId, bayt, izoh, { parse_mode: 'HTML', ...tugmalar }).catch(() => null);
-      if (j?.ok !== false) return true;
-    }
-    await yubor(chatId, matn, tugmalar);
-    return true;
+    if (bayt) kanalgaMakiyaj(bayt, user, r.rangim, 'bot').catch(() => {});
+    return rangimniYubor(chatId, { rangim: r.rangim, mahsulotlar: r.mahsulotlar, bayt });
   } catch (e) {
     if (e.message === 'LIMIT_TUGADI') {
       const { limitXabari } = await import('./scanner.js');

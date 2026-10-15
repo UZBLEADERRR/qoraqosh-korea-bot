@@ -714,25 +714,39 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
   test('o‘chirgan odam: menyuda makiyaj tugmasi YO‘Q', !(await menyuKor()).some((y) => tugmalar(y).some((b) => b.callback_data === 'makiyaj')));
   await sorov(`update users set gender = 'ayol', makiyaj = null where telegram_id = $1`, [TG]);
   test('ayol: menyuda «💄 Menga mos makiyaj»', (await menyuKor()).some((y) => tugmalar(y).some((b) => b.callback_data === 'makiyaj')));
+  await sorov(`delete from makiyaj_profillar where user_id = (select id from users where telegram_id = $1)`, [TG]);
+  await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
   const o1 = yuborilgan.length;
   await bosish('makiyaj');
-  test('tugma bosilsa — selfi ko‘rsatmasi va rasm kutiladi',
-    yuborilgan.slice(o1).some((y) => /Sizga mos makiyajni tanlaymiz/.test(y.text || ''))
-    && (await qator('select state from users where telegram_id = $1', [TG])).state === 'makiyaj_rasm');
+  test('natija yo‘q — tugma bitta selfi so‘raydi (teri + makiyaj birga)',
+    yuborilgan.slice(o1).some((y) => /teri tahlili va mos makiyaj/.test(y.text || '')));
+  await sorov(`insert into settings (key, value) values ('kanal_tahlil', '"-1009988"'), ('kanal_tahlil_yoqilgan', 'true')
+    on conflict (key) do update set value = excluded.value`);
   const o2 = yuborilgan.length;
   await rasmYubor();
-  const rangXabar = yuborilgan.slice(o2).find((y) => /Sizning rangingiz/.test(y.text || ''));
-  test('natija RASM bo‘lib keldi (kartochka + izoh + tugmalar)', rangXabar?.rasm === true
-    && (rangXabar.reply_markup?.inline_keyboard || []).flat().some((t) => t.callback_data === 'makiyaj'), JSON.stringify(rangXabar || {}).slice(0, 160));
-  test('rasm rang tahliliga ketdi (teri skaneriga emas)', Boolean(rangXabar) && /Kuz/.test(rangXabar?.text || '')
-    && !yuborilgan.slice(o2).some((y) => /Teri tahlilingiz/.test(y.text || '')));
-  test('holat tozalandi — keyingi rasm yana teri skaneriga', (await qator('select state from users where telegram_id = $1', [TG])).state === null);
+  const rasmlar = yuborilgan.slice(o2).filter((y) => y.rasm && String(y.chat_id) === TG);
+  await new Promise((r) => setTimeout(r, 300));
+  test('tahlillar kanaliga makiyaj natijasi ham keldi', yuborilgan.slice(o2).some((y) => y.rasm
+    && String(y.chat_id) === '-1009988' && /Makiyaj natijasi/.test(y.text || '')));
+  await sorov(`delete from settings where key in ('kanal_tahlil', 'kanal_tahlil_yoqilgan')`);
+  const rangXabar = rasmlar.find((y) => /Sizning rangingiz/.test(y.text || ''));
+  test('bitta selfi — 2 ta rasm: teri natijasi va makiyaj', rasmlar.length === 2 && Boolean(rangXabar)
+    && rasmlar[0] !== rangXabar, rasmlar.map((y) => (y.text || '').slice(0, 30)).join(' | '));
+  test('makiyaj rasmi: izoh va tugmalar (to‘liq natija, yangi selfi)', /Kuz/.test(rangXabar?.text || '')
+    && (rangXabar?.reply_markup?.inline_keyboard || []).flat().some((t) => t.callback_data === 'skaner'));
+  test('teri natijasida ortiqcha «makiyaj» tugmasi yo‘q', !(rasmlar[0]?.reply_markup?.inline_keyboard || []).flat()
+    .some((t) => t.callback_data === 'makiyaj'));
+  const bog = await qator(`select analysis_id from makiyaj_profillar where user_id = (select id from users where telegram_id = $1)
+    order by created_at desc limit 1`, [TG]);
+  test('makiyaj natijasi o‘sha skanga bog‘landi (limit — bitta skan)', Boolean(bog?.analysis_id));
+  const o4 = yuborilgan.length;
+  await bosish('makiyaj');
+  test('natija bor — tugma oxirgi makiyaj rasmini qaytaradi', yuborilgan.slice(o4).some((y) => y.rasm && /Sizning rangingiz/.test(y.text || '')));
   await sorov(`update users set makiyaj = false where telegram_id = $1`, [TG]);
   const o3 = yuborilgan.length;
   await bosish('makiyaj');
   test('o‘chirgan odam eski tugmani bossa — makiyaj boshlanmaydi',
-    !yuborilgan.slice(o3).some((y) => /Sizga mos makiyajni/.test(y.text || ''))
-    && (await qator('select state from users where telegram_id = $1', [TG])).state === null);
+    !yuborilgan.slice(o3).some((y) => /Sizga mos makiyajni|Sizning rangingiz/.test(y.text || '')));
   await sorov(`update users set gender = null, makiyaj = null where telegram_id = $1`, [TG]);
   await sorov(`delete from makiyaj_profillar where user_id = (select id from users where telegram_id = $1)`, [TG]);
   await sorov(`delete from settings where key = 'makiyaj_holat'`);
