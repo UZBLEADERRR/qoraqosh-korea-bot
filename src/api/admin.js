@@ -13,6 +13,7 @@ import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
 import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi, yozuvModeli,
   yozuvModelKeshiniTashla } from '../ai/index.js';
 import { openrouterJson } from '../ai/openrouter.js';
+import { matnUchunMi } from '../ai/model-qoida.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { config } from '../config.js';
 import * as manba from '../services/manba.js';
@@ -223,8 +224,8 @@ export async function adminRoutes(req, res, yol) {
       tavsiya: [
         'gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash',
         'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite',
-        'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite',
-      ],
+        'gemini-3-flash-preview',
+      ],   // Gemini 2.x matn uchun taqiqlangan (ai/model-qoida.js) — faqat rasm
       rasm_tavsiya: ['gemini-2.5-flash-image', 'gemini-3-pro-image'],
       // Xabar yozish (Instagram/Direct javoblari, postlar) — OpenRouter orqali
       yozuv_model: await yozuvModeli(),
@@ -235,6 +236,11 @@ export async function adminRoutes(req, res, yol) {
   if (yol === '/api/admin/ai-modellar' && req.method === 'POST') {
     const b = await tana(req);
     if (!Array.isArray(b.modellar)) return xato(res, 400, 'Modellar ro‘yxati kerak.');
+    const eski = b.modellar.filter((m) => m && !matnUchunMi(m));
+    if (eski.length) return xato(res, 400, `Matn uchun faqat Gemini 3 va yangisi: ${eski.join(', ')} qo‘shib bo‘lmaydi.`);
+    if (typeof b.yozuv_model === 'string' && b.yozuv_model.trim() && !matnUchunMi(b.yozuv_model.trim())) {
+      return xato(res, 400, `«${b.yozuv_model.trim()}» matn uchun taqiqlangan — Gemini 2.x faqat rasm chizadi.`);
+    }
     // Bo'sh ro'yxat = standartga qaytarish (tiklash tugmasi)
     const natija = await modellarniSaqla(b.modellar, b.rasm_model);
     if (typeof b.yozuv_model === 'string') {
@@ -255,6 +261,10 @@ export async function adminRoutes(req, res, yol) {
     if (!model) return xato(res, 400, 'Model nomi kerak.');
     // OpenRouter modeli (xabar yozish) yoki Google modeli
     const orqali = b.openrouter === true;
+    if (orqali && !matnUchunMi(model)) {
+      return ok(res, { ok: false, model, ms: 0, turkum: 'model',
+        xabar: 'Matn uchun faqat Gemini 3 va yangisi (yoki GPT kabi boshqa model). Gemini 2.x faqat rasm chizadi.' });
+    }
     if (orqali && !openrouterBormi()) return xato(res, 400, 'OPENROUTER_API_KEY sozlanmagan.');
     if (!orqali && !googleBormi()) return xato(res, 400, 'GEMINI_API_KEY sozlanmagan.');
     const boshlandi = Date.now();

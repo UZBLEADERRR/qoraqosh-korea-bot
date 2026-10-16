@@ -4,6 +4,7 @@
 import { config } from '../config.js';
 import { hovuz, sabab } from './kalitlar.js';
 import { ishlatildi } from './jurnal.js';
+import { matnUchunMi, OR_MATN_STANDART } from './model-qoida.js';
 
 const kut = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -66,7 +67,11 @@ function xatoTashla(kod, matn) {
 export const orHovuz = hovuz(config.openrouterKeys);
 
 export async function openrouterJson(parts, schema, opts = {}) {
-  const model = opts.orModel || config.openrouterModel;
+  // Matn uchun Gemini 2.x taqiqlangan (model-qoida.js) — muhitda qolib
+  // ketgan bo'lsa ham 3.8 Flash ishlaydi
+  const tanlangan = opts.orModel || config.openrouterModel;
+  const model = matnUchunMi(tanlangan) ? tanlangan : OR_MATN_STANDART;
+  if (model !== tanlangan) console.warn(`OpenRouter: «${tanlangan}» matn uchun taqiqlangan → ${model}`);
   let oxirgi;
 
   const tozaSxema = sxemaniTozala(schema);

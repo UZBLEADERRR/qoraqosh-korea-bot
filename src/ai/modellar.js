@@ -18,6 +18,7 @@
 
 import { config } from '../config.js';
 import { sozlama, sorov } from '../db.js';
+import { matnUchunMi } from './model-qoida.js';
 
 // Kunlik kvota ertaga tiklanadi, lekin aniq soatni bilmaymiz. Bir
 // soatdan keyin bitta so'rov bilan tekshirib ko'rgan arzon.
@@ -36,7 +37,9 @@ const olish = (m) => {
 // kirmasdan, telefondan ham o'zgartirsa bo'ladi.
 const STANDART = () => {
   const hammasi = [config.geminiModel, ...(config.geminiModellar || [])];
-  return [...new Set(hammasi.filter(Boolean))];
+  const ruxsat = [...new Set(hammasi.filter(Boolean))].filter(matnUchunMi);
+  // Muhitda faqat eski (2.x) model yozilgan bo'lsa ham ilova to'xtamasin
+  return ruxsat.length ? ruxsat : ['gemini-3.8-flash', 'gemini-3.7-flash'];
 };
 
 let kesh = null;          // adminniki yoki null (standart ishlatiladi)
@@ -56,7 +59,8 @@ export async function modellarniTaminla() {
     const [m, r] = await Promise.all([
       sozlama('ai_modellar', []), sozlama('ai_rasm_model', ''),
     ]);
-    const royxat = (Array.isArray(m) ? m : []).map(tozaNom).filter(Boolean);
+    // Admin ro'yxatida eski (2.x) model qolgan bo'lsa — tashlanadi
+    const royxat = (Array.isArray(m) ? m : []).map(tozaNom).filter(Boolean).filter(matnUchunMi);
     kesh = royxat.length ? [...new Set(royxat)] : [];
     rasmKesh = tozaNom(r);
     keshVaqti = Date.now();
@@ -85,7 +89,7 @@ export const standartRoyxat = STANDART;
  * Bo'sh ro'yxat berilsa standartga qaytadi — bu «tiklash» tugmasi.
  */
 export async function saqla(royxatYangi, rasmModel) {
-  const toza = [...new Set((royxatYangi || []).map(tozaNom).filter(Boolean))].slice(0, 12);
+  const toza = [...new Set((royxatYangi || []).map(tozaNom).filter(Boolean))].filter(matnUchunMi).slice(0, 12);
   await sorov(
     `insert into settings (key, value, updated_at) values
        ('ai_modellar', $1::jsonb, now()), ('ai_rasm_model', $2::jsonb, now())

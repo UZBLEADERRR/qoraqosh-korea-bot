@@ -43,8 +43,9 @@ export const config = {
   geminiKey:     kalitlar('GEMINI_API_KEY')[0] || '',
   openrouterKey: kalitlar('OPENROUTER_API_KEY')[0] || '',
   openrouterApi:   opt('OPENROUTER_API', 'https://openrouter.ai/api/v1'),
-  // Google ishlamay qolganda oxirgi chora (tahlillar uchun)
-  openrouterModel: opt('OPENROUTER_MODEL', 'google/gemini-2.5-flash'),
+  // Google ishlamay qolganda oxirgi chora (tahlillar uchun). Matn uchun
+  // faqat Gemini 3+ (ai/model-qoida.js) — 2.x yozilsa ham 3.8 ishlaydi
+  openrouterModel: opt('OPENROUTER_MODEL', 'google/gemini-3.8-flash'),
   // Xabar yozish (Instagram/Direct javoblari, postlar, kontent) — admin
   // panelda o'zgartiriladi (settings.ai_yozuv_model)
   openrouterYozuvModel: opt('OPENROUTER_YOZUV_MODEL', 'openai/gpt-5.6-luna'),

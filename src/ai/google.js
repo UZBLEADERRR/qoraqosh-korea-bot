@@ -4,11 +4,12 @@ import { hovuz, sabab } from './kalitlar.js';
 import { ishlatildi } from './jurnal.js';
 import { modelOl, modelBand, modelYoq, modelYaxshi, kvotaTuri, kutishMs,
   modellarniTaminla, rasmModeli } from './modellar.js';
+import { matnUchunMi } from './model-qoida.js';
 
 const kut = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * MUHIM: gemini-2.5-* — "thinking" modellari. O'ylash tokenlari
+ * MUHIM: Gemini 3 Flash modellari ham "thinking" modellari. O'ylash tokenlari
  * maxOutputTokens dan yeyiladi, ya'ni byudjet kichik bo'lsa model javob
  * yozishga ulgurmay MAX_TOKENS bilan to'xtaydi va BO'SH javob qaytaradi.
  * Shuning uchun tuzilgan (JSON) javoblarda o'ylashni o'chiramiz va
@@ -75,6 +76,10 @@ export async function googleJson(parts, schema, opts = {}) {
   const otkaz = [];
   // Admin ANIQ modelni so'ragan bo'lsa (sinov tugmasi) — boshqasiga
   // o'tmaymiz, aks holda sinov boshqa modelni tekshirib qo'yadi.
+  // Admin aniq modelni sinayapti: rasm modeli sinovi (data-m-sina-rasm) — mumkin
+  if (opts.model && !matnUchunMi(opts.model) && !/image/i.test(opts.model)) {
+    throw Object.assign(new Error(`«${opts.model}» matn uchun taqiqlangan — faqat Gemini 3 va yangisi`), { turkum: 'model' });
+  }
   const qatiy = Boolean(opts.model);
   let model = opts.model || modelOl();
   // Server xatosi (5xx) yoki javob kelmasa — shu modelda IKKINCHI marta

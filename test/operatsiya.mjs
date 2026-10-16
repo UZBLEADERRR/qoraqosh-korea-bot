@@ -1994,8 +1994,25 @@ console.log('\n── AI MODELLARI (ADMIN PANEL) ──');
     `${(b1.tana.tavsiya || []).length} ta`);
   test('rasm modeli alohida ko‘rsatiladi', Boolean(b1.tana.rasm_model), b1.tana.rasm_model);
 
+  // ── Gemini 2.x matn uchun taqiqlangan (faqat rasm) ──
+  test('tavsiyada Gemini 2.x yo‘q', !(b1.tana.tavsiya || []).some((m) => /gemini-2/.test(m)), (b1.tana.tavsiya || []).join(', '));
+  const sEski = await chaqirAdmin('/api/admin/ai-modellar', 'POST',
+    { modellar: ['gemini-3.8-flash', 'gemini-2.5-flash'], rasm_model: 'gemini-2.5-flash-image' });
+  test('admin 2.5 flash ni qo‘sha olmaydi', sEski.kod === 400 && /gemini-2\.5-flash/.test(sEski.tana.error || ''), JSON.stringify(sEski.tana));
+  const sYoz = await chaqirAdmin('/api/admin/ai-modellar', 'POST',
+    { modellar: ['gemini-3.8-flash'], rasm_model: '', yozuv_model: 'google/gemini-2.5-flash' });
+  test('xabar yozish modeli ham 2.x bo‘lolmaydi', sYoz.kod === 400);
+  const QM = await import('../src/ai/model-qoida.js');
+  test('qoida: 3+ ruxsat, 2.x/1.x yo‘q, rasm modeli matnga yo‘q, GPT ruxsat',
+    QM.matnUchunMi('gemini-3.8-flash') && QM.matnUchunMi('google/gemini-3.7-flash') && QM.matnUchunMi('gemini-3-flash-preview')
+    && !QM.matnUchunMi('gemini-2.5-flash') && !QM.matnUchunMi('google/gemini-2.5-flash') && !QM.matnUchunMi('gemini-1.5-pro')
+    && !QM.matnUchunMi('gemini-2.5-flash-image') && QM.matnUchunMi('openai/gpt-5.6-luna'));
+  const C = await import('../src/config.js');
+  test('OpenRouter standart modeli — 3.8 Flash (2.5 emas)', C.config.openrouterModel === 'google/gemini-3.8-flash'
+    || !/gemini-2/.test(C.config.openrouterModel), C.config.openrouterModel);
+
   // ── Admin o'z tartibini saqlaydi ──
-  const tanlov = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-2.5-flash'];
+  const tanlov = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-3.7-flash'];
   const s1 = await chaqirAdmin('/api/admin/ai-modellar', 'POST',
     { modellar: tanlov, rasm_model: 'gemini-2.5-flash-image' });
   test('saqlandi', s1.kod === 200, JSON.stringify(s1.tana).slice(0, 90));
@@ -6096,9 +6113,9 @@ console.log('\n── OYNA, NARX, IPHONE, TUNGI QIDIRUV, GMAIL ──');
     test('maslahat: ro‘yxat / aniq brend yozilsa — savol bermaydi, har bandga mahsulot',
       /QAYSI BIRINI TANLASHNI\s+SO'RAMA/.test(ms) && /SAVOL BERMA/.test(ms) && /\.slice\(0, 6\);/.test(ms));
     const J = await import('../src/ai/jurnal.js');
-    J.ishlatildi('openrouter', 'google/gemini-2.5-flash', 'maslahat');
+    J.ishlatildi('openrouter', 'google/gemini-3.8-flash', 'maslahat');
     const h = J.jurnalHolati().ishlatilgan.find((x) => x.qayerda === 'maslahat');
-    test('AI jurnali: qaysi model HAQIQATDA javob bergani yoziladi', h?.provayder === 'openrouter' && h.model === 'google/gemini-2.5-flash');
+    test('AI jurnali: qaysi model HAQIQATDA javob bergani yoziladi', h?.provayder === 'openrouter' && h.model === 'google/gemini-3.8-flash');
     const adm = fsU.readFileSync('src/bot/handlers/admin.js', 'utf8');
     test('/holat: tahlillar modeli, xabar yozish modeli va haqiqatda javob bergani',
       /Tahlillar: Google/.test(adm) && /Xabar yozish: OpenRouter/.test(adm) && /Haqiqatda javob bergan model/.test(adm));

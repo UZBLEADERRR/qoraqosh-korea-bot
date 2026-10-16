@@ -62,6 +62,16 @@ console.log('\n── MARSHRUT (matn) ──');
   await aiJson([{ text: 'sinov' }], sx, { qayerda: 'sinov-zaxira' });
   globalThis.AI_429_MODELLAR = [];
   test('3.8 tugasa — 3.7 javob beradi', kim('sinov-zaxira')?.model === 'gemini-3.7-flash', JSON.stringify(kim('sinov-zaxira')));
+  // Ikkala Google modeli ham yiqilsa OpenRouter — lekin HECH QACHON 2.5 flash
+  const { config } = await import('../src/config.js');
+  const eski = config.openrouterModel;
+  config.openrouterModel = 'google/gemini-2.5-flash';           // Railway'da qolib ketgan holat
+  globalThis.AI_429_MODELLAR = ['gemini-3.8-flash', 'gemini-3.7-flash'];
+  await aiJson([{ text: 'sinov' }], sx, { qayerda: 'sinov-oxirgi' });
+  globalThis.AI_429_MODELLAR = [];
+  config.openrouterModel = eski;
+  test('oxirgi chora OpenRouter ham 2.5 emas — 3.8 Flash', kim('sinov-oxirgi')?.provayder === 'openrouter'
+    && !/gemini-2/.test(kim('sinov-oxirgi')?.model || ''), JSON.stringify(kim('sinov-oxirgi')));
 }
 
 console.log(`\n${xato ? '❌' : '✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
