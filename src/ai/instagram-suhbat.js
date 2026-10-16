@@ -277,7 +277,7 @@ ${suhbat}
 
 Endi «Siz» sifatida javob yoz (ig_javob): 1-3 qisqa xabar, oralari bo'sh qator bilan.
 Havolani faqat kerak bo'lganda ber (buyurtma, tavsiyani ochish, ilova), alohida xabarda.`;
-  const j = await aiJson([{ text: matn }], SXEMA, { temperature: 0.85, maxTokens: 1024, qayerda: 'instagram' });
+  const j = await aiJson([{ text: matn }], SXEMA, { temperature: 0.85, maxTokens: 1024, qayerda: 'instagram', yozuv: true });
   const toza = slopTozala(j.ig_javob).slice(0, 950);
   return {
     javob: insonlashtir(toza, malumot.urug ?? 1),
@@ -329,7 +329,7 @@ ${ism ? `MIJOZ ISMI: ${ism}\n` : ''}TAHLIL: ball ${tahlil.ball ?? '?'}/100, ${ta
 MUAMMOLAR: ${(tahlil.muammolar || []).map((m) => `${m.nom}${m.foiz ? ` ${m.foiz}%` : ''}`).join(', ') || 'jiddiy muammo yo‘q'}
 TAVSIYA QILINGAN MAHSULOTLAR (faqat shulardan, narx shu):
 ${asosiy.map((p) => `${p.brend ? p.brend + ' ' : ''}${p.nom} | ${narxi({ price: p.narx })}${p.eski_narx > p.narx ? ` (aksiya, eski ${narxi({ price: p.eski_narx })})` : ''} | ${p.bosqich || ''} | ${p.sabab || ''}`).join('\n') || '-'}` }],
-    SXEMA, { temperature: 0.8, maxTokens: 800, qayerda: 'instagram' });
+    SXEMA, { temperature: 0.8, maxTokens: 800, qayerda: 'instagram', yozuv: true });
     body = slopTozala(j.ig_javob);
   } catch { /* andozaga tushamiz */ }
   if (!body || body.length < 20) body = tahlilAndozasi({ tahlil, tavsiya: asosiy, ism });
@@ -399,7 +399,7 @@ VAZIFA: Instagram postiga komment yozildi. Unga OCHIQ javob yoz (komment ostida 
 - Komment qaysi tilda bo'lsa o'sha tilda.
 ${post ? `\nPOST MATNI: ${String(post).slice(0, 500)}` : ''}
 KOMMENT${username ? ` (@${username})` : ''}: ${String(komment || '').slice(0, 500)}` }],
-  KSXEMA, { temperature: 0.85, maxTokens: 400, qayerda: 'instagram' });
+  KSXEMA, { temperature: 0.85, maxTokens: 400, qayerda: 'instagram', yozuv: true });
   const t = insonlashtir(slopTozala(j.komment_javob).replace(/https?:\/\/\S+/g, '').replace(/\n+/g, ' '), malumot.urug ?? 1)
     .replace(/^@\S+\s*/, '').slice(0, 280).trim();
   return { javob: j.javob_kerak === false ? '' : t, direct: j.direct === true };

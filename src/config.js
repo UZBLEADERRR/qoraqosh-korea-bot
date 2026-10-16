@@ -43,7 +43,11 @@ export const config = {
   geminiKey:     kalitlar('GEMINI_API_KEY')[0] || '',
   openrouterKey: kalitlar('OPENROUTER_API_KEY')[0] || '',
   openrouterApi:   opt('OPENROUTER_API', 'https://openrouter.ai/api/v1'),
+  // Google ishlamay qolganda oxirgi chora (tahlillar uchun)
   openrouterModel: opt('OPENROUTER_MODEL', 'google/gemini-2.5-flash'),
+  // Xabar yozish (Instagram/Direct javoblari, postlar, kontent) — admin
+  // panelda o'zgartiriladi (settings.ai_yozuv_model)
+  openrouterYozuvModel: opt('OPENROUTER_YOZUV_MODEL', 'openai/gpt-5.6-luna'),
   // Rasm chizish zaxirasi: Google kalitlari ishlamasa — shu model OpenRouter orqali
   openrouterImageModel: opt('OPENROUTER_IMAGE_MODEL', 'google/gemini-2.5-flash-image'),
   // Instagram (Instagram API with Instagram Login). Token panelda ham kiritiladi.
@@ -59,9 +63,7 @@ export const config = {
   // Tartib: yangidan eskiga. Muhitdan vergul bilan o'zgartirsa bo'ladi.
   geminiModellar: kalitlar('GEMINI_MODELLAR').length
     ? kalitlar('GEMINI_MODELLAR')
-    : ['gemini-3.8-flash', 'gemini-3.7-flash', 'gemini-3.6-flash',
-       'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite',
-       'gemini-3-flash-preview'],
+    : ['gemini-3.8-flash', 'gemini-3.7-flash'],   // asosiy → zaxira
   // Rasm chizish modeli (poster generatsiyasi)
   geminiImageModel: opt('GEMINI_IMAGE_MODEL', 'gemini-2.5-flash-image'),
 

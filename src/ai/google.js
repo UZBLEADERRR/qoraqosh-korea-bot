@@ -77,6 +77,19 @@ export async function googleJson(parts, schema, opts = {}) {
   // o'tmaymiz, aks holda sinov boshqa modelni tekshirib qo'yadi.
   const qatiy = Boolean(opts.model);
   let model = opts.model || modelOl();
+  // Server xatosi (5xx) yoki javob kelmasa — shu modelda IKKINCHI marta
+  // yiqilgach keyingisiga (3.8 → 3.7) o'tamiz: «yiqilsa zaxira» shu.
+  // Kvota (429) va 404 o'z joyida darrov o'tkazadi.
+  let yiqildi = 0;
+  const keyingiModelga = () => {
+    yiqildi += 1;
+    if (qatiy || yiqildi < 2) return false;
+    const keyingi = modelOl([...otkaz, model]);
+    if (!keyingi || keyingi === model || otkaz.includes(keyingi)) return false;   // ro'yxat tugadi
+    console.warn(`Google ${model} javob bermadi (${oxirgi?.message?.slice(0, 60) || '?'}) → ${keyingi}`);
+    otkaz.push(model); model = keyingi; yiqildi = 0;
+    return true;
+  };
   // Har model uchun 4 tadan urinish, lekin jami cheksiz emas
   const MAKS = 4 + (opts.model ? 0 : 3);
 
@@ -97,6 +110,7 @@ export async function googleJson(parts, schema, opts = {}) {
       });
     } catch (e) {
       oxirgi = Object.assign(e, { turkum: e.name === 'AbortError' ? 'vaqt' : 'tarmoq' });
+      if (keyingiModelga()) continue;
       await kut(700 * (urinish + 1));
       continue;
     } finally { clearTimeout(timer); }
@@ -138,6 +152,7 @@ export async function googleJson(parts, schema, opts = {}) {
     if (res.status >= 500) {
       if (k) geminiHovuz.yomon(k.indeks, 'xato');
       oxirgi = Object.assign(new Error(`Google HTTP ${res.status} · ${model}`), { turkum: 'band' });
+      if (keyingiModelga()) continue;
       await kut(geminiHovuz.tayyorSoni() > 0 ? 50 : 900 * (urinish + 1));
       continue;
     }

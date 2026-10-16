@@ -13,12 +13,27 @@ export const openrouterBormi = () => Boolean(config.openrouterKey);
 export const googleBormi     = () => Boolean(config.geminiKey);
 export const aiBormi         = () => openrouterBormi() || googleBormi();
 
-/** Hozir qaysi provayder asosiy. */
+/** Hozir qaysi provayder asosiy (tahlillar uchun: skaner, maslahat, makiyaj…). */
 export function provayder() {
-  if (openrouterBormi()) return { nom: 'openrouter', model: config.openrouterModel };
   if (googleBormi())     return { nom: 'google', model: config.geminiModel };
+  if (openrouterBormi()) return { nom: 'openrouter', model: config.openrouterModel };
   return { nom: 'yoq', model: '—' };
 }
+
+/* XABAR YOZISH modeli — OpenRouter orqali (Instagram/Direct javoblari,
+   postlar, kontent g'oyalari). Admin panelda o'zgartiriladi
+   (settings.ai_yozuv_model), bo'sh bo'lsa — muhit yoki standart. */
+let yozuvKesh = { qiymat: '', vaqt: 0 };
+export async function yozuvModeli() {
+  if (Date.now() - yozuvKesh.vaqt > 30_000) {
+    const { sozlama } = await import('../db.js');
+    const v = await sozlama('ai_yozuv_model', '').catch(() => '');
+    yozuvKesh = { qiymat: String(v || '').replace(/["'\s]/g, '').slice(0, 80), vaqt: Date.now() };
+  }
+  return yozuvKesh.qiymat || config.openrouterYozuvModel;
+}
+/** Admin saqlaganda darhol kuchga kirsin. */
+export function yozuvModelKeshiniTashla() { yozuvKesh = { qiymat: '', vaqt: 0 }; }
 
 /**
  * Tuzilgan JSON javob. Provayder tanlash va zaxiraga o'tish shu yerda.
@@ -50,22 +65,39 @@ async function yozibChaqir(parts, schema, opts) {
   }
 }
 
+/**
+ * Kim javob beradi:
+ *   • XABAR YOZISH (`opts.yozuv`) — OpenRouter'dagi yozuv modeli (GPT 5.6
+ *     Luna), yiqilsa Google;
+ *   • qolgan hammasi (skaner, maslahat, makiyaj, mahsulot to'ldirish…) —
+ *     Google: gemini-3.8-flash, yiqilsa gemini-3.7-flash (modellar.js),
+ *     ikkalasi ham ishlamasa — eng oxirgi chora OpenRouter.
+ */
 async function chaqir(parts, schema, opts) {
-  if (openrouterBormi()) {
+  if (opts.yozuv && openrouterBormi()) {
     try {
-      return await openrouterJson(parts, schema, opts);
+      return await openrouterJson(parts, schema, { ...opts, orModel: await yozuvModeli() });
     } catch (e) {
       cheklovmi(e);
       if (!googleBormi()) throw e;
       // Zaxiraga o'tamiz — mijoz uchun uzilish bo'lmasin
-      console.warn(`OpenRouter yiqildi (${e.turkum || '?'}: ${e.message.slice(0, 120)}) → Google'ga o'tildi`);
-      try {
-        return await googleJson(parts, schema, opts);
-      } catch (g) { cheklovmi(g); throw g; }
+      console.warn(`OpenRouter (yozuv) yiqildi (${e.turkum || '?'}: ${e.message.slice(0, 120)}) → Google'ga o'tildi`);
+      try { return await googleJson(parts, schema, opts); } catch (g) { cheklovmi(g); throw g; }
+    }
+  }
+  if (googleBormi()) {
+    try {
+      return await googleJson(parts, schema, opts);
+    } catch (e) {
+      cheklovmi(e);
+      // Rasm/so'rov xavfsizlik filtriga tushgan bo'lsa boshqa provayder ham rad etadi
+      if (!openrouterBormi() || e.turkum === 'xavfsizlik') throw e;
+      console.warn(`Google yiqildi (${e.turkum || '?'}: ${e.message.slice(0, 120)}) → OpenRouter'ga o'tildi`);
+      try { return await openrouterJson(parts, schema, opts); } catch (o) { cheklovmi(o); throw o; }
     }
   }
   try {
-    return await googleJson(parts, schema, opts);
+    return await openrouterJson(parts, schema, opts);
   } catch (e) { cheklovmi(e); throw e; }
 }
 

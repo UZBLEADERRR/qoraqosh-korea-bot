@@ -4890,6 +4890,13 @@ function modelChiz() {
         <button class="tug" data-m-sina-rasm>▶</button>
       </div>
 
+      <p class="mayda" style="margin:16px 0 6px">✍️ Xabar yozish modeli — OpenRouter
+        <i>(Instagram/Direct javoblari, postlar, kontent)</i>${mm.openrouter ? '' : ' · <b>OPENROUTER_API_KEY yo‘q — Google yozadi</b>'}</p>
+      <div style="display:flex;gap:8px">
+        <input id="m-yozuv" value="${esc(mm.yozuv_model || '')}" placeholder="openai/gpt-5.6-luna" style="flex:1">
+        <button class="tug" data-m-sina-yozuv>▶</button>
+      </div>
+
       <div id="m-natija"></div>
       <div style="display:flex;gap:8px;margin-top:16px">
         <button class="tug asos" id="t-m-saqla" style="flex:1">Saqlash</button>
@@ -4917,6 +4924,8 @@ function modelChiz() {
   $$('[data-m-sina]').forEach((b) => b.onclick = () => modelSina(b.dataset.mSina));
   const rasmSina = $('[data-m-sina-rasm]');
   if (rasmSina) rasmSina.onclick = () => modelSina($('#m-rasm').value.trim());
+  const yozuvSina = $('[data-m-sina-yozuv]');
+  if (yozuvSina) yozuvSina.onclick = () => modelSina($('#m-yozuv').value.trim(), { openrouter: true });
 
   $('#t-m-qosh').onclick = () => {
     const v = $('#m-yangi').value.trim();
@@ -4928,7 +4937,8 @@ function modelChiz() {
   $('#t-m-saqla').onclick = async () => {
     try {
       mm = { ...mm, ...await api('/api/admin/ai-modellar', { method: 'POST',
-        body: JSON.stringify({ modellar: mm.modellar, rasm_model: $('#m-rasm').value.trim() }) }) };
+        body: JSON.stringify({ modellar: mm.modellar, rasm_model: $('#m-rasm').value.trim(),
+          yozuv_model: $('#m-yozuv').value.trim() }) }) };
       tost('Modellar saqlandi'); modelChiz();
     } catch (e) { tost(e.message, 'xato'); }
   };
@@ -4956,13 +4966,13 @@ const MODEL_XATO = {
 };
 
 /** Modelni HAQIQIY chaqiruv bilan sinaydi — nomi to'g'rimi, kvota bormi. */
-async function modelSina(model) {
+async function modelSina(model, { openrouter = false } = {}) {
   if (!model) return;
   $('#m-natija').innerHTML = `<div class="xabar-quti" style="margin-top:12px">
     <span class="aylana"></span> <code>${esc(model)}</code> sinalmoqda…</div>`;
   try {
     const r = await api('/api/admin/ai-model-sinov', { method: 'POST',
-      body: JSON.stringify({ model }) });
+      body: JSON.stringify({ model, openrouter }) });
     $('#m-natija').innerHTML = r.ok
       ? `<div class="xabar-quti ok" style="margin-top:12px">
            ✅ <code>${esc(model)}</code> ishlayapti — ${r.ms} ms</div>`

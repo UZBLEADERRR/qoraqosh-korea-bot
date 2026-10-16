@@ -10,7 +10,9 @@ import { nomlarniToldir, saqla as nomniSaqla, nomsizSoni } from '../services/nom
 import { havolasizlar, posterniYarat } from '../services/skrinshot-import.js';
 import { mahsulotniTani } from '../ai/productEnrich.js';
 import { posterGoyalari, posterChiz, NISBATLAR } from '../ai/poster.js';
-import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi } from '../ai/index.js';
+import { aiJson, aiBormi, provayder, openrouterBormi, googleBormi, yozuvModeli,
+  yozuvModelKeshiniTashla } from '../ai/index.js';
+import { openrouterJson } from '../ai/openrouter.js';
 import { xatoniTushuntir } from '../lib/xatolar.js';
 import { config } from '../config.js';
 import * as manba from '../services/manba.js';
@@ -224,6 +226,9 @@ export async function adminRoutes(req, res, yol) {
         'gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-2.5-flash-lite',
       ],
       rasm_tavsiya: ['gemini-2.5-flash-image', 'gemini-3-pro-image'],
+      // Xabar yozish (Instagram/Direct javoblari, postlar) — OpenRouter orqali
+      yozuv_model: await yozuvModeli(),
+      openrouter: openrouterBormi(),
     });
   }
 
@@ -232,7 +237,13 @@ export async function adminRoutes(req, res, yol) {
     if (!Array.isArray(b.modellar)) return xato(res, 400, 'Modellar ro‘yxati kerak.');
     // Bo'sh ro'yxat = standartga qaytarish (tiklash tugmasi)
     const natija = await modellarniSaqla(b.modellar, b.rasm_model);
-    return ok(res, { ...natija, holatlar: modelHolatlari() });
+    if (typeof b.yozuv_model === 'string') {
+      await sorov(`insert into settings (key, value, updated_at) values ('ai_yozuv_model', $1, now())
+        on conflict (key) do update set value = excluded.value, updated_at = now()`,
+        [JSON.stringify(b.yozuv_model.replace(/["'\s]/g, '').slice(0, 80))]);
+      yozuvModelKeshiniTashla();
+    }
+    return ok(res, { ...natija, holatlar: modelHolatlari(), yozuv_model: await yozuvModeli() });
   }
 
   // Modelni HAQIQIY chaqiruv bilan sinaydi. Nomi to'g'rimi, kalitga
@@ -242,13 +253,16 @@ export async function adminRoutes(req, res, yol) {
     const b = await tana(req);
     const model = String(b.model || '').replace(/["'\s]/g, '').slice(0, 80);
     if (!model) return xato(res, 400, 'Model nomi kerak.');
-    if (!googleBormi()) return xato(res, 400, 'GEMINI_API_KEY sozlanmagan.');
+    // OpenRouter modeli (xabar yozish) yoki Google modeli
+    const orqali = b.openrouter === true;
+    if (orqali && !openrouterBormi()) return xato(res, 400, 'OPENROUTER_API_KEY sozlanmagan.');
+    if (!orqali && !googleBormi()) return xato(res, 400, 'GEMINI_API_KEY sozlanmagan.');
     const boshlandi = Date.now();
     try {
-      const j = await googleJson(
-        [{ text: 'Javob: {"javob":"ok"}' }],
-        { type: 'object', properties: { javob: { type: 'string' } }, required: ['javob'] },
-        { model, maxTokens: 256, timeoutMs: 25000 });
+      const sx = { type: 'object', properties: { javob: { type: 'string' } }, required: ['javob'] };
+      const j = orqali
+        ? await openrouterJson([{ text: 'Javob: {"javob":"ok"}' }], sx, { orModel: model, maxTokens: 256, timeoutMs: 25000 })
+        : await googleJson([{ text: 'Javob: {"javob":"ok"}' }], sx, { model, maxTokens: 256, timeoutMs: 25000 });
       return ok(res, { ok: true, model, ms: Date.now() - boshlandi, javob: j?.javob || '' });
     } catch (e) {
       const x = xatoniTushuntir(e);

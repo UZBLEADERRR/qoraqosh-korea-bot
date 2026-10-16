@@ -6,7 +6,7 @@ import { esc, narx } from '../format.js';
 import { adminmi } from '../../lib/admin.js';
 import { floodKutilmoqda, floodQolgan, floodTekshir } from '../../lib/flood.js';
 import { config } from '../../config.js';
-import { kalitHolati, provayder, aiBormi, jurnalHolati, modelHolatlari } from '../../ai/index.js';
+import { kalitHolati, provayder, aiBormi, jurnalHolati, modelHolatlari, openrouterBormi, yozuvModeli } from '../../ai/index.js';
 import { navbatHolati } from '../../ai/navbat.js';
 import { brendNomi } from '../../lib/brend.js';
 import { xabar, oringaQoy } from '../shablon.js';
@@ -496,7 +496,7 @@ async function botHolati(chatId) {
     `select count(*)::int from yuborishlar where holat = 'toxtatildi'`);
   if (kutayotgan) q.push(`<i>To‘xtab qolgan yuborish: ${kutayotgan} ta.</i>`);
 
-  q.push(``, ...aiHolatSatri());
+  q.push(``, ...(await aiHolatSatri()));
   return yubor(chatId, q.join('\n'));
 }
 
@@ -508,7 +508,7 @@ async function botHolati(chatId) {
  * uchun Railway loglarini ochish kerak edi — telefonda qiyin, tunda
  * esa umuman imkonsiz.
  */
-function aiHolatSatri() {
+async function aiHolatSatri() {
   if (!aiBormi()) return [`🤖 <b>AI</b>`, `🔴 Kalit sozlanmagan — skaner va maslahat ishlamaydi.`];
 
   const q = [`🤖 <b>AI</b> · ${esc(provayder().nom)}`];
@@ -521,17 +521,15 @@ function aiHolatSatri() {
   const mh = modelHolatlari();
   const ishlaydigan = mh.find((m) => m.tayyor);
   const p = provayder();
-  // OpenRouter kaliti bo'lsa HAMMA matn chaqiruvi avval o'shanga ketadi —
-  // Google ro'yxatidagi model faqat zaxira. Ilgari bu yerda faqat Google
-  // modeli yozilardi va «3.8 ishlayapti» degan noto'g'ri taassurot qolardi.
-  if (p.nom === 'openrouter') {
-    q.push(`📦 Asosiy: OpenRouter · <code>${esc(p.model)}</code>`);
-    if (mh.length) q.push(`   zaxira (Google): <code>${esc(ishlaydigan?.nom || 'yo‘q')}</code>`
-      + ` (${mh.filter((m) => m.tayyor).length}/${mh.length} tayyor)`);
+  // Tahlillar (skaner, maslahat, makiyaj) — Google ro'yxati: birinchisi
+  // asosiy, keyingisi zaxira. Xabar yozish — OpenRouter'dagi alohida model.
+  if (p.nom === 'google') {
+    q.push(`📦 Tahlillar: Google · <code>${esc(ishlaydigan?.nom || 'yo‘q')}</code>`
+      + ` (${mh.filter((m) => m.tayyor).length}/${mh.length} tayyor: ${mh.map((m) => esc(m.nom)).join(' → ')})`);
   } else {
-    q.push(`📦 Model: <code>${esc(ishlaydigan?.nom || 'yo‘q')}</code>`
-      + ` (${mh.filter((m) => m.tayyor).length}/${mh.length} tayyor)`);
+    q.push(`📦 Tahlillar: OpenRouter · <code>${esc(p.model)}</code> (Google kaliti yo‘q)`);
   }
+  if (openrouterBormi()) q.push(`✍️ Xabar yozish: OpenRouter · <code>${esc(await yozuvModeli())}</code>`);
   for (const m of mh.filter((x) => !x.tayyor)) {
     q.push(`   • <code>${esc(m.nom)}</code> — `
       + (m.yoq ? 'mavjud emas'

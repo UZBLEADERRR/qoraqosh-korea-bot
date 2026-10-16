@@ -107,7 +107,7 @@ ${ro(k.top)}
 TAHLILLARDA KO'P CHIQQAN MUAMMOLAR (30 kun):
 ${ro(k.muammo)}
 MIJOZLAR DIRECT'DA SO'RAGANLARI (namuna):
-${ro(k.savollar)}` }], SXEMA, { temperature: 0.9, maxTokens: 3000, qayerda: 'kontent' });
+${ro(k.savollar)}` }], SXEMA, { temperature: 0.9, maxTokens: 3000, qayerda: 'kontent', yozuv: true });
   const goyalar = (Array.isArray(j.goyalar) ? j.goyalar : []).slice(0, soni).map((g) => ({
     mavzu: String(g.mavzu || '').trim().slice(0, 160), format: g.format || 'post', hook: String(g.hook || '').trim().slice(0, 240),
     ssenariy: String(g.ssenariy || '').trim().slice(0, 900), izoh: String(g.izoh || '').trim().slice(0, 1200),

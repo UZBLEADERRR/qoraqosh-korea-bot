@@ -47,7 +47,7 @@ Qoidalar:
   maslahatlari, mahsulot foydasi, mijoz savollari, mavsumiy tavsiyalar.
 - Tibbiy tashxis yoki kasallik nomlari BO'LMASIN.
 - "nom" — rejaning qisqa nomi (2-4 so'z).` }],
-    REJA_SXEMA, { temperature: 0.8, maxTokens: 4096 });
+    REJA_SXEMA, { temperature: 0.8, maxTokens: 4096, qayerda: 'kontent-reja', yozuv: true });
 
   return {
     nom: String(javob?.nom || 'Kanal rejasi').slice(0, 60),
@@ -166,7 +166,7 @@ ${QOIDALAR}
 "rasm_tavsifi" — shu post uchun rasm qanday bo'lishini INGLIZ TILIDA yoz
 (1-2 jumla). Rasm toza, yorug', kosmetika brendiga mos, minimalistik
 bo'lsin. Rasmda MATN bo'lmasin.${tuzatishBlok}${qoshimcha}` }],
-    POST_SXEMA, { temperature: 0.9, maxTokens: 2048 });
+    POST_SXEMA, { temperature: 0.9, maxTokens: 2048, qayerda: 'post', yozuv: true });
 
   let javob = await sorov();
   let matn = tozalaHtml(String(javob?.matn || '').trim());
@@ -260,7 +260,7 @@ Reklama posti qo'shimcha qoidalari:
 "rasm_tavsifi" — mahsulot rasmi bo'lmasa ishlatiladi: mahsulot uchun
 INGLIZ TILIDA 1-2 jumlalik toza, minimalistik sahna tavsifi. Rasmda MATN
 bo'lmasin.${tuzatishBlok}${qoshimcha}` }],
-    POST_SXEMA, { temperature: 0.8, maxTokens: 2048 });
+    POST_SXEMA, { temperature: 0.8, maxTokens: 2048, qayerda: 'post', yozuv: true });
 
   let javob = await sorov();
   let matn = tozalaHtml(String(javob?.matn || '').trim());

@@ -1982,6 +1982,9 @@ console.log('\n── AI MODELLARI (ADMIN PANEL) ──');
 {
   const M = await import('../src/ai/modellar.js');
   M.modellarniTozala();
+  // 060 migratsiya egasining ro'yxatini yozgan — standart holatdan boshlaymiz
+  await sorov(`delete from settings where key = 'ai_modellar'`);
+  M.keshniTashla();
 
   const b1 = await chaqirAdmin('/api/admin/ai-modellar', 'GET');
   test('ro‘yxat keldi', Array.isArray(b1.tana.modellar) && b1.tana.modellar.length > 0,
@@ -2018,7 +2021,8 @@ console.log('\n── AI MODELLARI (ADMIN PANEL) ──');
   test('bo‘sh ro‘yxat standartga qaytaradi', s3.tana.standart === true);
   test('standart ro‘yxat qaytdi', s3.tana.modellar[0] === 'gemini-3.8-flash',
     s3.tana.modellar[0]);
-  test('ro‘yxatsiz emas', s3.tana.modellar.length >= 3, `${s3.tana.modellar.length} ta`);
+  test('standart: 3.8 → 3.7', s3.tana.modellar.length === 2 && s3.tana.modellar[1] === 'gemini-3.7-flash',
+    s3.tana.modellar.join(', '));
 
   const yomon = await chaqirAdmin('/api/admin/ai-modellar', 'POST', { modellar: 'salom' });
   test('noto‘g‘ri ma’lumot rad etiladi', yomon.kod === 400, String(yomon.kod));
@@ -6096,8 +6100,8 @@ console.log('\n── OYNA, NARX, IPHONE, TUNGI QIDIRUV, GMAIL ──');
     const h = J.jurnalHolati().ishlatilgan.find((x) => x.qayerda === 'maslahat');
     test('AI jurnali: qaysi model HAQIQATDA javob bergani yoziladi', h?.provayder === 'openrouter' && h.model === 'google/gemini-2.5-flash');
     const adm = fsU.readFileSync('src/bot/handlers/admin.js', 'utf8');
-    test('/holat: OpenRouter asosiy bo‘lsa — u ko‘rsatiladi, Google — zaxira',
-      /Asosiy: OpenRouter/.test(adm) && /Haqiqatda javob bergan model/.test(adm));
+    test('/holat: tahlillar modeli, xabar yozish modeli va haqiqatda javob bergani',
+      /Tahlillar: Google/.test(adm) && /Xabar yozish: OpenRouter/.test(adm) && /Haqiqatda javob bergan model/.test(adm));
   }
   test('maslahat va rangim bo‘limida suzuvchi savat tugmalarni yopmaydi',
     /const kerak = holat\.suzuvchiFaol && soni > 0 && !\['savat', 'maslahat', 'rangim'\]\.includes\(holat\.tab\);/.test(js));

@@ -119,6 +119,12 @@ for (const [data, kutilgan] of [
   test(`tugma «${data}» ishlaydi`, kutilgan.test(oxirgi().text || ''));
 }
 
+// Bu bo'limlar TERI tahlilining AI zaxirasini sinaydi. Admin uchun makiyaj
+// ham parallel ketadi va navbatni egallab, sinovni chalg'itadi — o'chiramiz
+// (makiyaj o'z bo'limida yoqiladi).
+await sorov(`insert into settings (key, value) values ('makiyaj_holat', '"yopiq"')
+  on conflict (key) do update set value = excluded.value`);
+
 // ═══════════ AI 400 QAYTARSA ═══════════
 // Google ba'zan sozlamalardan birini qabul qilmay 400 beradi (masalan
 // thinkingConfig yoki sxemadagi kalit). Ilgari butun skaner ishlamay
@@ -252,13 +258,13 @@ console.log('\n── MODEL ALMASHUVI ──');
   test('retryDelay o‘qildi', kutishMs(kunlikJavob) === 31000, String(kutishMs(kunlikJavob)));
 
   const modellar = royxat();
-  test('zaxira modellar ro‘yxati bor', modellar.length >= 3, modellar.join(', '));
+  test('zaxira modellar ro‘yxati: 3.8 → 3.7', modellar.length >= 2 && modellar[1] === 'gemini-3.7-flash', modellar.join(', '));
   test('birinchisi eng yangi flash', modellar[0] === 'gemini-3.8-flash', modellar[0]);
 
   // ── Asosiy model kvotasi tugasa keyingisi ishlaydi ──
   modellarniTozala(); jurnalniTozala(); navbatniTozala();
   await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
-  globalThis.AI_429_MODELLAR = [modellar[0], modellar[1]];   // ikkitasi tugagan
+  globalThis.AI_429_MODELLAR = [modellar[0]];   // asosiysi (3.8) tugagan
   yuborilgan.length = 0;
   await rasmYubor();
   globalThis.AI_429_MODELLAR = [];
@@ -271,11 +277,11 @@ console.log('\n── MODEL ALMASHUVI ──');
 
   const h = modelHolatlari();
   test('tugagan modellar chetga qo‘yildi',
-    h[0].tayyor === false && h[1].tayyor === false,
+    h[0].tayyor === false,
     h.map((m) => `${m.nom}:${m.tayyor ? 'tayyor' : m.sabab}`).join(' | '));
   test('sabab «kunlik» deb yozildi', h[0].sabab === 'kunlik', h[0].sabab);
-  test('uchinchi model ishladi', h[2].tayyor === true && h[2].ishlatilgan > 0,
-    `${h[2].nom} · ${h[2].ishlatilgan} marta`);
+  test('zaxira (3.7) ishladi', h[1].tayyor === true && h[1].ishlatilgan > 0,
+    `${h[1].nom} · ${h[1].ishlatilgan} marta`);
 
   // ── Model nomi noto'g'ri bo'lsa (404) butunlay chiqariladi ──
   modellarniTozala(); navbatniTozala();
@@ -309,13 +315,15 @@ console.log('\n── MODEL ALMASHUVI ──');
   await yangilanish({ update_id: 1, message: { message_id: 1,
     chat: { id: Number(TG), type: 'private' }, from: { id: Number(TG) }, text: '/holat' } });
   const holat2 = yuborilgan.map((x) => x.text || '').join('\n');
-  test('/holat modelni ko‘rsatadi', /📦 Model:/.test(holat2), holat2.slice(0, 160));
+  test('/holat modelni ko‘rsatadi', /📦 Tahlillar: Google/.test(holat2) && /gemini-3.8-flash → gemini-3.7-flash/.test(holat2), holat2.slice(0, 160));
   test('/holat kunlik kvotani aytadi', /kunlik kvota tugadi/.test(holat2));
   test('/holat kalit qo‘shishni maslahat beradi', /GEMINI_MODELLAR|GEMINI_API_KEY/.test(holat2));
   await sorov(`update users set is_admin = false where telegram_id = $1`, [TG]);
 
   modellarniTozala(); jurnalniTozala(); navbatniTozala();
 }
+
+await sorov(`delete from settings where key = 'makiyaj_holat'`);
 
 // ═══════════ SKANER NAMUNASI ═══════════
 // «Yuz skaneri» bosilganda botda ham namuna surat kelishi kerak: odam

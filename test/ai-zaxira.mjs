@@ -45,5 +45,24 @@ try { await aiRasm(parts, { nisbat: '1:1' }); } catch (e) { e3 = e; }
 test('ikkalasi ham kreditsiz — tushunarli sabab', e3 && e3.turkum === 'hisob' && /Google:/.test(e3.message), e3?.message?.slice(0, 120));
 test('«kutilmagan xatolik» emas', !/Kutilmagan/.test(xatoniTushuntir(e3).matn) || e3.turkum === 'hisob');
 
+console.log('\n── MARSHRUT (matn) ──');
+{
+  // Tahlillar — Google (3.8, yiqilsa 3.7); xabar yozish — OpenRouter'dagi yozuv modeli
+  const { aiJson } = await import('../src/ai/index.js');
+  const { jurnalHolati } = await import('../src/ai/jurnal.js');
+  const sx = { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'] };
+  const kim = (q) => jurnalHolati().ishlatilgan.find((x) => x.qayerda === q);
+  await aiJson([{ text: 'sinov' }], sx, { qayerda: 'sinov-tahlil' });
+  test('tahlil — Google · gemini-3.8-flash', kim('sinov-tahlil')?.provayder === 'google'
+    && kim('sinov-tahlil')?.model === 'gemini-3.8-flash', JSON.stringify(kim('sinov-tahlil')));
+  await aiJson([{ text: 'sinov' }], sx, { qayerda: 'sinov-yozuv', yozuv: true });
+  test('xabar yozish — OpenRouter · openai/gpt-5.6-luna', kim('sinov-yozuv')?.provayder === 'openrouter'
+    && /gpt-5\.6-luna/.test(kim('sinov-yozuv')?.model || ''), JSON.stringify(kim('sinov-yozuv')));
+  globalThis.AI_429_MODELLAR = ['gemini-3.8-flash'];
+  await aiJson([{ text: 'sinov' }], sx, { qayerda: 'sinov-zaxira' });
+  globalThis.AI_429_MODELLAR = [];
+  test('3.8 tugasa — 3.7 javob beradi', kim('sinov-zaxira')?.model === 'gemini-3.7-flash', JSON.stringify(kim('sinov-zaxira')));
+}
+
 console.log(`\n${xato ? '❌' : '✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 srv.close(); process.exit(xato ? 1 : 0);
