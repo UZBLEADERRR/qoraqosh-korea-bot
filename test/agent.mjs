@@ -154,6 +154,10 @@ test('bir kunda IKKINCHI post tayyorlamaydi', !yuborilgan.some(x=>x.rasm),
   `${yuborilgan.length} ta xabar`);
 
 console.log('\n── BROADCAST ──');
+// Takror himoyasi (10 daqiqa ichida aynan shu matn qayta ketmaydi) sinovlar
+// ketma-ket ishga tushirilganda oldingi yugurishning xabarini «takror» deb
+// to'xtatardi — sinov bazasidan yaqindagi yuborishlarni tozalaymiz
+await sorov(`delete from yuborishlar where created_at > now() - interval '15 minutes'`).catch(() => {});
 await yoz('700001','/reklama');
 test('reklama boshlandi', /Reklama xabari/.test(hammasi()));
 test('oluvchilar soni ko‘rsatildi', /\d+ ta<\/b> foydalanuvchi/.test(hammasi()));
