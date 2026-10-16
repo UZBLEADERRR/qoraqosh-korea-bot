@@ -520,8 +520,18 @@ function aiHolatSatri() {
   // muhim: skaner ishlamay, poster ishlayotgan bo'lsa sabab shu.
   const mh = modelHolatlari();
   const ishlaydigan = mh.find((m) => m.tayyor);
-  q.push(`📦 Model: <code>${esc(ishlaydigan?.nom || 'yo‘q')}</code>`
-    + ` (${mh.filter((m) => m.tayyor).length}/${mh.length} tayyor)`);
+  const p = provayder();
+  // OpenRouter kaliti bo'lsa HAMMA matn chaqiruvi avval o'shanga ketadi —
+  // Google ro'yxatidagi model faqat zaxira. Ilgari bu yerda faqat Google
+  // modeli yozilardi va «3.8 ishlayapti» degan noto'g'ri taassurot qolardi.
+  if (p.nom === 'openrouter') {
+    q.push(`📦 Asosiy: OpenRouter · <code>${esc(p.model)}</code>`);
+    if (mh.length) q.push(`   zaxira (Google): <code>${esc(ishlaydigan?.nom || 'yo‘q')}</code>`
+      + ` (${mh.filter((m) => m.tayyor).length}/${mh.length} tayyor)`);
+  } else {
+    q.push(`📦 Model: <code>${esc(ishlaydigan?.nom || 'yo‘q')}</code>`
+      + ` (${mh.filter((m) => m.tayyor).length}/${mh.length} tayyor)`);
+  }
   for (const m of mh.filter((x) => !x.tayyor)) {
     q.push(`   • <code>${esc(m.nom)}</code> — `
       + (m.yoq ? 'mavjud emas'
@@ -551,6 +561,16 @@ function aiHolatSatri() {
   }
   q.push(`📊 ${j.muvaffaq}/${j.jami} chaqiruv muvaffaqiyatli`
     + (j.xato ? `, ${j.xato} xato` : ''));
+
+  // Haqiqatda kim javob berdi — sozlama emas, oxirgi chaqiruvlar
+  if (j.ishlatilgan?.length) {
+    q.push(``, `<b>Haqiqatda javob bergan model:</b>`);
+    for (const x of j.ishlatilgan.slice(0, 5)) {
+      const oldin = Math.round((Date.now() - x.vaqt) / 60000);
+      q.push(`• ${esc(x.qayerda)} → ${x.provayder === 'openrouter' ? 'OpenRouter' : 'Google'} · `
+        + `<code>${esc(x.model)}</code> (${oldin < 1 ? 'hozirgina' : `${oldin} daq oldin`})`);
+    }
+  }
 
   // Oxirgi uchta xato — nima yiqilganini darrov ko'rsatadi
   if (j.oxirgi.length) {

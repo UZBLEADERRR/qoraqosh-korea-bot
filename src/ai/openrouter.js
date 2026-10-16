@@ -3,6 +3,7 @@
 // OpenRouter tomonida bo'ladi, Google kalitini alohida boshqarish shart emas.
 import { config } from '../config.js';
 import { hovuz, sabab } from './kalitlar.js';
+import { ishlatildi } from './jurnal.js';
 
 const kut = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -156,7 +157,11 @@ export async function openrouterJson(parts, schema, opts = {}) {
     }
     // Ba'zi modellar JSON ni ```json ``` ichida qaytaradi
     const toza = String(matn).replace(/^```(?:json)?\s*|\s*```$/g, '').trim();
-    try { return JSON.parse(toza); }
+    try {
+      const j = JSON.parse(toza);
+      ishlatildi('openrouter', data?.model || model, opts.qayerda);
+      return j;
+    }
     catch {
       // finish_reason "length" bo'lsa javob YARIM kelgan — bu "tushunarsiz
       // javob" emas, byudjet yetmagan. Keyingi urinishda ko'proq beramiz.

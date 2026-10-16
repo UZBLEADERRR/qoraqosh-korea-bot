@@ -441,7 +441,9 @@ export async function apiRoutes(req, res, yol) {
     }
 
     const b = await tana(req);
-    const savol = String(b.savol || '').trim().slice(0, 400);
+    // Odam ro'yxat yozishi mumkin («ajin → retinol, akne → BHA…») — 400
+    // belgida kesilib, xabarning yarmi modelga yetib bormasdi
+    const savol = String(b.savol || '').trim().slice(0, 1500);
 
     // Klient rasmni data-URL ko'rinishida yuboradi ("data:image/jpeg;base64,…").
     // Prefiksni olib tashlamasak model uni base64 deb o'qiy olmaydi va
@@ -475,7 +477,7 @@ export async function apiRoutes(req, res, yol) {
     // bilishi uchun shart — aks holda bir savolni ikki marta beradi.
     const tarix = (Array.isArray(b.tarix) ? b.tarix : []).slice(-8).map((x) => ({
       kim: x?.kim === 'ai' ? 'ai' : 'odam',
-      matn: String(x?.matn || '').slice(0, 400),
+      matn: String(x?.matn || '').slice(0, 1500),
     })).filter((x) => x.matn);
 
     try {

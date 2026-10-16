@@ -6083,6 +6083,22 @@ console.log('\n── OYNA, NARX, IPHONE, TUNGI QIDIRUV, GMAIL ──');
   test('profil hisoblagichlari yangi tahlil va buyurtmadan keyin oshadi (ilovani qayta ochmasdan)',
     /if \(j\.analysisId\) holat\.stat = \{ \.\.\.\(holat\.stat \|\| \{\}\), tahlil: \(holat\.stat\?\.tahlil \|\| 0\) \+ 1 \}/.test(js)
     && /holat\.stat = \{ \.\.\.\(holat\.stat \|\| \{\}\), buyurtma: \(holat\.stat\?\.buyurtma \|\| 0\) \+ 1 \}/.test(js));
+  {
+    // Maslahatchi: uzun ro'yxatli savol kesilmaydi, ro'yxatga savol bilan javob bermaydi
+    const ms = fsU.readFileSync('src/ai/maslahat.js', 'utf8');
+    const rt = fsU.readFileSync('src/api/routes.js', 'utf8');
+    test('maslahat: savol 1500 belgigacha (ilgari 400 da kesilardi)',
+      /const savol = String\(b\.savol \|\| ''\)\.trim\(\)\.slice\(0, 1500\)/.test(rt) && /maxlength="1500"/.test(fsU.readFileSync('public/app/index.html', 'utf8')));
+    test('maslahat: ro‘yxat / aniq brend yozilsa — savol bermaydi, har bandga mahsulot',
+      /QAYSI BIRINI TANLASHNI\s+SO'RAMA/.test(ms) && /SAVOL BERMA/.test(ms) && /\.slice\(0, 6\);/.test(ms));
+    const J = await import('../src/ai/jurnal.js');
+    J.ishlatildi('openrouter', 'google/gemini-2.5-flash', 'maslahat');
+    const h = J.jurnalHolati().ishlatilgan.find((x) => x.qayerda === 'maslahat');
+    test('AI jurnali: qaysi model HAQIQATDA javob bergani yoziladi', h?.provayder === 'openrouter' && h.model === 'google/gemini-2.5-flash');
+    const adm = fsU.readFileSync('src/bot/handlers/admin.js', 'utf8');
+    test('/holat: OpenRouter asosiy bo‘lsa — u ko‘rsatiladi, Google — zaxira',
+      /Asosiy: OpenRouter/.test(adm) && /Haqiqatda javob bergan model/.test(adm));
+  }
   test('maslahat va rangim bo‘limida suzuvchi savat tugmalarni yopmaydi',
     /const kerak = holat\.suzuvchiFaol && soni > 0 && !\['savat', 'maslahat', 'rangim'\]\.includes\(holat\.tab\);/.test(js));
   test('toifa plitkasi bosilganda belgi o‘sha plitkaga o‘tadi (Barchasi qolib ketmaydi)',

@@ -1,6 +1,7 @@
 // Google Generative Language API (to'g'ridan-to'g'ri).
 import { config } from '../config.js';
 import { hovuz, sabab } from './kalitlar.js';
+import { ishlatildi } from './jurnal.js';
 import { modelOl, modelBand, modelYoq, modelYaxshi, kvotaTuri, kutishMs,
   modellarniTaminla, rasmModeli } from './modellar.js';
 
@@ -205,7 +206,11 @@ export async function googleJson(parts, schema, opts = {}) {
         new Error(`Bo'sh javob (finishReason: ${cand?.finishReason || 'yo\'q'})`), { turkum: 'bosh' });
       continue;
     }
-    try { return JSON.parse(text); }
+    try {
+      const j = JSON.parse(text);
+      ishlatildi('google', model, opts.qayerda);
+      return j;
+    }
     catch {
       // Javob YARIM kelgan bo'lsa JSON albatta buziladi. Ilgari shu yerda
       // darrov xato tashlanardi va odam "AI javobi tushunarsiz" degan

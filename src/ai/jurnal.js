@@ -15,6 +15,16 @@ const hisob = { jami: 0, muvaffaq: 0, xato: 0 };
 // Turkum bo'yicha nechta xato — qaysi nosozlik ustunligi darrov ko'rinsin
 const turkumlar = new Map();
 
+/* Qaysi MODEL haqiqatda javob berdi — joy bo'yicha (maslahat, skaner…).
+   Sozlamadagi nom emas: OpenRouter asosiy bo'lsa Google ro'yxatidagi
+   model umuman ishlamaydi, /holat esa ilgari aynan o'shani ko'rsatardi. */
+const ishlatilgan = new Map();   // qayerda → { provayder, model, vaqt }
+
+/** Javob bergan provayder va model (OpenRouter'da — u qaytargan aniq nom). */
+export function ishlatildi(provayder, model, qayerda = '') {
+  ishlatilgan.set(qayerda || 'boshqa', { provayder, model: String(model || ''), vaqt: Date.now() });
+}
+
 /** Muvaffaqiyatli chaqiruv. */
 export function yaxshi() { hisob.jami += 1; hisob.muvaffaq += 1; }
 
@@ -46,10 +56,12 @@ export const jurnalHolati = () => ({
   turkumlar: [...turkumlar.entries()]
     .sort((a, b) => b[1] - a[1]).map(([nom, soni]) => ({ nom, soni })),
   oxirgi: oxirgiXatolar(5),
+  ishlatilgan: [...ishlatilgan.entries()].map(([qayerda, x]) => ({ qayerda, ...x }))
+    .sort((a, b) => b.vaqt - a.vaqt),
 });
 
 /** Sinov uchun. */
 export function jurnalniTozala() {
-  xatolar.length = 0; turkumlar.clear();
+  xatolar.length = 0; turkumlar.clear(); ishlatilgan.clear();
   hisob.jami = 0; hisob.muvaffaq = 0; hisob.xato = 0;
 }

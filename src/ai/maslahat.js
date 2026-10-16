@@ -55,6 +55,20 @@ const KORSATMA = `Sen — KiOVO do'konining maslahatchisisan. Odam o'z muammosin
 yozadi, sen unga MANA SHU KATALOGDAN mos mahsulot topib berasan va NIMA
 QILISH kerakligini tushuntirasan.
 
+═══ ENG AVVAL: ODAM NIMA SO'RAYOTGANINI TUSHUN ═══
+- MIJOZ SAVOLI ni OLDINGI SUHBAT bilan birga o'qi. «shularni», «o'sha»,
+  «yana bittasi», «arzonrog'i» kabi so'zlar oldingi xabarga ishora qiladi.
+- Odam ANIQ mahsulot yoki brend nomini yozsa (COSRX, Anua, Torriden,
+  «retinolli krem», «BHA») — SAVOL BERMA. Katalogdan aynan o'shani top,
+  bo'lmasa eng yaqin muqobilini taklif qil (turi = "tavsiya") va
+  javob matnida qaysi biri katalogda borligini, qaysi biri yo'qligini ayt.
+- Odam RO'YXAT yozsa («ajin → retinol, quruqlik → serum, akne → BHA…»)
+  yoki bir xabarda bir nechta muammoni sanasa — QAYSI BIRINI TANLASHNI
+  SO'RAMA. Har bandga katalogdan bittadan mos mahsulot ber (6 tagacha),
+  bosqich maydoniga o'sha muammoni yoz (masalan "ajin", "akne").
+- Odam allaqachon aytgan narsani qayta so'rama. Ma'lumot yetarli bo'lsa —
+  javob ber, savol emas.
+
 ═══ QACHON SAVOL BERASAN ═══
 Ma'lumot yetmasa TAXMIN QILMA — turi = "savol" qil, savol_matn ga BITTA
 aniq savol yoz, savol_variantlar ga 2-4 ta tayyor javob qo'y (odam yozib
@@ -105,7 +119,8 @@ lab balzami) toplam_nom BO'SH qoldiriladi va 1 ta mahsulot beriladi.
 ═══ TAVSIYA QOIDALARI ═══
 - Faqat ro'yxatdagi mahsulot. Ro'yxatda bo'lmagan narsani O'YLAB TOPMA.
   Mos mahsulot yo'q bo'lsa turi = "yoq", tavsiya bo'sh, ochiq ayt.
-- 1 tadan 5 tagacha mahsulot.
+- 1 tadan 5 tagacha mahsulot (odam ro'yxat yoki bir nechta muammo
+  yozgan bo'lsa — 6 tagacha, har muammoga bittadan).
 - sabab: NEGA aynan shu mahsulot aynan SHU odamga, 1 jumla, tarkibidagi
   qaysi modda yordam berishini ayt.
 - qanday: qachon va qanday ishlatiladi, 1 qisqa jumla
@@ -186,14 +201,16 @@ const KATALOG_CHEGARA = Number(process.env.MASLAHAT_KATALOG) > 0
 // qancha belgi. Eng oxirgi xabarlar to'liq qoladi: kontekst uchun
 // aynan ular kerak.
 const TARIX_XABAR = 8;
-const TARIX_BELGI = 1400;
+const TARIX_BELGI = 3000;
 
 function tarixMatni(tarix) {
   if (!tarix.length) return '';
   const olingan = [];
   let jami = 0;
   for (const x of tarix.slice(-TARIX_XABAR).reverse()) {
-    const matn = String(x.matn || '').slice(0, 300);
+    // Odamning xabari to'liqroq qoladi — kontekst aynan unda; maslahatchining
+    // uzun javobi esa qisqartiriladi (o'zi nima deganini bilishi yetarli)
+    const matn = String(x.matn || '').slice(0, x.kim === 'ai' ? 350 : 900);
     if (!matn) continue;
     if (jami + matn.length > TARIX_BELGI && olingan.length >= 2) break;
     jami += matn.length;
@@ -256,7 +273,7 @@ export async function maslahatBer(savol, products, o = {}) {
       qanday:  s(t.qanday, 220),
     }))
     .sort((a, b) => a.tartib - b.tartib)
-    .slice(0, 5);
+    .slice(0, 6);
 
   const variantlar = (Array.isArray(j.savol_variantlar) ? j.savol_variantlar : [])
     .map((x) => s(x, 40)).filter(Boolean).slice(0, 4);
