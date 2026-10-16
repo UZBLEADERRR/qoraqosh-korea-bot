@@ -54,6 +54,28 @@ export async function ilovaHavolasi(start = '') {
                : `https://t.me/${bot}${s || '?startapp=ilova'}`;
 }
 
+/* Havola bilan ochiladigan bo'limlar. `startapp=<kalit>` — Mini App aynan
+   shu bo'limdan ochiladi (public/app/app.js → boshlangichBolim). */
+export const ILOVA_BOLIMLARI = [
+  ['katalog',  '🛍 Do‘kon'],
+  ['skaner',   '🔬 Yuz skaneri'],
+  ['maslahat', '🤖 AI maslahatchi'],
+  ['savat',    '🧺 Savat'],
+  ['profil',   '👤 Profil'],
+  ['rangim',   '💄 Makiyaj (Mening rangim)'],
+];
+export const bolimmi = (k) => ILOVA_BOLIMLARI.some(([x]) => x === k);
+
+/** Har bo'lim uchun tayyor havola — reklama, post, bio uchun. */
+export async function bolimHavolalari() {
+  const r = [];
+  for (const [kalit, nom] of ILOVA_BOLIMLARI) {
+    const havola = await ilovaHavolasi(kalit === 'katalog' ? '' : kalit);
+    if (havola) r.push({ kalit, nom, havola });
+  }
+  return r;
+}
+
 /**
  * Ilovani ochadigan inline tugma. HAR DOIM `web_app`.
  *

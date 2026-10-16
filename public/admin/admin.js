@@ -3710,6 +3710,9 @@ async function sozlamalar() {
           shu yerga yozing.</p>
         <label>Qisqa nom <span class="yordam">faqat harf, raqam va _</span></label>
         <input id="s-miniapp" value="${esc(matn('mini_app_nom'))}" placeholder="ilova">
+        <p class="mayda" style="margin:14px 0 6px"><b>Tayyor havolalar</b> — bosilsa Telegram ichida
+          ilova shu bo‘limdan ochiladi (post, bio, reklama uchun):</p>
+        <div id="ilova-havolalar"><span class="aylana"></span></div>
       </div>
 
       <div class="karta tor">
@@ -4157,6 +4160,18 @@ function mavzuniUla() {
       if (/^#?[0-9a-fA-F]{6}$/.test(v)) { rang.value = v.startsWith('#') ? v : '#' + v; mavzuOzgardi(); }
     };
   }
+
+  // Mini App havolalari — har bo'lim uchun, bosib nusxa olinadi
+  const ih = $('#ilova-havolalar');
+  if (ih) api('/api/admin/ilova-havolalar').then((j) => {
+    ih.innerHTML = (j.havolalar || []).map((x) => `
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--chiziq)">
+        <div style="flex:1;min-width:0"><b style="font-size:13.5px">${esc(x.nom)}</b>
+          <div class="mayda" style="font-family:ui-monospace,monospace;overflow-wrap:anywhere">${esc(x.havola)}</div></div>
+        <button class="tug kichik" data-ih="${esc(x.havola)}">Nusxa</button></div>`).join('')
+      || '<p class="mayda">Bot nomini aniqlab bo‘lmadi — havola yasalmadi.</p>';
+    $$('[data-ih]', ih).forEach((b) => b.onclick = () => nusxaOl(b.dataset.ih));
+  }).catch(() => { ih.innerHTML = '<p class="mayda">Havolalarni olib bo‘lmadi.</p>'; });
 
   // Tayyor to'plamlar
   const t = $('#mavzu-toplamlar');

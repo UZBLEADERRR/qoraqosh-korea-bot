@@ -35,6 +35,7 @@ export const BUYRUQLAR = [
   ['/tanitish', 'Mahsulotni kanalda reklama qilish'],
   ['/brend',    'Brend nomini o‘zgartirish'],
   ['/panel',    'Admin panelni ochish'],
+  ['/havola',   'Mini App havolalari (har bo‘lim uchun)'],
   ['/holat',    'Bot va AI holati — nima yiqilganini ko‘rsatadi'],
 ];
 
@@ -456,6 +457,23 @@ export async function brendSaqla(chatId, user, nom) {
   return yubor(chatId, `✅ Brend nomi <b>${esc(toza)}</b> ga o‘zgartirildi.`);
 }
 
+/** Mini App havolalari: bosilsa Telegram ichida ilova o'sha bo'limdan ochiladi. */
+async function ilovaHavolalari(chatId) {
+  const { bolimHavolalari } = await import('../../lib/ilova-havola.js');
+  const r = await bolimHavolalari().catch(() => []);
+  if (!r.length) return yubor(chatId, '⚠️ Bot nomini aniqlab bo‘lmadi — havola yasalmadi. Birozdan keyin qayta urining.');
+  const qisqa = String(await sozlama('mini_app_nom', '') || '').trim();
+  return yubor(chatId, [
+    `📱 <b>Mini App havolalari</b>`,
+    `<i>Bosilsa Telegram ichida ilova shu bo‘limdan ochiladi. Ustiga bosib nusxa oling.</i>`, ``,
+    ...r.map((x) => `${x.nom}\n<code>${esc(x.havola)}</code>`), ``,
+    qisqa ? `ℹ️ Qisqa nom: <b>${esc(qisqa)}</b>`
+      : `ℹ️ Havolalar ishlashi uchun BotFather'da <b>Main Mini App</b> yoqilgan bo‘lishi kerak: `
+        + `/mybots → bot → Bot Settings → Configure Mini App → Enable. `
+        + `U yerda qisqa nom bersangiz, admin panel → Sozlamalar → «Mini App qisqa nomi» ga yozing.`,
+  ].join('\n'), { disable_web_page_preview: true });
+}
+
 async function panelHavolasi(chatId) {
   const url = config.publicUrl ? `${config.publicUrl}/admin/` : null;
   if (!url) return yubor(chatId, 'PUBLIC_URL sozlanmagan — panel havolasi yo‘q.');
@@ -650,6 +668,7 @@ async function buyruqniBajar(buyruq, argument, chatId, user) {
     case '/reja':    await rejaMenyusi(chatId); return true;
     case '/tanitish': await tanitishBoshla(chatId, argument); return true;
     case '/panel':   await panelHavolasi(chatId); return true;
+    case '/havola':  await ilovaHavolalari(chatId); return true;
     case '/holat':   await botHolati(chatId); return true;
     case '/brend':   await brendBoshla(chatId, user, argument); return true;
     case '/bekor':   await holatTozala(user.id); await yubor(chatId, '❌ Bekor qilindi.'); return true;

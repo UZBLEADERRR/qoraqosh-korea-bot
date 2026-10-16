@@ -20,7 +20,7 @@ import { apiRoutes } from './api/routes.js';
 import { ochiqRoutes } from './api/ochiq.js';
 import { adminRoutes } from './api/admin.js';
 import { yangilanish } from './bot/index.js';
-import { ilovaHavolasi } from './lib/ilova-havola.js';
+import { ilovaHavolasi, bolimmi } from './lib/ilova-havola.js';
 import { keshdanOl, keshgaQoy } from './lib/media-kesh.js';
 import { jpegQil } from './rasm/olcham.js';
 import { tg } from './bot/tg.js';
@@ -509,7 +509,9 @@ const server = http.createServer(async (req, res) => {
     // U yerdan Telegram ilovasiga yo'naltiriladi: brauzerda ochilgan
     // Mini App initData siz ishlamaydi, ya'ni yorliq foydasiz bo'lardi.
     if (yol === '/app/ochish') {
-      const havola = await ilovaHavolasi().catch(() => null);
+      // ?bolim=skaner — Telegramda Mini App aynan shu bo'limdan ochiladi
+      const bolim = url.searchParams.get('bolim') || '';
+      const havola = await ilovaHavolasi(bolimmi(bolim) && bolim !== 'katalog' ? bolim : '').catch(() => null);
       if (havola) return redirect(res, havola);
       return redirect(res, '/app/');
     }

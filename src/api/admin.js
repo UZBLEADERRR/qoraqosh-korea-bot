@@ -281,6 +281,12 @@ export async function adminRoutes(req, res, yol) {
     }
   }
 
+  // Mini App havolalari — har bo'lim uchun (t.me/<bot>?startapp=<bo'lim>)
+  if (yol === '/api/admin/ilova-havolalar' && req.method === 'GET') {
+    const { bolimHavolalari } = await import('../lib/ilova-havola.js');
+    return ok(res, { havolalar: await bolimHavolalari().catch(() => []) });
+  }
+
   if (yol === '/api/admin/health' && req.method === 'GET') {
     return ok(res, {
       tekshiruvlar: await tizimTekshir(),

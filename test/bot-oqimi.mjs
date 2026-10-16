@@ -39,6 +39,9 @@ await sorov(`insert into users (telegram_id, full_name, phone, age, agreed_at)
   values ($1,'Sinov','+998901112233',24, now())
   on conflict (telegram_id) do update set agreed_at = now(), full_name = 'Sinov',
     phone = '+998901112233', age = 24, is_blocked = false`, [TG]);
+// Oldingi yugurishdan qolgan holat (admin, jins, makiyaj) sinovni buzmasin
+await sorov(`update users set is_admin = false, gender = null, makiyaj = null, state = null where telegram_id = $1`, [TG]);
+await sorov(`delete from settings where key = 'makiyaj_holat'`);
 await sorov(`delete from analyses where user_id = (select id from users where telegram_id = $1)`, [TG]);
 await sorov(`update settings set value = '99'::jsonb where key = 'limit_bepul'`);
 
@@ -698,6 +701,17 @@ console.log('\n── MA’LUMOTNI O‘CHIRISH ──');
   test('48 soatdan eski xabar — tushunarli rad', /48 soat/.test((await B.yuborishniOchir({ id: b2.id })).xato || ''));
   test('matnni moslovchi {ism} va HTML ni hisobga oladi',
     B.moslovchi('<b>Salom</b>, {ism}! Aksiya')('Salom, Malika! Aksiya bugun') && !B.moslovchi('Salom, {ism}! Aksiya')('Boshqa matn'));
+}
+
+// ═══ /havola: Mini App havolalari (admin) ═══
+{
+  await sorov(`update users set is_admin = true where telegram_id = $1`, [TG]);
+  const o = yuborilgan.length;
+  await yangilanish({ update_id: Math.random(), message: { message_id: 301, date: Math.floor(Date.now() / 1000),
+    chat: { id: Number(TG), type: 'private' }, from: { id: Number(TG), first_name: 'Sinov' }, text: '/havola' } });
+  const h = yuborilgan.slice(o).map((y) => y.text || '').join('\n');
+  test('/havola — har bo‘lim uchun t.me havola', /Mini App havolalari/.test(h) && /startapp=skaner/.test(h) && /startapp=rangim/.test(h), h.slice(0, 120));
+  await sorov(`update users set is_admin = false where telegram_id = $1`, [TG]);
 }
 
 // ═══ Makiyaj: «💄 Menga mos makiyaj» — hammaga (o'chirganlarga yo'q) ═══

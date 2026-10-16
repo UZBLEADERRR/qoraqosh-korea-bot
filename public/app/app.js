@@ -725,10 +725,17 @@ async function boshla() {
   if (p.get('tavsiya') === '1') await tavsiyaniSavatgaSol();
   // kiovo.shop/hisobni-ochirish sahifasidagi havola: profil va o'chirish oynasi
   if (p.get('ochir') === '1') { tabOch('profil'); return hisobniOchirOyna(); }
-  const xom = p.get('tab') || sessionStorage.getItem('qq_tab') || 'katalog';
+  // Telegram havolasi: t.me/<bot>?startapp=skaner (yoki /<qisqa_nom>?startapp=…)
+  // — Mini App aynan shu bo'limdan ochiladi; startapp=p_123 — mahsulot oynasi.
+  // «h_…» (manba belgisi) va «ilova» bo'lim emas — ular e'tiborsiz qoladi.
+  const sp = String(tg?.initDataUnsafe?.start_param || '').toLowerCase();
+  const spTab = TABLAR.includes(TAB_TAQMOQ[sp] || sp) ? sp : '';
+  const xom = p.get('tab') || spTab || sessionStorage.getItem('qq_tab') || 'katalog';
   const boshlangich = TAB_TAQMOQ[xom] || xom;
   if (boshlangich === 'natija' && holat.tahlil) natijaniChiz();
   tabOch(TABLAR.includes(boshlangich) ? boshlangich : 'katalog');
+  const spMahsulot = /^p_(\d+)$/.exec(sp);
+  if (spMahsulot && holat.mahsulotlar.some((x) => x.id === Number(spMahsulot[1]))) mahsulotOyna(Number(spMahsulot[1]));
   // Bildirishnoma yoki yorliqdan kelganda — kerakli bo'limni ochamiz
   if (p.get('bolim')) havolaniOch(location.search);
   pushniYangila();

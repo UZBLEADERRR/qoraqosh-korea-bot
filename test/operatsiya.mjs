@@ -2527,6 +2527,29 @@ console.log('\n── ADMIN YORDAMCHISI ──');
 // plakat, yuz skaneri, mahsulot vitrinasi, aloqa va «ekranga
 // o'rnatish». Ilgari bu yerda bitta «Telegramda ochish» tugmasi
 // turgan bo'sh sahifa edi.
+console.log('\n── MINI APP HAVOLALARI (startapp → bo‘lim) ──');
+{
+  const IH = await import('../src/lib/ilova-havola.js');
+  IH.nomniUnut();
+  await sorov(`delete from settings where key = 'mini_app_nom'`);
+  const r = await IH.bolimHavolalari();
+  const k = Object.fromEntries(r.map((x) => [x.kalit, x.havola]));
+  test('har bo‘lim uchun havola (6 ta)', r.length === 6, r.map((x) => x.havola).join(' '));
+  test('skaner havolasi — t.me/<bot>?startapp=skaner', /^https:\/\/t\.me\/[A-Za-z0-9_]+\?startapp=skaner$/.test(k.skaner || ''), k.skaner);
+  test('do‘kon havolasi — ilovaning o‘zi', /\?startapp=ilova$/.test(k.katalog || ''), k.katalog);
+  await sorov(`insert into settings (key, value) values ('mini_app_nom', '"ilova"') on conflict (key) do update set value = excluded.value`);
+  const q = await IH.ilovaHavolasi('maslahat');
+  test('qisqa nom bo‘lsa — t.me/<bot>/<nom>?startapp=maslahat', /^https:\/\/t\.me\/[A-Za-z0-9_]+\/ilova\?startapp=maslahat$/.test(q || ''), q);
+  await sorov(`delete from settings where key = 'mini_app_nom'`);
+  const fsH = await import('node:fs');
+  const ajs = fsH.readFileSync('public/app/app.js', 'utf8');
+  test('ilova start_param dan bo‘limni ochadi (va p_<id> — mahsulot)',
+    /const spTab = TABLAR\.includes\(TAB_TAQMOQ\[sp\] \|\| sp\) \? sp : ''/.test(ajs) && /p\.get\('tab'\) \|\| spTab/.test(ajs)
+    && /\/\^p_\(\\d\+\)\$\//.test(ajs));
+  const srvJs = fsH.readFileSync('src/server.js', 'utf8');
+  test('/app/ochish?bolim=… — o‘sha bo‘limga', /bolimmi\(bolim\)/.test(srvJs));
+}
+
 console.log('\n── BOSH SAHIFA / kiovo.shop ──');
 {
   const fs = await import('node:fs');
