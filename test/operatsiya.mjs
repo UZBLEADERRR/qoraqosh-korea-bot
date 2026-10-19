@@ -2628,6 +2628,11 @@ console.log('\n── REELS 2.0: ANIMATSION HIKOYA MOTORI ──');
   const aj = fsK.readFileSync('public/admin/admin.js', 'utf8');
   test('admin panel: Reels studiya bo‘limi va sahna muharriri', /reels:\s+\{ nom: 'Reels studiya'/.test(aj) && /function reelsMuharrir/.test(aj)
     && /\/\^reels-\(\\d\+\)\$\//.test(aj));
+  // Kod IIFE dan tashqarida qolsa, $ / api ko'rinmaydi va bo'lim bo'sh skelet bo'lib qoladi
+  const iife = aj.lastIndexOf('\n})();');
+  test('admin.js: Reels studiya IIFE ichida, boshla() eng oxirida', aj.trimEnd().endsWith('boshla();\n})();')
+    && aj.indexOf('async function reelsBolimi') < iife && aj.indexOf('function reelsMuharrir') < iife
+    && aj.indexOf('\n})();') === iife);
 }
 
 console.log('\n── MINI APP HAVOLALARI (startapp → bo‘lim) ──');

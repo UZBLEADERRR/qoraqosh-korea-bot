@@ -5732,9 +5732,6 @@ function qollanma() {
     </div>`;
 }
 
-boshla();
-})();
-
 // ================= KUNLIK REELS =================
 // ═══════════ REELS STUDIYA ═══════════
 // Animatsion hikoya-videolar: uslub va qahramon sozlamasi, yangi video buyurtmasi
@@ -5802,7 +5799,7 @@ async function reelsBolimi() {
             ${r.permalink ? `<a class="tug kichik" href="${esc(r.permalink)}" target="_blank" rel="noopener">Instagram’da</a>` : ''}
           </div>
           <div class="rl-video"></div>
-        </div>`).join('') || '<p class="mayda">Hali video yo‘q.</p>'}
+        </div>`).join('') || '<p style="margin:4px 0;opacity:.7">Hali video yo‘q — yuqorida «🎬 Video yasash» ni bosing.</p>'}
     </div>
 
     <div class="karta tor">
@@ -5980,3 +5977,7 @@ function reelsMuharrir(id) {
   };
   chiz();
 }
+
+// Hamma narsa (Reels studiya ham) IIFE ICHIDA e'lon qilingandan keyin ishga tushadi
+boshla();
+})();
