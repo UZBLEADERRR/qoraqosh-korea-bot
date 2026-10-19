@@ -515,5 +515,55 @@ const sinovPng = await (await fetch(`http://127.0.0.1:${PORT}/ig-cdn/yuz.png`)).
 const xr = await xiraNatija(Buffer.from(sinovPng), { soni: 2 });
 test('xira natija PNG chiziladi', xr.length > 1000 && xr.readUInt32BE(0) === 0x89504e47);
 
+// ═══ KUNLIK REELS: AI video yasaydi → Instagram'ga joylaydi ═══
+console.log('\n── KUNLIK REELS ──');
+{
+  const R = await import('../src/services/reels.js');
+  await igApi.tokenniSaqla('reels-sinov-token-1234567890');
+  const m = await qator(`insert into media (tur, mime, bayt, hajm) values ('poster', 'image/png', $1, $2) returning id`,
+    [Buffer.from(sinovPng), sinovPng.byteLength]);
+  const p = await qator(`insert into products (name, brand, price, old_price, cost_price, stock, is_active, poster_id, description, actives)
+    values ('Reels Sinov Clay Mask', 'SINOVBREND', 189000, 229000, 90000, 4, true, $1, 'Teshiklarni tozalaydi', '{kaolin}') returning id`, [m.id]);
+  const eskiModel = await chaqir('/api/admin/reels/sozlama', 'POST', { ovoz_model: 'gemini-2.5-flash-preview-tts' });
+  test('reels: ovoz uchun 2.5 TTS taqiqlangan', eskiModel.kod === 400, JSON.stringify(eskiModel.tana));
+  const sz = await chaqir('/api/admin/reels/sozlama', 'POST', { yoqilgan: false, soat: 19, rejim: 'avto', ovozli: true });
+  test('reels: sozlama saqlandi (standart ovoz — Gemini 3.8 TTS)', sz.kod === 200 && sz.tana.sozlama.ovoz_model === 'gemini-3.8-flash-tts', JSON.stringify(sz.tana));
+
+  const t0 = Date.now();
+  const r = await R.videoTayyorla({ productId: p.id, manba: 'qolda' });
+  const v = await qator('select mime, bayt from media where id = $1', [r.video_id]);
+  test('reels: video tayyor (MP4, 9:16, ovozli)', r.holat === 'tayyor' && v?.mime === 'video/mp4'
+    && Buffer.from(v.bayt).subarray(4, 8).toString() === 'ftyp' && r.ovozli === true && Number(r.soniya) >= 18,
+    `${r.holat} · ${Number(r.soniya)} s · ${((v?.bayt?.length || 0) / 1e6).toFixed(2)} MB · ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+  test('reels: ovoz Gemini 3.8 TTS bilan', globalThis.TTS_MODEL === 'gemini-3.8-flash-tts', globalThis.TTS_MODEL);
+  test('reels: ssenariy mahsulot ma’lumotidan, narx — bazadan', /Reels Sinov Clay Mask/.test(globalThis.OXIRGI_REELS_PROMPT || '')
+    && /189 000 so‘m/.test(globalThis.OXIRGI_REELS_PROMPT || '') && /Izohga «\+» yozing/.test(r.izoh || ''));
+
+  const o = yuborilgan.length;
+  await R.adminlargaVideo(r, { tasdiq: true });
+  const tv = yuborilgan.slice(o).find((y) => y.video);
+  test('reels: tasdiq rejimi — adminga video + «Joylash» tugmasi', tv?.chat_id === '700001'
+    && (tv.reply_markup?.inline_keyboard || []).flat().some((b) => b.callback_data === `rl_ok:${r.id}`));
+
+  tozala();
+  const j = await R.joyla(r.id);
+  const kont = yuborildi().find((x) => x.reels);
+  test('reels: Instagram konteyner — REELS, video bizning /media dan, izoh bilan',
+    kont?.video_url === `https://www.kiovo.shop/media/${r.video_id}` && /Izohga/.test(kont?.caption || ''), JSON.stringify(kont));
+  test('reels: publish qilindi va havola saqlandi', yuborildi().some((x) => x.publish === 'konteyner1')
+    && j.holat === 'joylandi' && j.permalink === 'https://www.instagram.com/reel/SINOV1/');
+  const keyingi = await R.mahsulotTanla();
+  test('reels: ertangi video boshqa mahsulot (yaqinda joylangani keyinga suriladi)', !keyingi || keyingi.id !== p.id || (await qator(
+    `select count(*)::int n from products where is_active and stock > 0 and poster_id is not null and variant_of is null`)).n === 1);
+
+  test('reels: o‘chiq bo‘lsa jadval hech narsa qilmaydi', (await R.kunlikTekshir()) === null);
+  const ad = await chaqir('/api/admin/reels', 'GET');
+  test('reels: admin panel — sozlama, tarix, ffmpeg bor', ad.kod === 200 && ad.tana.ffmpeg === true
+    && ad.tana.oxirgilar.some((x) => x.id === r.id && x.holat === 'joylandi'));
+  await sorov('delete from reels_postlar where product_id = $1', [p.id]);
+  await sorov('delete from products where id = $1', [p.id]);
+  await sorov(`delete from settings where key in ('reels', 'reels_oxirgi')`);
+}
+
 console.log(`\n${xato ? '❌' : '✅'}  ${ok} o'tdi, ${xato} yiqildi\n`);
 await pool.end(); srv.close(); process.exit(xato ? 1 : 0);

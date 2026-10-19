@@ -36,6 +36,7 @@ export const BUYRUQLAR = [
   ['/brend',    'Brend nomini o‘zgartirish'],
   ['/panel',    'Admin panelni ochish'],
   ['/havola',   'Mini App havolalari (har bo‘lim uchun)'],
+  ['/reels',    'Bugungi Reels videoni hozir yasash (Instagram)'],
   ['/holat',    'Bot va AI holati — nima yiqilganini ko‘rsatadi'],
 ];
 
@@ -457,6 +458,38 @@ export async function brendSaqla(chatId, user, nom) {
   return yubor(chatId, `✅ Brend nomi <b>${esc(toza)}</b> ga o‘zgartirildi.`);
 }
 
+/* ── KUNLIK REELS (src/services/reels.js) ──
+   /reels — video hozir yasaladi va adminga TASDIQ tugmalari bilan keladi
+   (o'zi joylamaydi). Yasash ~1 daqiqa — fonda bajariladi. */
+async function reelsYasash(chatId) {
+  await yubor(chatId, '🎬 <b>Reels tayyorlanmoqda…</b>\n<i>Ssenariy, ovoz va video — taxminan 1–2 daqiqa.</i>');
+  const R = await import('../../services/reels.js');
+  R.videoTayyorla({ manba: 'qolda' })
+    .then((r) => R.adminlargaVideo(r, { tasdiq: true, sarlavha: '🎬 <b>Reels tayyor</b> — Instagram’ga joylaymi?' }))
+    .catch((e) => yubor(chatId, `⚠️ Video chiqmadi: ${esc(String(e.message).slice(0, 300))}`));
+}
+
+async function reelsCallback(cq) {
+  const d = cq.data || '';
+  const chatId = cq.message.chat.id;
+  const R = await import('../../services/reels.js');
+  if (d === 'rl_yangi') { await javobBer(cq.id, 'Yangi video tayyorlanmoqda…'); await reelsYasash(chatId); return true; }
+  const id = Number(d.split(':')[1]);
+  if (d.startsWith('rl_bekor:')) {
+    await sorov(`update reels_postlar set holat = 'bekor' where id = $1 and holat = 'tayyor'`, [id]);
+    await javobBer(cq.id, 'Bekor qilindi'); await yubor(chatId, '❌ Bu video joylanmaydi.'); return true;
+  }
+  if (d.startsWith('rl_ok:')) {
+    await javobBer(cq.id, 'Joylanmoqda…');
+    await yubor(chatId, '⏳ Instagram videoni qabul qilmoqda — 1–3 daqiqa…');
+    R.joyla(id)
+      .then((r) => yubor(chatId, `✅ <b>Reels joylandi!</b>${r.permalink ? `\n${esc(r.permalink)}` : ''}`))
+      .catch((e) => yubor(chatId, `⚠️ Joylanmadi: ${esc(String(e.message).slice(0, 300))}`));
+    return true;
+  }
+  return false;
+}
+
 /** Mini App havolalari: bosilsa Telegram ichida ilova o'sha bo'limdan ochiladi. */
 async function ilovaHavolalari(chatId) {
   const { bolimHavolalari } = await import('../../lib/ilova-havola.js');
@@ -669,6 +702,7 @@ async function buyruqniBajar(buyruq, argument, chatId, user) {
     case '/tanitish': await tanitishBoshla(chatId, argument); return true;
     case '/panel':   await panelHavolasi(chatId); return true;
     case '/havola':  await ilovaHavolalari(chatId); return true;
+    case '/reels':   await reelsYasash(chatId); return true;
     case '/holat':   await botHolati(chatId); return true;
     case '/brend':   await brendBoshla(chatId, user, argument); return true;
     case '/bekor':   await holatTozala(user.id); await yubor(chatId, '❌ Bekor qilindi.'); return true;
@@ -820,6 +854,7 @@ export async function adminCallback(cq, user) {
   if (d === 'rek_yubor')    { await reklamaniYubor(cq, user); return true; }
   if (d.startsWith('yo:'))  { await ochirishTasdigi(cq); return true; }
   if (d.startsWith('yoh:')) { await ochirishniBoshla(cq); return true; }
+  if (d.startsWith('rl_'))  { return reelsCallback(cq); }
   if (d === 'rek_qayta')    { await javobBer(cq.id); await reklamaBoshla(cq.message.chat.id, user); return true; }
   if (d === 'rek_bekor')    { await javobBer(cq.id); await holatTozala(user.id);
                               await yubor(cq.message.chat.id, '❌ Bekor qilindi.'); return true; }

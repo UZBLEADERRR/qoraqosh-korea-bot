@@ -70,6 +70,13 @@ function javobMatni(sxemaMatni, prompt = '') {
   if (sxemaMatni.includes('kosmetikami')) aiHisobi.marketplace += 1;
   // Tahlil promptini eslab qolamiz — do'kon egasining qo'shimcha
   // ko'rsatmasi modelga haqiqatan yetib bordimi, sinov shuni tekshiradi
+  // Kunlik Reels ssenariysi
+  if (sxemaMatni.includes('punktlar') && sxemaMatni.includes('hashtaglar')) {
+    globalThis.OXIRGI_REELS_PROMPT = prompt;
+    return JSON.stringify({ hook: 'Teshiklar kattami?', punktlar: ['Vulqon gili yog‘ni tortadi', 'Teshiklarni toraytiradi', 'Haftasiga ikki marta yetarli'],
+      ovoz: 'Teshiklar kattami? Vulqon gili yog‘ni tortib oladi. Izohga plyus yozing.', izoh: 'Teringiz silliq bo‘lsin ✨\n\nIzohga «+» yozing — narx va maslahatni Direct\'ga yuboramiz 💌',
+      hashtaglar: '#kiovo #koreyakosmetikasi #toshkent' });
+  }
   // Instagram Direct AI suhbatdoshi
   if (sxemaMatni.includes('goyalar') && sxemaMatni.includes('hashtaglar')) {
     globalThis.OXIRGI_KONTENT_PROMPT = prompt;
@@ -254,6 +261,14 @@ export function soxtaServer(port = 4444) {
           return res.end(JSON.stringify({ error: { message: 'Error validating access token', type: 'OAuthException', code: 190 } }));
         }
         const y = yol.slice(3);
+        // Reels joylash (Content Publishing API): konteyner → holat → publish
+        if (/\/media$/.test(y) && req.method === 'POST' && u.searchParams.get('media_type') === 'REELS') {
+          g.push({ yol: y, reels: true, video_url: u.searchParams.get('video_url'), caption: u.searchParams.get('caption') });
+          return j({ id: 'konteyner1' });
+        }
+        if (y === '/konteyner1') return j({ status_code: globalThis.IG_REELS_HOLAT || 'FINISHED' });
+        if (/\/media_publish$/.test(y)) { g.push({ yol: y, publish: u.searchParams.get('creation_id') }); return j({ id: 'reels_m1' }); }
+        if (y === '/reels_m1') return j({ permalink: 'https://www.instagram.com/reel/SINOV1/' });
         if (y === '/me' && req.method === 'GET') return j({ user_id: '17841400000000001', username: 'kiovo.uz', name: 'KiOVO', followers_count: 1200, media_count: 34 });
         if (y === '/me/messages') {
           g.push({ yol: y, ...b });
@@ -389,6 +404,15 @@ export function soxtaServer(port = 4444) {
         yuborilgan.push({ id: ++xabarId, rasm: true, chat_id: chat?.[1], text: izoh?.[1] || '',
           hajm: xom.length, reply_markup: kb ? JSON.parse(kb[1]) : undefined });
         return j({ ok: true, result: { message_id: xabarId, photo: [{ file_id: 'f1' }] } });
+      }
+      if (yol.endsWith('/sendVideo')) {
+        const xom = await tana(req);
+        const izoh = /name="caption"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
+        const chat = /name="chat_id"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
+        const kb   = /name="reply_markup"\r?\n\r?\n([\s\S]*?)\r?\n--/.exec(xom);
+        yuborilgan.push({ id: ++xabarId, video: true, chat_id: chat?.[1], text: izoh?.[1] || '', hajm: xom.length,
+          reply_markup: kb ? JSON.parse(kb[1]) : undefined });
+        return j({ ok: true, result: { message_id: xabarId, video: { file_id: 'v1' } } });
       }
       if (yol.endsWith('/sendDocument')) {
         const xom = await tana(req);
@@ -580,6 +604,13 @@ export function soxtaServer(port = 4444) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ error: { code: 400,
             message: 'Invalid JSON payload received. Unknown name "thinkingConfig".' } }));
+        }
+        // Ovoz (TTS) — responseModalities: ['AUDIO']: 1,5 s jimlik (PCM 24 kHz)
+        if ((b.generationConfig?.responseModalities || []).includes('AUDIO')) {
+          globalThis.TTS_MODEL = yol.split('/').pop().split(':')[0];
+          if (globalThis.TTS_XATO) { res.writeHead(500, { 'Content-Type': 'application/json' }); return res.end('{"error":{"message":"tts yiqildi"}}'); }
+          return j({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;codec=pcm;rate=24000',
+            data: Buffer.alloc(24000 * 2 * 1.5).toString('base64') } }] } }] });
         }
         // Rasm chizish so'rovi — responseModalities: ['IMAGE'] bilan keladi.
         // (Sxema yo'qligiga qarab bo'lmaydi: server 400 dan keyin sxemani

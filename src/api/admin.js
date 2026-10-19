@@ -281,6 +281,52 @@ export async function adminRoutes(req, res, yol) {
     }
   }
 
+  // ── KUNLIK REELS (src/services/reels.js) ──
+  if (yol === '/api/admin/reels' && req.method === 'GET') {
+    const R = await import('../services/reels.js');
+    const { ffmpegYoli } = await import('../video/ffmpeg.js');
+    const ig = await import('../services/instagram/api.js');
+    return ok(res, { sozlama: await R.sozlamalar(), oxirgilar: await R.oxirgilar(10),
+      ffmpeg: Boolean(ffmpegYoli()), instagram: await ig.ulanganmi().catch(() => false),
+      public_url: Boolean(config.publicUrl) });
+  }
+  if (yol === '/api/admin/reels/sozlama' && req.method === 'POST') {
+    const b = await tana(req);
+    const R = await import('../services/reels.js');
+    const { ovozModeliMi } = await import('../video/ovoz.js');
+    const eski = await R.sozlamalar();
+    const model = String(b.ovoz_model ?? eski.ovoz_model).trim();
+    if (model && !ovozModeliMi(model)) return xato(res, 400, `«${model}» — ovoz uchun faqat Gemini 3+ TTS (masalan gemini-3.8-flash-tts).`);
+    const yangi = {
+      yoqilgan: b.yoqilgan === undefined ? eski.yoqilgan : Boolean(b.yoqilgan),
+      soat: Math.min(23, Math.max(0, Math.round(Number(b.soat ?? eski.soat)) || 0)),
+      rejim: ['avto', 'tasdiq'].includes(b.rejim) ? b.rejim : eski.rejim,
+      ovozli: b.ovozli === undefined ? eski.ovozli : Boolean(b.ovozli),
+      ovoz_model: model || eski.ovoz_model,
+      ovoz: String(b.ovoz ?? eski.ovoz).replace(/[^A-Za-z]/g, '').slice(0, 30) || eski.ovoz,
+    };
+    await sorov(`insert into settings (key, value, updated_at) values ('reels', $1, now())
+      on conflict (key) do update set value = excluded.value, updated_at = now()`, [JSON.stringify(yangi)]);
+    return ok(res, { sozlama: await R.sozlamalar() });
+  }
+  if (yol === '/api/admin/reels/sinov' && req.method === 'POST') {
+    // ~1–2 daqiqa — fonda; natija adminlarga Telegramda tasdiq tugmalari bilan keladi
+    const R = await import('../services/reels.js');
+    R.videoTayyorla({ manba: 'qolda' })
+      .then((r) => R.adminlargaVideo(r, { tasdiq: true, sarlavha: '🎬 <b>Sinov Reels</b> — Instagram’ga joylaymi?' }))
+      .catch((e) => console.error('REELS sinov:', e.message));
+    return ok(res, { boshlandi: true });
+  }
+  if (yol === '/api/admin/reels/joyla' && req.method === 'POST') {
+    const b = await tana(req);
+    const R = await import('../services/reels.js');
+    const id = Number(b.id);
+    if (!id) return xato(res, 400, 'id kerak.');
+    R.joyla(id).then((r) => R.adminlargaVideo(r, { sarlavha: '✅ <b>Reels Instagram’ga joylandi</b>' }))
+      .catch((e) => console.error('REELS joyla:', e.message));
+    return ok(res, { boshlandi: true });
+  }
+
   // Mini App havolalari — har bo'lim uchun (t.me/<bot>?startapp=<bo'lim>)
   if (yol === '/api/admin/ilova-havolalar' && req.method === 'GET') {
     const { bolimHavolalari } = await import('../lib/ilova-havola.js');

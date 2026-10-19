@@ -3991,6 +3991,14 @@ async function sozlamalar() {
         <p class="mayda" style="margin:10px 0 0">Teri tahlili va makiyaj rang tahlili bitta limitdan hisoblanadi.</p>
       </div>
 
+      <div class="karta tor" id="reels-karta">
+        <div class="karta-bosh"><h2>🎬 Kunlik Reels (Instagram)</h2></div>
+        <p class="mayda" style="margin:0 0 10px">Har kuni AI bitta mahsulot videosini yasaydi — ssenariy, ovoz,
+          narx bazadan — va Instagram’ga Reels qilib joylaydi. <b>Tasdiq</b> rejimida avval video Telegram’ga
+          keladi va siz «Joylash» ni bosasiz.</p>
+        <div id="reels-ich"><span class="aylana"></span></div>
+      </div>
+
       <div class="karta tor">
         <div class="karta-bosh"><h2>💄 Makiyaj bo‘limi</h2></div>
         <p class="mayda" style="margin:0 0 10px">Skanerdagi «Makiyaj» rejimi, botdagi «Menga mos makiyaj»
@@ -4160,6 +4168,10 @@ function mavzuniUla() {
       if (/^#?[0-9a-fA-F]{6}$/.test(v)) { rang.value = v.startsWith('#') ? v : '#' + v; mavzuOzgardi(); }
     };
   }
+
+  // Kunlik Reels — o'z saqlash tugmasi bilan (umumiy forma bilan aralashmaydi)
+  const ri = $('#reels-ich');
+  if (ri) reelsChiz(ri);
 
   // Mini App havolalari — har bo'lim uchun, bosib nusxa olinadi
   const ih = $('#ilova-havolalar');
@@ -5717,3 +5729,64 @@ function qollanma() {
 
 boshla();
 })();
+
+// ================= KUNLIK REELS =================
+const REELS_HOLAT = { tayyorlanmoqda: '⏳ yasalmoqda', tayyor: '🟡 tasdiq kutmoqda', joylandi: '✅ joylandi',
+  xato: '⚠️ xato', bekor: '✖ bekor' };
+
+async function reelsChiz(el) {
+  let j;
+  try { j = await api('/api/admin/reels'); } catch (e) { el.innerHTML = `<p class="mayda">${esc(e.message)}</p>`; return; }
+  const s = j.sozlama;
+  const ogoh = [
+    !j.instagram && 'Instagram ulanmagan — Instagram → Sozlamalar’da token kiriting.',
+    !j.public_url && 'PUBLIC_URL sozlanmagan — Instagram videoni yuklab ololmaydi.',
+    !j.ffmpeg && 'Serverda ffmpeg topilmadi.',
+  ].filter(Boolean);
+  el.innerHTML = `
+    ${ogoh.map((x) => `<div class="xabar-quti xato" style="margin-bottom:8px">${esc(x)}</div>`).join('')}
+    <label class="belgi-qator"><input type="checkbox" id="rl-yoq" ${s.yoqilgan ? 'checked' : ''}> <b>Har kuni avtomatik</b></label>
+    <div class="forma-tor">
+      <div><label>Soat (Toshkent)</label><input id="rl-soat" type="number" min="0" max="23" value="${Number(s.soat)}"></div>
+      <div><label>Rejim</label><select id="rl-rejim">
+        <option value="avto" ${s.rejim === 'avto' ? 'selected' : ''}>O‘zi joylaydi</option>
+        <option value="tasdiq" ${s.rejim === 'tasdiq' ? 'selected' : ''}>Avval menga ko‘rsatsin</option></select></div>
+    </div>
+    <label class="belgi-qator"><input type="checkbox" id="rl-ovozli" ${s.ovozli ? 'checked' : ''}> Ovoz bilan (AI diktor)</label>
+    <div class="forma-tor">
+      <div><label>Ovoz modeli</label><input id="rl-model" value="${esc(s.ovoz_model)}" placeholder="gemini-3.8-flash-tts"></div>
+      <div><label>Ovoz</label><input id="rl-ovoz" value="${esc(s.ovoz)}" placeholder="Kore"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+      <button class="tug asos" id="rl-saqla">Saqlash</button>
+      <button class="tug" id="rl-sinov">🎬 Hozir sinov videosi (Telegram’ga)</button>
+    </div>
+    <p class="mayda" style="margin:14px 0 6px"><b>Oxirgi videolar</b></p>
+    ${(j.oxirgilar || []).map((r) => `
+      <div style="display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid var(--chiziq)">
+        <div style="flex:1;min-width:0"><b style="font-size:13.5px">${esc([r.brand, r.nom_uz || r.name].filter(Boolean).join(' ') || '—')}</b>
+          <div class="mayda">${esc(REELS_HOLAT[r.holat] || r.holat)} · ${new Date(r.created_at).toLocaleString('uz-UZ')}${r.soniya ? ` · ${Number(r.soniya).toFixed(0)} s` : ''}
+            ${r.xato ? `<br><span style="color:var(--qizil)">${esc(String(r.xato).slice(0, 160))}</span>` : ''}</div></div>
+        ${r.video_id ? `<a class="tug kichik" href="/media/${esc(r.video_id)}" target="_blank" rel="noopener">▶</a>` : ''}
+        ${r.permalink ? `<a class="tug kichik" href="${esc(r.permalink)}" target="_blank" rel="noopener">IG</a>` : ''}
+        ${r.holat === 'tayyor' ? `<button class="tug kichik" data-rl-joyla="${r.id}">Joylash</button>` : ''}
+      </div>`).join('') || '<p class="mayda">Hali video yo‘q.</p>'}`;
+  $('#rl-saqla', el).onclick = async () => {
+    try {
+      await api('/api/admin/reels/sozlama', { method: 'POST', body: JSON.stringify({
+        yoqilgan: $('#rl-yoq', el).checked, soat: Number($('#rl-soat', el).value), rejim: $('#rl-rejim', el).value,
+        ovozli: $('#rl-ovozli', el).checked, ovoz_model: $('#rl-model', el).value.trim(), ovoz: $('#rl-ovoz', el).value.trim() }) });
+      tost('Reels sozlamasi saqlandi'); reelsChiz(el);
+    } catch (e) { tost(e.message, 'xato'); }
+  };
+  $('#rl-sinov', el).onclick = async () => {
+    try { await api('/api/admin/reels/sinov', { method: 'POST', body: '{}' });
+      tost('Video tayyorlanmoqda — 1–2 daqiqada Telegram’ga keladi'); setTimeout(() => reelsChiz(el), 4000);
+    } catch (e) { tost(e.message, 'xato'); }
+  };
+  $$('[data-rl-joyla]', el).forEach((b) => b.onclick = async () => {
+    try { await api('/api/admin/reels/joyla', { method: 'POST', body: JSON.stringify({ id: Number(b.dataset.rlJoyla) }) });
+      tost('Instagram’ga yuborildi — natija Telegram’ga keladi');
+    } catch (e) { tost(e.message, 'xato'); }
+  });
+}

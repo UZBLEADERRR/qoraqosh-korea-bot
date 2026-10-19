@@ -718,6 +718,9 @@ async function boshla() {
     setInterval(() => igTokenniYangila().catch((e) => console.error('IG token:', e.message)), 24 * 3600e3).unref();
     // Tahlil olib Telegramga o'tmaganlarga bitta yumshoq eslatma (24 soat oynasi ichida)
     setInterval(() => instagram.eslatmalarniYubor().catch((e) => console.error('IG eslatma:', e.message)), 10 * 60_000).unref();
+    // Kunlik Reels: AI video yasaydi va Instagram'ga joylaydi (sozlangan soatda)
+    setInterval(() => import('./services/reels.js').then((m) => m.kunlikTekshir())
+      .catch((e) => console.error('Reels:', e.message)), 10 * 60_000).unref();
     // Har kuni adminga Instagram kontent g'oyalari (sozlangan soatda)
     setInterval(() => import('./services/kontent-tavsiya.js').then((m) => m.kunlikTekshir())
       .catch((e) => console.error('Kontent tavsiya:', e.message)), 10 * 60_000).unref();

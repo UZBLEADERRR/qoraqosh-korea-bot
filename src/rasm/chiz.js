@@ -59,7 +59,7 @@ export async function svgdanPiksel(svg, eni) {
  * @param {number} eni  chiqish rasmining kengligi (piksel)
  * @returns {Promise<Buffer>} PNG
  */
-export async function svgdanPng(svg, eni = 1080) {
+export async function svgdanPng(svg, eni = 1080, { fon = '#ffffff' } = {}) {
   const R = await motor();
   const r = new R(svg, {
     fitTo: { mode: 'width', value: eni },
@@ -68,7 +68,8 @@ export async function svgdanPng(svg, eni = 1080) {
       loadSystemFonts: false,      // konteynerdan konteynerga farq qilmasin
       defaultFontFamily: SHRIFT,
     },
-    background: '#ffffff',
+    // fon: null — shaffof (video ustiga qo'yiladigan matn qatlami uchun)
+    ...(fon ? { background: fon } : {}),
   });
   return r.render().asPng();
 }

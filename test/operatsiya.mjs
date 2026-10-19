@@ -2527,6 +2527,24 @@ console.log('\n── ADMIN YORDAMCHISI ──');
 // plakat, yuz skaneri, mahsulot vitrinasi, aloqa va «ekranga
 // o'rnatish». Ilgari bu yerda bitta «Telegramda ochish» tugmasi
 // turgan bo'sh sahifa edi.
+console.log('\n── KUNLIK REELS (ulanish) ──');
+{
+  const fsR = await import('node:fs');
+  const adm = fsR.readFileSync('src/bot/handlers/admin.js', 'utf8');
+  const srvR = fsR.readFileSync('src/server.js', 'utf8');
+  test('botda /reels va tasdiq tugmalari (rl_ok / rl_yangi / rl_bekor)', /\['\/reels',/.test(adm) && /case '\/reels':/.test(adm)
+    && /d\.startsWith\('rl_'\)/.test(adm));
+  test('server har 10 daqiqada Reels jadvalini tekshiradi', /services\/reels\.js'\)\.then\(\(m\) => m\.kunlikTekshir\(\)\)/.test(srvR));
+  const { ffmpegYoli } = await import('../src/video/ffmpeg.js');
+  test('ffmpeg mavjud (ffmpeg-static)', Boolean(ffmpegYoli()));
+  const OV = await import('../src/video/ovoz.js');
+  test('ovoz modeli qoidasi: faqat Gemini 3+ TTS', OV.ovozModeliMi('gemini-3.8-flash-tts') && !OV.ovozModeliMi('gemini-2.5-flash-preview-tts')
+    && !OV.ovozModeliMi('gemini-3.8-flash'));
+  const RV = await import('../src/video/reels.js');
+  const d = RV.davomiyliklar(30);
+  test('sahnalar ovoz uzunligiga moslanadi', d.length === 5 && d.reduce((a, b) => a + b, 0) - 0.45 * 4 >= 31, d.join(', '));
+}
+
 console.log('\n── MINI APP HAVOLALARI (startapp → bo‘lim) ──');
 {
   const IH = await import('../src/lib/ilova-havola.js');

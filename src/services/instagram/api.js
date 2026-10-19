@@ -50,7 +50,7 @@ function xatoMatni(kod, e = {}) {
   }
   if (c === 100 && /comment/i.test(e.message || '')) return 'Komment topilmadi yoki o‘chirilgan.';
   if (c === 4 || c === 17 || c === 32 || c === 613 || kod === 429) return 'Instagram so‘rov chegarasi — bir ozdan keyin urinib ko‘ring.';
-  if (c === 200 || c === 10) return `Ruxsat yo‘q: ${e.message || ''} (Meta ilovasida instagram_business_manage_messages / manage_comments ruxsatlarini tekshiring).`;
+  if (c === 200 || c === 10) return `Ruxsat yo‘q: ${e.message || ''} (Meta ilovasida instagram_business_manage_messages / manage_comments / content_publish ruxsatlarini tekshiring).`;
   return `Instagram xatosi${kod ? ` (${kod})` : ''}: ${String(e.message || 'noma’lum').slice(0, 200)}`;
 }
 
@@ -211,6 +211,37 @@ export const postlar = (chegara = 12) => ig('/me/media', {
 export const postKommentlari = (mediaId, chegara = 50) => ig(`/${mediaId}/comments`, {
   qidiruv: { fields: 'id,text,username,timestamp,from,hidden,parent_id', limit: chegara } });
 /** Webhookni akkauntga ulash (Meta ilovasida webhook manzili kiritilgandan keyin). */
+/**
+ * REELS JOYLASH (Content Publishing API):
+ *   1) konteyner: POST /<ig_id>/media  media_type=REELS, video_url, caption
+ *   2) Instagram videoni o'zi yuklab oladi — status FINISHED bo'lguncha kutamiz
+ *   3) POST /<ig_id>/media_publish creation_id=<konteyner>
+ * Video PUBLIC manzilda turishi shart (bizning /media/<id>).
+ * Ruxsat: instagram_business_content_publish.
+ *
+ * @returns {Promise<{id:string, permalink:string|null}>}
+ */
+export async function reelsJoyla({ videoUrl, izoh = '', kutishMs = 8 * 60_000, oraliqMs = 6000 }) {
+  const u = await ulanish();
+  const id = u.akkaunt_id || String((await akkaunt())?.user_id || 'me');
+  const k = await ig(`/${id}/media`, { usul: 'POST', qidiruv: {
+    media_type: 'REELS', video_url: videoUrl, caption: String(izoh).slice(0, 2200), share_to_feed: true } });
+  if (!k?.id) throw Object.assign(new Error('Instagram konteyner yaratmadi'), { turkum: 'ig' });
+  const tugash = Date.now() + kutishMs;
+  for (;;) {
+    const h = await ig(`/${k.id}`, { qidiruv: { fields: 'status_code,status' } });
+    if (h.status_code === 'FINISHED') break;
+    if (h.status_code === 'ERROR' || h.status_code === 'EXPIRED') {
+      throw Object.assign(new Error(`Instagram videoni qabul qilmadi: ${h.status || h.status_code}`), { turkum: 'ig' });
+    }
+    if (Date.now() > tugash) throw Object.assign(new Error('Instagram videoni qayta ishlashi juda uzoq cho‘zildi'), { turkum: 'ig' });
+    await new Promise((r) => setTimeout(r, oraliqMs));
+  }
+  const p = await ig(`/${id}/media_publish`, { usul: 'POST', qidiruv: { creation_id: k.id } });
+  const m = await ig(`/${p.id}`, { qidiruv: { fields: 'permalink' } }).catch(() => ({}));
+  return { id: String(p.id), permalink: m?.permalink || null };
+}
+
 export const webhookniUla = () => ig('/me/subscribed_apps', {
   usul: 'POST', qidiruv: { subscribed_fields: 'messages,comments' } });
 /** Akkaunt webhookka qaysi maydonlar bilan ulangan. */
