@@ -28,12 +28,14 @@ export function pcmdanWav(pcm, tezlik = 24000) {
  * @param {string} matn  o'qiladigan matn (o'zbekcha)
  * @returns {Promise<{wav: Buffer, soniya: number, model: string}>}
  */
-export async function ovozYoz(matn, { model = OVOZ_STANDART.model, ovoz = OVOZ_STANDART.ovoz } = {}) {
+export const OVOZ_USLUBI = 'Speak warmly and energetically, like a friendly young woman presenting a Korean skincare product in a short Instagram Reel.';
+
+export async function ovozYoz(matn, { model = OVOZ_STANDART.model, ovoz = OVOZ_STANDART.ovoz, uslub = OVOZ_USLUBI } = {}) {
   if (!ovozModeliMi(model)) throw Object.assign(new Error(`«${model}» ovoz uchun ruxsat etilmagan — faqat Gemini 3+ TTS`), { turkum: 'model' });
   const kalitlar = config.geminiKeys || [];
   if (!kalitlar.length) throw Object.assign(new Error('GEMINI_API_KEY yo‘q — ovoz yozib bo‘lmaydi'), { turkum: 'kalit' });
   const tana = {
-    contents: [{ parts: [{ text: `Speak warmly and energetically, like a friendly young woman presenting a Korean skincare product in a short Instagram Reel. Read in Uzbek, exactly this text:\n${matn}` }] }],
+    contents: [{ parts: [{ text: `${uslub || OVOZ_USLUBI} Read in Uzbek, exactly this text (pause briefly between paragraphs):\n${matn}` }] }],
     generationConfig: { responseModalities: ['AUDIO'],
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: ovoz } } } },
   };

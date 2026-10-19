@@ -4,3 +4,13 @@ SIL Open Font License, Version 1.1 — https://openfontlicense.org
 
 Shriftlar rasm chizish uchun repozitoriyaga qo'shilgan: Railway konteynerida
 tizim shriftlari bo'lmasligi mumkin, u holda rasmdagi matn jimgina yo'qoladi.
+
+Display-*.ttf — Montserrat (Black, ExtraBold, Bold, SemiBold)
+SIL Open Font License, Version 1.1 — MONTSERRAT-OFL.txt
+(c) The Montserrat Project Authors — https://github.com/JulietaUla/Montserrat
+
+Emoji.ttf — Twemoji Mozilla (rangli emoji, COLR)
+Grafika: (c) Twitter, Inc va boshqalar — CC-BY 4.0 https://creativecommons.org/licenses/by/4.0/
+Shrift: Mozilla — Apache 2.0 — https://github.com/mozilla/twemoji-colr
+
+Reels videolaridagi sarlavha, subtitr va emoji uchun (src/video/kino).

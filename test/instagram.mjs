@@ -529,37 +529,77 @@ console.log('\n── KUNLIK REELS ──');
   const sz = await chaqir('/api/admin/reels/sozlama', 'POST', { yoqilgan: false, soat: 19, rejim: 'avto', ovozli: true });
   test('reels: sozlama saqlandi (standart ovoz — Gemini 3.8 TTS)', sz.kod === 200 && sz.tana.sozlama.ovoz_model === 'gemini-3.8-flash-tts', JSON.stringify(sz.tana));
 
+  process.env.REELS_SIFAT = 'sinov';          // sinovda kichik o'lcham — tez
   const t0 = Date.now();
-  const r = await R.videoTayyorla({ productId: p.id, manba: 'qolda' });
+  const r = await R.videoTayyorla({ productId: p.id, manba: 'qolda', qahramon: 'jasur' });
   const v = await qator('select mime, bayt from media where id = $1', [r.video_id]);
-  test('reels: video tayyor (MP4, 9:16, ovozli)', r.holat === 'tayyor' && v?.mime === 'video/mp4'
-    && Buffer.from(v.bayt).subarray(4, 8).toString() === 'ftyp' && r.ovozli === true && Number(r.soniya) >= 18,
+  test('reels: video tayyor (MP4, ovozli)', r.holat === 'tayyor' && v?.mime === 'video/mp4'
+    && Buffer.from(v.bayt).subarray(4, 8).toString() === 'ftyp' && r.ovozli === true && Number(r.soniya) >= 15,
     `${r.holat} · ${Number(r.soniya)} s · ${((v?.bayt?.length || 0) / 1e6).toFixed(2)} MB · ${((Date.now() - t0) / 1000).toFixed(0)} s`);
   test('reels: ovoz Gemini 3.8 TTS bilan', globalThis.TTS_MODEL === 'gemini-3.8-flash-tts', globalThis.TTS_MODEL);
   test('reels: ssenariy mahsulot ma’lumotidan, narx — bazadan', /Reels Sinov Clay Mask/.test(globalThis.OXIRGI_REELS_PROMPT || '')
     && /189 000 so‘m/.test(globalThis.OXIRGI_REELS_PROMPT || '') && /Izohga «\+» yozing/.test(r.izoh || ''));
+  const ss = r.ssenariy;
+  const turlar = ss.sahnalar.map((x) => x.tur);
+  test('reels 2.0: qahramon Jasur, hikoya formati tanlandi va AI ga aytildi', ss.qahramon === 'jasur' && R.FORMATLAR[ss.format]
+    && (globalThis.OXIRGI_REELS_PROMPT || '').includes(`HIKOYA FORMATI: ${ss.format} —`)
+    && /Jasur — doppili/.test(globalThis.OXIRGI_REELS_PROMPT || ''), JSON.stringify([ss.qahramon, ss.format]));
+  test('reels 2.0: hook birinchi, cta oxirgi, mahsulot ochilishi qo‘shildi', turlar[0] === 'hook' && turlar.at(-1) === 'cta'
+    && turlar.includes('kashfiyot'), turlar.join(','));
+  test('reels 2.0: haqiqiy sharh yo‘q — sharh sahnasi olib tashlandi (to‘qilgan sharh chiqmaydi)', !turlar.includes('sharh')
+    && /haqiqiy sharhlar: YO‘Q/.test(globalThis.OXIRGI_REELS_PROMPT || ''));
+  const fy = ss.sahnalar.find((x) => x.tur === 'foyda');
+  const nx = ss.sahnalar.find((x) => x.tur === 'narx');
+  test('reels 2.0: foyda — 3 punkt, noto‘g‘ri hissiyot/imo tashlanadi', fy?.punktlar?.length === 3 && nx && !nx.hissiyot && !nx.imo);
 
   const o = yuborilgan.length;
   await R.adminlargaVideo(r, { tasdiq: true });
   const tv = yuborilgan.slice(o).find((y) => y.video);
-  test('reels: tasdiq rejimi — adminga video + «Joylash» tugmasi', tv?.chat_id === '700001'
-    && (tv.reply_markup?.inline_keyboard || []).flat().some((b) => b.callback_data === `rl_ok:${r.id}`));
+  const tug = (tv?.reply_markup?.inline_keyboard || []).flat();
+  test('reels: tasdiq rejimi — adminga video + «Joylash», «Qayta», «Tahrirlash»', tv?.chat_id === '700001'
+    && tug.some((b) => b.callback_data === `rl_ok:${r.id}`) && tug.some((b) => b.callback_data === `rl_qayta:${r.id}`)
+    && tug.some((b) => b.url === `https://www.kiovo.shop/admin/#reels-${r.id}`), JSON.stringify(tug));
+
+  // Izohni tahrirlash (video qayta yasalmaydi)
+  const iz = await chaqir('/api/admin/reels/izoh', 'POST', { id: r.id, izoh: 'Yangi izoh ✨ Izohga «+» yozing' });
+  test('reels studiya: izoh tahrirlandi', iz.kod === 200 && (await qator('select izoh from reels_postlar where id = $1', [r.id])).izoh.startsWith('Yangi izoh'));
+
+  // Tahrirlangan ssenariy bilan qayta render — AI chaqirilmaydi, matn o'zgaradi
+  globalThis.OXIRGI_REELS_PROMPT = '';
+  const tahrir = { ...ss, sahnalar: ss.sahnalar.map((x) => (x.tur === 'hook' ? { ...x, ekran: 'Tahrirlangan hook' } : x)) };
+  const r2 = await R.qaytaYasa(r.id, { ssenariy: tahrir, izoh: 'Tahrir izohi' });
+  test('reels studiya: tahrirlangan ssenariy bilan qayta render (AI siz)', r2.holat === 'tayyor' && r2.id !== r.id && r2.manba === 'tahrir'
+    && r2.ssenariy.sahnalar[0].ekran === 'Tahrirlangan hook' && r2.izoh === 'Tahrir izohi' && !globalThis.OXIRGI_REELS_PROMPT);
+
+  // Ikki marta bosilsa — bitta joylanadi
+  const jj = await Promise.allSettled([R.joyla(r2.id), R.joyla(r2.id)]);
+  test('reels: «Joylash» ikki marta bosilsa ham bitta joylanadi', jj.filter((x) => x.status === 'fulfilled').length === 1
+    && jj.some((x) => x.status === 'rejected' && /allaqachon/.test(x.reason?.message)), JSON.stringify(jj.map((x) => x.status)));
 
   tozala();
   const j = await R.joyla(r.id);
   const kont = yuborildi().find((x) => x.reels);
-  test('reels: Instagram konteyner — REELS, video bizning /media dan, izoh bilan',
-    kont?.video_url === `https://www.kiovo.shop/media/${r.video_id}` && /Izohga/.test(kont?.caption || ''), JSON.stringify(kont));
+  test('reels: Instagram konteyner — REELS, video bizning /media dan, izoh bilan, muqova kadri',
+    kont?.video_url === `https://www.kiovo.shop/media/${r.video_id}` && /Yangi izoh/.test(kont?.caption || '') && kont?.thumb_offset === '1800', JSON.stringify(kont));
   test('reels: publish qilindi va havola saqlandi', yuborildi().some((x) => x.publish === 'konteyner1')
     && j.holat === 'joylandi' && j.permalink === 'https://www.instagram.com/reel/SINOV1/');
   const keyingi = await R.mahsulotTanla();
   test('reels: ertangi video boshqa mahsulot (yaqinda joylangani keyinga suriladi)', !keyingi || keyingi.id !== p.id || (await qator(
     `select count(*)::int n from products where is_active and stock > 0 and poster_id is not null and variant_of is null`)).n === 1);
 
+  // Sozlama: noto'g'ri qiymatlar standartga qaytadi
+  const sz2 = await chaqir('/api/admin/reels/sozlama', 'POST', { uslub: 'xyz', qahramon: 'jasur', mavzu: 'tungi', musiqa: 'lofi',
+    musiqa_baland: 250, davomiylik: 99, format: 'sir', yoriqnoma: 'Hazil qo‘sh', subtitr: false });
+  const s2 = sz2.tana.sozlama;
+  test('reels studiya: sozlama tekshiriladi', sz2.kod === 200 && s2.uslub === 'hikoya' && s2.qahramon === 'jasur' && s2.mavzu === 'tungi'
+    && s2.musiqa_baland === 100 && s2.davomiylik === 30 && s2.format === 'sir' && s2.subtitr === false && s2.yoriqnoma === 'Hazil qo‘sh'
+    && s2.ovoz_model === 'gemini-3.8-flash-tts', JSON.stringify(s2));
+
   test('reels: o‘chiq bo‘lsa jadval hech narsa qilmaydi', (await R.kunlikTekshir()) === null);
   const ad = await chaqir('/api/admin/reels', 'GET');
-  test('reels: admin panel — sozlama, tarix, ffmpeg bor', ad.kod === 200 && ad.tana.ffmpeg === true
-    && ad.tana.oxirgilar.some((x) => x.id === r.id && x.holat === 'joylandi'));
+  test('reels: admin panel — sozlama, tarix, ffmpeg, kanvas, formatlar, mahsulotlar', ad.kod === 200 && ad.tana.ffmpeg === true
+    && ad.tana.kanvas === true && ad.tana.formatlar?.teskari && ad.tana.mahsulotlar.some((x) => x.id === p.id)
+    && ad.tana.oxirgilar.some((x) => x.id === r.id && x.holat === 'joylandi' && x.ssenariy?.sahnalar));
   await sorov('delete from reels_postlar where product_id = $1', [p.id]);
   await sorov('delete from products where id = $1', [p.id]);
   await sorov(`delete from settings where key in ('reels', 'reels_oxirgi')`);

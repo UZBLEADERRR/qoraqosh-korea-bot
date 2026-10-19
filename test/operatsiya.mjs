@@ -2545,6 +2545,91 @@ console.log('\n── KUNLIK REELS (ulanish) ──');
   test('sahnalar ovoz uzunligiga moslanadi', d.length === 5 && d.reduce((a, b) => a + b, 0) - 0.45 * 4 >= 31, d.join(', '));
 }
 
+console.log('\n── REELS 2.0: ANIMATSION HIKOYA MOTORI ──');
+{
+  const fsK = await import('node:fs');
+  test('shriftlar repoda: Montserrat (Display) va rangli emoji', ['Display-Black.ttf', 'Display-ExtraBold.ttf', 'Emoji.ttf']
+    .every((f) => fsK.existsSync(`assets/shrift/${f}`)));
+  const K = await import('../src/video/kino/index.js');
+  test('kanvas (Skia) ishlaydi', (await K.kanvasBormi()).ha);
+  const OVT = await import('../src/video/kino/ovoz-vaqt.js');
+  // Sun'iy «ovoz»: 3 ta tovushli bo'lak, orasida 0.5 s jimlik
+  const hz = 24000, bolak = [1.6, 2.4, 1.2], jim = 0.5;
+  const uz = bolak.reduce((a, b) => a + b, 0) + jim * (bolak.length + 1);
+  const sig = new Float32Array(Math.ceil(uz * hz));
+  let t0 = jim;
+  for (const b of bolak) { for (let i = Math.floor(t0 * hz); i < (t0 + b) * hz; i++) sig[i] = 0.4 * Math.sin(i * 0.07) * (0.6 + 0.4 * Math.sin(i * 0.0011)); t0 += b + jim; }
+  const matnlar = ['Bu niqob kerak emas.', 'Men ham olmaganman, avvaliga shunday o‘ylardim.', 'Izohga yozing.'];
+  const ch = OVT.sahnalargaBol(sig, hz, matnlar);
+  test('ovoz jimliklar bo‘yicha sahnalarga bo‘linadi', ch.length === 3 && Math.abs(ch[1].bosh - 2.35) < 0.2 && Math.abs(ch[2].bosh - 5.25) < 0.2,
+    ch.map((x) => `${x.bosh}-${x.oxir}`).join(' '));
+  const sz = OVT.sozVaqtlari(matnlar[1], sig, hz, ch[1].bosh, ch[1].oxir);
+  test('so‘z vaqtlari ketma-ket va bo‘lak ichida', sz.length === 6 && sz.every((w, i) => w.e > w.s && (!i || w.s >= sz[i - 1].s))
+    && sz[0].s >= ch[1].bosh - 0.01 && sz.at(-1).e <= ch[1].oxir + 0.01, JSON.stringify(sz));
+  const lab = OVT.labZarfi(sig, hz, 30, Math.ceil(uz * 30));
+  test('lab harakati: jimlikda yopiq, gapirganda ochiq', lab[5] < 0.05 && Math.max(...lab.slice(20, 60)) > 0.5);
+
+  const M = await import('../src/video/kino/motor.js');
+  const sahnalar = matnlar.map((ovoz, i) => ({ tur: ['hook', 'foyda', 'cta'][i], ovoz, ekran: 'Sinov', punktlar: [{ matn: 'Bir' }, { matn: 'Ikki' }, { matn: 'Uch' }] }));
+  const vj = M.vaqtJadvali(sahnalar, { s: sig, hz });
+  test('vaqt jadvali: sahnalar ustma-ust o‘tish bilan, oxirgi sahnada quyruq', vj.jadval.length === 3
+    && vj.jadval.every((j, i) => !i || Math.abs(j.bosh - (vj.jadval[i - 1].bosh + vj.jadval[i - 1].d - 0.45)) < 1e-6)
+    && vj.jadval[1].d >= 3.6 && vj.jami > uz, JSON.stringify(vj.jadval.map((j) => [j.bosh, j.d])));
+  const ib = M.iboralar(vj.jadval);
+  test('subtitr iboralari 1–4 so‘zdan, sahna chegarasida uziladi', ib.every((b) => b.sozlar.length >= 1 && b.sozlar.length <= 4
+    && new Set(b.sozlar.map((w) => w.sahna)).size === 1));
+
+  const MU = await import('../src/video/kino/musiqa.js');
+  let tozaWav = true;
+  for (const mus of MU.MUSIQALAR) {
+    const w = MU.aralashtir({ uzunlik: 3, musiqa: mus, baland: 1, ovoz: { s: sig, hz, bosh: 0.2 }, sfx: [{ tur: 'boom', t: 0.1 }, { tur: 'whoosh', t: 1 }, { tur: 'ding', t: 2 }] });
+    let max = 0; for (let i = 44; i < w.length; i += 2) max = Math.max(max, Math.abs(w.readInt16LE(i)));
+    if (w.length !== 44 + 3 * 48000 * 4 || max >= 32767 || (mus !== 'yoq' && max < 1000)) tozaWav = false;
+  }
+  test('musiqa: har kayfiyat — 48 kHz stereo, cho‘qqi cheklangan', tozaWav);
+
+  // Har sahna turi + ikkala qahramon + qahramonsiz — kadr xatosiz chiziladi
+  const turlar = K.SAHNA_TURLARI;
+  const { svgdanPng: sp } = await import('../src/rasm/chiz.js');
+  const sinovRasm = await sp('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect width="200" height="200" fill="#e8d"/><circle cx="100" cy="100" r="60" fill="#333"/></svg>', 200);
+  let kadrlar = 0;
+  for (const q of ['nigina', 'jasur', null]) {
+    const loy = { qahramon: q, mavzu: q === 'jasur' ? 'tungi' : 'brend',
+      mahsulot: { nom: 'Sinov krem 50 ml', brend: 'SINOV', narxSon: 99000, eskiNarx: '120 000 so‘m', chegirma: '-18%', reytingMatn: '⭐ 4.8 · 12 ta sharh' },
+      rasmlar: { mahsulot: sinovRasm },
+      sahnalar: turlar.map((tur) => ({ tur, ovoz: 'Bir ikki uch to‘rt besh olti', ekran: 'Sinov sarlavha', kichik: 'kichik matn', urgu: 'sarlavha', emoji: '✨',
+        belgilar: ['Bir', 'Ikki'], punktlar: [{ matn: 'Bir', emoji: '🌿' }, { matn: 'Ikki' }, { matn: 'Uch' }], raqam: '2×', birlik: 'kunda',
+        sharh: { ism: 'Dilnoza', baho: 5, matn: 'Juda yoqdi' } })) };
+    const jj = M.vaqtJadvali(loy.sahnalar, null).jadval;
+    for (const j of jj) {
+      for (const k of [0.2, 0.5, 0.95]) {
+        const png = await M.kadrPng(loy, j.bosh + j.d * k, { en: 180 });
+        if (png.subarray(1, 4).toString() === 'PNG') kadrlar++;
+      }
+    }
+  }
+  test('har sahna turi × qahramon (Nigina, Jasur, yo‘q) — kadrlar chiziladi', kadrlar === turlar.length * 3 * 3, String(kadrlar));
+
+  const R = await import('../src/services/reels.js');
+  const st = R.sozlamaTozala({ narx_korsat: false });
+  const t1 = R.ssenariyTozala({ sahnalar: [
+    { tur: 'foyda', ovoz: 'a', ekran: 'b', punktlar: [] }, { tur: 'narx', ovoz: 'n', ekran: 'n' }, { tur: 'sharh', ovoz: 's', ekran: 's' },
+    { tur: 'foyda', ovoz: 'takror', ekran: 't' }, { tur: 'xyz', ovoz: 'noma’lum', ekran: 'h' }, { tur: 'hook', ovoz: 'h', ekran: 'h' },
+  ], izoh: 'Izoh', hashtaglar: '#a' }, { st, sharhlar: [] });
+  const tt = t1.sahnalar.map((x) => x.tur);
+  test('ssenariy qoidalari: hook boshda, kashfiyot va cta qo‘shiladi, takror/narx/to‘qilgan sharh olib tashlanadi',
+    tt[0] === 'hook' && tt.at(-1) === 'cta' && tt.includes('kashfiyot') && !tt.includes('narx') && !tt.includes('sharh')
+    && tt.filter((x) => x === 'foyda').length === 1 && tt.includes('hikoya') && t1.sahnalar.find((x) => x.tur === 'foyda').punktlar.length === 3
+    && /#a/.test(t1.izoh), tt.join(','));
+  const t2 = R.ssenariyTozala({ sahnalar: [{ tur: 'sharh', ovoz: 's', ekran: 's' }] }, { sharhlar: [{ ism: 'Ali', baho: 5, matn: 'Zo‘r' }] });
+  test('haqiqiy sharh bo‘lsa — sahnaga bazadagi matn qo‘yiladi', t2.sahnalar.find((x) => x.tur === 'sharh')?.sharh?.matn === 'Zo‘r');
+  const adm = fsK.readFileSync('src/bot/handlers/admin.js', 'utf8');
+  test('botda «♻️ Shu mahsulot, boshqa hikoya» (rl_qayta)', /d\.startsWith\('rl_qayta:'\)/.test(adm) && /R\.qaytaYasa\(id\)/.test(adm));
+  const aj = fsK.readFileSync('public/admin/admin.js', 'utf8');
+  test('admin panel: Reels studiya bo‘limi va sahna muharriri', /reels:\s+\{ nom: 'Reels studiya'/.test(aj) && /function reelsMuharrir/.test(aj)
+    && /\/\^reels-\(\\d\+\)\$\//.test(aj));
+}
+
 console.log('\n── MINI APP HAVOLALARI (startapp → bo‘lim) ──');
 {
   const IH = await import('../src/lib/ilova-havola.js');

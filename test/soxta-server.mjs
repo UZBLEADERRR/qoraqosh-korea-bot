@@ -70,6 +70,19 @@ function javobMatni(sxemaMatni, prompt = '') {
   if (sxemaMatni.includes('kosmetikami')) aiHisobi.marketplace += 1;
   // Tahlil promptini eslab qolamiz — do'kon egasining qo'shimcha
   // ko'rsatmasi modelga haqiqatan yetib bordimi, sinov shuni tekshiradi
+  // Reels 2.0 — AI rejissyor (hikoya sahnalari)
+  if (sxemaMatni.includes('sahnalar') && sxemaMatni.includes('hashtaglar')) {
+    globalThis.OXIRGI_REELS_PROMPT = prompt;
+    return JSON.stringify({ format: 'teskari', sahnalar: [
+      { tur: 'muammo', ovoz: 'Yuzim yaltirab ketardi.', ekran: 'Yog‘li teri', belgilar: ['Yaltirash', 'Qora nuqta'], emoji: '😩', hissiyot: 'xafa', imo: 'yuz' },
+      { tur: 'hook', ovoz: 'Bu niqobni sotib olish shart emas.', ekran: 'Sotib olish shart emas', kichik: 'men ham olmaganman', urgu: 'shart', emoji: '🤫', hissiyot: 'hayron', imo: 'yelka' },
+      { tur: 'foyda', ovoz: 'Vulqon gili yog‘ni tortadi.', ekran: 'Nega ishlaydi?', punktlar: [{ matn: 'Yog‘ni tortadi', emoji: '🌋' }] },
+      { tur: 'sharh', ovoz: 'Mijozlar ham maqtashyapti.', ekran: 'Sharhlar', emoji: '⭐' },
+      { tur: 'narx', ovoz: 'Hozir chegirmada.', ekran: 'Bugun chegirmada', hissiyot: 'jinni', imo: 'uchish' },
+      { tur: 'cta', ovoz: 'Izohga plyus yozing.', ekran: 'Izohga «+» yozing', kichik: 'Narx — Direct’da', emoji: '💌' },
+    ], izoh: 'Teringiz silliq bo‘lsin ✨\n\nIzohga «+» yozing — narx va maslahatni Direct\'ga yuboramiz 💌',
+    hashtaglar: '#kiovo #koreyakosmetikasi #toshkent' });
+  }
   // Kunlik Reels ssenariysi
   if (sxemaMatni.includes('punktlar') && sxemaMatni.includes('hashtaglar')) {
     globalThis.OXIRGI_REELS_PROMPT = prompt;
@@ -263,7 +276,8 @@ export function soxtaServer(port = 4444) {
         const y = yol.slice(3);
         // Reels joylash (Content Publishing API): konteyner → holat → publish
         if (/\/media$/.test(y) && req.method === 'POST' && u.searchParams.get('media_type') === 'REELS') {
-          g.push({ yol: y, reels: true, video_url: u.searchParams.get('video_url'), caption: u.searchParams.get('caption') });
+          g.push({ yol: y, reels: true, video_url: u.searchParams.get('video_url'), caption: u.searchParams.get('caption'),
+            thumb_offset: u.searchParams.get('thumb_offset') });
           return j({ id: 'konteyner1' });
         }
         if (y === '/konteyner1') return j({ status_code: globalThis.IG_REELS_HOLAT || 'FINISHED' });

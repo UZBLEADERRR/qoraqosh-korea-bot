@@ -221,11 +221,12 @@ export const postKommentlari = (mediaId, chegara = 50) => ig(`/${mediaId}/commen
  *
  * @returns {Promise<{id:string, permalink:string|null}>}
  */
-export async function reelsJoyla({ videoUrl, izoh = '', kutishMs = 8 * 60_000, oraliqMs = 6000 }) {
+export async function reelsJoyla({ videoUrl, izoh = '', muqovaMs = null, kutishMs = 8 * 60_000, oraliqMs = 6000 }) {
   const u = await ulanish();
   const id = u.akkaunt_id || String((await akkaunt())?.user_id || 'me');
   const k = await ig(`/${id}/media`, { usul: 'POST', qidiruv: {
-    media_type: 'REELS', video_url: videoUrl, caption: String(izoh).slice(0, 2200), share_to_feed: true } });
+    media_type: 'REELS', video_url: videoUrl, caption: String(izoh).slice(0, 2200), share_to_feed: true,
+    ...(muqovaMs != null ? { thumb_offset: Math.round(muqovaMs) } : {}) } });
   if (!k?.id) throw Object.assign(new Error('Instagram konteyner yaratmadi'), { turkum: 'ig' });
   const tugash = Date.now() + kutishMs;
   for (;;) {

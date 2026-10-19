@@ -462,7 +462,7 @@ export async function brendSaqla(chatId, user, nom) {
    /reels — video hozir yasaladi va adminga TASDIQ tugmalari bilan keladi
    (o'zi joylamaydi). Yasash ~1 daqiqa — fonda bajariladi. */
 async function reelsYasash(chatId) {
-  await yubor(chatId, '🎬 <b>Reels tayyorlanmoqda…</b>\n<i>Ssenariy, ovoz va video — taxminan 1–2 daqiqa.</i>');
+  await yubor(chatId, '🎬 <b>Reels tayyorlanmoqda…</b>\n<i>AI rejissyor hikoya yozadi, qahramon ovozi va animatsiya — taxminan 2–3 daqiqa.</i>');
   const R = await import('../../services/reels.js');
   R.videoTayyorla({ manba: 'qolda' })
     .then((r) => R.adminlargaVideo(r, { tasdiq: true, sarlavha: '🎬 <b>Reels tayyor</b> — Instagram’ga joylaymi?' }))
@@ -475,6 +475,16 @@ async function reelsCallback(cq) {
   const R = await import('../../services/reels.js');
   if (d === 'rl_yangi') { await javobBer(cq.id, 'Yangi video tayyorlanmoqda…'); await reelsYasash(chatId); return true; }
   const id = Number(d.split(':')[1]);
+  if (d.startsWith('rl_qayta:')) {
+    // Shu mahsulot — yangi hikoya (boshqa format), eski video bekor bo'ladi
+    await javobBer(cq.id, 'Yangi hikoya yozilmoqda…');
+    await sorov(`update reels_postlar set holat = 'bekor' where id = $1 and holat = 'tayyor'`, [id]);
+    await yubor(chatId, '♻️ <b>Shu mahsulotga yangi hikoya</b> tayyorlanmoqda — 2–3 daqiqa…');
+    R.qaytaYasa(id)
+      .then((r) => R.adminlargaVideo(r, { tasdiq: true, sarlavha: '🎬 <b>Yangi variant tayyor</b> — Instagram’ga joylaymi?' }))
+      .catch((e) => yubor(chatId, `⚠️ Video chiqmadi: ${esc(String(e.message).slice(0, 300))}`));
+    return true;
+  }
   if (d.startsWith('rl_bekor:')) {
     await sorov(`update reels_postlar set holat = 'bekor' where id = $1 and holat = 'tayyor'`, [id]);
     await javobBer(cq.id, 'Bekor qilindi'); await yubor(chatId, '❌ Bu video joylanmaydi.'); return true;

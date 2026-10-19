@@ -285,10 +285,14 @@ export async function adminRoutes(req, res, yol) {
   if (yol === '/api/admin/reels' && req.method === 'GET') {
     const R = await import('../services/reels.js');
     const { ffmpegYoli } = await import('../video/ffmpeg.js');
+    const { kanvasBormi } = await import('../video/kino/index.js');
     const ig = await import('../services/instagram/api.js');
-    return ok(res, { sozlama: await R.sozlamalar(), oxirgilar: await R.oxirgilar(10),
-      ffmpeg: Boolean(ffmpegYoli()), instagram: await ig.ulanganmi().catch(() => false),
-      public_url: Boolean(config.publicUrl) });
+    const mahsulotlar = await qatorlar(`select id, name, nom_uz, brand from products
+       where is_active and poster_id is not null and variant_of is null order by name limit 400`);
+    return ok(res, { sozlama: await R.sozlamalar(), oxirgilar: await R.oxirgilar(12),
+      ffmpeg: Boolean(ffmpegYoli()), kanvas: (await kanvasBormi()).ha,
+      instagram: await ig.ulanganmi().catch(() => false), public_url: Boolean(config.publicUrl),
+      formatlar: R.FORMATLAR, mahsulotlar });
   }
   if (yol === '/api/admin/reels/sozlama' && req.method === 'POST') {
     const b = await tana(req);
@@ -297,25 +301,48 @@ export async function adminRoutes(req, res, yol) {
     const eski = await R.sozlamalar();
     const model = String(b.ovoz_model ?? eski.ovoz_model).trim();
     if (model && !ovozModeliMi(model)) return xato(res, 400, `«${model}» — ovoz uchun faqat Gemini 3+ TTS (masalan gemini-3.8-flash-tts).`);
-    const yangi = {
-      yoqilgan: b.yoqilgan === undefined ? eski.yoqilgan : Boolean(b.yoqilgan),
-      soat: Math.min(23, Math.max(0, Math.round(Number(b.soat ?? eski.soat)) || 0)),
-      rejim: ['avto', 'tasdiq'].includes(b.rejim) ? b.rejim : eski.rejim,
-      ovozli: b.ovozli === undefined ? eski.ovozli : Boolean(b.ovozli),
-      ovoz_model: model || eski.ovoz_model,
-      ovoz: String(b.ovoz ?? eski.ovoz).replace(/[^A-Za-z]/g, '').slice(0, 30) || eski.ovoz,
-    };
+    const yangi = R.sozlamaTozala({ ...b, ovoz_model: model || eski.ovoz_model }, eski);
     await sorov(`insert into settings (key, value, updated_at) values ('reels', $1, now())
       on conflict (key) do update set value = excluded.value, updated_at = now()`, [JSON.stringify(yangi)]);
     return ok(res, { sozlama: await R.sozlamalar() });
   }
   if (yol === '/api/admin/reels/sinov' && req.method === 'POST') {
-    // ~1–2 daqiqa — fonda; natija adminlarga Telegramda tasdiq tugmalari bilan keladi
+    // 2–3 daqiqa — fonda; natija adminlarga Telegramda tasdiq tugmalari bilan keladi
+    const b = await tana(req).catch(() => ({}));
     const R = await import('../services/reels.js');
-    R.videoTayyorla({ manba: 'qolda' })
+    R.videoTayyorla({ manba: 'qolda', productId: Number(b.product_id) || null, goya: String(b.goya || '').slice(0, 400),
+      qahramon: ['nigina', 'jasur'].includes(b.qahramon) ? b.qahramon : null, format: b.format || null })
       .then((r) => R.adminlargaVideo(r, { tasdiq: true, sarlavha: '🎬 <b>Sinov Reels</b> — Instagram’ga joylaymi?' }))
       .catch((e) => console.error('REELS sinov:', e.message));
     return ok(res, { boshlandi: true });
+  }
+  if (yol === '/api/admin/reels/qayta' && req.method === 'POST') {
+    // Tahrirlangan ssenariy bilan qayta render (yoki shu mahsulotga yangi hikoya)
+    const b = await tana(req);
+    const R = await import('../services/reels.js');
+    const id = Number(b.id);
+    if (!id) return xato(res, 400, 'id kerak.');
+    const ss = b.ssenariy && Array.isArray(b.ssenariy.sahnalar) ? b.ssenariy : null;
+    if (b.ssenariy && !ss) return xato(res, 400, 'Ssenariyda sahnalar yo‘q.');
+    R.qaytaYasa(id, { ssenariy: ss, izoh: typeof b.izoh === 'string' ? b.izoh : null, goya: String(b.goya || '').slice(0, 400) })
+      .then((r) => R.adminlargaVideo(r, { tasdiq: true, sarlavha: '🎬 <b>Tahrirlangan Reels tayyor</b> — joylaymi?' }))
+      .catch((e) => console.error('REELS qayta:', e.message));
+    return ok(res, { boshlandi: true });
+  }
+  if (yol === '/api/admin/reels/izoh' && req.method === 'POST') {
+    const b = await tana(req);
+    const R = await import('../services/reels.js');
+    const r = await R.izohniOzgartir(Number(b.id), b.izoh);
+    if (!r) return xato(res, 400, 'Video topilmadi yoki allaqachon joylangan.');
+    return ok(res, { saqlandi: true });
+  }
+  if (yol === '/api/admin/reels/botga' && req.method === 'POST') {
+    const b = await tana(req);
+    const R = await import('../services/reels.js');
+    const r = await qator('select * from reels_postlar where id = $1', [Number(b.id)]);
+    if (!r?.video_id) return xato(res, 400, 'Video topilmadi.');
+    const n = await R.adminlargaVideo(r, { tasdiq: r.holat !== 'joylandi', sarlavha: '🎬 <b>Reels</b> — Instagram’ga joylaymi?' });
+    return ok(res, { yuborildi: n });
   }
   if (yol === '/api/admin/reels/joyla' && req.method === 'POST') {
     const b = await tana(req);
