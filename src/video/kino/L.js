@@ -82,6 +82,10 @@ export function hexA(hex, a) {
 
 export const font = (olcham, ogirlik = 800) => `${ogirlik} ${Math.round(olcham)}px ${OILA}`;
 
+// Shriftda yo'q belgilar (✓ ✕ ★) bo'sh kvadrat bo'lib chiqadi — rangli emojiga almashtiramiz
+const BELGI = { '✓': '✅', '✔': '✅', '☑': '✅', '✕': '❌', '✗': '❌', '✘': '❌', '✖': '❌', '★': '⭐', '☆': '⭐', '→': '➜', '⇒': '➜' };
+export const belgiTozala = (s) => String(s ?? '').replace(/[✓✔☑✕✗✘✖★☆→⇒]\uFE0F?/g, (c) => BELGI[c[0]] || c);
+
 /** Matnni kenglikka bo'lib qatorlarga ajratadi (haqiqiy o'lchov bilan). */
 export function wrap(ctx, matn, maxEni) {
   const chiq = [];
@@ -148,7 +152,7 @@ export function tf(ctx, o, fn) {
 export function text(ctx, matn, x, y, o = {}) {
   let olcham = o.olcham ?? 64;
   const og = o.ogirlik ?? 800;
-  const s = o.katta ? String(matn).toUpperCase() : String(matn);
+  const s = belgiTozala(o.katta ? String(matn).toUpperCase() : String(matn));
   ctx.save();
   ctx.font = font(olcham, og);
   let qatorlar = o.maxEni ? wrap(ctx, s, o.maxEni) : s.split('\n');
@@ -199,7 +203,7 @@ export function title(ctx, matn, x, y, t, o = {}) {
   const uslub = o.uslub ?? 'maska', bosh = o.bosh ?? 0;
   let olcham = o.olcham ?? 110;
   const og = o.ogirlik ?? 900;
-  const s = o.katta === false ? String(matn) : String(matn).toUpperCase();
+  const s = belgiTozala(o.katta === false ? String(matn) : String(matn).toUpperCase());
   const maxEni = o.maxEni ?? 920;
   ctx.save();
   ctx.font = font(olcham, og);
@@ -478,7 +482,7 @@ export function bubble(ctx, matn, x, y, t, o = {}) {
   const olcham = o.olcham ?? 46;
   ctx.save();
   ctx.font = font(olcham, 800);
-  const qator = wrap(ctx, matn, o.maxEni ?? 560);
+  const qator = wrap(ctx, belgiTozala(matn), o.maxEni ?? 560);
   const lh = olcham * 1.18;
   const w = Math.max(...qator.map((q) => ctx.measureText(q).width)) + olcham * 1.3, h = qator.length * lh + olcham * 0.95;
   ctx.translate(x, y); ctx.scale(p, p); ctx.rotate((o.egil ?? 0) * (1 - clamp(p)));

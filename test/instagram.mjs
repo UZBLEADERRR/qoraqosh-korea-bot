@@ -587,18 +587,36 @@ console.log('\n── KUNLIK REELS ──');
   test('reels: ertangi video boshqa mahsulot (yaqinda joylangani keyinga suriladi)', !keyingi || keyingi.id !== p.id || (await qator(
     `select count(*)::int n from products where is_active and stock > 0 and poster_id is not null and variant_of is null`)).n === 1);
 
+  // Reels 3.0: mahsulotsiz video turi — skaner haqida
+  const rs = await R.videoTayyorla({ tur: 'skaner', manba: 'qolda', qahramon: 'nigina' });
+  const st3 = rs.ssenariy.sahnalar.map((x) => x.tur);
+  test('reels 3.0: «skaner» videosi — mahsulotsiz, ilova faktlari bilan', rs.holat === 'tayyor' && rs.product_id === null
+    && rs.ssenariy.tur === 'skaner' && /ILOVA FAKTLARI/.test(globalThis.OXIRGI_REELS_PROMPT || '') && !/MAHSULOT \(faqat/.test(globalThis.OXIRGI_REELS_PROMPT || ''));
+  test('reels 3.0: oyna/skaner/ilova sahnalari; mahsulot sahnasi va bo‘sh chat olib tashlanadi', st3.includes('oyna') && st3.includes('skaner')
+    && st3.includes('ilova') && !st3.includes('kashfiyot') && !st3.includes('chat') && st3.at(-1) === 'cta'
+    && rs.ssenariy.sahnalar.find((x) => x.tur === 'ilova').ekran_turi === 'skaner', st3.join(','));
+  test('reels 3.0: cta — «havolani Direct’ga»', /Havolani Direct/.test(rs.ssenariy.sahnalar.at(-1).kichik || ''));
+  const o3 = yuborilgan.length;
+  await R.adminlargaVideo(rs, { tasdiq: true });
+  test('reels 3.0: Telegram’da video turi yozilgan', /Yuz skaneri/.test(yuborilgan.slice(o3).find((y) => y.video)?.text || ''));
+  const qs = await R.qaytaYasa(rs.id);
+  test('reels 3.0: «Boshqa hikoya» — shu tur saqlanadi', qs.ssenariy.tur === 'skaner' && qs.product_id === null);
+  await sorov('delete from reels_postlar where id = any($1)', [[rs.id, qs.id]]);
+  const er = await chaqir('/api/admin/reels/sinov', 'POST', { tur: 'erkin' });
+  test('reels 3.0: erkin video g‘oyasiz — rad etiladi', er.kod === 400);
+
   // Sozlama: noto'g'ri qiymatlar standartga qaytadi
   const sz2 = await chaqir('/api/admin/reels/sozlama', 'POST', { uslub: 'xyz', qahramon: 'jasur', mavzu: 'tungi', musiqa: 'lofi',
-    musiqa_baland: 250, davomiylik: 99, format: 'sir', yoriqnoma: 'Hazil qo‘sh', subtitr: false });
+    musiqa_baland: 250, davomiylik: 99, format: 'sir', yoriqnoma: 'Hazil qo‘sh', subtitr: false, tur: 'skaner', subtitr_uslub: 'chip' });
   const s2 = sz2.tana.sozlama;
   test('reels studiya: sozlama tekshiriladi', sz2.kod === 200 && s2.uslub === 'hikoya' && s2.qahramon === 'jasur' && s2.mavzu === 'tungi'
     && s2.musiqa_baland === 100 && s2.davomiylik === 30 && s2.format === 'sir' && s2.subtitr === false && s2.yoriqnoma === 'Hazil qo‘sh'
-    && s2.ovoz_model === 'gemini-3.8-flash-tts', JSON.stringify(s2));
+    && s2.ovoz_model === 'gemini-3.8-flash-tts' && s2.tur === 'skaner' && s2.subtitr_uslub === 'chip', JSON.stringify(s2));
 
   test('reels: o‘chiq bo‘lsa jadval hech narsa qilmaydi', (await R.kunlikTekshir()) === null);
   const ad = await chaqir('/api/admin/reels', 'GET');
   test('reels: admin panel — sozlama, tarix, ffmpeg, kanvas, formatlar, mahsulotlar', ad.kod === 200 && ad.tana.ffmpeg === true
-    && ad.tana.kanvas === true && ad.tana.formatlar?.teskari && ad.tana.mahsulotlar.some((x) => x.id === p.id)
+    && ad.tana.kanvas === true && ad.tana.formatlar?.teskari && ad.tana.mahsulotlar.some((x) => x.id === p.id) && ad.tana.turlar?.skaner
     && ad.tana.oxirgilar.some((x) => x.id === r.id && x.holat === 'joylandi' && x.ssenariy?.sahnalar));
   await sorov('delete from reels_postlar where product_id = $1', [p.id]);
   await sorov('delete from products where id = $1', [p.id]);

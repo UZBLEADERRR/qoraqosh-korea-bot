@@ -292,7 +292,8 @@ export async function adminRoutes(req, res, yol) {
     return ok(res, { sozlama: await R.sozlamalar(), oxirgilar: await R.oxirgilar(12),
       ffmpeg: Boolean(ffmpegYoli()), kanvas: (await kanvasBormi()).ha,
       instagram: await ig.ulanganmi().catch(() => false), public_url: Boolean(config.publicUrl),
-      formatlar: R.FORMATLAR, mahsulotlar });
+      formatlar: R.FORMATLAR, turlar: Object.fromEntries(Object.entries(R.VIDEO_TURLARI).map(([k, v]) => [k, v.nom])),
+      bugungi_tur: R.bugungiTur(), mahsulotlar });
   }
   if (yol === '/api/admin/reels/sozlama' && req.method === 'POST') {
     const b = await tana(req);
@@ -310,7 +311,8 @@ export async function adminRoutes(req, res, yol) {
     // 2–3 daqiqa — fonda; natija adminlarga Telegramda tasdiq tugmalari bilan keladi
     const b = await tana(req).catch(() => ({}));
     const R = await import('../services/reels.js');
-    R.videoTayyorla({ manba: 'qolda', productId: Number(b.product_id) || null, goya: String(b.goya || '').slice(0, 400),
+    if (b.tur === 'erkin' && !String(b.goya || '').trim()) return xato(res, 400, 'Erkin video uchun g‘oya yozing.');
+    R.videoTayyorla({ manba: 'qolda', tur: R.VIDEO_TURLARI[b.tur] ? b.tur : null, productId: Number(b.product_id) || null, goya: String(b.goya || '').slice(0, 400),
       qahramon: ['nigina', 'jasur'].includes(b.qahramon) ? b.qahramon : null, format: b.format || null })
       .then((r) => R.adminlargaVideo(r, { tasdiq: true, sarlavha: '🎬 <b>Sinov Reels</b> — Instagram’ga joylaymi?' }))
       .catch((e) => console.error('REELS sinov:', e.message));

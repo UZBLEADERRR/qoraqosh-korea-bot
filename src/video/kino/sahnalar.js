@@ -13,6 +13,7 @@
 // Instagram xavfsiz zonasi: tepada ~230 px va pastda ~330 px interfeys,
 // o'ngda 1100–1700 oralig'ida tugmalar ustuni — muhim matn u yerga tushmaydi.
 import * as L from './L.js';
+import { qahramonChiz } from './qahramon.js';
 
 const W = 1080, H = 1920;
 
@@ -48,7 +49,8 @@ function fon(ctx, t, Y, tur = 'asosiy') {
 
 const egri = (t, f = 1.6, a = 10) => Math.sin(t * f) * a;           // suzish
 
-function chip(ctx, matn, x, y, t, bosh, o = {}) {
+function chip(ctx, matn0, x, y, t, bosh, o = {}) {
+  const matn = L.belgiTozala(matn0);
   const p = L.spring(t, bosh, { k: 220, c: 13 });
   if (p <= 0.001) return;
   ctx.save();
@@ -84,7 +86,7 @@ const hook = {
     const b = L.title(ctx, S.ekran, W / 2, Y.q ? 470 : 700, t, { uslub: 'zarba', bosh: 0.05, olcham: 126, urgu: S.urgu, aksent: Y.mavzu.aksent, maxEni: 900 });
     kichikMatn(ctx, S, b.y1 + 80, t, 0.55, Y);
     ctx.restore();
-    if (!Y.q) {
+    if (!Y.q && Y.rasm.mahsulot) {
       // Qahramonsiz: mahsulot «mo'ralab» turadi
       const p = L.spring(t, 0.7, { k: 120, c: 13 });
       L.productCard(ctx, Y.rasm.mahsulot, W / 2, 1180 + (1 - p) * 500, { en: 520, egil: -0.08 + egri(t, 1.2, 0.03), alpha: L.clamp(p * 2) });
@@ -173,7 +175,7 @@ const foyda = {
       }
       ctx.restore();
     });
-    if (!Y.q) L.productCard(ctx, Y.rasm.mahsulot, W / 2, 1360, { en: 300, egil: egri(t, 1.1, 0.05) });
+    if (!Y.q && Y.rasm.mahsulot) L.productCard(ctx, Y.rasm.mahsulot, W / 2, 1360, { en: 300, egil: egri(t, 1.1, 0.05) });
   },
   ustki() {},
   qahramon: (t, d, S) => ({ x: 200, y: 1525, s: 0.8, hissiyot: S.hissiyot || 'xursand', imo: S.imo || 'korsat', yon: 1, qarash: 0.8 }),
@@ -197,7 +199,7 @@ const natija = {
         if (S.birlik) L.text(ctx, S.birlik, 0, r * 0.5, { olcham: r * 0.26, ogirlik: 800, rang: Y.mavzu.aksent, maxEni: r * 1.6, avtoSig: true, min: 18, maxQator: 1 });
       });
     }
-    if (!Y.q) L.productCard(ctx, Y.rasm.mahsulot, W / 2, S.raqam ? 1400 : 1150, { en: S.raqam ? 340 : 540, nur: t - 0.6, egil: egri(t, 1, 0.04) });
+    if (!Y.q && Y.rasm.mahsulot) L.productCard(ctx, Y.rasm.mahsulot, W / 2, S.raqam ? 1400 : 1150, { en: S.raqam ? 340 : 540, nur: t - 0.6, egil: egri(t, 1, 0.04) });
     L.confetti(ctx, t, 0.55, W, H, { soni: 70, y: 820, ranglar: [Y.mavzu.aksent, Y.mavzu.aksent2, '#fff', '#FF6FA8'] });
   },
   ustki(ctx, t, d, S, Y) {
@@ -289,7 +291,7 @@ const cta = {
     kichikMatn(ctx, S, 760, t, 0.7, Y, { olcham: 44 });
     // Instagram izoh tugmasi tomon strelka (o'ngda)
     L.arrow(ctx, 760, 830, 975, 1330, L.prog(t, 1.0, 0.7, 'outCubic'), { rang: Y.mavzu.aksent, qalin: 12, egri: -0.25 });
-    if (!Y.q) L.productCard(ctx, Y.rasm.mahsulot, W / 2, 1160, { en: 460, egil: egri(t, 1.2, 0.05), nur: t - 1.2 });
+    if (!Y.q && Y.rasm.mahsulot) L.productCard(ctx, Y.rasm.mahsulot, W / 2, 1160, { en: 460, egil: egri(t, 1.2, 0.05), nur: t - 1.2 });
     L.confetti(ctx, t, 0.35, W, H, { soni: 90, y: 600, ranglar: [Y.mavzu.aksent, Y.mavzu.aksent2, '#fff', Y.mavzu.tugma] });
   },
   ustki(ctx, t, d, S, Y) {
@@ -318,5 +320,404 @@ const hikoya = {
   sfx: () => [{ tur: 'pop', t: 0.15 }],
 };
 
-export const SAHNALAR = { hook, muammo, kashfiyot, foyda, natija, sharh, narx: narxSahna, cta, hikoya };
+// ─────────────── Reels 3.0: mahsulotdan tashqari sahnalar ───────────────
+// Ilova (skaner, maslahatchi, buyurtma), foydali maslahat, aksiya va erkin
+// mavzular uchun: oynada matn yozilishi va kursor bosishi, chat, yuz
+// skaneri, telefon ekrani, ro'yxat, taqqos, bosqichlar, kinetik matn.
+
+const yozilgan = (matn, t, bosh, tezlik = 16) => String(matn || '').slice(0, Math.max(0, Math.floor((t - bosh) * tezlik)));
+const yozishTugashi = (matn, bosh, tezlik = 16) => bosh + String(matn || '').length / tezlik;
+
+/** Sichqoncha ko'rsatkichi (strelka). bos — 0..1 bosilish. */
+function kursor(ctx, x, y, bos = 0) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(1.5 - 0.15 * bos, 1.5 - 0.15 * bos);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 34); ctx.lineTo(9, 26); ctx.lineTo(16, 41); ctx.lineTo(22, 38);
+  ctx.lineTo(15, 23); ctx.lineTo(27, 23); ctx.closePath();
+  ctx.fillStyle = '#111'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.restore();
+}
+
+/** Chizilgan belgi: 'ok' — ✓, 'yoq' — ✕ (shriftga bog'liq emas). */
+function belgi(ctx, x, y, r, tur, rang) {
+  ctx.save(); ctx.strokeStyle = rang; ctx.lineWidth = r * 0.42; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  if (tur === 'ok') { ctx.moveTo(x - r, y); ctx.lineTo(x - r * 0.25, y + r * 0.75); ctx.lineTo(x + r, y - r * 0.75); }
+  else { ctx.moveTo(x - r * 0.75, y - r * 0.75); ctx.lineTo(x + r * 0.75, y + r * 0.75); ctx.moveTo(x + r * 0.75, y - r * 0.75); ctx.lineTo(x - r * 0.75, y + r * 0.75); }
+  ctx.stroke(); ctx.restore();
+}
+
+/** Aylanuvchi yuklanish halqasi yoki yashil ✓. */
+function holatBelgisi(ctx, x, y, t, tayyorVaqt, r = 24) {
+  if (t < tayyorVaqt) {
+    ctx.save(); ctx.strokeStyle = '#C9CDD4'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(x, y, r, t * 7, t * 7 + 4.2); ctx.stroke(); ctx.restore();
+    return;
+  }
+  const p = L.spring(t, tayyorVaqt, { k: 300, c: 14 });
+  L.tf(ctx, { x, y, s: p }, () => {
+    L.circle(ctx, 0, 0, r + 2, '#1FA463');
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(-r * 0.45, 0); ctx.lineTo(-r * 0.1, r * 0.35); ctx.lineTo(r * 0.5, -r * 0.35); ctx.stroke();
+  });
+}
+
+/** macOS uslubidagi oyna (oq kartochka + uchta nuqta + sarlavha). Ichki maydon qutisini qaytaradi. */
+function oynaKarta(ctx, x, y, w, h, sarlavha, p = 1) {
+  ctx.save();
+  ctx.globalAlpha *= L.clamp(p * 2);
+  ctx.translate(x + w / 2, y + h / 2); ctx.scale(0.9 + 0.1 * p, 0.9 + 0.1 * p); ctx.translate(-(x + w / 2), -(y + h / 2));
+  L.rect(ctx, x, y, w, h, { fill: '#ffffff', r: 34, soya: 'rgba(0,0,0,.45)', blur: 60 });
+  ['#FF5F57', '#FEBC2E', '#28C840'].forEach((c, i) => L.circle(ctx, x + 44 + i * 34, y + 40, 11, c));
+  L.text(ctx, sarlavha || 'KiOVO', x + w / 2, y + 41, { olcham: 30, ogirlik: 700, rang: '#3a3a40' });
+  ctx.strokeStyle = '#ECECEF'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y + 80); ctx.lineTo(x + w, y + 80); ctx.stroke();
+  ctx.restore();
+  return { x: x + 40, y: y + 110, w: w - 80, h: h - 130 };
+}
+
+const matn = {
+  logoBor: true,
+  // Kinetik tipografiya: so'zlar ovoz bilan birga birma-bir urilib chiqadi
+  chiz(ctx, t, d, S, Y) {
+    fon(ctx, t, Y);
+    const sozlar = String(S.ekran || '').split(/\s+/).filter(Boolean);
+    const urilish = sozlar.map((w, i) => at(S, w, 0.15 + i * 0.3));
+    const songgi = urilish.filter((x) => x <= t).length;
+    // Har so'zda fon bir lahza yorishadi
+    const oxirgi = urilish[songgi - 1] ?? -9;
+    if (t - oxirgi < 0.18) { ctx.fillStyle = L.hexA(Y.mavzu.aksent, 0.18 * (1 - (t - oxirgi) / 0.18)); ctx.fillRect(0, 0, W, H); }
+    L.title(ctx, S.ekran, W / 2, 860, t, { uslub: 'soz', bosh: urilish[0], qadam: sozlar.length > 1 ? (urilish.at(-1) - urilish[0]) / (sozlar.length - 1) : 0.3,
+      olcham: 150, urgu: S.urgu, aksent: Y.mavzu.aksent, maxEni: 940, maxQator: 4 });
+    kichikMatn(ctx, S, 1240, t, (urilish.at(-1) || 0.5) + 0.3, Y, { olcham: 52 });
+  },
+  ustki(ctx, t, d, S, Y) {
+    if (S.emoji) L.emoji(ctx, S.emoji, W / 2, 1380, 170, { s: L.spring(t, 0.6), r: Math.sin(t * 2.4) * 0.12 });
+  },
+  qahramon: () => ({ x: W / 2, y: 1500, s: 1, hissiyot: 'hayajon', imo: 'hayajon', korinmas: true }),
+  sfx: (S) => String(S.ekran || '').split(/\s+/).filter(Boolean).map((w, i) => ({ tur: 'pop', t: at(S, w, 0.15 + i * 0.3) })),
+};
+
+const oyna = {
+  logoBor: true,
+  // Ilova oynasi: qidiruvga matn yoziladi → natija chiqadi → kursor tugmani bosadi
+  chiz(ctx, t, d, S, Y) {
+    fon(ctx, t, Y);
+    const p = L.spring(t, 0.05, { k: 150, c: 15 });
+    const ich = oynaKarta(ctx, 90, 380, 900, 760, S.sarlavha || 'KiOVO', p);
+    if (p < 0.3) return;
+    L.text(ctx, S.ekran, ich.x, ich.y + 40, { olcham: 52, ogirlik: 800, rang: '#16161a', align: 'left', maxEni: ich.w, avtoSig: true, min: 34, maxQator: 1 });
+    if (S.kichik) L.text(ctx, S.kichik, ich.x, ich.y + 100, { olcham: 32, ogirlik: 600, rang: '#7a7a85', align: 'left', maxEni: ich.w, avtoSig: true, min: 24, maxQator: 1 });
+    // Qidiruv maydoni
+    const qy = ich.y + 160, yb = 0.5, yt = yozishTugashi(S.yozuv, yb);
+    L.rect(ctx, ich.x, qy, ich.w, 92, { fill: '#fff', r: 18, stroke: t > yb ? '#3B6CF6' : '#D9DCE3', width: 4 });
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 5; L.circle(ctx, ich.x + 44, qy + 42, 15, null, '#555', 5);
+    ctx.beginPath(); ctx.moveTo(ich.x + 55, qy + 53); ctx.lineTo(ich.x + 66, qy + 64); ctx.stroke();
+    const yoz = L.belgiTozala(yozilgan(S.yozuv, t, yb));
+    ctx.save(); ctx.font = L.font(40, 600); ctx.fillStyle = '#16161a'; ctx.textBaseline = 'middle';
+    ctx.fillText(yoz, ich.x + 90, qy + 47);
+    if (Math.floor(t * 2.4) % 2 === 0 || t < yt) { const cx = ich.x + 92 + ctx.measureText(yoz).width; ctx.fillRect(cx, qy + 26, 4, 44); }
+    ctx.restore();
+    // Natija qatori
+    const np = L.prog(t, yt + 0.25, 0.45, 'outExpo');
+    if (np <= 0) return;
+    const ry = qy + 130 + (1 - np) * -30;
+    ctx.save(); ctx.globalAlpha *= np;
+    L.rect(ctx, ich.x, ry, ich.w, 150, { fill: '#fff', r: 22, stroke: '#ECECEF', width: 3 });
+    L.rect(ctx, ich.x + 24, ry + 27, 96, 96, { fill: L.hexA(Y.mavzu.aksent, 0.35), r: 22 });
+    L.emoji(ctx, S.emoji || '✨', ich.x + 72, ry + 77, 58);
+    L.text(ctx, S.natija || S.ekran, ich.x + 145, ry + 58, { olcham: 40, ogirlik: 800, rang: '#16161a', align: 'left', maxEni: ich.w - 420, avtoSig: true, min: 26, maxQator: 1 });
+    if (S.izohcha) L.text(ctx, S.izohcha, ich.x + 145, ry + 102, { olcham: 28, ogirlik: 600, rang: '#7a7a85', align: 'left', maxEni: ich.w - 420, avtoSig: true, min: 20, maxQator: 1 });
+    // Tugma: kursor kelib bosadi → yashil «✓»
+    const bosish = yt + 1.5, bosildi = t >= bosish;
+    const tx = ich.x + ich.w - 150, ty = ry + 75;
+    const bp = bosildi ? 1 - 0.08 * Math.max(0, 1 - (t - bosish) / 0.15) : 1;
+    L.tf(ctx, { x: tx, y: ty, s: bp }, () => {
+      L.rect(ctx, -120, -38, 240, 76, { fill: bosildi ? '#1FA463' : Y.mavzu.tugma, r: 38 });
+      if (bosildi) {
+        belgi(ctx, -78, 0, 14, 'ok', '#fff');
+        L.text(ctx, String(S.tayyor || 'Tayyor').replace(/^[✓✔✅]\s*/, ''), 16, 2, { olcham: 30, ogirlik: 800, maxEni: 160, avtoSig: true, min: 18, maxQator: 1 });
+      } else L.text(ctx, S.tugma || 'Ochish', 0, 2, { olcham: 32, ogirlik: 800, maxEni: 220, avtoSig: true, min: 20, maxQator: 1 });
+    });
+    if (bosildi && t - bosish < 0.6) { ctx.strokeStyle = L.hexA('#1FA463', 1 - (t - bosish) / 0.6); ctx.lineWidth = 6; L.circle(ctx, tx, ty, 40 + (t - bosish) * 160, null, ctx.strokeStyle, 6); }
+    ctx.restore();
+    // Kursor yo'li: pastki o'ngdan tugma ustiga
+    const kp = L.prog(t, yt + 0.6, 0.85, 'inOutCubic');
+    if (kp > 0) kursor(ctx, L.lerp(980, tx + 20, kp), L.lerp(1320, ty + 10, kp), bosildi && t - bosish < 0.2 ? 1 : 0);
+  },
+  ustki() {},
+  qahramon: (t, d, S) => ({ x: W / 2, y: 1530, s: 1, hissiyot: S.hissiyot || 'xursand', imo: S.imo || 'tepaga', qarash: 0.3 }),
+  sfx: (S) => { const yt = yozishTugashi(S.yozuv, 0.5); return [{ tur: 'tick', t: 0.5 }, { tur: 'pop', t: yt + 0.3 }, { tur: 'tick', t: yt + 1.5 }, { tur: 'ding', t: yt + 1.55 }]; },
+};
+
+const chat = {
+  logoBor: true,
+  // Suhbat: mijoz yozadi, AI «yozmoqda…» deb turib javob beradi
+  chiz(ctx, t, d, S, Y) {
+    fon(ctx, t, Y);
+    const xab = (S.xabarlar || []).slice(0, 4);
+    const p = L.spring(t, 0.05, { k: 150, c: 15 });
+    const x = 80, y = 360, w = 920, h = 980;
+    ctx.save(); ctx.globalAlpha *= L.clamp(p * 2);
+    L.rect(ctx, x, y, w, h, { fill: '#F4F1F2', r: 44, soya: 'rgba(0,0,0,.45)', blur: 60 });
+    L.rect(ctx, x, y, w, 120, { fill: '#ffffff', r: 44 });
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(x, y + 70, w, 50);
+    L.circle(ctx, x + 75, y + 60, 36, Y.mavzu.tugma);
+    if (Y.rasm.logo) ctx.drawImage(Y.rasm.logo, x + 47, y + 45, 56, 56 * Y.rasm.logo.height / Y.rasm.logo.width);
+    L.text(ctx, S.sarlavha || 'KiOVO maslahatchi', x + 130, y + 45, { olcham: 36, ogirlik: 800, rang: '#16161a', align: 'left', maxEni: w - 200 });
+    L.text(ctx, 'online', x + 130, y + 85, { olcham: 26, ogirlik: 600, rang: '#1FA463', align: 'left' });
+    ctx.restore();
+    // Xabarlar ketma-ket: har biri o'z vaqtida
+    const bosh = 0.5, qadam = Math.max(1.0, (d - 1.4) / Math.max(1, xab.length));
+    let cy = y + 170;
+    xab.forEach((m, i) => {
+      const t0 = bosh + i * qadam, ai = m.kim !== 'mijoz';
+      const yozmoqda = ai ? 0.7 : 0;
+      if (t < t0) return;
+      ctx.save();
+      ctx.font = L.font(38, 700);
+      const qator = L.wrap(ctx, L.belgiTozala(m.matn), 600).slice(0, 4);
+      const bw = Math.max(...qator.map((q) => ctx.measureText(q).width)) + 60, bh = qator.length * 48 + 40;
+      const bx = ai ? x + 40 : x + w - 40 - bw;
+      const ep = L.spring(t, t0, { k: 260, c: 16 });
+      if (ai && t < t0 + yozmoqda) {
+        // «yozmoqda…» uch nuqta
+        L.rect(ctx, bx, cy, 150, 76, { fill: '#ffffff', r: 34 });
+        [0, 1, 2].forEach((k) => L.circle(ctx, bx + 45 + k * 30, cy + 38 + Math.sin(t * 10 - k) * 5, 9, '#9aa0a8'));
+        ctx.restore(); cy += 96; return;
+      }
+      ctx.translate(bx + (ai ? 0 : bw), cy); ctx.scale(ep, ep); ctx.translate(-(bx + (ai ? 0 : bw)), -cy);
+      L.rect(ctx, bx, cy, bw, bh, { fill: ai ? '#ffffff' : Y.mavzu.tugma, r: 30 });
+      const korin = L.belgiTozala(ai ? yozilgan(m.matn, t, t0 + yozmoqda, 40) : m.matn);
+      ctx.font = L.font(38, 700); ctx.fillStyle = ai ? '#16161a' : '#ffffff'; ctx.textBaseline = 'middle';
+      L.wrap(ctx, korin, 600).slice(0, 4).forEach((q, k) => ctx.fillText(q, bx + 30, cy + 44 + k * 48));
+      ctx.restore();
+      cy += bh + 26;
+    });
+  },
+  ustki() {},
+  qahramon: (t, d, S) => ({ x: 190, y: 1560, s: 0.78, hissiyot: S.hissiyot || 'xursand', imo: S.imo || 'korsat', yon: 1, qarash: 0.8 }),
+  sfx: (S, Y, d = 6) => (S.xabarlar || []).slice(0, 4).map((m, i) => ({ tur: 'pop', t: 0.5 + i * Math.max(1.0, (d - 1.4) / Math.max(1, (S.xabarlar || []).length)) + (m.kim !== 'mijoz' ? 0.7 : 0) })),
+};
+
+const skaner = {
+  logoBor: true,
+  // Yuz skaneri: kamera ramkasida yuz, skan chizig'i, nuqtalar, keyin ko'rsatkichlar
+  chiz(ctx, t, d, S, Y) {
+    fon(ctx, t, Y, 'sovuq');
+    const fx = 190, fy = 330, fw = 700, fh = 860;
+    const p = L.spring(t, 0.05, { k: 140, c: 15 });
+    ctx.save(); ctx.globalAlpha *= L.clamp(p * 2);
+    L.rect(ctx, fx, fy, fw, fh, { fill: '#10131c', r: 60, soya: 'rgba(0,0,0,.5)', blur: 50 });
+    ctx.save(); L.roundRect(ctx, fx, fy, fw, fh, 60); ctx.clip();
+    L.radialBg(ctx, W, H, ['#2b3550', '#10131c'], fx + fw / 2, fy + fh * 0.45, fw);
+    const R = 230, hx = fx + fw / 2, hy = fy + 410;
+    qahramonChiz(ctx, { tur: Y.qTur || 'nigina', x: hx, y: hy, s: R / 100, t, hissiyot: t > 2.4 ? 'xursand' : 'oddiy', imo: 'tinch', dog: 1, qarash: 0 });
+    // skan chizig'i
+    const sp = L.prog(t, 0.5, 1.8, 'inOutSine');
+    if (sp > 0 && sp < 1) {
+      const sy = fy + 60 + (fh - 120) * (sp < 0.5 ? sp * 2 : 2 - sp * 2);
+      const g = ctx.createLinearGradient(0, sy - 80, 0, sy + 10);
+      g.addColorStop(0, L.hexA(Y.mavzu.aksent, 0)); g.addColorStop(1, L.hexA(Y.mavzu.aksent, 0.55));
+      ctx.fillStyle = g; ctx.fillRect(fx, sy - 80, fw, 90);
+      ctx.fillStyle = Y.mavzu.aksent; ctx.fillRect(fx, sy, fw, 5);
+    }
+    // nuqtalar (yuz belgilari)
+    const nuqtalar = [[-0.38, 0.06], [0.38, 0.06], [0, 0.32], [-0.25, 0.6], [0.25, 0.6], [0, -0.6], [-0.75, 0.2], [0.75, 0.2]];
+    nuqtalar.forEach(([nx, ny], i) => {
+      const np = L.prog(t, 0.7 + i * 0.12, 0.3);
+      if (np > 0) L.circle(ctx, hx + nx * R, hy + ny * R, 7 + Math.sin(t * 6 + i) * 2, L.hexA(Y.mavzu.aksent, np));
+    });
+    // topilgan muammo joylari — qizil halqalar
+    if (t > 2.3) [[-0.55, 0.22], [0.5, 0.3], [0.12, -0.55]].forEach(([nx, ny], i) => {
+      const rp = L.spring(t, 2.3 + i * 0.15, { k: 220, c: 12 });
+      ctx.strokeStyle = '#FF4D5E'; ctx.lineWidth = 6; L.circle(ctx, hx + nx * R, hy + ny * R, 34 * rp, null, '#FF4D5E', 6);
+    });
+    ctx.restore();
+    // burchak qavslari
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 10; ctx.lineCap = 'round';
+    for (const [cx, cy, dx, dy] of [[fx + 40, fy + 40, 1, 1], [fx + fw - 40, fy + 40, -1, 1], [fx + 40, fy + fh - 40, 1, -1], [fx + fw - 40, fy + fh - 40, -1, -1]]) {
+      ctx.beginPath(); ctx.moveTo(cx, cy + dy * 70); ctx.lineTo(cx, cy); ctx.lineTo(cx + dx * 70, cy); ctx.stroke();
+    }
+    L.text(ctx, t < 2.3 ? 'Skanerlanmoqda…' : 'Tahlil tayyor ✅', W / 2, fy + fh - 80, { olcham: 36, ogirlik: 800, fon: 'rgba(0,0,0,.55)' });
+    ctx.restore();
+    // Ko'rsatkichlar (misol)
+    const k = (S.punktlar || []).slice(0, 3);
+    const r = L.rand(String(S.ekran || '').length + 3);
+    k.forEach((q, i) => {
+      const bosh = 2.5 + i * 0.25, kp = L.prog(t, bosh, 0.5, 'outExpo');
+      if (kp <= 0) return;
+      const y = 1240 + i * 72, qiymat = Math.round(45 + r() * 45);
+      ctx.save(); ctx.globalAlpha *= kp;
+      L.text(ctx, `${q.emoji || ''} ${q.matn}`.trim(), 140, y, { olcham: 36, ogirlik: 800, align: 'left', maxEni: 360, avtoSig: true, min: 24, maxQator: 1 });
+      L.rect(ctx, 520, y - 14, 420, 28, { fill: 'rgba(255,255,255,.16)', r: 14 });
+      L.rect(ctx, 520, y - 14, 420 * (qiymat / 100) * L.prog(t, bosh + 0.1, 0.8), 28, { fill: Y.mavzu.aksent, r: 14 });
+      ctx.restore();
+    });
+    if (k.length && t > 2.5) L.text(ctx, 'namuna', 940, 1205, { olcham: 22, ogirlik: 600, rang: 'rgba(255,255,255,.5)', align: 'right' });
+  },
+  ustki() {},
+  qahramon: () => ({ x: W / 2, y: 1500, s: 1, hissiyot: 'xursand', imo: 'tinch', korinmas: true }),
+  sfx: () => [{ tur: 'whoosh', t: 0.5 }, { tur: 'tick', t: 0.8 }, { tur: 'ding', t: 2.3 }, { tur: 'shimmer', t: 2.5 }],
+};
+
+const ilova = {
+  // Telefon ekranida ilovaning HAQIQIY skrinshoti; barmoq bosgan joyda to'lqin
+  chiz(ctx, t, d, S, Y) {
+    fon(ctx, t, Y);
+    L.title(ctx, S.ekran, W / 2, 300, t, { uslub: 'maska', bosh: 0.05, olcham: 80, urgu: S.urgu, aksent: Y.mavzu.aksent, maxEni: 900, maxQator: 2 });
+    const rasm = Y.rasm.ekranlar?.[S.ekran_turi] || Y.rasm.ekranlar?.skaner || null;
+    const p = L.spring(t, 0.15, { k: 120, c: 14 });
+    const w = 480, h = 1000, x = Y.q ? 230 : W / 2 - w / 2, y = 420 + (1 - p) * 700;
+    const aylan = (1 - L.prog(t, 0.15, 0.9, 'outCubic')) * 0.9;
+    ctx.save();
+    ctx.translate(x + w / 2, y + h / 2); ctx.scale(Math.cos(aylan), 1); ctx.rotate(-0.04 + Math.sin(t * 1.2) * 0.012); ctx.translate(-(x + w / 2), -(y + h / 2));
+    L.phone(ctx, x, y, w, h, (ix, iy, iw, ih) => {
+      if (rasm) {
+        const pan = L.prog(t, 0.9, Math.max(1, d - 1.6), 'inOutSine');
+        L.image(ctx, rasm, ix, iy, iw, ih, { fit: 'cover', zoom: 1.12, panY: -1 + pan * 2 });
+      } else {
+        L.linearBg(ctx, iw, ih, [Y.mavzu.fon[0], Y.mavzu.asos], 90);
+      }
+      // bosish to'lqini
+      const tb = 1.6;
+      if (t > tb && t < tb + 0.8) {
+        const q = (t - tb) / 0.8;
+        L.circle(ctx, ix + iw * 0.5, iy + ih * 0.62, 24 + q * 90, L.hexA('#ffffff', 0.45 * (1 - q)));
+        L.circle(ctx, ix + iw * 0.5, iy + ih * 0.62, 22, L.hexA('#ffffff', 0.8 * (1 - q)));
+      }
+    });
+    L.lightSweep(ctx, x, y, w, h, t, { bosh: 0.9, dur: 1, r: w * 0.14 });
+    ctx.restore();
+    kichikMatn(ctx, S, 1490, t, 0.9, Y, { olcham: 42, x: Y.q ? 470 : W / 2, maxEni: Y.q ? 600 : 860 });
+  },
+  ustki() {},
+  qahramon: (t, d, S) => ({ x: 875, y: 1240, s: 0.8, hissiyot: S.hissiyot || 'xursand', imo: S.imo || 'korsat', yon: -1, qarash: -0.8 }),
+  sfx: () => [{ tur: 'whoosh', t: 0.15 }, { tur: 'tick', t: 1.6 }],
+};
+
+const royxat = {
+  logoBor: true,
+  // Bajarilayotgan ishlar ro'yxati: aylanuvchi halqa → yashil ✓
+  chiz(ctx, t, d, S, Y) {
+    fon(ctx, t, Y);
+    const k = (S.punktlar || []).slice(0, 5);
+    const p = L.spring(t, 0.05, { k: 150, c: 15 });
+    const qh = 112, h = 150 + k.length * qh;
+    const ich = oynaKarta(ctx, 100, 380, 880, h, S.sarlavha || S.ekran, p);
+    if (p < 0.3) return;
+    k.forEach((q, i) => {
+      const t0 = at(S, q.matn?.split(' ')[0], 0.4 + i * Math.max(0.45, (d - 1.5) / Math.max(1, k.length)));
+      const ep = L.prog(t, t0 - 0.35, 0.35, 'outExpo');
+      if (ep <= 0) return;
+      const y = ich.y + 20 + i * qh;
+      ctx.save(); ctx.globalAlpha *= ep; ctx.translate((1 - ep) * 40, 0);
+      holatBelgisi(ctx, ich.x + 26, y + 26, t, t0 + 0.25);
+      L.text(ctx, `${q.emoji ? q.emoji + ' ' : ''}${q.matn}`, ich.x + 80, y + 28, { olcham: 42, ogirlik: t >= t0 + 0.25 ? 700 : 600,
+        rang: t >= t0 + 0.25 ? '#16161a' : '#8a8a95', align: 'left', maxEni: ich.w - 90, avtoSig: true, min: 28, maxQator: 1 });
+      ctx.restore();
+    });
+  },
+  ustki() {},
+  qahramon: (t, d, S) => ({ x: W / 2, y: 1540, s: 0.95, hissiyot: S.hissiyot || 'xursand', imo: S.imo || 'tepaga', qarash: 0 }),
+  sfx: (S, Y, d = 5) => (S.punktlar || []).slice(0, 5).map((q, i) => ({ tur: 'tick', t: at(S, q.matn?.split(' ')[0], 0.4 + i * Math.max(0.45, (d - 1.5) / Math.max(1, (S.punktlar || []).length))) + 0.25 })),
+};
+
+const taqqos = {
+  // ❌ Noto'g'ri / ✅ To'g'ri — ikki ustun, navbat bilan
+  chiz(ctx, t, d, S, Y) {
+    fon(ctx, t, Y);
+    L.title(ctx, S.ekran || 'Qaysi biri to‘g‘ri?', W / 2, 360, t, { uslub: 'maska', bosh: 0.05, olcham: 84, urgu: S.urgu, aksent: Y.mavzu.aksent, maxEni: 900, maxQator: 2 });
+    const yomon = (S.yomon || []).slice(0, 3), yaxshi = (S.yaxshi || []).slice(0, 3);
+    const n = Math.max(yomon.length, yaxshi.length, 1), qadam = Math.max(0.45, (d - 1.6) / (n * 2));
+    const ustun = (x, sarlavha, rang, tur, royxat, ofset) => {
+      const p = L.spring(t, 0.2 + ofset * 0.15, { k: 160, c: 15 });
+      ctx.save(); ctx.globalAlpha *= L.clamp(p * 2); ctx.translate(0, (1 - p) * 120);
+      L.rect(ctx, x, 520, 440, 760, { fill: 'rgba(255,255,255,0.95)', r: 40, soya: 'rgba(0,0,0,.35)', blur: 40 });
+      L.rect(ctx, x, 520, 440, 110, { fill: rang, r: 40 });
+      ctx.fillStyle = rang; ctx.fillRect(x, 590, 440, 40);
+      belgi(ctx, x + 95, 575, 18, tur, '#fff');
+      L.text(ctx, sarlavha, x + 245, 575, { olcham: 42, ogirlik: 900 });
+      royxat.forEach((m, i) => {
+        const ep = L.prog(t, 0.6 + (i * 2 + ofset) * qadam, 0.4, 'outBack');
+        if (ep <= 0) return;
+        L.tf(ctx, { x: x + 220, y: 720 + i * 190, s: ep }, () => {
+          L.text(ctx, m, 0, 0, { olcham: 40, ogirlik: 800, rang: '#1d1514', maxEni: 380, avtoSig: true, min: 26, maxQator: 3 });
+        });
+      });
+      ctx.restore();
+    };
+    ustun(80, 'Noto‘g‘ri', '#E5484D', 'yoq', yomon, 0);
+    ustun(560, 'To‘g‘ri', '#1FA463', 'ok', yaxshi, 1);
+  },
+  ustki() {},
+  qahramon: (t, d, S) => ({ x: W / 2, y: 1590, s: 0.78, hissiyot: S.hissiyot || 'oylash', imo: S.imo || 'oylash', qarash: 0 }),
+  sfx: (S, Y, d = 6) => { const n = Math.max((S.yomon || []).length, (S.yaxshi || []).length, 1); const q = Math.max(0.45, (d - 1.6) / (n * 2)); return Array.from({ length: n * 2 }, (_, i) => ({ tur: 'pop', t: 0.6 + i * q })); },
+};
+
+const bosqich = {
+  // 1 → 2 → 3: chiziq bo'ylab bosqichlar (qanday buyurtma, kechki parvarish…)
+  chiz(ctx, t, d, S, Y) {
+    fon(ctx, t, Y);
+    L.title(ctx, S.ekran, W / 2, 360, t, { uslub: 'maska', bosh: 0.05, olcham: 84, urgu: S.urgu, aksent: Y.mavzu.aksent, maxEni: 900, maxQator: 2 });
+    const k = (S.punktlar || []).slice(0, 4);
+    const y0 = 560, oraliq = 210, x0 = 170;
+    const vaqt = k.map((q, i) => at(S, q.matn?.split(' ')[0], 0.5 + i * Math.max(0.6, (d - 1.6) / Math.max(1, k.length))));
+    const lp = k.length > 1 ? L.clamp((t - vaqt[0]) / Math.max(0.5, vaqt.at(-1) - vaqt[0])) : 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 12; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0, y0 + oraliq * (k.length - 1)); ctx.stroke();
+    ctx.strokeStyle = Y.mavzu.aksent; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0, y0 + oraliq * (k.length - 1) * lp); ctx.stroke();
+    k.forEach((q, i) => {
+      const p = L.spring(t, vaqt[i], { k: 220, c: 13 });
+      if (p <= 0.001) return;
+      const y = y0 + i * oraliq;
+      L.tf(ctx, { x: x0, y, s: p }, () => {
+        L.circle(ctx, 0, 0, 58, Y.mavzu.tugma);
+        L.text(ctx, String(i + 1), 0, 3, { olcham: 56, ogirlik: 900 });
+      });
+      ctx.save(); ctx.globalAlpha *= L.clamp(p); ctx.translate((1 - L.clamp(p)) * 80, 0);
+      L.rect(ctx, x0 + 90, y - 70, 760, 140, { fill: 'rgba(255,255,255,0.95)', r: 36, soya: 'rgba(0,0,0,.3)', blur: 30 });
+      if (q.emoji) L.emoji(ctx, q.emoji, x0 + 160, y + 2, 64);
+      L.text(ctx, q.matn, x0 + (q.emoji ? 220 : 130), y, { olcham: 44, ogirlik: 800, rang: '#1d1514', align: 'left', maxEni: q.emoji ? 600 : 690, avtoSig: true, min: 28, maxQator: 2 });
+      ctx.restore();
+    });
+  },
+  ustki() {},
+  qahramon: (t, d, S) => ({ x: 880, y: 1560, s: 0.75, hissiyot: S.hissiyot || 'xursand', imo: S.imo || 'korsat', yon: -1, qarash: -0.8 }),
+  sfx: (S, Y, d = 6) => (S.punktlar || []).slice(0, 4).map((q, i) => ({ tur: 'pop', t: at(S, q.matn?.split(' ')[0], 0.5 + i * Math.max(0.6, (d - 1.6) / Math.max(1, (S.punktlar || []).length))) })),
+};
+
+const aksiya = {
+  // Chegirmadagi mahsulotlar (bazadan) — 2×2 kartochkalar navbat bilan
+  chiz(ctx, t, d, S, Y) {
+    fon(ctx, t, Y, 'mahsulot');
+    L.rays(ctx, W / 2, 900, t, { rang: Y.mavzu.aksent2, alpha: 0.07, soni: 20 });
+    L.title(ctx, S.ekran || 'Bugungi chegirmalar', W / 2, 340, t, { uslub: 'zarba', bosh: 0.05, olcham: 96, urgu: S.urgu, aksent: Y.mavzu.aksent, maxEni: 900, maxQator: 2 });
+    const m = (Y.aksiya || []).slice(0, 4);
+    const en = 430, bo = 470;
+    m.forEach((a, i) => {
+      const cx = m.length === 1 ? W / 2 : 300 + (i % 2) * 480, cy = 720 + Math.floor(i / 2) * 510 + (m.length <= 2 ? 200 : 0);
+      const p = L.spring(t, 0.5 + i * 0.35, { k: 170, c: 13 });
+      if (p <= 0.001) return;
+      ctx.save(); ctx.translate(cx, cy + egri(t + i, 1.3, 6)); ctx.scale(p, p); ctx.rotate((1 - L.clamp(p)) * 0.2);
+      L.rect(ctx, -en / 2, -bo / 2, en, bo, { fill: '#ffffff', r: 36, soya: 'rgba(0,0,0,.4)', blur: 40 });
+      L.image(ctx, a.rasm, -en / 2 + 20, -bo / 2 + 20, en - 40, 270, { fit: 'contain', r: 24 });
+      L.text(ctx, a.nom, 0, 100, { olcham: 30, ogirlik: 800, rang: '#1d1514', maxEni: en - 40, avtoSig: true, min: 22, maxQator: 2 });
+      if (a.eskiNarx) {
+        const b = L.text(ctx, a.eskiNarx, 0, 162, { olcham: 26, ogirlik: 600, rang: '#9a8a8d' });
+        ctx.strokeStyle = '#E5484D'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(b.x - 4, 164); ctx.lineTo(b.x + b.w + 4, 158); ctx.stroke();
+      }
+      L.text(ctx, a.narx, 0, 202, { olcham: 40, ogirlik: 900, rang: Y.mavzu.tugma });
+      if (a.chegirma) L.tf(ctx, { x: en / 2 - 30, y: -bo / 2 + 30, s: L.spring(t, 0.8 + i * 0.35, { k: 260, c: 11 }), r: -0.25 }, () => {
+        L.star(ctx, 0, 0, 70, 58, 14, Y.mavzu.tugma);
+        L.text(ctx, a.chegirma, 0, 3, { olcham: 36, ogirlik: 900 });
+      });
+      ctx.restore();
+    });
+  },
+  ustki() {},
+  qahramon: () => ({ x: W / 2, y: 1500, s: 1, hissiyot: 'hayajon', imo: 'hayajon', korinmas: true }),
+  sfx: (S, Y) => (Y.aksiya || []).slice(0, 4).map((a, i) => ({ tur: 'pop', t: 0.5 + i * 0.35 })).concat([{ tur: 'ding', t: 0.9 }]),
+};
+
+export const SAHNALAR = { hook, muammo, kashfiyot, foyda, natija, sharh, narx: narxSahna, cta, hikoya,
+  matn, oyna, chat, skaner, ilova, royxat, taqqos, bosqich, aksiya };
 export const SAHNA_TURLARI = Object.keys(SAHNALAR);

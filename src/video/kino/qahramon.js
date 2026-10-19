@@ -7,7 +7,7 @@
 //   • ko'z pirpiratadi (urug'li jadval bo'yicha), qaraydi;
 //   • og'zi OVOZGA mos ochiladi (lab — ovoz balandligidan, 0..1);
 //   • hissiyot: oddiy | xursand | hayron | xafa | oylash | hayajon;
-//   • imo (qo'llar): tinch | silkit | korsat | ushlab | oylash | yelka | hayajon | yuz;
+//   • imo (qo'llar): tinch | silkit | korsat | ushlab | oylash | yelka | hayajon | yuz | tepaga;
 //   • nafas oladi, boshi sal chayqaladi, gapirganda bosh irg'aydi;
 //   • teri: dog' (muammo sahnasi) va yaltiroq (natija sahnasi).
 //
@@ -34,6 +34,7 @@ function imoNuqtalari(imo, t, yon = 1) {
     case 'yelka':   return { chap: [-1.9, 0.95], ong: [1.9, 0.95] };
     case 'hayajon': { const s = Math.abs(Math.sin(t * 7)) * 0.25; return { chap: [-1.55, -0.55 - s], ong: [1.55, -0.55 - s] }; }
     case 'yuz':     return { chap: [-0.66, 0.42], ong: [0.66, 0.42] };
+    case 'tepaga':  return { chap: [-1.3, 3.62], ong: [1.42, -0.35 + 0.05 * Math.sin(t * 3)] };   // barmoq tepaga — «diqqat!»
     default:        return { chap: [-1.3, 3.62], ong: [1.3, 3.62] };
   }
 }
@@ -181,9 +182,9 @@ export function qahramonChiz(ctx, h) {
     ctx.beginPath(); ctx.moveTo(e[0], e[1]); ctx.lineTo(q[0], q[1]); ctx.stroke();
     circle(ctx, q[0], q[1], 0.21 * R, P.teri);
     kaftlar.push(q);
-    if (h.imo === 'korsat' && ((h.yon ?? 1) >= 0) === (tomon > 0)) {
-      // ko'rsatkich barmoq
-      const a = Math.atan2(q[1] - e[1], q[0] - e[0]);
+    if ((h.imo === 'korsat' && ((h.yon ?? 1) >= 0) === (tomon > 0)) || (h.imo === 'tepaga' && tomon > 0)) {
+      // ko'rsatkich barmoq (tepaga imosida — doim yuqoriga)
+      const a = h.imo === 'tepaga' ? -Math.PI / 2 : Math.atan2(q[1] - e[1], q[0] - e[0]);
       ctx.strokeStyle = P.teri; ctx.lineWidth = 0.11 * R;
       ctx.beginPath(); ctx.moveTo(q[0], q[1]); ctx.lineTo(q[0] + Math.cos(a) * 0.34 * R, q[1] + Math.sin(a) * 0.34 * R); ctx.stroke();
     }
@@ -388,4 +389,4 @@ export function qahramonChiz(ctx, h) {
 
 export const QAHRAMONLAR = ['nigina', 'jasur'];
 export const HISSIYOTLAR = Object.keys(HISSIYOT);
-export const IMOLAR = ['tinch', 'silkit', 'korsat', 'ushlab', 'oylash', 'yelka', 'hayajon', 'yuz'];
+export const IMOLAR = ['tinch', 'silkit', 'korsat', 'ushlab', 'oylash', 'yelka', 'hayajon', 'yuz', 'tepaga'];

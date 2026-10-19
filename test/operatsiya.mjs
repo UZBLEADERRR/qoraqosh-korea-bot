@@ -2623,7 +2623,28 @@ console.log('\n── REELS 2.0: ANIMATSION HIKOYA MOTORI ──');
     && /#a/.test(t1.izoh), tt.join(','));
   const t2 = R.ssenariyTozala({ sahnalar: [{ tur: 'sharh', ovoz: 's', ekran: 's' }] }, { sharhlar: [{ ism: 'Ali', baho: 5, matn: 'Zo‘r' }] });
   test('haqiqiy sharh bo‘lsa — sahnaga bazadagi matn qo‘yiladi', t2.sahnalar.find((x) => x.tur === 'sharh')?.sharh?.matn === 'Zo‘r');
+  // Reels 3.0 — subtitr qahramonni yopmaydi
+  const SJ = M.subtitrJoyi;
+  const yon = SJ({ x: 200, y: 1525, s: 0.8 }), orta = SJ({ x: 540, y: 1530, s: 1 }), tepa = SJ({ x: 540, y: 1170, s: 1.55 });
+  test('subtitr: qahramon chapda — o‘ng tomonga, markazda — boshi tepasiga, uzoqda — joyida', yon.cx > 540 && yon.en >= 460
+    && orta.y < 1530 - 145 && orta.cx === 540 && tepa.y === 1548 && SJ(null).y === 1548, JSON.stringify([yon, orta, tepa]));
+  const Lk = await import('../src/video/kino/L.js');
+  test('shriftda yo‘q belgilar (✓ ✕ ★) emojiga almashadi', Lk.belgiTozala('✓ ok ✕ yo‘q ★') === '✅ ok ❌ yo‘q ⭐');
+  const t3 = R.ssenariyTozala({ sahnalar: [
+    { tur: 'hook', ovoz: 'h', ekran: 'h' }, { tur: 'kashfiyot', ovoz: 'k', ekran: 'k' }, { tur: 'chat', ovoz: 'c', ekran: 'c' },
+    { tur: 'oyna', ovoz: 'o', ekran: 'o', yozuv: 'salom' }, { tur: 'ilova', ovoz: 'i', ekran: 'i', ekran_turi: 'nimadir' },
+    { tur: 'skaner', ovoz: 's', ekran: 's' }, { tur: 'aksiya', ovoz: 'a', ekran: 'a' },
+  ] }, { tur: 'skaner', mahsulotBor: false });
+  const t3t = t3.sahnalar.map((x) => x.tur);
+  test('skaner videosi: mahsulot/aksiya sahnasi olib tashlanadi, bo‘sh chat → kinetik matn, ekran — skaner, 3 ko‘rsatkich',
+    !t3t.includes('kashfiyot') && !t3t.includes('aksiya') && !t3t.includes('chat') && t3t.includes('matn') && t3t.includes('oyna')
+    && t3.sahnalar.find((x) => x.tur === 'ilova').ekran_turi === 'skaner' && t3.sahnalar.find((x) => x.tur === 'skaner').punktlar.length === 3
+    && t3t.at(-1) === 'cta' && /Havolani/.test(t3.sahnalar.at(-1).kichik), t3t.join(','));
+  test('aralash reja: hafta kuni bo‘yicha tur', R.bugungiTur(new Date('2026-10-19T08:00:00Z')) === 'mahsulot'
+    && R.bugungiTur(new Date('2026-10-22T08:00:00Z')) === 'skaner' && R.bugungiTur(new Date('2026-10-23T08:00:00Z')) === 'aksiya');
+  test('mahsulotsiz turlarda mahsulot shart emas', Object.entries(R.VIDEO_TURLARI).filter(([, v]) => v.mahsulot).map(([k]) => k).join() === 'mahsulot');
   const adm = fsK.readFileSync('src/bot/handlers/admin.js', 'utf8');
+  test('/reels <tur> — botdan istalgan turdagi video', /case '\/reels':\s+await reelsYasash\(chatId, argument\)/.test(adm));
   test('botda «♻️ Shu mahsulot, boshqa hikoya» (rl_qayta)', /d\.startsWith\('rl_qayta:'\)/.test(adm) && /R\.qaytaYasa\(id\)/.test(adm));
   const aj = fsK.readFileSync('public/admin/admin.js', 'utf8');
   test('admin panel: Reels studiya bo‘limi va sahna muharriri', /reels:\s+\{ nom: 'Reels studiya'/.test(aj) && /function reelsMuharrir/.test(aj)

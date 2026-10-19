@@ -5739,10 +5739,13 @@ function qollanma() {
 const REELS_HOLAT = { tayyorlanmoqda: '⏳ yasalmoqda', tayyor: '🟡 tasdiq kutmoqda', joylanmoqda: '⏳ joylanmoqda',
   joylandi: '✅ joylandi', xato: '⚠️ xato', bekor: '✖ bekor' };
 const RL_SAHNA = { hook: '🎣 Hook (birinchi soniya)', muammo: '😩 Muammo', kashfiyot: '✨ Mahsulot ochilishi', foyda: '✅ 3 ta foyda',
-  natija: '🤩 Natija', sharh: '⭐ Haqiqiy sharh', narx: '💰 Narx (bazadan)', cta: '📣 Chaqiriq', hikoya: '💬 Hikoya lahzasi' };
+  natija: '🤩 Natija', sharh: '⭐ Haqiqiy sharh', narx: '💰 Narx (bazadan)', cta: '📣 Chaqiriq', hikoya: '💬 Hikoya lahzasi',
+  matn: '🔠 Kinetik matn', oyna: '🖥 Ilova oynasi (yozish + kursor)', chat: '💬 Chat suhbati', skaner: '📸 Yuz skaneri',
+  ilova: '📱 Telefonda ilova', royxat: '☑️ Ro‘yxat (✓ bilan)', taqqos: '⚖️ Noto‘g‘ri / To‘g‘ri', bosqich: '🔢 Bosqichlar', aksiya: '🔥 Aksiya kartochkalari' };
+const RL_EKRAN = { skaner: 'Skaner', dokon: 'Do‘kon', mahsulot: 'Mahsulot', savat: 'Savat', maslahat: 'Maslahat' };
 const RL_HISSIYOT = { '': 'avto', oddiy: 'oddiy', xursand: 'xursand', hayron: 'hayron', xafa: 'xafa', oylash: 'o‘ylayapti', hayajon: 'hayajon' };
 const RL_IMO = { '': 'avto', tinch: 'tinch', silkit: 'qo‘l silkitadi', korsat: 'ko‘rsatadi', ushlab: 'qo‘lida ushlaydi',
-  oylash: 'iyagini ushlaydi', yelka: 'yelka qisadi', hayajon: 'qo‘llar tepada', yuz: 'yuzini ushlaydi' };
+  oylash: 'iyagini ushlaydi', yelka: 'yelka qisadi', hayajon: 'qo‘llar tepada', yuz: 'yuzini ushlaydi', tepaga: 'barmoq tepaga' };
 const RL_OVOZLAR = ['avto', 'Leda', 'Kore', 'Aoede', 'Zephyr', 'Despina', 'Sulafat', 'Puck', 'Charon', 'Fenrir', 'Orus', 'Achird'];
 const opsiya = (obj, tanlangan) => Object.entries(obj).map(([k, v]) =>
   `<option value="${esc(k)}" ${String(tanlangan ?? '') === k ? 'selected' : ''}>${esc(v)}</option>`).join('');
@@ -5770,6 +5773,7 @@ async function reelsBolimi() {
       <div class="karta-bosh"><h2>➕ Yangi video</h2></div>
       <p class="mayda" style="margin:0 0 10px">AI rejissyor hikoya yozadi, qahramon gapiradi — 2–3 daqiqada video
         Telegram’ga «✅ Joylash» tugmasi bilan keladi va shu yerda ham chiqadi.</p>
+      <div><label>Video turi</label><select id="rl-tur">${opsiya({ '': `Sozlamadagidek (bugun: ${j.turlar[j.bugungi_tur] || j.bugungi_tur})`, ...j.turlar }, '')}</select></div>
       <div class="forma-tor">
         <div><label>Mahsulot</label><select id="rl-m"><option value="">🎲 Navbatdagisi (avto)</option>
           ${(j.mahsulotlar || []).map((m) => `<option value="${m.id}">${esc([m.brand, m.nom_uz || m.name].filter(Boolean).join(' '))}</option>`).join('')}</select></div>
@@ -5785,15 +5789,16 @@ async function reelsBolimi() {
       ${(j.oxirgilar || []).map((r) => `
         <div class="rl-qator" style="padding:9px 0;border-bottom:1px solid var(--chiziq)">
           <div style="display:flex;gap:8px;align-items:center">
-            <div style="flex:1;min-width:0"><b style="font-size:13.5px">#${r.id} · ${esc([r.brand, r.nom_uz || r.name].filter(Boolean).join(' ') || '—')}</b>
+            <div style="flex:1;min-width:0"><b style="font-size:13.5px">#${r.id} · ${esc([r.brand, r.nom_uz || r.name].filter(Boolean).join(' ') || r.ssenariy?.sahnalar?.[0]?.ekran || '—')}</b>
               <div class="mayda">${esc(REELS_HOLAT[r.holat] || r.holat)} · ${new Date(r.created_at).toLocaleString('uz-UZ')}${r.soniya ? ` · ${Number(r.soniya).toFixed(0)} s` : ''}
+                ${r.ssenariy?.tur && j.turlar[r.ssenariy.tur] ? ` · ${esc(j.turlar[r.ssenariy.tur])}` : ''}
                 ${r.ssenariy?.qahramon ? ` · ${r.ssenariy.qahramon === 'jasur' ? '👨 Jasur' : '👩 Nigina'}` : ''}${r.ssenariy?.format && j.formatlar[r.ssenariy.format] ? ` · ${esc(r.ssenariy.format)}` : ''}
                 ${r.xato ? `<br><span style="color:var(--qizil)">${esc(String(r.xato).slice(0, 160))}</span>` : ''}</div></div>
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
             ${r.video_id ? `<button class="tug kichik" data-rl-kor="${esc(r.video_id)}">▶ Ko‘rish</button>` : ''}
             ${r.ssenariy?.sahnalar ? `<button class="tug kichik" data-rl-tahrir="${r.id}">✏️ Tahrirlash</button>` : ''}
-            ${r.product_id ? `<button class="tug kichik" data-rl-qayta="${r.id}">♻️ Boshqa hikoya</button>` : ''}
+            ${r.product_id || r.ssenariy?.tur ? `<button class="tug kichik" data-rl-qayta="${r.id}">♻️ Boshqa hikoya</button>` : ''}
             ${r.video_id && r.holat !== 'joylandi' ? `<button class="tug kichik" data-rl-botga="${r.id}">📲 Telegram’ga</button>` : ''}
             ${['tayyor', 'xato', 'bekor'].includes(r.holat) && r.video_id ? `<button class="tug kichik asos" data-rl-joyla="${r.id}">✅ Joylash</button>` : ''}
             ${r.permalink ? `<a class="tug kichik" href="${esc(r.permalink)}" target="_blank" rel="noopener">Instagram’da</a>` : ''}
@@ -5809,6 +5814,13 @@ async function reelsBolimi() {
         <div><label>Soat (Toshkent)</label><input id="rl-soat" type="number" min="0" max="23" value="${Number(s.soat)}"></div>
         <div><label>Rejim</label><select id="rl-rejim">${opsiya({ tasdiq: 'Avval menga ko‘rsatsin (tavsiya)', avto: 'O‘zi joylaydi' }, s.rejim)}</select></div>
       </div>
+      <div class="forma-tor">
+        <div><label>Har kungi video turi</label><select id="rl-kuntur">${opsiya({ aralash: '🎲 Aralash (hafta rejasi)',
+          ...Object.fromEntries(Object.entries(j.turlar).filter(([k]) => k !== 'erkin')) }, s.tur)}</select></div>
+        <div><label>Subtitr uslubi</label><select id="rl-subu">${opsiya({ karaoke: 'Karaoke (katta, rangli so‘z)', chip: 'Qora yorliq (chip)', oddiy: 'Oddiy' }, s.subtitr_uslub)}</select></div>
+      </div>
+      <p class="mayda" style="margin:0 0 8px">Aralash reja: Du — mahsulot, Se — foydali maslahat, Ch — mahsulot, Pa — skaner,
+        Ju — aksiya (chegirma bo‘lmasa mahsulot), Sh — mahsulot, Ya — AI maslahatchi.</p>
       <div class="forma-tor">
         <div><label>Uslub</label><select id="rl-uslub">${opsiya({ hikoya: '🎭 Hikoya — qahramon gapiradi', reklama: '🛍 Reklama — qahramonsiz' }, s.uslub)}</select></div>
         <div><label>Qahramon</label><select id="rl-qah">${opsiya({ navbat: '🔁 Navbat bilan', nigina: '👩 Nigina', jasur: '👨 Jasur (doppili)' }, s.qahramon)}</select></div>
@@ -5849,14 +5861,15 @@ async function reelsBolimi() {
         musiqa_baland: Number($('#rl-bal').value), subtitr: $('#rl-sub').checked, sfx: $('#rl-sfx').checked,
         narx_korsat: $('#rl-narx').checked, ovozli: $('#rl-ovozli').checked, ovoz: $('#rl-ovoz').value,
         ovoz_model: $('#rl-model').value.trim(), ovoz_uslubi: $('#rl-ouslub').value.trim(),
-        yoriqnoma: $('#rl-yor').value.trim(), motor: $('#rl-motor').value }) });
+        yoriqnoma: $('#rl-yor').value.trim(), motor: $('#rl-motor').value,
+        tur: $('#rl-kuntur').value, subtitr_uslub: $('#rl-subu').value }) });
       tost('Reels sozlamasi saqlandi');
     } catch (e) { tost(e.message, 'xato'); }
   };
   $('#rl-yasa').onclick = async () => {
     try {
       await api('/api/admin/reels/sinov', { method: 'POST', body: JSON.stringify({
-        product_id: Number($('#rl-m').value) || null, qahramon: $('#rl-q').value || null,
+        tur: $('#rl-tur').value || null, product_id: Number($('#rl-m').value) || null, qahramon: $('#rl-q').value || null,
         format: $('#rl-f').value || null, goya: $('#rl-g').value.trim() }) });
       tost('Video tayyorlanmoqda — 2–3 daqiqada Telegram’ga keladi'); setTimeout(reelsBolimi, 5000);
     } catch (e) { tost(e.message, 'xato'); }
@@ -5919,18 +5932,35 @@ function reelsMuharrir(id) {
       ${x.tur === 'muammo' ? `<label>Muammolar (vergul bilan)</label><input data-k="belgilar" value="${esc((x.belgilar || []).join(', '))}">` : ''}
       ${x.tur === 'natija' ? `<div class="forma-tor"><div><label>Raqam (ixtiyoriy)</label><input data-k="raqam" maxlength="6" value="${esc(x.raqam || '')}"></div>
         <div><label>Birlik</label><input data-k="birlik" maxlength="16" value="${esc(x.birlik || '')}"></div></div>` : ''}
+      ${['skaner', 'royxat', 'bosqich'].includes(x.tur) ? [0, 1, 2, 3, 4].slice(0, x.tur === 'skaner' ? 3 : x.tur === 'bosqich' ? 4 : 5).map((k) => `<div class="forma-tor">
+        <div style="flex:3"><label>${x.tur === 'skaner' ? 'Ko‘rsatkich' : x.tur === 'bosqich' ? 'Qadam' : 'Band'} ${k + 1}</label><input data-p="${k}" data-pk="matn" maxlength="46" value="${esc(x.punktlar?.[k]?.matn || '')}"></div>
+        <div><label>Emoji</label><input data-p="${k}" data-pk="emoji" maxlength="8" value="${esc(x.punktlar?.[k]?.emoji || '')}"></div></div>`).join('') : ''}
+      ${['oyna', 'chat', 'royxat'].includes(x.tur) ? `<label>Oyna sarlavhasi</label><input data-k="sarlavha" maxlength="30" value="${esc(x.sarlavha || '')}">` : ''}
+      ${x.tur === 'oyna' ? `<div class="forma-tor"><div><label>Yoziladigan matn</label><input data-k="yozuv" maxlength="40" value="${esc(x.yozuv || '')}"></div>
+        <div><label>Natija nomi</label><input data-k="natija" maxlength="40" value="${esc(x.natija || '')}"></div></div>
+        <div class="forma-tor"><div><label>Natija izohi</label><input data-k="izohcha" maxlength="50" value="${esc(x.izohcha || '')}"></div>
+        <div><label>Tugma</label><input data-k="tugma" maxlength="16" value="${esc(x.tugma || '')}"></div>
+        <div><label>Bosilgandan keyin</label><input data-k="tayyor" maxlength="16" value="${esc(x.tayyor || '')}"></div></div>` : ''}
+      ${x.tur === 'chat' ? `<label>Xabarlar (har qatorda bittasi: «mijoz: …» yoki «ai: …»)</label>
+        <textarea data-k="xabarlar" rows="4">${esc((x.xabarlar || []).map((m) => `${m.kim}: ${m.matn}`).join('\n'))}</textarea>` : ''}
+      ${x.tur === 'taqqos' ? `<label>Noto‘g‘ri (vergul bilan)</label><input data-k="yomon" value="${esc((x.yomon || []).join(', '))}">
+        <label>To‘g‘ri (vergul bilan)</label><input data-k="yaxshi" value="${esc((x.yaxshi || []).join(', '))}">` : ''}
+      ${x.tur === 'ilova' ? `<label>Ilova ekrani</label><select data-k="ekran_turi">${opsiya(RL_EKRAN, x.ekran_turi || 'skaner')}</select>` : ''}
     </div>`;
   const yigish = () => {
     $$('#rl-sahnalar [data-i]').forEach((el) => {
       const x = ss.sahnalar[Number(el.dataset.i)];
       $$('[data-k]', el).forEach((f) => {
         const v = f.value.trim();
-        if (f.dataset.k === 'belgilar') x.belgilar = v.split(',').map((q) => q.trim()).filter(Boolean).slice(0, 3);
-        else x[f.dataset.k] = v || undefined;
+        if (['belgilar', 'yomon', 'yaxshi'].includes(f.dataset.k)) x[f.dataset.k] = v.split(',').map((q) => q.trim()).filter(Boolean).slice(0, 3);
+        else if (f.dataset.k === 'xabarlar') {
+          x.xabarlar = v.split('\n').map((q) => /^\s*(mijoz|ai)\s*:\s*(.+)$/i.exec(q)).filter(Boolean)
+            .map((m) => ({ kim: m[1].toLowerCase(), matn: m[2].trim() })).slice(0, 4);
+        } else x[f.dataset.k] = v || undefined;
       });
       if ($('[data-p]', el)) {
-        x.punktlar = [0, 1, 2].map((k) => ({ matn: $(`[data-p="${k}"][data-pk="matn"]`, el).value.trim(),
-          emoji: $(`[data-p="${k}"][data-pk="emoji"]`, el).value.trim() })).filter((q) => q.matn);
+        x.punktlar = $$('[data-pk="matn"]', el).map((f) => ({ matn: f.value.trim(),
+          emoji: $(`[data-p="${f.dataset.p}"][data-pk="emoji"]`, el).value.trim() })).filter((q) => q.matn);
       }
     });
     ss.qahramon = $('#rl-e-q').value || null;

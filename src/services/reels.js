@@ -1,4 +1,11 @@
-// KUNLIK REELS — AI har kuni bitta mahsulot videosini yasaydi va Instagram'ga joylaydi.
+// KUNLIK REELS — AI har kuni bitta video yasaydi va Instagram'ga joylaydi.
+//
+// Reels 3.0 — video TURLARI (faqat reklama emas):
+//   mahsulot — mahsulot hikoyasi; skaner / maslahat / buyurtma — ilova haqida
+//   (oynada matn yoziladi, kursor bosadi, chat, yuz skaneri, telefonda haqiqiy
+//   skrinshot); foydali — teri parvarishi bo'yicha maslahat; aksiya — bazadagi
+//   chegirmalar; erkin — admin g'oyasi. «aralash» jadvalda hafta kunlari bo'yicha
+//   almashadi.
 //
 // Reels 2.0 (src/video/kino): animatsion HIKOYA video —
 //   AI rejissyor hikoya formatini tanlaydi va sahnalarni yozadi (hook → muammo →
@@ -31,9 +38,37 @@ export const USLUBLAR = ['hikoya', 'reklama'];
 export const QAHRAMON_TANLOV = ['navbat', 'nigina', 'jasur'];
 export const MAVZU_TANLOV = ['brend', 'pastel', 'tungi', 'yorqin', 'aralash'];
 export const MUSIQA_TANLOV = ['quvnoq', 'lofi', 'hissiy', 'energiya', 'aralash', 'yoq'];
-const SAHNA = ['hook', 'muammo', 'kashfiyot', 'foyda', 'natija', 'sharh', 'narx', 'cta', 'hikoya'];
+const SAHNA = ['hook', 'muammo', 'kashfiyot', 'foyda', 'natija', 'sharh', 'narx', 'cta', 'hikoya',
+  'matn', 'oyna', 'chat', 'skaner', 'ilova', 'royxat', 'taqqos', 'bosqich', 'aksiya'];
+const MAHSULOT_SAHNA = ['kashfiyot', 'foyda', 'narx', 'sharh'];          // mahsulotsiz videoda bo'lmaydi
 const HISSIYOT = ['oddiy', 'xursand', 'hayron', 'xafa', 'oylash', 'hayajon'];
-const IMO = ['tinch', 'silkit', 'korsat', 'ushlab', 'oylash', 'yelka', 'hayajon', 'yuz'];
+const IMO = ['tinch', 'silkit', 'korsat', 'ushlab', 'oylash', 'yelka', 'hayajon', 'yuz', 'tepaga'];
+const EKRANLAR = ['skaner', 'dokon', 'mahsulot', 'savat', 'maslahat'];   // public/uy/ilova-*.jpg
+
+/** Video turlari: nima haqida, qaysi sahnalar, mahsulot kerakmi. */
+export const VIDEO_TURLARI = {
+  mahsulot: { nom: '🛍 Mahsulot hikoyasi', mahsulot: true,
+    sahnalar: ['hook', 'muammo', 'kashfiyot', 'foyda', 'natija', 'sharh', 'narx', 'cta', 'hikoya', 'matn', 'taqqos', 'royxat'],
+    mavzu: 'bitta mahsulotni hikoya orqali sotish' },
+  skaner: { nom: '📸 Yuz skaneri (ilova)', mahsulot: false,
+    sahnalar: ['hook', 'matn', 'muammo', 'oyna', 'skaner', 'royxat', 'ilova', 'natija', 'chat', 'hikoya', 'cta'],
+    mavzu: 'KiOVO botidagi bepul YUZ SKANERI: selfi → AI teri turini va muammolarni aniqlaydi → mos parvarish tuzadi. Tomoshabin skanerni sinab ko‘rsin' },
+  maslahat: { nom: '💬 AI maslahatchi (ilova)', mahsulot: false,
+    sahnalar: ['hook', 'matn', 'muammo', 'chat', 'oyna', 'ilova', 'royxat', 'hikoya', 'cta'],
+    mavzu: 'KiOVO ilovasidagi AI MASLAHATCHI: teri haqida yozib so‘raysiz, rasm yuborsangiz ham bo‘ladi, darrov mos parvarish va mahsulot aytadi' },
+  buyurtma: { nom: '📦 Qanday buyurtma beriladi', mahsulot: false,
+    sahnalar: ['hook', 'matn', 'bosqich', 'oyna', 'ilova', 'royxat', 'hikoya', 'cta'],
+    mavzu: 'KiOVO dan buyurtma berish qadamlari — oson va tez ekanini ko‘rsatish' },
+  foydali: { nom: '💡 Foydali maslahat', mahsulot: false,
+    sahnalar: ['hook', 'matn', 'muammo', 'taqqos', 'bosqich', 'royxat', 'hikoya', 'natija', 'cta'],
+    mavzu: 'teri parvarishi bo‘yicha FOYDALI maslahat (ta’lim): odamlar saqlab qo‘yadigan, ulashadigan video. Sotuvga majburlamaydi' },
+  aksiya: { nom: '🔥 Aksiya / chegirmalar', mahsulot: false,
+    sahnalar: ['hook', 'matn', 'aksiya', 'hikoya', 'natija', 'cta'],
+    mavzu: 'bugungi chegirmadagi mahsulotlar (bazadan) — tez harakat qilishga undash' },
+  erkin: { nom: '✨ Erkin g‘oya', mahsulot: false, sahnalar: SAHNA, mavzu: 'admin g‘oyasi bo‘yicha' },
+};
+// «aralash» jadval: hafta kuni (0 — yakshanba) → video turi
+const HAFTA_REJASI = ['maslahat', 'mahsulot', 'foydali', 'mahsulot', 'skaner', 'aksiya', 'mahsulot'];
 // Qahramonga mos ovoz (Gemini TTS ovozlari) va o'qish uslubi
 const QAHRAMON_OVOZI = {
   nigina: { ovoz: 'Leda', uslub: 'Speak like a cheerful young Uzbek woman telling a short personal story to a close friend: lively, warm, expressive, natural pace.' },
@@ -47,6 +82,8 @@ export const STANDART = {
   uslub: 'hikoya', qahramon: 'navbat', format: 'aralash', mavzu: 'brend',
   musiqa: 'aralash', musiqa_baland: 35, sfx: true, subtitr: true, narx_korsat: true,
   davomiylik: 30, yoriqnoma: '',
+  tur: 'aralash',           // har kungi video turi: aralash (hafta rejasi) yoki VIDEO_TURLARI dan biri
+  subtitr_uslub: 'karaoke', // karaoke | chip | oddiy
 };
 const QULF = 774411;                         // advisory lock — ikki nusxa bir vaqtda yasamasin
 
@@ -76,6 +113,8 @@ export function sozlamaTozala(s = {}, eski = STANDART) {
     narx_korsat: bool(r.narx_korsat, true),
     davomiylik: [15, 30, 45].includes(Number(r.davomiylik)) ? Number(r.davomiylik) : 30,
     yoriqnoma: String(r.yoriqnoma || '').trim().slice(0, 800),
+    tur: tanlov(r.tur, ['aralash', ...Object.keys(VIDEO_TURLARI).filter((k) => k !== 'erkin')], 'aralash'),
+    subtitr_uslub: tanlov(r.subtitr_uslub, ['karaoke', 'chip', 'oddiy'], 'karaoke'),
   };
 }
 
@@ -143,6 +182,16 @@ const SXEMA = {
           punktlar: { type: 'array', items: { type: 'object', properties: { matn: { type: 'string' }, emoji: { type: 'string' } }, required: ['matn'] } },
           raqam: { type: 'string' },
           birlik: { type: 'string' },
+          sarlavha: { type: 'string' },
+          yozuv: { type: 'string' },
+          natija: { type: 'string' },
+          izohcha: { type: 'string' },
+          tugma: { type: 'string' },
+          tayyor: { type: 'string' },
+          ekran_turi: { type: 'string', enum: EKRANLAR },
+          xabarlar: { type: 'array', items: { type: 'object', properties: { kim: { type: 'string', enum: ['mijoz', 'ai'] }, matn: { type: 'string' } }, required: ['kim', 'matn'] } },
+          yomon: { type: 'array', items: { type: 'string' } },
+          yaxshi: { type: 'array', items: { type: 'string' } },
         },
         required: ['tur', 'ovoz', 'ekran', 'urgu', 'emoji', 'hissiyot', 'imo'],
       },
@@ -163,24 +212,56 @@ async function oxirgiFormatlar(n = 4) {
 const toza = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 const bitEmoji = (v) => [...String(v || '').trim()].slice(0, 4).join('');
 
+// Sahna turlari — AI ga tushuntirish (faqat shu videoda ruxsat etilganlari yuboriladi)
+const SAHNA_TAVSIF = {
+  hook: 'hook — 1-sahna, MAJBURIY. ekran: 2–5 so‘zli kutilmagan gap («Sotib olish shart emas»), kichik: 2–5 so‘zli davomi.',
+  muammo: 'muammo — belgilar: 2–3 ta qisqa muammo (2–3 so‘z).',
+  kashfiyot: 'kashfiyot — mahsulot birinchi ko‘rinadi. ekran: «Keyin buni topdim» kabi.',
+  foyda: 'foyda — punktlar: ROPPA-ROSA 3 ta {matn: 3–5 so‘z, emoji}. Faqat tavsif/tarkibdagi faktlar.',
+  natija: 'natija — his-tuyg‘u va natija (halol, va’dasiz). raqam/birlik — FAQAT faktlarda bo‘lsa, aks holda bo‘sh.',
+  sharh: 'sharh — FAQAT haqiqiy sharh bo‘lsa.',
+  narx: 'narx — narx bazadan ko‘rsatiladi; ekran: «Bugun chegirmada» kabi, ovozda raqam aytma.',
+  hikoya: 'hikoya — qahramonning nutq pufagi (ekran — pufakdagi gap).',
+  matn: 'matn — kinetik tipografiya: ekran 2–6 so‘z KATTA harflar bilan so‘zma-so‘z urilib chiqadi (kuchli urg‘u lahzasi).',
+  oyna: 'oyna — ilova oynasi animatsiyasi: sarlavha (oyna nomi, masalan «KiOVO bot»), ekran (bo‘lim nomi), kichik (1 qator izoh), yozuv (qidiruv/xabar maydoniga YOZILADIGAN 2–5 so‘z), natija (chiqqan natija nomi), izohcha (natija ostidagi izoh), tugma (1–2 so‘z), tayyor (bosilgandan keyingi 1–2 so‘z). Kursor kelib tugmani bosadi.',
+  chat: 'chat — suhbat animatsiyasi: xabarlar 2–3 ta {kim: mijoz|ai, matn ≤ 14 so‘z}; ai javobi «yozmoqda…» dan keyin yoziladi. sarlavha — chat nomi.',
+  skaner: 'skaner — yuz skaneri animatsiyasi (skan chizig‘i, yuz nuqtalari, topilgan joylar); punktlar: 3 ta ko‘rsatkich nomi {matn: 1–2 so‘z, emoji} (Namlik, Yog‘lilik, Teshiklar…).',
+  ilova: 'ilova — telefonda ilovaning HAQIQIY skrinshoti; ekran_turi: skaner|dokon|mahsulot|savat|maslahat; ekran — tepadagi sarlavha, kichik — pastdagi izoh.',
+  royxat: 'royxat — bajarilayotgan ishlar ro‘yxati (har biri ✓ bilan yonadi): sarlavha + punktlar 3–5 ta {matn: 2–5 so‘z}.',
+  taqqos: 'taqqos — ikki ustun: yomon (2–3 noto‘g‘ri odat) va yaxshi (2–3 to‘g‘ri odat), har biri 2–4 so‘z.',
+  bosqich: 'bosqich — raqamli qadamlar: punktlar 3–4 ta {matn: 2–5 so‘z, emoji}.',
+  aksiya: 'aksiya — chegirmadagi mahsulot kartochkalari (rasm va narx bazadan); ekran — sarlavha («Bugungi chegirmalar»).',
+  cta: 'cta — oxirgi sahna, MAJBURIY. ekran: «Izohga «+» yozing».',
+};
+
+// Ilova haqida haqiqiy faktlar (AI o'ylab topmasin)
+const ILOVA_FAKT = `ILOVA FAKTLARI (faqat shularga tayan):
+- KiOVO — Telegram bot va Mini App (Telegram ichida ochiladi), Android ilova ham bor.
+- 📸 Yuz skaneri: selfi yuborasiz → AI teri turini (yog‘li, quruq, aralash, sezgir) va muammolarni (yog‘lilik, quruqlik,
+  husnbuzar, pigment, teshiklar, qizarish) aniqlaydi → ertalabki va kechki parvarishni katalogdagi mahsulotlardan tuzadi.
+  Natija rasm bilan Telegramda keladi, tavsiyalar bir bosishda savatga qo‘shiladi. Bepul (kunlik cheklov bor).
+- 💬 AI maslahatchi: teri haqida yozib so‘raysiz (rasm ham yuborsa bo‘ladi) — darrov mos parvarish va mahsulot aytadi.
+- 💄 «Mening rangim»: selfidan mos makiyaj ranglari.
+- 🛍 Do‘kon: katalog, qidiruv, aksiyalar; buyurtma: Savat → Rasmiylashtirish → viloyat, manzil, yetkazish turi
+  (pochta filiali yoki uygacha) → narx og‘irlikka qarab o‘zi hisoblanadi → tasdiqlash → kartaga to‘lab chek yuklaysiz.
+- Yetkazish O‘zbekiston bo‘ylab pochta orqali.`;
+
 /**
- * AI rejissyor: hikoya formati + sahnalar + Instagram izohi.
- * @param {object} p mahsulot qatori
+ * AI rejissyor: video turi + hikoya formati → sahnalar + Instagram izohi.
+ * @param {object|null} p mahsulot qatori (mahsulotsiz turlarda null bo'lishi mumkin)
  * @param {object} st sozlamalar
- * @param {{goya?: string, format?: string, qahramon?: string|null, sharhlar?: object[]}} o
+ * @param {{tur?: string, goya?: string, format?: string, qahramon?: string|null, sharhlar?: object[], aksiya?: object[]}} o
  */
-export async function ssenariyYoz(p, st, { goya = '', format = null, qahramon = null, sharhlar = [] } = {}) {
+export async function ssenariyYoz(p, st, { tur = 'mahsulot', goya = '', format = null, qahramon = null, sharhlar = [], aksiya = [] } = {}) {
   const { aiJson } = await import('../ai/index.js');
-  const m = mahsulotMalumoti(p);
+  const VT = VIDEO_TURLARI[tur] || VIDEO_TURLARI.mahsulot;
+  const m = p ? mahsulotMalumoti(p) : null;
+  const ruxsat = ruxsatSahnalar(tur, { mahsulotBor: Boolean(p), aksiyaBor: aksiya.length > 0, sharhBor: sharhlar.length > 0, st });
   const sozSoni = { 15: '30–40', 30: '60–80', 45: '95–120' }[st.davomiylik] || '60–80';
   const sahnaSoni = { 15: '4–5', 30: '6–8', 45: '8–9' }[st.davomiylik] || '6–8';
   const shaxs = qahramon === 'jasur' ? 'Jasur — doppili, quvnoq o‘zbek yigiti (erkaklar parvarishi haqida erkakcha gapiradi)'
     : qahramon === 'nigina' ? 'Nigina — do‘kon yordamchisi, quvnoq o‘zbek qizi' : null;
-  const j = await aiJson([{ text: `Sen KiOVO (Koreya kosmetikasi, O'zbekiston) Instagram sahifasining REJISSYORISAN.
-Animatsion HIKOYA-Reels ssenariysini yozasan: ${shaxs ? `multfilm qahramon ${shaxs} BIRINCHI SHAXSDA hikoya qiladi` : 'diktor gapiradi, ekranda kinetik matn va mahsulot'}.
-Maqsad — odam videoni oxirigacha ko'rsin va izohga «+» yozsin.
-
-MAHSULOT (faqat shu faktlar — o'ylab topma):
+  const mahsulotBlok = m ? `MAHSULOT (faqat shu faktlar — o'ylab topma)${tur === 'mahsulot' ? '' : ' — ixtiyoriy: oxirida yechim sifatida eslatsang bo‘ladi'}:
 - nom: ${m.brend ? m.brend + ' ' : ''}${m.nom}${m.hajm ? ` (${m.hajm})` : ''}
 - tavsif: ${String(p.description || '').slice(0, 700)}
 - faol moddalar: ${(p.actives || []).join(', ') || '—'}
@@ -190,82 +271,122 @@ MAHSULOT (faqat shu faktlar — o'ylab topma):
 - narx: ${m.narx}${m.chegirma ? ` (chegirma ${m.chegirma}, eski narx ${m.eskiNarx})` : ''}
 - reyting: ${m.reytingMatn || '—'}
 - haqiqiy sharhlar: ${sharhlar.length ? sharhlar.map((x) => `«${x.matn}» (${x.baho}★)`).join('; ') : 'YO‘Q'}
+` : '';
+  const aksiyaBlok = aksiya.length ? `CHEGIRMADAGI MAHSULOTLAR (bazadan, kartochkada ko'rinadi — ovozda narx aytma):
+${aksiya.map((a) => `- ${a.nom}: ${a.narx} (eski ${a.eskiNarx}, ${a.chegirma})`).join('\n')}
+` : '';
+  const ilovaBlok = ['skaner', 'maslahat', 'buyurtma', 'erkin'].includes(tur) ? `${ILOVA_FAKT}\n` : '';
+  const ctaKichik = tur === 'mahsulot' ? 'Narx va maslahat — Direct’da' : 'Havolani Direct’ga yuboramiz';
+  const j = await aiJson([{ text: `Sen KiOVO (Koreya kosmetikasi, O'zbekiston) Instagram sahifasining REJISSYORISAN.
+Animatsion Reels ssenariysini yozasan: ${shaxs ? `multfilm qahramon ${shaxs} BIRINCHI SHAXSDA hikoya qiladi` : 'diktor gapiradi, ekranda kinetik matn va animatsiya'}.
+VIDEO TURI: ${VT.nom} — ${VT.mavzu}.
+Maqsad — odam videoni oxirigacha ko'rsin, saqlab qo'ysin va izohga «+» yozsin.
 
-HIKOYA FORMATI: ${format ? `${format} — ${FORMATLAR[format]}` : 'o‘zing tanla'}
+${mahsulotBlok}${aksiyaBlok}${ilovaBlok}HIKOYA FORMATI: ${format ? `${format} — ${FORMATLAR[format]}` : 'o‘zing tanla'}
 ${goya ? `ADMIN G'OYASI (albatta shunga amal qil): ${toza(goya, 400)}\n` : ''}${st.yoriqnoma ? `DOIMIY YO'RIQNOMA: ${st.yoriqnoma}\n` : ''}
-SAHNALAR (${sahnaSoni} ta, tartib bilan). Turlar:
-- hook — 1-sahna, MAJBURIY. ekran: 2–5 so'zli kutilmagan gap (masalan «Sotib olish shart emas»), kichik: 2–5 so'zli davomi.
-- muammo — belgilar: 2–3 ta qisqa muammo (2–3 so'z).
-- kashfiyot — mahsulot birinchi ko'rinadi, MAJBURIY. ekran: «Keyin buni topdim» kabi.
-- foyda — punktlar: ROPPA-ROSA 3 ta {matn: 3–5 so'z, emoji}. Faqat tavsif/tarkibdagi faktlar.
-- natija — his-tuyg'u va natija (halol, va'dasiz). raqam/birlik — FAQAT mahsulot ma'lumotida bo'lsa (masalan qo'llash soni), aks holda bo'sh.
-- sharh — FAQAT haqiqiy sharh bo'lsa${sharhlar.length ? '' : ' (hozir YO‘Q — bu turni ishlatma)'}.
-- narx — narx bazadan ko'rsatiladi${st.narx_korsat ? '' : ' (bu safar narx sahnasini QO‘SHMA)'}; ekran: «Bugun chegirmada» kabi, ovozda raqam aytma.
-- hikoya — qahramonning nutq pufagi (qo'shimcha hikoya lahzasi).
-- cta — oxirgi sahna, MAJBURIY. ekran: «Izohga «+» yozing», kichik: «Narx va maslahat — Direct’da».
+SAHNALAR (${sahnaSoni} ta, tartib bilan, turlarni ARALASHTIR — bir xil ko'rinish ketma-ket kelmasin). Faqat shu turlar:
+${ruxsat.map((k) => `- ${SAHNA_TAVSIF[k]}`).join('\n')}
 
 Har sahnada:
 - ovoz — qahramon aytadigan gap, 6–20 so'z, jonli og'zaki o'zbek tili (do'stiga gapirgandek), raqamlarni so'z bilan yoz,
-  belgilar (+, %, —) ishlatma. Jami ovoz: ${sozSoni} so'z. cta ovozi: «Izohga plyus yozing — narx va maslahatni Direct'ga yuboraman».
+  belgilar (+, %, —) ishlatma. Jami ovoz: ${sozSoni} so'z. cta ovozi: «Izohga plyus yozing — ${tur === 'mahsulot' ? 'narx va maslahatni' : 'havolani'} Direct'ga yuboraman».
 - ekran — ekrandagi katta matn, 2–6 so'z (ovozni takrorlamaydi, urg'u beradi). urgu — ekran ichidagi BITTA eng muhim so'z.
 - emoji — bitta mos emoji. hissiyot: ${HISSIYOT.join('/')}. imo (qo'llar): ${IMO.join('/')}.
-Taqiq: kasallikni davolaydi deb va'da berma, «100%», «abadiy», «kafolat» yozma; boshqa brendlarni yomonlama.
+Taqiq: kasallikni davolaydi deb va'da berma, «100%», «abadiy», «kafolat» yozma; boshqa brendlarni yomonlama; faktlarda yo'q narsani aytma.
 
-izoh — Instagram post matni: 2–4 qisqa abzats, hikoya ohangida, 1–3 emoji, oxirida «Izohga «+» yozing — narx va maslahatni Direct'ga yuboramiz 💌». Narxni yozma.
+izoh — Instagram post matni: 2–4 qisqa abzats, hikoya ohangida, 1–3 emoji, oxirida «Izohga «+» yozing — ${tur === 'mahsulot' ? 'narx va maslahatni' : 'havolani'} Direct'ga yuboramiz 💌». Narxni yozma.
 hashtaglar — 6–10 ta, # bilan, bo'sh joy bilan.
 format — tanlagan format kaliti (${Object.keys(FORMATLAR).join('/')}).
+cta kichik matni: «${ctaKichik}».
 Butun javob O'ZBEK tilida (lotin). Faqat JSON.` }], SXEMA,
-  { temperature: 0.9, maxTokens: 3000, qayerda: 'reels', yozuv: true });
-  return ssenariyTozala(j, { st, sharhlar, format, qahramon });
+  { temperature: 0.9, maxTokens: 3500, qayerda: 'reels', yozuv: true });
+  return ssenariyTozala(j, { st, sharhlar, format, qahramon, tur, mahsulotBor: Boolean(p), aksiyaBor: aksiya.length > 0 });
 }
 
+/** Shu video uchun ruxsat etilgan sahna turlari. */
+function ruxsatSahnalar(tur, { mahsulotBor, aksiyaBor, sharhBor = true, st = STANDART }) {
+  const VT = VIDEO_TURLARI[tur] || VIDEO_TURLARI.mahsulot;
+  let r = [...VT.sahnalar];
+  // Mahsulot berilgan foydali/erkin videoda — mahsulot sahnalari ham mumkin
+  if (mahsulotBor && tur !== 'mahsulot') r.push(...MAHSULOT_SAHNA.filter((k) => !r.includes(k)));
+  return r.filter((k) => (mahsulotBor || !MAHSULOT_SAHNA.includes(k)) && (aksiyaBor || k !== 'aksiya')
+    && (sharhBor || k !== 'sharh') && (st.narx_korsat || k !== 'narx'));
+}
+
+const qatorRoyxat = (v, n, uz) => (Array.isArray(v) ? v : []).map((q) => toza(q, uz)).filter(Boolean).slice(0, n);
+
 /** AI javobini (yoki admin tahririni) xavfsiz ko'rinishga keltiradi. */
-export function ssenariyTozala(j, { st = STANDART, sharhlar = [], format = null, qahramon = null } = {}) {
-  let sahnalar = (Array.isArray(j?.sahnalar) ? j.sahnalar : []).map((x) => ({
-    tur: SAHNA.includes(x?.tur) ? x.tur : 'hikoya',
-    ovoz: toza(x?.ovoz, 260),
-    ekran: toza(x?.ekran, 60),
-    kichik: toza(x?.kichik, 70),
-    // urg'u bo'lmasa — ekran matnidagi eng uzun so'z (markerli ko'rinadi)
-    urgu: toza(x?.urgu, 30) || String(x?.ekran || '').split(/\s+/).sort((a, b) => b.length - a.length)[0]?.replace(/[^\p{L}\p{N}‘’'ʻ]/gu, '') || '',
-    emoji: bitEmoji(x?.emoji),
-    hissiyot: HISSIYOT.includes(x?.hissiyot) ? x.hissiyot : undefined,
-    imo: IMO.includes(x?.imo) ? x.imo : undefined,
-    belgilar: (Array.isArray(x?.belgilar) ? x.belgilar : []).map((b) => toza(b, 28)).filter(Boolean).slice(0, 3),
-    punktlar: (Array.isArray(x?.punktlar) ? x.punktlar : []).map((q) => ({ matn: toza(q?.matn ?? q, 46), emoji: bitEmoji(q?.emoji) || '✨' }))
-      .filter((q) => q.matn).slice(0, 3),
-    raqam: toza(x?.raqam, 6),
-    birlik: toza(x?.birlik, 16),
-  })).filter((x) => x.ovoz || x.ekran);
-  // Sharh — faqat haqiqiy sharh bo'lsa (AI to'qigan sharh ko'rsatilmaydi)
+export function ssenariyTozala(j, { st = STANDART, sharhlar = [], format = null, qahramon = null, tur = 'mahsulot',
+  mahsulotBor = tur === 'mahsulot', aksiyaBor = false } = {}) {
   const sharh = sharhlar[0] || null;
-  sahnalar = sahnalar.filter((x) => (x.tur !== 'sharh' || sharh) && (x.tur !== 'narx' || st.narx_korsat));
-  sahnalar.forEach((x) => { if (x.tur === 'sharh') x.sharh = sharh; });
-  // Bitta turdagi sahnalar takrorlanmasin (hikoyadan tashqari)
+  const ruxsat = new Set(ruxsatSahnalar(tur, { mahsulotBor, aksiyaBor, sharhBor: Boolean(sharh), st }));
+  const stdEkran = { skaner: 'skaner', maslahat: 'maslahat', buyurtma: 'dokon' }[tur] || 'dokon';
+  let sahnalar = (Array.isArray(j?.sahnalar) ? j.sahnalar : []).map((x) => {
+    const y = {
+      tur: SAHNA.includes(x?.tur) ? x.tur : 'hikoya',
+      ovoz: toza(x?.ovoz, 260),
+      ekran: toza(x?.ekran, 60),
+      kichik: toza(x?.kichik, 70),
+      // urg'u bo'lmasa — ekran matnidagi eng uzun so'z (markerli ko'rinadi)
+      urgu: toza(x?.urgu, 30) || String(x?.ekran || '').split(/\s+/).sort((a, b) => b.length - a.length)[0]?.replace(/[^\p{L}\p{N}‘’'ʻ]/gu, '') || '',
+      emoji: bitEmoji(x?.emoji),
+      hissiyot: HISSIYOT.includes(x?.hissiyot) ? x.hissiyot : undefined,
+      imo: IMO.includes(x?.imo) ? x.imo : undefined,
+      belgilar: qatorRoyxat(x?.belgilar, 3, 28),
+      punktlar: (Array.isArray(x?.punktlar) ? x.punktlar : []).map((q) => ({ matn: toza(q?.matn ?? q, 46), emoji: bitEmoji(q?.emoji) || '' }))
+        .filter((q) => q.matn).slice(0, 5),
+      raqam: toza(x?.raqam, 6),
+      birlik: toza(x?.birlik, 16),
+    };
+    // Yangi sahnalar maydonlari — faqat kerakli turda
+    if (y.tur === 'oyna') Object.assign(y, { sarlavha: toza(x?.sarlavha, 30), yozuv: toza(x?.yozuv, 40), natija: toza(x?.natija, 40),
+      izohcha: toza(x?.izohcha, 50), tugma: toza(x?.tugma, 16), tayyor: toza(x?.tayyor, 16) });
+    if (y.tur === 'chat') Object.assign(y, { sarlavha: toza(x?.sarlavha, 30), xabarlar: (Array.isArray(x?.xabarlar) ? x.xabarlar : [])
+      .map((q) => ({ kim: q?.kim === 'mijoz' ? 'mijoz' : 'ai', matn: toza(q?.matn, 140) })).filter((q) => q.matn).slice(0, 4) });
+    if (y.tur === 'royxat') y.sarlavha = toza(x?.sarlavha, 30);
+    if (y.tur === 'ilova') y.ekran_turi = EKRANLAR.includes(x?.ekran_turi) ? x.ekran_turi : stdEkran;
+    if (y.tur === 'taqqos') Object.assign(y, { yomon: qatorRoyxat(x?.yomon, 3, 40), yaxshi: qatorRoyxat(x?.yaxshi, 3, 40) });
+    return y;
+  }).filter((x) => x.ovoz || x.ekran);
+  // Mahsulot/sharh/narx/aksiya sahnasi uchun ma'lumot bo'lmasa — sahna butunlay olib tashlanadi
+  // (ovozi «mijozlar maqtashyapti» desa-yu, sharh bo'lmasa — bu yolg'on bo'ladi)
+  sahnalar = sahnalar.filter((x) => ruxsat.has(x.tur) || ![...MAHSULOT_SAHNA, 'aksiya'].includes(x.tur));
+  // Qolgan ruxsatsiz yoki ma'lumoti yetishmagan sahna — kinetik matnga aylanadi (ovoz yo'qolmaydi)
+  for (const x of sahnalar) {
+    const yetarli = (x.tur !== 'chat' || x.xabarlar?.length) && (x.tur !== 'taqqos' || (x.yomon?.length && x.yaxshi?.length))
+      && (!['royxat', 'bosqich'].includes(x.tur) || x.punktlar.length >= 2) && (x.tur !== 'oyna' || x.yozuv);
+    if (!ruxsat.has(x.tur) || !yetarli) x.tur = x.tur === 'hook' || x.tur === 'cta' ? x.tur : 'matn';
+    if (x.tur === 'skaner' && !x.punktlar.length) x.punktlar = [{ matn: 'Namlik', emoji: '💧' }, { matn: 'Yog‘lilik', emoji: '✨' }, { matn: 'Teshiklar', emoji: '🔍' }];
+    if (x.tur === 'sharh') x.sharh = sharh;
+  }
+  // Bitta turdagi sahnalar takrorlanmasin (hikoya va matndan tashqari)
   const bor = new Set();
-  sahnalar = sahnalar.filter((x) => { if (x.tur === 'hikoya') return true; if (bor.has(x.tur)) return false; bor.add(x.tur); return true; });
+  sahnalar = sahnalar.filter((x) => { if (x.tur === 'hikoya' || x.tur === 'matn') return true; if (bor.has(x.tur)) return false; bor.add(x.tur); return true; });
   if (!sahnalar.length || sahnalar[0].tur !== 'hook') {
     const i = sahnalar.findIndex((x) => x.tur === 'hook');
     if (i > 0) sahnalar.unshift(...sahnalar.splice(i, 1));
     else sahnalar.unshift({ tur: 'hook', ekran: 'Buni bilarmidingiz?', kichik: '', ovoz: 'Buni bilarmidingiz?', emoji: '🤫', belgilar: [], punktlar: [] });
   }
-  if (!sahnalar.some((x) => x.tur === 'kashfiyot')) {
+  if (tur === 'mahsulot' && mahsulotBor && !sahnalar.some((x) => x.tur === 'kashfiyot')) {
     sahnalar.splice(Math.min(2, sahnalar.length), 0, { tur: 'kashfiyot', ekran: 'Mana u!', ovoz: 'Mana, men aytgan mahsulot.', emoji: '✨', belgilar: [], punktlar: [] });
   }
+  const ctaKichik = tur === 'mahsulot' ? 'Narx va maslahat — Direct’da' : 'Havolani Direct’ga yuboramiz';
   const ctaI = sahnalar.findIndex((x) => x.tur === 'cta');
-  const cta = ctaI >= 0 ? sahnalar.splice(ctaI, 1)[0] : { tur: 'cta', ekran: 'Izohga «+» yozing', kichik: 'Narx va maslahat — Direct’da',
-    ovoz: 'Izohga plyus yozing — narx va maslahatni Direct’ga yuboraman!', emoji: '💌', belgilar: [], punktlar: [] };
+  const cta = ctaI >= 0 ? sahnalar.splice(ctaI, 1)[0] : { tur: 'cta', ekran: 'Izohga «+» yozing', kichik: ctaKichik,
+    ovoz: `Izohga plyus yozing — ${tur === 'mahsulot' ? 'narx va maslahatni' : 'havolani'} Direct’ga yuboraman!`, emoji: '💌', belgilar: [], punktlar: [] };
   if (!cta.ekran) cta.ekran = 'Izohga «+» yozing';
+  if (!cta.kichik) cta.kichik = ctaKichik;
   sahnalar = [...sahnalar.slice(0, 8), cta];
   for (const x of sahnalar) {
     if (x.tur === 'foyda') {
+      x.punktlar = x.punktlar.slice(0, 3).map((q) => ({ ...q, emoji: q.emoji || '✨' }));
       while (x.punktlar.length < 3) x.punktlar.push([{ matn: 'Koreyadan original', emoji: '🇰🇷' }, { matn: 'Teriga yumshoq', emoji: '🌿' }, { matn: 'Har kuni qulay', emoji: '✨' }][x.punktlar.length]);
     }
     if (!x.ovoz) x.ovoz = x.ekran;
     if (!x.birlik) x.raqam = '';                 // «10» nima ekani aytilmasa — ko'rsatilmaydi
   }
   const izoh = `${String(j?.izoh || '').trim().slice(0, 1800)}\n\n${toza(j?.hashtaglar, 300)}`.trim();
-  return { format: format || (FORMATLAR[j?.format] ? j.format : 'aralash'), qahramon, sahnalar, izoh };
+  return { tur, format: format || (FORMATLAR[j?.format] ? j.format : 'aralash'), qahramon, sahnalar, izoh };
 }
 
 /** Eski shablon uchun (kanvas yo'q bo'lsa): hook, 3 punkt, ovoz. */
@@ -324,10 +445,29 @@ const navbatda = (fn) => {
   return r;
 };
 
+/** «aralash» rejada bugungi video turi (Toshkent hafta kuni bo'yicha). */
+export function bugungiTur(sana = new Date()) {
+  return HAFTA_REJASI[new Date(sana.getTime() + 5 * 3600e3).getUTCDay()];
+}
+
+/** Chegirmadagi mahsulotlar (eng katta chegirma birinchi) — aksiya videosi uchun. */
+async function aksiyaMahsulotlar(n = 4) {
+  const r = await qatorlar(`select * from products where is_active and stock > 0 and poster_id is not null
+     and variant_of is null and old_price > price order by (old_price - price)::float / old_price desc limit $1`, [n]).catch(() => []);
+  const chiq = [];
+  for (const p of r) {
+    const m = mahsulotMalumoti(p);
+    chiq.push({ id: p.id, nom: [m.brend, m.nom].filter(Boolean).join(' '), narx: m.narx, eskiNarx: m.eskiNarx || narxMatni(p.old_price),
+      chegirma: m.chegirma, rasm: await suratBayt(p).catch(() => null) });
+  }
+  return chiq;
+}
+
 /**
  * Video tayyorlaydi (joylamaydi).
  * @param {object} o
- * @param {number} [o.productId]  aniq mahsulot (bo'lmasa — navbatdagisi)
+ * @param {string} [o.tur]        video turi (VIDEO_TURLARI); bo'lmasa — sozlama/hafta rejasi
+ * @param {number} [o.productId]  aniq mahsulot (mahsulot turida bo'lmasa — navbatdagisi)
  * @param {string} [o.manba]      jadval | qolda | tahrir
  * @param {string} [o.goya]       admin g'oyasi (shu video uchun)
  * @param {object} [o.ssenariy]   tayyor (tahrirlangan) ssenariy — AI qayta yozmaydi
@@ -336,21 +476,28 @@ const navbatda = (fn) => {
  * @param {string} [o.sifat]      toliq | sinov
  * @returns {Promise<object>} reels_postlar qatori (holat 'tayyor')
  */
-export async function videoTayyorla({ productId = null, manba = 'jadval', goya = '', ssenariy = null, qahramon = null, format = null, sifat = process.env.REELS_SIFAT || 'toliq' } = {}) {
+export async function videoTayyorla({ tur = null, productId = null, manba = 'jadval', goya = '', ssenariy = null, qahramon = null,
+  format = null, sifat = process.env.REELS_SIFAT || 'toliq' } = {}) {
   const st = await sozlamalar();
-  const p = await mahsulotTanla(productId);
-  if (!p) throw Object.assign(new Error('Video uchun mahsulot yo‘q — omborda bor va surati bor mahsulot kerak.'), { turkum: 'reels' });
-  const r = await qator(`insert into reels_postlar (product_id, manba) values ($1, $2) returning *`, [p.id, manba]);
+  tur = tur || ssenariy?.tur || (ssenariy ? 'mahsulot' : (st.tur === 'aralash' ? bugungiTur() : st.tur));
+  if (!VIDEO_TURLARI[tur]) tur = 'mahsulot';
+  if (tur === 'erkin' && !goya && !ssenariy) throw Object.assign(new Error('Erkin video uchun g‘oya yozing.'), { turkum: 'reels' });
+  const aksiya = tur === 'aksiya' ? await aksiyaMahsulotlar() : [];
+  if (tur === 'aksiya' && !aksiya.length) tur = 'mahsulot';            // chegirma yo'q — oddiy mahsulot videosi
+  const p = VIDEO_TURLARI[tur].mahsulot || productId ? await mahsulotTanla(productId) : null;
+  if (VIDEO_TURLARI[tur].mahsulot && !p) throw Object.assign(new Error('Video uchun mahsulot yo‘q — omborda bor va surati bor mahsulot kerak.'), { turkum: 'reels' });
+  const r = await qator(`insert into reels_postlar (product_id, manba) values ($1, $2) returning *`, [p?.id ?? null, manba]);
   try {
-    const sharhlar = await sharhlarOl(p.id);
+    const sharhlar = p ? await sharhlarOl(p.id) : [];
     const tl = await tanlovlar(st, { qahramon: qahramon ?? ssenariy?.qahramon, format: format ?? ssenariy?.format });
+    const o = { st, sharhlar, tur, mahsulotBor: Boolean(p), aksiyaBor: aksiya.length > 0 };
     const s = ssenariy
-      ? { ...ssenariyTozala(ssenariy, { st, sharhlar, format: ssenariy.format || tl.format, qahramon: tl.qahramon }), izoh: String(ssenariy.izoh || '').slice(0, 2200) }
-      : await ssenariyYoz(p, st, { goya, format: tl.format, qahramon: tl.qahramon, sharhlar });
-    s.qahramon = tl.qahramon; s.mavzu = ssenariy?.mavzu || tl.mavzu; s.musiqa = ssenariy?.musiqa || tl.musiqa;
+      ? { ...ssenariyTozala(ssenariy, { ...o, format: ssenariy.format || tl.format, qahramon: tl.qahramon }), izoh: String(ssenariy.izoh || '').slice(0, 2200) }
+      : await ssenariyYoz(p, st, { tur, goya, format: tl.format, qahramon: tl.qahramon, sharhlar, aksiya });
+    s.tur = tur; s.qahramon = tl.qahramon; s.mavzu = ssenariy?.mavzu || tl.mavzu; s.musiqa = ssenariy?.musiqa || tl.musiqa;
     if (goya) s.goya = toza(goya, 400);
 
-    const { mp4, soniya, ovozli } = await navbatda(() => render(p, s, st, sifat));
+    const { mp4, soniya, ovozli } = await navbatda(() => render(p, s, st, sifat, { aksiya }));
     const m = await qator(`insert into media (tur, mime, bayt, hajm, goya) values ('video', 'video/mp4', $1, $2, $3) returning id`,
       [mp4, mp4.length, `Reels #${r.id}`]);
     return await qator(`update reels_postlar set holat = 'tayyor', video_id = $1, soniya = $2, izoh = $3,
@@ -362,8 +509,23 @@ export async function videoTayyorla({ productId = null, manba = 'jadval', goya =
   }
 }
 
-/** Ovoz + render. Kanvas yo'q yoki motor 'oddiy' — eski shablon. */
-async function render(p, s, st, sifat) {
+// Ilovaning haqiqiy skrinshotlari (public/uy/ilova-*.jpg) — «ilova» sahnasi uchun
+let ekranKesh = null;
+async function ilovaEkranlari() {
+  if (ekranKesh) return ekranKesh;
+  const fs = await import('node:fs/promises');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const papka = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'public', 'uy');
+  ekranKesh = {};
+  for (const k of EKRANLAR) {
+    try { ekranKesh[k] = await fs.readFile(path.join(papka, `ilova-${k}.jpg`)); } catch { /* yo'q bo'lsa — rangli ekran */ }
+  }
+  return ekranKesh;
+}
+
+/** Ovoz + render. Kanvas yo'q yoki motor 'oddiy' — eski shablon (faqat mahsulot videosi). */
+async function render(p, s, st, sifat, { aksiya = [] } = {}) {
   const ovozMatn = s.sahnalar.map((x) => x.ovoz).join('\n\n');
   const qo = QAHRAMON_OVOZI[s.qahramon];
   let ovoz = null;
@@ -374,20 +536,22 @@ async function render(p, s, st, sifat) {
       uslub: st.ovoz_uslubi || qo?.uslub || undefined,
     }).catch((e) => { console.warn('REELS ovoz yozilmadi:', e.message); return null; });
   }
-  const surat = await suratBayt(p);
+  const surat = p ? await suratBayt(p) : null;
   const kino = await import('../video/kino/index.js');
   const kanvasBor = st.motor === 'kino' && (await kino.kanvasBormi()).ha;
   if (kanvasBor) {
     const { wavOqi } = await import('../video/kino/ovoz-vaqt.js');
     const r = await kino.kinoYasa({
-      sahnalar: s.sahnalar, qahramon: s.qahramon, mavzu: s.mavzu, mahsulot: mahsulotMalumoti(p),
-      rasmlar: { mahsulot: surat, logo: await logoPng() },
+      sahnalar: s.sahnalar, qahramon: s.qahramon, mavzu: s.mavzu, mahsulot: p ? mahsulotMalumoti(p) : {},
+      rasmlar: { mahsulot: surat, logo: await logoPng(),
+        ekranlar: s.sahnalar.some((x) => x.tur === 'ilova') ? await ilovaEkranlari() : {}, aksiya },
       ovoz: ovoz ? wavOqi(ovoz.wav) : null,
       musiqa: s.musiqa, musiqaBaland: st.musiqa_baland / 100, sfx: st.sfx, subtitr: st.subtitr,
-      seed: (p.id % 7) + 1,
+      subtitrUslub: st.subtitr_uslub, seed: ((p?.id ?? s.sahnalar.length) % 7) + 1,
     }, { sifat });
     return { mp4: r.mp4, soniya: +r.soniya.toFixed(2), ovozli: Boolean(ovoz) };
   }
+  if (!p) throw Object.assign(new Error('Animatsiya motori ishlamayapti — bu turdagi video faqat yangi motorda yasaladi.'), { turkum: 'kanvas' });
   const o = oddiyKorinish(s), m = mahsulotMalumoti(p);
   const r = await reelsYasa({ surat: surat ? { rasm: surat.toString('base64'), mime: 'image/jpeg' } : null, ovoz, ssenariy: {
     hook: o.hook, punktlar: o.punktlar, nom: m.nom, brend: m.brend, narx: m.narx, eskiNarx: m.eskiNarx,
@@ -395,15 +559,16 @@ async function render(p, s, st, sifat) {
   return { ...r, ovozli: Boolean(ovoz) };
 }
 
-/** Avvalgi videoni qayta yasaydi: tahrirlangan ssenariy bilan yoki shu mahsulotga yangi ssenariy. */
+/** Avvalgi videoni qayta yasaydi: tahrirlangan ssenariy bilan yoki shu mavzuga yangi ssenariy. */
 export async function qaytaYasa(id, { ssenariy = null, izoh = null, goya = '' } = {}) {
   const eski = await qator('select * from reels_postlar where id = $1', [id]);
   if (!eski) throw new Error('Video topilmadi.');
+  const tur = eski.ssenariy?.tur || (eski.product_id ? 'mahsulot' : 'erkin');
   if (ssenariy) {
-    const s = { ...(eski.ssenariy || {}), ...ssenariy, izoh: izoh ?? ssenariy.izoh ?? eski.izoh ?? '' };
-    return videoTayyorla({ productId: eski.product_id, manba: 'tahrir', ssenariy: s });
+    const s = { ...(eski.ssenariy || {}), ...ssenariy, tur, izoh: izoh ?? ssenariy.izoh ?? eski.izoh ?? '' };
+    return videoTayyorla({ tur, productId: eski.product_id, manba: 'tahrir', ssenariy: s });
   }
-  return videoTayyorla({ productId: eski.product_id, manba: 'qolda', goya,
+  return videoTayyorla({ tur, productId: eski.product_id, manba: 'qolda', goya: goya || eski.ssenariy?.goya || '',
     qahramon: eski.ssenariy?.qahramon || null });
 }
 
@@ -460,7 +625,7 @@ export async function adminlargaVideo(r, { tasdiq = false, sarlavha = '' } = {})
   for (const id of await adminlar()) {
     const j = await tgFayl('sendVideo', {
       chat_id: id, parse_mode: 'HTML', supports_streaming: true,
-      caption: `${sarlavha || '🎬 <b>Bugungi Reels</b>'}\n\n${qisqaIzoh(r).replace(/&/g, '&amp;').replace(/</g, '&lt;')}`.slice(0, 1024),
+      caption: `${sarlavha || '🎬 <b>Bugungi Reels</b>'}${VIDEO_TURLARI[r.ssenariy?.tur] ? `\n<i>${VIDEO_TURLARI[r.ssenariy.tur].nom}</i>` : ''}\n\n${qisqaIzoh(r).replace(/&/g, '&amp;').replace(/</g, '&lt;')}`.slice(0, 1024),
       reply_markup: tugmalar,
     }, { video: { bayt, mime: 'video/mp4', nom: `reels-${r.id}.mp4` } }).catch(() => null);
     if (j?.ok) n++;

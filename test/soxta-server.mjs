@@ -73,6 +73,17 @@ function javobMatni(sxemaMatni, prompt = '') {
   // Reels 2.0 — AI rejissyor (hikoya sahnalari)
   if (sxemaMatni.includes('sahnalar') && sxemaMatni.includes('hashtaglar')) {
     globalThis.OXIRGI_REELS_PROMPT = prompt;
+    if (/VIDEO TURI: 📸 Yuz skaneri/.test(prompt)) {
+      return JSON.stringify({ format: 'savol', sahnalar: [
+        { tur: 'hook', ovoz: 'Krem tanlash qiyinmi?', ekran: 'Krem tanlash qiyinmi?', urgu: 'qiyinmi', emoji: '🤔', hissiyot: 'hayron', imo: 'oylash' },
+        { tur: 'oyna', ovoz: 'Botga kirib skanerni bosasiz.', ekran: 'Yuz skaneri', sarlavha: 'KiOVO bot', yozuv: 'yuzimni tahlil qil', natija: 'Skaner', tugma: 'Boshlash', tayyor: 'Tayyor', emoji: '📸', hissiyot: 'xursand', imo: 'tepaga' },
+        { tur: 'skaner', ovoz: 'AI teringizni tekshiradi.', ekran: 'Tahlil', punktlar: [{ matn: 'Namlik', emoji: '💧' }], emoji: '🔍', hissiyot: 'oddiy', imo: 'tinch' },
+        { tur: 'kashfiyot', ovoz: 'Mana bu krem.', ekran: 'Topdim', emoji: '✨', hissiyot: 'hayajon', imo: 'korsat' },
+        { tur: 'chat', ovoz: 'Maslahatchiga yozing.', ekran: 'Chat', emoji: '💬', hissiyot: 'xursand', imo: 'korsat' },
+        { tur: 'ilova', ovoz: 'Hammasi bitta ilovada.', ekran: 'Bitta ilovada', ekran_turi: 'yoq', emoji: '📱', hissiyot: 'xursand', imo: 'korsat' },
+        { tur: 'cta', ovoz: 'Izohga plyus yozing.', ekran: 'Izohga «+» yozing', emoji: '💌', hissiyot: 'xursand', imo: 'silkit' },
+      ], izoh: 'Teringizni bilib oling ✨\n\nIzohga «+» yozing — havolani Direct\'ga yuboramiz 💌', hashtaglar: '#kiovo #skaner' });
+    }
     return JSON.stringify({ format: 'teskari', sahnalar: [
       { tur: 'muammo', ovoz: 'Yuzim yaltirab ketardi.', ekran: 'Yog‘li teri', belgilar: ['Yaltirash', 'Qora nuqta'], emoji: '😩', hissiyot: 'xafa', imo: 'yuz' },
       { tur: 'hook', ovoz: 'Bu niqobni sotib olish shart emas.', ekran: 'Sotib olish shart emas', kichik: 'men ham olmaganman', urgu: 'shart', emoji: '🤫', hissiyot: 'hayron', imo: 'yelka' },

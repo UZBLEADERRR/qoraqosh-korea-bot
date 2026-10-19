@@ -23,7 +23,11 @@ export const W = 1080, H = 1920;
 const OTISH = 0.45;
 const OTISHLAR = ['zoom', 'surish', 'doira', 'yuqori', 'chaqnash'];
 // Animatsiya ulgurishi uchun eng qisqa sahna (soniya)
-const MIN_D = { hook: 2.4, muammo: 2.6, kashfiyot: 3.0, foyda: 3.6, natija: 2.8, sharh: 3.4, narx: 3.2, cta: 3.4, hikoya: 2.4 };
+const MIN_D = { hook: 2.4, muammo: 2.6, kashfiyot: 3.0, foyda: 3.6, natija: 2.8, sharh: 3.4, narx: 3.2, cta: 3.4, hikoya: 2.4,
+  matn: 2.4, oyna: 4.2, chat: 5.0, skaner: 4.2, ilova: 3.6, royxat: 3.6, taqqos: 4.4, bosqich: 4.0, aksiya: 3.6 };
+// Oynada matn yozilib, kursor bosishiga ulgurish kerak — yozuv uzun bo'lsa sahna cho'ziladi
+const qoshimchaVaqt = (S) => (S.tur === 'oyna' ? String(S.yozuv || '').length / 16 : 0)
+  + (S.tur === 'chat' ? Math.max(0, (S.xabarlar || []).length - 3) * 1.2 : 0);
 const SIFAT = { toliq: { en: 1080, fps: 30 }, orta: { en: 720, fps: 30 }, sinov: { en: 270, fps: 10 } };
 
 /**
@@ -51,7 +55,7 @@ export function vaqtJadvali(sahnalar, ovoz) {
       sozlar = sz.map((w) => { const s0 = (y / sz.length) * uz; y++; return { w, s: s0, e: (y / sz.length) * uz }; });
     }
     const quyruq = i === n - 1 ? 1.8 : 0.3;
-    const d = Math.max(MIN_D[S.tur] || 2.4, kech + uz + quyruq + (i === n - 1 ? 0 : OTISH));
+    const d = Math.max((MIN_D[S.tur] || 2.4) + qoshimchaVaqt(S), kech + uz + quyruq + (i === n - 1 ? 0 : OTISH));
     jadval.push({
       i, bosh, d, ovozBosh: bosh + kech, ovozUz: uz, bolak: bolak?.[i] || null,
       sozlar: sozlar.map((w) => ({ w: w.w, s: +(kech + w.s).toFixed(3), e: +(kech + w.e).toFixed(3) })),
@@ -92,38 +96,97 @@ export function iboralar(jadval) {
   return chiq;
 }
 
-function subtitr(ctx, T, ibora, Y) {
+/**
+ * Subtitr joyi — qahramonning boshini HECH QACHON yopmaydi.
+ * Qahramon chetda bo'lsa, subtitr uning yonidagi bo'sh tomonga o'tadi;
+ * markazda bo'lsa — ko'kragiga (bosh ostiga) tushadi.
+ * @returns {{cx:number, y:number, en:number}}
+ */
+export function subtitrJoyi(h) {
+  const asos = { cx: W / 2, y: 1548, en: 880 };
+  if (!h) return asos;
+  const R = 100 * (h.s ?? 1);
+  const bosh = { x0: h.x - 1.3 * R, x1: h.x + 1.3 * R, y0: h.y - 1.45 * R, y1: h.y + 1.15 * R };
+  const ust = (y, b = 70) => y + b > bosh.y0 && y - b < bosh.y1;
+  if (!ust(asos.y) || bosh.x1 < W / 2 - asos.en / 2 || bosh.x0 > W / 2 + asos.en / 2) return asos;
+  // Qahramon chap yoki o'ng chetda — bo'sh tomonga
+  const ong = { x0: bosh.x1 + 24, x1: W - 70 }, chap = { x0: 50, x1: bosh.x0 - 24 };
+  const z = (ong.x1 - ong.x0) >= (chap.x1 - chap.x0) ? ong : chap;
+  if (z.x1 - z.x0 >= 460) return { cx: (z.x0 + z.x1) / 2, y: asos.y, en: z.x1 - z.x0 };
+  // Markazda: bosh tepasida joy bo'lsa — tepasiga (yorliq kabi), bo'lmasa ko'kragiga
+  if (bosh.y0 - 85 >= 1180) return { ...asos, y: bosh.y0 - 85 };
+  return { ...asos, y: Math.min(1640, bosh.y1 + 85) };
+}
+
+/** So'zlarni kenglikka qarab 1–2 qatorga bo'ladi. */
+function qatorla(ctx, sozlar, maxEni, bosh) {
+  const qator = [[]];
+  let en = 0;
+  sozlar.forEach((w, i) => {
+    const ww = ctx.measureText(w).width;
+    if (qator.at(-1).length && en + bosh + ww > maxEni) { qator.push([]); en = 0; }
+    en += (qator.at(-1).length ? bosh : 0) + ww;
+    qator.at(-1).push(i);
+  });
+  return qator;
+}
+
+/**
+ * So'zma-so'z subtitr. uslub:
+ *   karaoke — katta oq harflar, qora chiziq, aytilayotgan so'z aksent rangida;
+ *   chip    — qora quti ichida (qahramon tepasidagi yorliq kabi), so'z oqarib yonadi;
+ *   oddiy   — yarim shaffof fon ustida tinch matn.
+ */
+function subtitr(ctx, T, ibora, Y, h, uslub = 'karaoke') {
   const b = ibora.find((x) => T >= x.s - 0.08 && T < x.oxir);
   if (!b) return;
+  const joy = subtitrJoyi(h);
   const kirish = L.spring(T, b.s - 0.08, { k: 320, c: 20 });
-  let olcham = 70;
+  const sozlar = b.sozlar.map((w) => L.belgiTozala(uslub === 'oddiy' ? w.w : w.w.toUpperCase()));
+  const og = uslub === 'oddiy' ? 800 : 900;
+  let olcham = uslub === 'chip' ? 58 : 70;
   ctx.save();
-  ctx.font = L.font(olcham, 900);
-  const sozlar = b.sozlar.map((w) => w.w.toUpperCase());
-  const bosh0 = () => ctx.measureText(' ').width * 1.5;
-  let en = sozlar.reduce((a, w) => a + ctx.measureText(w).width, 0) + bosh0() * (sozlar.length - 1);
-  if (en > 880) { olcham = Math.max(44, Math.floor(olcham * 880 / en)); ctx.font = L.font(olcham, 900); en = sozlar.reduce((a, w) => a + ctx.measureText(w).width, 0) + bosh0() * (sozlar.length - 1); }
-  const y = 1548;
-  ctx.translate(W / 2, y); ctx.scale(0.82 + 0.18 * kirish, 0.82 + 0.18 * kirish); ctx.translate(-W / 2, -y);
+  ctx.font = L.font(olcham, og);
+  const oraliq = () => ctx.measureText(' ').width * (uslub === 'karaoke' ? 1.5 : 1.1);
+  let q = qatorla(ctx, sozlar, joy.en, oraliq());
+  while (q.length > 2 && olcham > 40) { olcham -= 4; ctx.font = L.font(olcham, og); q = qatorla(ctx, sozlar, joy.en, oraliq()); }
+  const lh = olcham * (uslub === 'karaoke' ? 1.12 : 1.25);
+  const enlar = q.map((qq) => qq.reduce((a, i) => a + ctx.measureText(sozlar[i]).width, 0) + oraliq() * (qq.length - 1));
+  const y0 = joy.y - (lh * (q.length - 1)) / 2;
+  ctx.translate(joy.cx, joy.y); ctx.scale(0.82 + 0.18 * kirish, 0.82 + 0.18 * kirish); ctx.translate(-joy.cx, -joy.y);
   ctx.globalAlpha = L.clamp(kirish * 1.5);
   ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.lineJoin = 'round';
-  let x = W / 2 - en / 2;
+  if (uslub !== 'karaoke') {
+    const max = Math.max(...enlar), pad = olcham * 0.55;
+    L.rect(ctx, joy.cx - max / 2 - pad, y0 - lh / 2 - pad * 0.45, max + pad * 2, lh * q.length + pad * 0.9,
+      { fill: uslub === 'chip' ? 'rgba(18,18,22,0.92)' : 'rgba(0,0,0,0.45)', r: olcham * 0.32, soya: 'rgba(0,0,0,.35)', blur: 24 });
+  }
   // Faol so'z — aytilayotgan oxirgisi (bir vaqtda faqat bittasi)
   let faolI = -1;
   b.sozlar.forEach((w, i) => { if (T >= w.s - 0.03) faolI = i; });
-  b.sozlar.forEach((w, i) => {
-    const s = sozlar[i], ww = ctx.measureText(s).width;
-    const faol = i === faolI;
-    const aytildi = T >= w.s;
-    const pop = faol ? 1.05 + 0.1 * (1 - L.prog(T, w.s, 0.22, 'outBack')) : 1;
-    ctx.save();
-    ctx.translate(x + ww / 2, y); ctx.scale(pop, pop); ctx.translate(-(x + ww / 2), -y);
-    ctx.globalAlpha *= aytildi ? 1 : 0.62;
-    ctx.strokeStyle = 'rgba(0,0,0,0.92)'; ctx.lineWidth = olcham * 0.2; ctx.strokeText(s, x, y);
-    ctx.fillStyle = faol ? Y.mavzu.aksent : '#ffffff';
-    ctx.fillText(s, x, y);
-    ctx.restore();
-    x += ww + bosh0();
+  q.forEach((qq, qi) => {
+    let x = joy.cx - enlar[qi] / 2;
+    const y = y0 + qi * lh;
+    for (const i of qq) {
+      const s = sozlar[i], ww = ctx.measureText(s).width, w = b.sozlar[i];
+      const faol = i === faolI, aytildi = T >= w.s;
+      ctx.save();
+      if (uslub === 'karaoke') {
+        const pop = faol ? 1.05 + 0.1 * (1 - L.prog(T, w.s, 0.22, 'outBack')) : 1;
+        ctx.translate(x + ww / 2, y); ctx.scale(pop, pop); ctx.translate(-(x + ww / 2), -y);
+        ctx.globalAlpha *= aytildi ? 1 : 0.62;
+        ctx.strokeStyle = 'rgba(0,0,0,0.92)'; ctx.lineWidth = olcham * 0.2; ctx.strokeText(s, x, y);
+        ctx.fillStyle = faol ? Y.mavzu.aksent : '#ffffff';
+      } else if (uslub === 'chip') {
+        ctx.fillStyle = faol || !aytildi ? (faol ? '#ffffff' : 'rgba(255,255,255,0.42)') : 'rgba(255,255,255,0.78)';
+      } else {
+        ctx.globalAlpha *= aytildi ? 1 : 0.55;
+        ctx.fillStyle = faol ? Y.mavzu.aksent : '#ffffff';
+      }
+      ctx.fillText(s, x, y);
+      ctx.restore();
+      x += ww + oraliq();
+    }
   });
   ctx.restore();
 }
@@ -172,6 +235,18 @@ async function rasmlarniTayyorla(m, rasmlar = {}) {
   if (rasmlar.logo) {
     try { chiq.logo = await m.loadImage(Buffer.from(rasmlar.logo)); } catch { /* logo bo'lmasa ham bo'ladi */ }
   }
+  // Ilova skrinshotlari (skaner, do'kon, maslahat…) — «ilova» sahnasi uchun
+  chiq.ekranlar = {};
+  for (const [k, b] of Object.entries(rasmlar.ekranlar || {})) {
+    try { chiq.ekranlar[k] = await m.loadImage(Buffer.from(b)); } catch { /* bu ekran bo'lmaydi */ }
+  }
+  // Aksiyadagi mahsulotlar (rasm + bazadagi narx)
+  chiq.aksiya = [];
+  for (const a of (rasmlar.aksiya || []).slice(0, 4)) {
+    let rasm = null;
+    try { rasm = a.rasm ? await m.loadImage(Buffer.from(a.rasm)) : null; } catch { /* rasmsiz kartochka */ }
+    chiq.aksiya.push({ ...a, rasm });
+  }
   if (chiq.mahsulot) {
     const c = m.createCanvas(270, 480), x = c.getContext('2d');
     x.filter = 'blur(14px)';
@@ -189,7 +264,8 @@ export async function chizuvchi(loyiha, { en = 1080 } = {}) {
   const k = en / W, boy = Math.round(H * k);
   const rasm = await rasmlarniTayyorla(m, loyiha.rasmlar);
   const mavzu = MAVZULAR[loyiha.mavzu] || MAVZULAR.brend;
-  const Y = { W, H, mavzu, q: Boolean(loyiha.qahramon), rasm, mahsulot: loyiha.mahsulot || {}, seed: loyiha.seed ?? 3 };
+  const Y = { W, H, mavzu, q: Boolean(loyiha.qahramon), qTur: loyiha.qahramon || 'nigina', rasm, mahsulot: loyiha.mahsulot || {},
+    aksiya: rasm.aksiya || [], seed: loyiha.seed ?? 3 };
   const sahnalar = loyiha.sahnalar.map((S) => ({ ...S, tur: SAHNALAR[S.tur] ? S.tur : 'hikoya' }));
   const { jadval, jami } = loyiha.jadval ? loyiha.jadval : vaqtJadvali(sahnalar, null);
   sahnalar.forEach((S, i) => { S.sozlar = jadval[i].sozlar; S.d = jadval[i].d; });
@@ -228,23 +304,29 @@ export async function chizuvchi(loyiha, { en = 1080 } = {}) {
     } else sahnaChiz(ctx, i, t, false);
 
     ctx.save(); ctx.setTransform(k, 0, 0, k, 0, 0);
+    let hJoy = null;                       // subtitr qahramonni chetlab o'tishi uchun
     if (Y.q) {
       const b = joy(i, t);
+      // korinmas — qahramon bu sahnada pastga tushib ketadi (to'liq ekranli sahnalar)
+      if (b.korinmas) b.y += 1500;
+      if (!b.korinmas) hJoy = b;
       let h = { ...b, oldingiImo: b.imo, imoP: 1 };
       if (i > 0 && t < 0.6) {
         const a = joy(i - 1, T - jadval[i - 1].bosh), p = L.ease.inOutCubic(t / 0.6);
+        if (a.korinmas) a.y += 1500;
         h = { ...b, x: L.lerp(a.x, b.x, p), y: L.lerp(a.y, b.y, p), s: L.lerp(a.s, b.s, p),
           dog: L.lerp(a.dog, b.dog, p), yaltiroq: L.lerp(a.yaltiroq, b.yaltiroq, p),
           hissiyot: p < 0.4 ? a.hissiyot : b.hissiyot, oldingiImo: a.imo, imoP: L.clamp(t / 0.55) };
       }
       if (i === 0) h.y += (1 - L.spring(T, 0.1, { k: 110, c: 14 })) * 1300;
       const f = Math.min(lab ? lab.length - 1 : 0, Math.floor(T * fps));
-      qahramonChiz(ctx, { ...h, tur: loyiha.qahramon, t: T, lab: lab ? lab[f] : 0, mahsulot: rasm.mahsulot });
+      if (h.y < H + 400) qahramonChiz(ctx, { ...h, tur: loyiha.qahramon, t: T, lab: lab ? lab[f] : 0, mahsulot: rasm.mahsulot });
     }
     if (!otishda) xavfsiz(() => SAHNALAR[sahnalar[i].tur].ustki(ctx, t, sahnalar[i].d, sahnalar[i], Y), sahnalar[i].tur);
-    subtitr(ctx, T, ibora, Y);
+    subtitr(ctx, T, ibora, Y, hJoy, loyiha.subtitrUslub);
     // Kichik logo (oxirgi sahnada katta logo bor)
-    if (rasm.logo && sahnalar[i].tur !== 'cta') {
+    // Kichik logo — faqat tepasi bo'sh sahnalarda (boshqalarida katta sarlavha bilan to'qnashadi)
+    if (rasm.logo && SAHNALAR[sahnalar[i].tur].logoBor) {
       const lw = 124, lh = lw * (rasm.logo.height / rasm.logo.width);
       ctx.globalAlpha = 0.85; ctx.drawImage(rasm.logo, W / 2 - lw / 2, 168, lw, lh); ctx.globalAlpha = 1;
     }
@@ -274,7 +356,7 @@ export async function videoYasa(loyiha, { sifat = 'toliq', chiqish = null } = {}
     if (loyiha.sfx !== false) {
       ch.sahnalar.forEach((S, i) => {
         if (i > 0) sfx.push({ tur: 'whoosh', t: jadval[i].bosh - 0.08 });
-        for (const e of SAHNALAR[S.tur].sfx(S, ch.Y)) sfx.push({ tur: e.tur, t: jadval[i].bosh + e.t });
+        for (const e of SAHNALAR[S.tur].sfx(S, ch.Y, S.d)) sfx.push({ tur: e.tur, t: jadval[i].bosh + e.t });
       });
     }
     const wav = aralashtir({ uzunlik: jami, musiqa: loyiha.musiqa || 'quvnoq', baland: loyiha.musiqaBaland ?? 0.35,

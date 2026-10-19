@@ -36,7 +36,7 @@ export const BUYRUQLAR = [
   ['/brend',    'Brend nomini o‘zgartirish'],
   ['/panel',    'Admin panelni ochish'],
   ['/havola',   'Mini App havolalari (har bo‘lim uchun)'],
-  ['/reels',    'Bugungi Reels videoni hozir yasash (Instagram)'],
+  ['/reels',    'Reels yasash: /reels [skaner|maslahat|buyurtma|foydali|aksiya|erkin g‘oya]'],
   ['/holat',    'Bot va AI holati — nima yiqilganini ko‘rsatadi'],
 ];
 
@@ -461,10 +461,18 @@ export async function brendSaqla(chatId, user, nom) {
 /* ── KUNLIK REELS (src/services/reels.js) ──
    /reels — video hozir yasaladi va adminga TASDIQ tugmalari bilan keladi
    (o'zi joylamaydi). Yasash ~1 daqiqa — fonda bajariladi. */
-async function reelsYasash(chatId) {
-  await yubor(chatId, '🎬 <b>Reels tayyorlanmoqda…</b>\n<i>AI rejissyor hikoya yozadi, qahramon ovozi va animatsiya — taxminan 2–3 daqiqa.</i>');
+async function reelsYasash(chatId, argument = '') {
   const R = await import('../../services/reels.js');
-  R.videoTayyorla({ manba: 'qolda' })
+  // /reels skaner | maslahat | buyurtma | foydali | aksiya | mahsulot | erkin <g'oya>
+  const [turSoz, ...goyaSoz] = String(argument || '').trim().split(/\s+/);
+  const tur = R.VIDEO_TURLARI[turSoz?.toLowerCase()] ? turSoz.toLowerCase() : null;
+  const goya = (tur ? goyaSoz.join(' ') : String(argument || '')).trim();
+  if (tur === 'erkin' && !goya) {
+    return yubor(chatId, '✨ Erkin video uchun g‘oya yozing:\n<code>/reels erkin qishda lab yorilishi haqida kulgili hikoya</code>');
+  }
+  await yubor(chatId, `🎬 <b>Reels tayyorlanmoqda…</b>${tur ? `\n${esc(R.VIDEO_TURLARI[tur].nom)}` : ''}\n<i>AI rejissyor hikoya yozadi, qahramon ovozi va animatsiya — taxminan 2–3 daqiqa.</i>`
+    + (argument ? '' : '\n\n<i>Boshqa turlar: /reels skaner · maslahat · buyurtma · foydali · aksiya · erkin &lt;g‘oya&gt;</i>'));
+  R.videoTayyorla({ manba: 'qolda', tur, goya: goya.slice(0, 400) })
     .then((r) => R.adminlargaVideo(r, { tasdiq: true, sarlavha: '🎬 <b>Reels tayyor</b> — Instagram’ga joylaymi?' }))
     .catch((e) => yubor(chatId, `⚠️ Video chiqmadi: ${esc(String(e.message).slice(0, 300))}`));
 }
@@ -712,7 +720,7 @@ async function buyruqniBajar(buyruq, argument, chatId, user) {
     case '/tanitish': await tanitishBoshla(chatId, argument); return true;
     case '/panel':   await panelHavolasi(chatId); return true;
     case '/havola':  await ilovaHavolalari(chatId); return true;
-    case '/reels':   await reelsYasash(chatId); return true;
+    case '/reels':   await reelsYasash(chatId, argument); return true;
     case '/holat':   await botHolati(chatId); return true;
     case '/brend':   await brendBoshla(chatId, user, argument); return true;
     case '/bekor':   await holatTozala(user.id); await yubor(chatId, '❌ Bekor qilindi.'); return true;
