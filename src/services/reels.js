@@ -262,7 +262,7 @@ export async function ssenariyYoz(p, st, { tur = 'mahsulot', goya = '', format =
   const shaxs = qahramon === 'jasur' ? 'Jasur — doppili, quvnoq o‘zbek yigiti (erkaklar parvarishi haqida erkakcha gapiradi)'
     : qahramon === 'nigina' ? 'Nigina — do‘kon yordamchisi, quvnoq o‘zbek qizi' : null;
   const mahsulotBlok = m ? `MAHSULOT (faqat shu faktlar — o'ylab topma)${tur === 'mahsulot' ? ''
-    : mahsulotKorsat ? ' — ADMIN SHU MAHSULOTNI AYTDI: videoda uni ALBATTA nomi bilan ko‘rsat (kashfiyot sahnasi), ovozda ham nomini ayt'
+    : mahsulotKorsat ? ' — ADMIN G‘OYASIGA MOS (ombordan tanlandi): videoda uni ALBATTA nomi bilan ko‘rsat (kashfiyot sahnasi), ovozda ham nomini ayt'
       : ' — ixtiyoriy: oxirida yechim sifatida eslatsang bo‘ladi'}:
 - nom: ${m.brend ? m.brend + ' ' : ''}${m.nom}${m.hajm ? ` (${m.hajm})` : ''}
 - tavsif: ${String(p.description || '').slice(0, 700)}
@@ -485,24 +485,49 @@ export const aniqMahsulot = (nomzod) => {
   return a && a.ball >= 6 && (!b || a.ball - b.ball >= 3) ? a : null;
 };
 
-/** Nomzodlar ko'p bo'lsa — AI qaysi biri nazarda tutilganini aytadi (yoki 0). */
-async function mahsulotniAniqla(matn, nomzod) {
-  if (!nomzod.length) return null;
+/**
+ * AI BUTUN OMBORNI ko'rib, so'zlarga eng mos mahsulotni tanlaydi — nomi aytilmasa
+ * ham mazmun bo'yicha («tovon uchun video» → tovon/oyoq kremi, «lab» → lab balzami).
+ * Mos mahsulot yo'q yoki so'zlar mahsulotga aloqasiz bo'lsa — null.
+ * @returns {Promise<{id:number, sabab:string}|null>}
+ */
+export async function katalogdanTanla(matn) {
+  const r = await qatorlar(`select p.id, p.name, p.nom_uz, p.brand, p.step, p.concerns, p.kalit_sozlar, p.stock, p.poster_id,
+       c.name as toifa
+     from products p left join categories c on c.id = p.category_id
+    where p.is_active and p.variant_of is null
+    order by (p.stock > 0) desc, (p.poster_id is not null) desc, p.sold_count desc nulls last limit 800`).catch(() => []);
+  if (!r.length) return null;
+  const qator = (p) => [p.id, [p.brand, p.nom_uz || p.name].filter(Boolean).join(' ') + (p.nom_uz && p.nom_uz !== p.name ? ` (${p.name})` : ''),
+    p.toifa || p.step || '', (p.concerns || []).slice(0, 4).join(','), (p.kalit_sozlar || []).slice(0, 6).join(','),
+    p.stock > 0 ? '' : 'TUGAGAN', p.poster_id ? '' : 'RASMSIZ'].join('|').replace(/\|+$/, '');
   const { aiJson } = await import('../ai/index.js');
-  const j = await aiJson([{ text: `Admin so'zlari: «${toza(matn, 600)}»
-Katalogdagi nomzodlar (id | mahsulot):
-${nomzod.map((p) => `${p.id} | ${[p.brand, p.nom_uz || p.name].filter(Boolean).join(' ')}`).join('\n')}
-Admin aynan qaysi MAHSULOTNI nazarda tutyapti? Aniq bitta mahsulot aytilgan bo'lsa — uning id si.
-Mahsulot nomi aytilmagan, yoki bir nechtasi umumiy (faqat brend) aytilgan bo'lsa — 0. Faqat JSON.` }],
-  { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] }, { temperature: 0, maxTokens: 600, qayerda: 'reels-mahsulot' })
-    .catch(() => null);
-  return nomzod.find((p) => p.id === Number(j?.id)) || null;
+  const j = await aiJson([{ text: `Sen KiOVO do'koni (Koreya kosmetikasi) katalogini TO'LIQ bilasan.
+Admin video haqida aytdi: «${toza(matn, 800)}»
+
+Vazifa: shu video uchun katalogdan ENG MOS BITTA mahsulotni tanla.
+- Nomi yoki brendi aytilgan bo'lsa — o'sha mahsulot.
+- Nomi aytilmagan, lekin MAVZU aytilgan bo'lsa — mazmuniga mosini o'zing top: masalan «tovon», «oyoq» → tovon/oyoq kremi;
+  «lab» → lab balzami/niqobi; «soch» → soch vositasi; «husnbuzar» → akne uchun vosita; «quyosh» → quyoshdan himoya.
+- TUGAGAN va RASMSIZ belgilisini iloji boricha tanlama.
+- So'zlar mahsulotga aloqasiz bo'lsa (masalan faqat musiqa, subtitr, rang, ovoz, uzunlik haqida) yoki katalogda mos mahsulot umuman yo'q bo'lsa — id: 0.
+sabab — 1 qisqa gap (o'zbekcha): nega aynan shu mahsulot (yoki nega yo'q).
+
+KATALOG (id|mahsulot|toifa|muammolar|kalit so'zlar|holat):
+${r.map(qator).join('\n')}
+Faqat JSON.` }], { type: 'object', properties: { id: { type: 'number' }, sabab: { type: 'string' } }, required: ['id', 'sabab'] },
+  { temperature: 0, maxTokens: 1000, qayerda: 'reels-katalog' }).catch(() => null);
+  const id = Number(j?.id);
+  if (!j) return null;
+  // id: 0 — mos mahsulot yo'q (sababi adminga ko'rsatiladi: «omborda tovon kremi yo'q»)
+  return { id: id && r.some((p) => p.id === id) ? id : 0, sabab: toza(j?.sabab, 200) };
 }
 
-/** Matnda aytilgan mahsulot: avval aniq moslik, bo'lmasa AI tanlovi. */
+/** Matndagi mahsulot: avval aniq nom mosligi (tez, AI siz), bo'lmasa AI butun ombordan tanlaydi. */
 export async function matndanMahsulot(matn) {
-  const nomzod = await mahsulotNomzodlari(matn);
-  return aniqMahsulot(nomzod) || (nomzod.length ? await mahsulotniAniqla(matn, nomzod) : null);
+  const a = aniqMahsulot(await mahsulotNomzodlari(matn));
+  if (a) return { id: a.id, sabab: 'nomi bo‘yicha topildi' };
+  return katalogdanTanla(matn);
 }
 
 /** «aralash» rejada bugungi video turi (Toshkent hafta kuni bo'yicha). */
@@ -539,11 +564,12 @@ async function aksiyaMahsulotlar(n = 4) {
 export async function videoTayyorla({ tur = null, productId = null, manba = 'jadval', goya = '', ssenariy = null, qahramon = null,
   format = null, sifat = process.env.REELS_SIFAT || 'toliq' } = {}) {
   const st = await sozlamalar();
-  // G'oyada mahsulot nomi aytilgan bo'lsa — bazadan topamiz (rasm, narx, tarkib — o'shaniki)
-  let goyaMahsulot = false;
+  // G'oyada mahsulot (nomi yoki mavzusi) aytilgan bo'lsa — AI butun ombordan mosini topadi
+  // (rasm, narx, tarkib — o'shaniki): «tovon uchun video» → tovon kremi
+  let goyaMahsulot = false, tanlov = null;
   if (!productId && !ssenariy && String(goya || '').trim()) {
-    const topildi = await matndanMahsulot(goya).catch(() => null);
-    if (topildi) { productId = topildi.id; goyaMahsulot = true; }
+    tanlov = await matndanMahsulot(goya).catch(() => null);
+    if (tanlov?.id) { productId = tanlov.id; goyaMahsulot = tanlov; }
   }
   // Mahsulot aniq tanlangan bo'lsa — mahsulot videosi; aks holda sozlama yoki hafta rejasi
   tur = tur || ssenariy?.tur || (ssenariy || productId ? 'mahsulot' : (st.tur === 'aralash' ? bugungiTur() : st.tur));
@@ -565,6 +591,8 @@ export async function videoTayyorla({ tur = null, productId = null, manba = 'jad
       : await ssenariyYoz(p, st, { tur, goya, format: tl.format, qahramon: tl.qahramon, sharhlar, aksiya, mahsulotKorsat });
     s.tur = tur; s.qahramon = tl.qahramon; s.mavzu = ssenariy?.mavzu || tl.mavzu; s.musiqa = ssenariy?.musiqa || tl.musiqa;
     if (mahsulotKorsat) s.mahsulot_korsat = true;
+    if (goyaMahsulot && p) s.mahsulot_tanlov = { nom: [p.brand, p.nom_uz || p.name].filter(Boolean).join(' '), sabab: goyaMahsulot.sabab };
+    else if (tanlov && !tanlov.id && tanlov.sabab) s.mahsulot_tanlov = { nom: null, sabab: tanlov.sabab };
     if (goya) s.goya = toza(goya, 400);
 
     if (ssenariy?.ustama) s.ustama = ssenariy.ustama;
@@ -690,7 +718,7 @@ export async function aiTuzat(id, buyruq) {
   let p = r.product_id ? await qator('select * from products where id = $1', [r.product_id]) : null;
   // Admin boshqa (yoki birinchi marta) mahsulot nomini aytdimi — bazadan topamiz
   const topildi = await matndanMahsulot(b).catch(() => null);
-  const yangiMahsulot = topildi && topildi.id !== p?.id ? await qator('select * from products where id = $1 and is_active', [topildi.id]) : null;
+  const yangiMahsulot = topildi?.id && topildi.id !== p?.id ? await qator('select * from products where id = $1 and is_active', [topildi.id]) : null;
   if (yangiMahsulot) p = yangiMahsulot;
   const sharhlar = p ? await sharhlarOl(p.id) : [];
   const ruxsat = ruxsatSahnalar(tur, { mahsulotBor: Boolean(p), aksiyaBor: tur === 'aksiya', sharhBor: sharhlar.length > 0, st });
@@ -706,7 +734,7 @@ Vazifa: joriy ssenariyni admin so'zlariga ko'ra TUZAT. Faqat so'ralgan narsani o
 ADMIN AYTDI: «${b}»
 ${(s.tuzatishlar || []).length ? `Avvalgi tuzatishlar (ular ham kuchda): ${s.tuzatishlar.map((x) => `«${x}»`).join('; ')}\n` : ''}
 VIDEO TURI: ${(VIDEO_TURLARI[tur] || VIDEO_TURLARI.mahsulot).nom}
-${m ? `${yangiMahsulot ? `ADMIN SHU MAHSULOTNI AYTDI (bazadan topildi): video endi shu mahsulot haqida — uni ALBATTA nomi bilan ko'rsat (kashfiyot sahnasi),
+${m ? `${yangiMahsulot ? `ADMIN AYTGAN MAHSULOT (ombordan topildi${topildi?.sabab ? `: ${topildi.sabab}` : ''}): video endi shu mahsulot haqida — uni ALBATTA nomi bilan ko'rsat (kashfiyot sahnasi),
 ovozda ham nomini ayt; «KiOVO mahsuloti» kabi umumiy yoki eski mahsulot nomlarini shu nom bilan almashtir.\n` : ''}MAHSULOT FAKTLARI (narx va rasm kartochkada bazadan chiqadi): ${[m.brend, m.nom].filter(Boolean).join(' ')}${m.hajm ? ` (${m.hajm})` : ''}; ${String(p.description || '').slice(0, 500)}; faol moddalar: ${(p.actives || []).join(', ') || '—'}; qaysi muammoga: ${(p.concerns || []).join(', ') || '—'}; qo'llash: ${String(p.usage_text || '').slice(0, 200)}; narx ${m.narx}${m.chegirma ? `, chegirma ${m.chegirma}` : ''}
 Mahsulot haqida gapirsang — FAQAT shu nom bilan; «KiOVO mahsuloti», «bizning krem» dema.\n` : 'Videoda aniq mahsulot yo‘q — o‘ylab topilgan mahsulot nomini aytma.\n'}${['skaner', 'maslahat', 'buyurtma', 'erkin'].includes(tur) ? `${ILOVA_FAKT}\n` : ''}
 JORIY SSENARIY (JSON):
@@ -738,7 +766,7 @@ Faqat JSON.` }], TUZAT_SXEMA, { temperature: 0.4, maxTokens: 4000, qayerda: 'ree
   // Faqat haqiqatan o'zgargan sozlama yoziladi — AI qaytargan «joriy» qiymat umumiy sozlamani muzlatib qo'ymasin
   for (const k of SOZ) if (j?.[k] !== undefined && j[k] !== null && j[k] !== amal[k]) ustama[k] = j[k];
   const yangi = { ...s, sahnalar: Array.isArray(j?.sahnalar) && j.sahnalar.length ? j.sahnalar : s.sahnalar,
-    ...(yangiMahsulot ? { mahsulot_korsat: true } : {}),
+    ...(yangiMahsulot ? { mahsulot_korsat: true, mahsulot_tanlov: { nom: [yangiMahsulot.brand, yangiMahsulot.nom_uz || yangiMahsulot.name].filter(Boolean).join(' '), sabab: topildi.sabab } } : {}),
     izoh: String(j?.izoh || r.izoh || '').slice(0, 2200),
     qahramon: ['nigina', 'jasur', 'yoq'].includes(j?.qahramon) ? j.qahramon : (s.qahramon || 'yoq'),
     mavzu: MAVZU_TANLOV.includes(j?.mavzu) ? j.mavzu : s.mavzu,
@@ -813,6 +841,7 @@ export async function adminlargaVideo(r, { tasdiq = false, sarlavha = '' } = {})
     const j = await tgFayl('sendVideo', {
       chat_id: id, parse_mode: 'HTML', supports_streaming: true,
       caption: (`${sarlavha || '🎬 <b>Bugungi Reels</b>'}${VIDEO_TURLARI[r.ssenariy?.tur] ? `\n<i>${VIDEO_TURLARI[r.ssenariy.tur].nom}</i>` : ''}`
+        + (r.ssenariy?.mahsulot_tanlov ? `\n🧴 <b>${String(r.ssenariy.mahsulot_tanlov.nom || 'Mahsulot qo‘shilmadi').replace(/&/g, '&amp;').replace(/</g, '&lt;')}</b> — ${String(r.ssenariy.mahsulot_tanlov.sabab || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')}` : '')
         + (tasdiq ? '\n💬 <i>Kamchilik bo‘lsa — shu videoga javob qilib yozing yoki ovozli xabar yuboring, AI o‘zi tuzatadi.</i>' : '')
         + `\n\n${qisqaIzoh(r).replace(/&/g, '&amp;').replace(/</g, '&lt;')}`).slice(0, 1024),
       reply_markup: tugmalar,

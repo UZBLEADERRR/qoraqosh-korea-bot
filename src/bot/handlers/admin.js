@@ -472,7 +472,8 @@ async function reelsYasash(chatId, argument = '') {
     return yubor(chatId, '✨ Erkin video uchun g‘oya yozing:\n<code>/reels erkin qishda lab yorilishi haqida kulgili hikoya</code>');
   }
   await yubor(chatId, `🎬 <b>Reels tayyorlanmoqda…</b>${tur ? `\n${esc(R.VIDEO_TURLARI[tur].nom)}` : ''}\n<i>AI rejissyor hikoya yozadi, qahramon ovozi va animatsiya — taxminan 2–3 daqiqa.</i>`
-    + (argument ? '' : '\n\n<i>Boshqa turlar: /reels skaner · maslahat · buyurtma · foydali · aksiya · erkin &lt;g‘oya&gt;</i>'));
+    + (argument ? '' : '\n\n<i>Boshqa turlar: /reels skaner · maslahat · buyurtma · foydali · aksiya · erkin &lt;g‘oya&gt;\n'
+      + 'Yoki istalgan mavzu: /reels tovon uchun video — AI ombordan mos mahsulotni o‘zi topadi.</i>'));
   R.videoTayyorla({ manba: 'qolda', tur, goya: goya.slice(0, 400) })
     .then((r) => R.adminlargaVideo(r, { tasdiq: true, sarlavha: '🎬 <b>Reels tayyor</b> — Instagram’ga joylaymi?' }))
     .catch((e) => yubor(chatId, `⚠️ Video chiqmadi: ${esc(String(e.message).slice(0, 300))}`));

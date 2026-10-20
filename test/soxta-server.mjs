@@ -70,6 +70,15 @@ function javobMatni(sxemaMatni, prompt = '') {
   if (sxemaMatni.includes('kosmetikami')) aiHisobi.marketplace += 1;
   // Tahlil promptini eslab qolamiz — do'kon egasining qo'shimcha
   // ko'rsatmasi modelga haqiqatan yetib bordimi, sinov shuni tekshiradi
+  // Reels — AI butun ombordan mos mahsulotni tanlaydi (mazmun bo'yicha)
+  if (/katalogini TO'LIQ bilasan/.test(prompt)) {
+    globalThis.OXIRGI_KATALOG_PROMPT = prompt;
+    const admin = (/Admin video haqida aytdi: «([^»]*)»/.exec(prompt)?.[1] || '').toLowerCase();
+    const izla = /tovon|oyoq/.test(admin) ? /heel/i : /\blab/.test(admin) ? /lip/i : null;
+    const qator = izla && prompt.split('\n').find((q) => /^\d+\|/.test(q) && izla.test(q.split('|')[1]));
+    return JSON.stringify(qator ? { id: Number(qator.split('|')[0]), sabab: 'Mavzuga mos vosita.' }
+      : { id: 0, sabab: 'Katalogda mos mahsulot topilmadi.' });
+  }
   // Reels — AI muharrir: admin aytgan kamchilikni tuzatadi
   if (sxemaMatni.includes('faqat_izoh')) {
     globalThis.OXIRGI_TUZAT_PROMPT = prompt;

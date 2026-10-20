@@ -631,14 +631,26 @@ console.log('\n── KUNLIK REELS ──');
   const eg = await R.videoTayyorla({ tur: 'erkin', manba: 'qolda', goya: 'ZEBRABREND Unikorn toneri haqida kulgili hikoya' });
   test('erkin g‘oyada aytilgan mahsulot — videoga ulandi va albatta ko‘rsatiladi', eg.product_id === p2.id
     && eg.ssenariy.mahsulot_korsat === true && eg.ssenariy.sahnalar.some((x) => x.tur === 'kashfiyot')
-    && /ADMIN SHU MAHSULOTNI AYTDI/.test(globalThis.OXIRGI_REELS_PROMPT || '') && /Unikorn Glow Toner/.test(globalThis.OXIRGI_REELS_PROMPT || '')
+    && /ADMIN G‘OYASIGA MOS/.test(globalThis.OXIRGI_REELS_PROMPT || '') && /Unikorn Glow Toner/.test(globalThis.OXIRGI_REELS_PROMPT || '')
     && /«KiOVO mahsuloti»/.test(globalThis.OXIRGI_REELS_PROMPT || ''));
   const egT = await R.aiTuzat(r2.id, 'Bu video ZEBRABREND Unikorn toneri haqida bo‘lsin');
   test('AI muharrir: boshqa mahsulot nomi aytilsa — video o‘sha mahsulotga o‘tadi', egT.row.product_id === p2.id
-    && /ADMIN SHU MAHSULOTNI AYTDI \(bazadan topildi\)/.test(globalThis.OXIRGI_TUZAT_PROMPT || '') && /Unikorn Glow Toner/.test(egT.javob)
+    && /ADMIN AYTGAN MAHSULOT \(ombordan topildi/.test(globalThis.OXIRGI_TUZAT_PROMPT || '') && /Unikorn Glow Toner/.test(egT.javob)
     && egT.row.ssenariy.sahnalar.some((x) => x.tur === 'kashfiyot'), egT.javob);
-  await sorov('delete from reels_postlar where product_id = $1', [p2.id]);
-  await sorov('delete from products where id = $1', [p2.id]);
+  // Nomi aytilmagan, MAVZU aytilgan — AI butun ombordan mosini topadi («tovon» → heel krem)
+  const p3 = await qator(`insert into products (name, brand, price, cost_price, stock, is_active, poster_id, description)
+    values ('Intensive Heel Repair Balm', 'QUOKKABREND', 79000, 30000, 5, true, $1, 'Quruq yorilgan teriga') returning id`, [m.id]);
+  const tvn = await R.videoTayyorla({ manba: 'qolda', goya: 'tovon yorilishi uchun video yasa' });
+  test('mavzu bo‘yicha: «tovon» — AI butun katalogdan heel kremini topdi va videoga ulandi', tvn.product_id === p3.id
+    && tvn.ssenariy.tur === 'mahsulot' && /Intensive Heel Repair Balm/.test(globalThis.OXIRGI_KATALOG_PROMPT || '')
+    && tvn.ssenariy.mahsulot_tanlov?.nom === 'QUOKKABREND Intensive Heel Repair Balm', JSON.stringify(tvn.ssenariy.mahsulot_tanlov));
+  const o4 = yuborilgan.length;
+  await R.adminlargaVideo(tvn, { tasdiq: true });
+  test('Telegram’da qaysi mahsulot va nega tanlangani yoziladi', /QUOKKABREND Intensive Heel Repair Balm<\/b> — Mavzuga mos/.test(yuborilgan.slice(o4).find((y) => y.video)?.text || ''));
+  const yoq = await R.matndanMahsulot('qishda qo‘llar quriydi');
+  test('mos mahsulot yo‘q — tanlanmaydi, sababi aytiladi', yoq?.id === 0 && /topilmadi/.test(yoq.sabab));
+  await sorov('delete from reels_postlar where product_id = any($1)', [[p2.id, p3.id]]);
+  await sorov('delete from products where id = any($1)', [[p2.id, p3.id]]);
 
   // Reels 3.0: mahsulotsiz video turi — skaner haqida
   const rs = await R.videoTayyorla({ tur: 'skaner', manba: 'qolda', qahramon: 'nigina' });
