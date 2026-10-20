@@ -39,8 +39,16 @@ export const QAHRAMON_TANLOV = ['navbat', 'nigina', 'jasur'];
 export const MAVZU_TANLOV = ['brend', 'pastel', 'tungi', 'yorqin', 'aralash'];
 export const MUSIQA_TANLOV = ['quvnoq', 'lofi', 'hissiy', 'energiya', 'aralash', 'yoq'];
 const SAHNA = ['hook', 'muammo', 'kashfiyot', 'foyda', 'natija', 'sharh', 'narx', 'cta', 'hikoya',
-  'matn', 'oyna', 'chat', 'skaner', 'ilova', 'royxat', 'taqqos', 'bosqich', 'aksiya'];
-const MAHSULOT_SAHNA = ['kashfiyot', 'foyda', 'narx', 'sharh'];          // mahsulotsiz videoda bo'lmaydi
+  'matn', 'oyna', 'chat', 'skaner', 'ilova', 'royxat', 'taqqos', 'bosqich', 'aksiya', 'kadr', 'uchD'];
+const MAHSULOT_SAHNA = ['kashfiyot', 'foyda', 'narx', 'sharh', 'uchD'];  // mahsulotsiz videoda bo'lmaydi
+// AI chizadigan hikoya rasmlari uslubi (inglizcha — rasm modeli uchun)
+export const RASM_USLUBLARI = {
+  '3d': 'warm cinematic 3D animated-film style (Pixar-like), soft volumetric lighting, rich colors',
+  anime: 'Studio Ghibli-like hand-painted anime illustration, soft colors',
+  akvarel: 'soft watercolor storybook illustration, gentle colors, paper texture',
+  foto: 'photorealistic cinematic photo, natural light, shallow depth of field',
+  flat: 'clean modern flat vector illustration, bold colors, simple shapes',
+};
 const HISSIYOT = ['oddiy', 'xursand', 'hayron', 'xafa', 'oylash', 'hayajon'];
 const IMO = ['tinch', 'silkit', 'korsat', 'ushlab', 'oylash', 'yelka', 'hayajon', 'yuz', 'tepaga'];
 const EKRANLAR = ['skaner', 'dokon', 'mahsulot', 'savat', 'maslahat'];   // public/uy/ilova-*.jpg
@@ -48,22 +56,22 @@ const EKRANLAR = ['skaner', 'dokon', 'mahsulot', 'savat', 'maslahat'];   // publ
 /** Video turlari: nima haqida, qaysi sahnalar, mahsulot kerakmi. */
 export const VIDEO_TURLARI = {
   mahsulot: { nom: '🛍 Mahsulot hikoyasi', mahsulot: true,
-    sahnalar: ['hook', 'muammo', 'kashfiyot', 'foyda', 'natija', 'sharh', 'narx', 'cta', 'hikoya', 'matn', 'taqqos', 'royxat'],
+    sahnalar: ['hook', 'muammo', 'kashfiyot', 'foyda', 'natija', 'sharh', 'narx', 'cta', 'hikoya', 'matn', 'taqqos', 'royxat', 'kadr', 'uchD'],
     mavzu: 'bitta mahsulotni hikoya orqali sotish' },
   skaner: { nom: '📸 Yuz skaneri (ilova)', mahsulot: false,
-    sahnalar: ['hook', 'matn', 'muammo', 'oyna', 'skaner', 'royxat', 'ilova', 'natija', 'chat', 'hikoya', 'cta'],
+    sahnalar: ['hook', 'matn', 'muammo', 'oyna', 'skaner', 'royxat', 'ilova', 'natija', 'chat', 'hikoya', 'kadr', 'cta'],
     mavzu: 'KiOVO botidagi bepul YUZ SKANERI: selfi → AI teri turini va muammolarni aniqlaydi → mos parvarish tuzadi. Tomoshabin skanerni sinab ko‘rsin' },
   maslahat: { nom: '💬 AI maslahatchi (ilova)', mahsulot: false,
-    sahnalar: ['hook', 'matn', 'muammo', 'chat', 'oyna', 'ilova', 'royxat', 'hikoya', 'cta'],
+    sahnalar: ['hook', 'matn', 'muammo', 'chat', 'oyna', 'ilova', 'royxat', 'hikoya', 'kadr', 'cta'],
     mavzu: 'KiOVO ilovasidagi AI MASLAHATCHI: teri haqida yozib so‘raysiz, rasm yuborsangiz ham bo‘ladi, darrov mos parvarish va mahsulot aytadi' },
   buyurtma: { nom: '📦 Qanday buyurtma beriladi', mahsulot: false,
-    sahnalar: ['hook', 'matn', 'bosqich', 'oyna', 'ilova', 'royxat', 'hikoya', 'cta'],
+    sahnalar: ['hook', 'matn', 'bosqich', 'oyna', 'ilova', 'royxat', 'hikoya', 'kadr', 'cta'],
     mavzu: 'KiOVO dan buyurtma berish qadamlari — oson va tez ekanini ko‘rsatish' },
   foydali: { nom: '💡 Foydali maslahat', mahsulot: false,
-    sahnalar: ['hook', 'matn', 'muammo', 'taqqos', 'bosqich', 'royxat', 'hikoya', 'natija', 'cta'],
+    sahnalar: ['hook', 'matn', 'muammo', 'taqqos', 'bosqich', 'royxat', 'hikoya', 'natija', 'kadr', 'cta'],
     mavzu: 'teri parvarishi bo‘yicha FOYDALI maslahat (ta’lim): odamlar saqlab qo‘yadigan, ulashadigan video. Sotuvga majburlamaydi' },
   aksiya: { nom: '🔥 Aksiya / chegirmalar', mahsulot: false,
-    sahnalar: ['hook', 'matn', 'aksiya', 'hikoya', 'natija', 'cta'],
+    sahnalar: ['hook', 'matn', 'aksiya', 'hikoya', 'natija', 'kadr', 'cta'],
     mavzu: 'bugungi chegirmadagi mahsulotlar (bazadan) — tez harakat qilishga undash' },
   erkin: { nom: '✨ Erkin g‘oya', mahsulot: false, sahnalar: SAHNA, mavzu: 'admin g‘oyasi bo‘yicha' },
 };
@@ -84,6 +92,8 @@ export const STANDART = {
   davomiylik: 30, yoriqnoma: '',
   tur: 'aralash',           // har kungi video turi: aralash (hafta rejasi) yoki VIDEO_TURLARI dan biri
   subtitr_uslub: 'karaoke', // karaoke | chip | oddiy
+  rasm_soni: 3,             // hikoyaga mos AI rasmlari (har video uchun, 0 — o'chiq)
+  rasm_uslub: '3d',         // RASM_USLUBLARI
 };
 const QULF = 774411;                         // advisory lock — ikki nusxa bir vaqtda yasamasin
 
@@ -115,6 +125,8 @@ export function sozlamaTozala(s = {}, eski = STANDART) {
     yoriqnoma: String(r.yoriqnoma || '').trim().slice(0, 800),
     tur: tanlov(r.tur, ['aralash', ...Object.keys(VIDEO_TURLARI).filter((k) => k !== 'erkin')], 'aralash'),
     subtitr_uslub: tanlov(r.subtitr_uslub, ['karaoke', 'chip', 'oddiy'], 'karaoke'),
+    rasm_soni: Math.min(5, Math.max(0, Math.round(Number(r.rasm_soni ?? 3)) || 0)),
+    rasm_uslub: tanlov(r.rasm_uslub, Object.keys(RASM_USLUBLARI), '3d'),
   };
 }
 
@@ -192,6 +204,7 @@ const SXEMA = {
           xabarlar: { type: 'array', items: { type: 'object', properties: { kim: { type: 'string', enum: ['mijoz', 'ai'] }, matn: { type: 'string' } }, required: ['kim', 'matn'] } },
           yomon: { type: 'array', items: { type: 'string' } },
           yaxshi: { type: 'array', items: { type: 'string' } },
+          rasm_tavsif: { type: 'string' },
         },
         required: ['tur', 'ovoz', 'ekran', 'urgu', 'emoji', 'hissiyot', 'imo'],
       },
@@ -232,7 +245,16 @@ const SAHNA_TAVSIF = {
   bosqich: 'bosqich — raqamli qadamlar: punktlar 3–4 ta {matn: 2–5 so‘z, emoji}.',
   aksiya: 'aksiya — chegirmadagi mahsulot kartochkalari (rasm va narx bazadan); ekran — sarlavha («Bugungi chegirmalar»).',
   cta: 'cta — oxirgi sahna, MAJBURIY. ekran: «Izohga «+» yozing».',
+  kadr: 'kadr — hikoya KADRI: butun ekranda AI chizgan rasm (buvi, oshxona, qishki ko‘cha, oyna oldida…), kino kabi; rasm_tavsif MAJBURIY; ekran — rasm ustidagi qisqa yozuv.',
+  uchD: 'uchD — 3D sahna: mahsulot perspektivada aylanadi, orbita zarrachalari, oynadek aks; ekran — sarlavha, kichik — izoh.',
 };
+
+/** AI rejissyorga rasm qoidasi (rasm o'chiq bo'lsa — bo'sh). */
+const rasmQoidasi = (st) => (st.rasm_soni > 0 ? `
+- rasm_tavsif — sahna FONI uchun rasm (AI chizadi). Hikoyada odam, joy yoki narsa tilga olinsa — o'shani tasvirla:
+  masalan buvi haqida gapirilsa «an elderly Uzbek grandmother with a warm smile in a cozy Tashkent kitchen, morning light».
+  INGLIZCHA, 1–2 gap, matnsiz (harflar, logotip yo'q). Ko'pi bilan ${st.rasm_soni} ta sahnada; kadr sahnasida majburiy.
+  Mahsulotning o'zini chizdirma (uning haqiqiy surati bazadan qo'yiladi).` : '');
 
 // Ilova haqida haqiqiy faktlar (AI o'ylab topmasin)
 const ILOVA_FAKT = `ILOVA FAKTLARI (faqat shularga tayan):
@@ -292,8 +314,9 @@ ${ruxsat.map((k) => `- ${SAHNA_TAVSIF[k]}`).join('\n')}
 Har sahnada:
 - ovoz — qahramon aytadigan gap, 6–20 so'z, jonli og'zaki o'zbek tili (do'stiga gapirgandek), raqamlarni so'z bilan yoz,
   belgilar (+, %, —) ishlatma. Jami ovoz: ${sozSoni} so'z. cta ovozi: «Izohga plyus yozing — ${tur === 'mahsulot' ? 'narx va maslahatni' : 'havolani'} Direct'ga yuboraman».
+  O‘zbek lotin yozuvi TO‘G‘RI bo‘lsin: o‘ va g‘ harflaridagi tutuq belgisi (‘) albatta yozilsin (to‘g‘ri, o‘rgatardi, yog‘) — bu taqiqlangan belgi emas.
 - ekran — ekrandagi katta matn, 2–6 so'z (ovozni takrorlamaydi, urg'u beradi). urgu — ekran ichidagi BITTA eng muhim so'z.
-- emoji — bitta mos emoji. hissiyot: ${HISSIYOT.join('/')}. imo (qo'llar): ${IMO.join('/')}.
+- emoji — bitta mos emoji. hissiyot: ${HISSIYOT.join('/')}. imo (qo'llar): ${IMO.join('/')}.${rasmQoidasi(st)}
 Taqiq: kasallikni davolaydi deb va'da berma, «100%», «abadiy», «kafolat» yozma; boshqa brendlarni yomonlama; faktlarda yo'q narsani aytma.
 Mahsulot haqida gapirsang — FAQAT yuqoridagi MAHSULOT ni aniq nomi bilan ayt; «KiOVO mahsuloti», «bizning krem» kabi umumiy nom ishlatma.
 Mahsulot berilmagan bo'lsa — aniq mahsulotni maqtama (o'ylab topilgan nom bo'lmasin).
@@ -313,7 +336,7 @@ function ruxsatSahnalar(tur, { mahsulotBor, aksiyaBor, sharhBor = true, st = STA
   let r = [...VT.sahnalar];
   // Mahsulot berilgan foydali/erkin videoda — mahsulot sahnalari ham mumkin
   if (mahsulotBor && tur !== 'mahsulot') r.push(...MAHSULOT_SAHNA.filter((k) => !r.includes(k)));
-  return r.filter((k) => (mahsulotBor || !MAHSULOT_SAHNA.includes(k)) && (aksiyaBor || k !== 'aksiya')
+  return r.filter((k) => (mahsulotBor || !MAHSULOT_SAHNA.includes(k)) && (aksiyaBor || k !== 'aksiya') && (st.rasm_soni > 0 || k !== 'kadr')
     && (sharhBor || k !== 'sharh') && (st.narx_korsat || k !== 'narx'));
 }
 
@@ -341,6 +364,7 @@ export function ssenariyTozala(j, { st = STANDART, sharhlar = [], format = null,
         .filter((q) => q.matn).slice(0, 5),
       raqam: toza(x?.raqam, 6),
       birlik: toza(x?.birlik, 16),
+      rasm_tavsif: toza(x?.rasm_tavsif, 400) || undefined,
     };
     // Yangi sahnalar maydonlari — faqat kerakli turda
     if (y.tur === 'oyna') Object.assign(y, { sarlavha: toza(x?.sarlavha, 30), yozuv: toza(x?.yozuv, 40), natija: toza(x?.natija, 40),
@@ -358,14 +382,15 @@ export function ssenariyTozala(j, { st = STANDART, sharhlar = [], format = null,
   // Qolgan ruxsatsiz yoki ma'lumoti yetishmagan sahna — kinetik matnga aylanadi (ovoz yo'qolmaydi)
   for (const x of sahnalar) {
     const yetarli = (x.tur !== 'chat' || x.xabarlar?.length) && (x.tur !== 'taqqos' || (x.yomon?.length && x.yaxshi?.length))
-      && (!['royxat', 'bosqich'].includes(x.tur) || x.punktlar.length >= 2) && (x.tur !== 'oyna' || x.yozuv);
-    if (!ruxsat.has(x.tur) || !yetarli) x.tur = x.tur === 'hook' || x.tur === 'cta' ? x.tur : 'matn';
+      && (!['royxat', 'bosqich'].includes(x.tur) || x.punktlar.length >= 2) && (x.tur !== 'oyna' || x.yozuv)
+      && (x.tur !== 'kadr' || x.rasm_tavsif);
+    if (!ruxsat.has(x.tur) || !yetarli) x.tur = x.tur === 'hook' || x.tur === 'cta' ? x.tur : x.tur === 'kadr' ? 'hikoya' : 'matn';
     if (x.tur === 'skaner' && !x.punktlar.length) x.punktlar = [{ matn: 'Namlik', emoji: '💧' }, { matn: 'Yog‘lilik', emoji: '✨' }, { matn: 'Teshiklar', emoji: '🔍' }];
     if (x.tur === 'sharh') x.sharh = sharh;
   }
   // Bitta turdagi sahnalar takrorlanmasin (hikoya va matndan tashqari)
   const bor = new Set();
-  sahnalar = sahnalar.filter((x) => { if (x.tur === 'hikoya' || x.tur === 'matn') return true; if (bor.has(x.tur)) return false; bor.add(x.tur); return true; });
+  sahnalar = sahnalar.filter((x) => { if (['hikoya', 'matn', 'kadr'].includes(x.tur)) return true; if (bor.has(x.tur)) return false; bor.add(x.tur); return true; });
   if (!sahnalar.length || sahnalar[0].tur !== 'hook') {
     const i = sahnalar.findIndex((x) => x.tur === 'hook');
     if (i > 0) sahnalar.unshift(...sahnalar.splice(i, 1));
@@ -611,6 +636,46 @@ export async function videoTayyorla({ tur = null, productId = null, manba = 'jad
   }
 }
 
+/**
+ * Hikoyaga mos rasmlar: AI rejissyor yozgan rasm_tavsif bo'yicha Gemini chizadi
+ * (buvi, oshxona, qishki ko'cha…). Bir xil tavsif + uslub qayta chizilmaydi —
+ * bazadan olinadi (qayta render, AI tuzatish tez va bepul).
+ * @returns {Promise<Record<number, Buffer>>} sahna indeksi → JPEG
+ */
+export async function sahnaRasmlari(sahnalar, st) {
+  const chiq = {};
+  if (!st.rasm_soni) return chiq;
+  const navbat = sahnalar.map((x, i) => ({ x, i })).filter(({ x }) => x.rasm_tavsif)
+    .sort((a, b) => Number(b.x.tur === 'kadr') - Number(a.x.tur === 'kadr')).slice(0, st.rasm_soni);
+  if (!navbat.length) return chiq;
+  const { createHash } = await import('node:crypto');
+  const { aiRasm } = await import('../ai/index.js');
+  for (const { x, i } of navbat) {
+    const prompt = `${x.rasm_tavsif}. Style: ${RASM_USLUBLARI[st.rasm_uslub] || RASM_USLUBLARI['3d']}. Vertical 9:16 composition, `
+      + 'main subject in the middle third, calm uncluttered areas at the top and bottom for captions. '
+      + 'Absolutely no text, letters, numbers, logos or watermarks.';
+    const kalit = `reels-rasm:${createHash('sha1').update(prompt).digest('hex').slice(0, 24)}`;
+    let m = await qator(`select bayt from media where goya = $1 order by created_at desc limit 1`, [kalit]).catch(() => null);
+    if (!m) {
+      try {
+        // Model ba'zan rasmsiz javob qaytaradi («Rasm qaytmadi») — bir marta soddaroq so'rov bilan qayta
+        const r = await aiRasm([{ text: prompt }], { nisbat: '9:16', qayerda: 'reels-rasm' })
+          .catch((e) => {
+            if (!['bosh', 'nomalum', 'vaqt', 'band'].includes(e.turkum)) throw e;
+            return aiRasm([{ text: `${x.rasm_tavsif}. ${RASM_USLUBLARI[st.rasm_uslub] || RASM_USLUBLARI['3d']}. Vertical image, no text.` }],
+              { nisbat: '9:16', qayerda: 'reels-rasm' });
+          });
+        const xom = Buffer.from(r.base64, 'base64');
+        const j = await jpegQil(xom, r.mime, { eni: 1080, sifat: 86 }).catch(() => ({ bayt: xom }));
+        m = await qator(`insert into media (tur, mime, bayt, hajm, nisbat, prompt, goya)
+          values ('reels_rasm', 'image/jpeg', $1, $2, '9:16', $3, $4) returning bayt`, [j.bayt, j.bayt.length, prompt.slice(0, 1000), kalit]);
+      } catch (e) { console.warn('REELS rasm chizilmadi:', e.message); continue; }
+    }
+    chiq[i] = Buffer.from(m.bayt);
+  }
+  return chiq;
+}
+
 // Ilovaning haqiqiy skrinshotlari (public/uy/ilova-*.jpg) — «ilova» sahnasi uchun
 let ekranKesh = null;
 async function ilovaEkranlari() {
@@ -646,7 +711,8 @@ async function render(p, s, st, sifat, { aksiya = [] } = {}) {
     const r = await kino.kinoYasa({
       sahnalar: s.sahnalar, qahramon: s.qahramon, mavzu: s.mavzu, mahsulot: p ? mahsulotMalumoti(p) : {},
       rasmlar: { mahsulot: surat, logo: await logoPng(),
-        ekranlar: s.sahnalar.some((x) => x.tur === 'ilova') ? await ilovaEkranlari() : {}, aksiya },
+        ekranlar: s.sahnalar.some((x) => x.tur === 'ilova') ? await ilovaEkranlari() : {}, aksiya,
+        sahna: await sahnaRasmlari(s.sahnalar, st) },
       ovoz: ovoz ? wavOqi(ovoz.wav) : null,
       musiqa: s.musiqa, musiqaBaland: st.musiqa_baland / 100, sfx: st.sfx, subtitr: st.subtitr,
       subtitrUslub: st.subtitr_uslub, seed: ((p?.id ?? s.sahnalar.length) % 7) + 1,
@@ -747,8 +813,10 @@ Qoidalar:
 - hook birinchi, cta oxirgi bo'lib qolsin. Sahnalar 4–9 ta.
 - «N-sahna» — 1 dan sanaladi (hook = 1-sahna).
 - ovoz — og'zaki o'zbek tili, raqamlar so'z bilan, belgilarsiz (+, %). Faktlarda yo'q narsani qo'shma, va'da berma.
+- O‘zbek lotin yozuvi TO‘G‘RI bo‘lsin: o‘ va g‘ harflaridagi tutuq belgisi (‘) albatta yozilsin (to‘g‘ri, o‘rgatardi, yog‘) — bu taqiqlangan belgi emas.
 - Video uzunligini so'rasa: taxminan 2.2 so'z = 1 soniya (ovoz bo'yicha).
 - Qahramon, rang (mavzu), musiqa, subtitr uslubi, ovoz, effektlar haqida aytilsa — tegishli maydonni o'zgartir; aytilmasa — joriy qiymatni qaytar.
+- Rasm (fon) haqida aytilsa — o'sha sahnaning rasm_tavsif ini INGLIZCHA qayta yoz (yangi rasm chiziladi); aytilmasa — rasm_tavsif ni AYNAN qoldir.${rasmQoidasi(st)}
 - Agar admin FAQAT Instagram izohi (caption) haqida gapirsa — faqat_izoh: true va yangi izoh; sahnalarni o'zgartirmasdan qaytar.
 - izoh — to'liq Instagram matni (hashtaglar bilan).
 - javob — adminga 1–2 qisqa gap: nimani o'zgartirding (o'zbekcha). Agar so'rovni bajarib bo'lmasa — sababini ayt.

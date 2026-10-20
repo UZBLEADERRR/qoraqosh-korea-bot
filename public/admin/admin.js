@@ -5741,7 +5741,8 @@ const REELS_HOLAT = { tayyorlanmoqda: '⏳ yasalmoqda', tayyor: '🟡 tasdiq kut
 const RL_SAHNA = { hook: '🎣 Hook (birinchi soniya)', muammo: '😩 Muammo', kashfiyot: '✨ Mahsulot ochilishi', foyda: '✅ 3 ta foyda',
   natija: '🤩 Natija', sharh: '⭐ Haqiqiy sharh', narx: '💰 Narx (bazadan)', cta: '📣 Chaqiriq', hikoya: '💬 Hikoya lahzasi',
   matn: '🔠 Kinetik matn', oyna: '🖥 Ilova oynasi (yozish + kursor)', chat: '💬 Chat suhbati', skaner: '📸 Yuz skaneri',
-  ilova: '📱 Telefonda ilova', royxat: '☑️ Ro‘yxat (✓ bilan)', taqqos: '⚖️ Noto‘g‘ri / To‘g‘ri', bosqich: '🔢 Bosqichlar', aksiya: '🔥 Aksiya kartochkalari' };
+  ilova: '📱 Telefonda ilova', royxat: '☑️ Ro‘yxat (✓ bilan)', taqqos: '⚖️ Noto‘g‘ri / To‘g‘ri', bosqich: '🔢 Bosqichlar', aksiya: '🔥 Aksiya kartochkalari',
+  kadr: '🖼 Hikoya kadri (AI rasm)', uchD: '🧊 3D mahsulot' };
 const RL_EKRAN = { skaner: 'Skaner', dokon: 'Do‘kon', mahsulot: 'Mahsulot', savat: 'Savat', maslahat: 'Maslahat' };
 const RL_HISSIYOT = { '': 'avto', oddiy: 'oddiy', xursand: 'xursand', hayron: 'hayron', xafa: 'xafa', oylash: 'o‘ylayapti', hayajon: 'hayajon' };
 const RL_IMO = { '': 'avto', tinch: 'tinch', silkit: 'qo‘l silkitadi', korsat: 'ko‘rsatadi', ushlab: 'qo‘lida ushlaydi',
@@ -5836,6 +5837,10 @@ async function reelsBolimi() {
       </div>
       <div><label>Musiqa balandligi: <b id="rl-bal-q">${Number(s.musiqa_baland)}</b>%</label>
         <input id="rl-bal" type="range" min="0" max="100" value="${Number(s.musiqa_baland)}" style="width:100%"></div>
+      <div class="forma-tor">
+        <div><label>Hikoya rasmlari (AI chizadi)</label><select id="rl-rsoni">${opsiya({ 0: 'O‘chiq', 1: '1 ta', 2: '2 ta', 3: '3 ta (tavsiya)', 4: '4 ta', 5: '5 ta' }, String(s.rasm_soni))}</select></div>
+        <div><label>Rasm uslubi</label><select id="rl-ruslub">${opsiya({ '3d': '3D multfilm', anime: 'Anime', akvarel: 'Akvarel', foto: 'Foto (real)', flat: 'Flat illyustratsiya' }, s.rasm_uslub)}</select></div>
+      </div>
       <label class="belgi-qator"><input type="checkbox" id="rl-sub" ${s.subtitr ? 'checked' : ''}> So‘zma-so‘z subtitr</label>
       <label class="belgi-qator"><input type="checkbox" id="rl-sfx" ${s.sfx ? 'checked' : ''}> Tovush effektlari (whoosh, pop, ding)</label>
       <label class="belgi-qator"><input type="checkbox" id="rl-narx" ${s.narx_korsat ? 'checked' : ''}> Videoda narxni ko‘rsatish</label>
@@ -5863,7 +5868,8 @@ async function reelsBolimi() {
         narx_korsat: $('#rl-narx').checked, ovozli: $('#rl-ovozli').checked, ovoz: $('#rl-ovoz').value,
         ovoz_model: $('#rl-model').value.trim(), ovoz_uslubi: $('#rl-ouslub').value.trim(),
         yoriqnoma: $('#rl-yor').value.trim(), motor: $('#rl-motor').value,
-        tur: $('#rl-kuntur').value, subtitr_uslub: $('#rl-subu').value }) });
+        tur: $('#rl-kuntur').value, subtitr_uslub: $('#rl-subu').value,
+        rasm_soni: Number($('#rl-rsoni').value), rasm_uslub: $('#rl-ruslub').value }) });
       tost('Reels sozlamasi saqlandi');
     } catch (e) { tost(e.message, 'xato'); }
   };
@@ -5975,6 +5981,8 @@ function reelsMuharrir(id) {
       ${x.tur === 'taqqos' ? `<label>Noto‘g‘ri (vergul bilan)</label><input data-k="yomon" value="${esc((x.yomon || []).join(', '))}">
         <label>To‘g‘ri (vergul bilan)</label><input data-k="yaxshi" value="${esc((x.yaxshi || []).join(', '))}">` : ''}
       ${x.tur === 'ilova' ? `<label>Ilova ekrani</label><select data-k="ekran_turi">${opsiya(RL_EKRAN, x.ekran_turi || 'skaner')}</select>` : ''}
+      <label>Fon rasmi — AI chizadi (inglizcha tavsif, bo‘sh — rasmsiz)</label>
+      <textarea data-k="rasm_tavsif" rows="2" maxlength="400" placeholder="an elderly Uzbek grandmother in a cozy kitchen, warm morning light">${esc(x.rasm_tavsif || '')}</textarea>
     </div>`;
   const yigish = () => {
     $$('#rl-sahnalar [data-i]').forEach((el) => {

@@ -99,6 +99,17 @@ function javobMatni(sxemaMatni, prompt = '') {
   // Reels 2.0 — AI rejissyor (hikoya sahnalari)
   if (sxemaMatni.includes('sahnalar') && sxemaMatni.includes('hashtaglar')) {
     globalThis.OXIRGI_REELS_PROMPT = prompt;
+    if (/ADMIN G'OYASI[^\n]*buvi/i.test(prompt)) {
+      return JSON.stringify({ format: 'shaxsiy', sahnalar: [
+        { tur: 'hook', ovoz: 'Buvim bir sirni aytgan edi.', ekran: 'Buvimning siri', urgu: 'siri', emoji: '👵', hissiyot: 'oylash', imo: 'oylash' },
+        { tur: 'kadr', ovoz: 'U har tong yuzini sovuq suv bilan yuvardi.', ekran: 'Har tong', urgu: 'tong', emoji: '🌅', hissiyot: 'oddiy', imo: 'korsat',
+          rasm_tavsif: 'an elderly Uzbek grandmother washing her face in a cozy kitchen, morning light' },
+        { tur: 'hikoya', ovoz: 'Men esa buni unutib qo‘ydim.', ekran: 'Men unutdim', urgu: 'unutdim', emoji: '😅', hissiyot: 'xafa', imo: 'yelka',
+          rasm_tavsif: 'a young Uzbek woman looking at a mirror, evening, soft light' },
+        { tur: 'kadr', ovoz: 'Rasmsiz kadr bo‘lmaydi.', ekran: 'Yo‘q', emoji: '🖼', hissiyot: 'oddiy', imo: 'tinch' },
+        { tur: 'cta', ovoz: 'Izohga plyus yozing.', ekran: 'Izohga «+» yozing', emoji: '💌', hissiyot: 'xursand', imo: 'silkit' },
+      ], izoh: 'Buvimning siri ✨\n\nIzohga «+» yozing 💌', hashtaglar: '#kiovo' });
+    }
     if (/VIDEO TURI: 📸 Yuz skaneri/.test(prompt)) {
       return JSON.stringify({ format: 'savol', sahnalar: [
         { tur: 'hook', ovoz: 'Krem tanlash qiyinmi?', ekran: 'Krem tanlash qiyinmi?', urgu: 'qiyinmi', emoji: '🤔', hissiyot: 'hayron', imo: 'oylash' },

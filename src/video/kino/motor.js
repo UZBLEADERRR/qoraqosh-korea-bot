@@ -24,7 +24,7 @@ const OTISH = 0.45;
 const OTISHLAR = ['zoom', 'surish', 'doira', 'yuqori', 'chaqnash'];
 // Animatsiya ulgurishi uchun eng qisqa sahna (soniya)
 const MIN_D = { hook: 2.4, muammo: 2.6, kashfiyot: 3.0, foyda: 3.6, natija: 2.8, sharh: 3.4, narx: 3.2, cta: 3.4, hikoya: 2.4,
-  matn: 2.4, oyna: 4.2, chat: 5.0, skaner: 4.2, ilova: 3.6, royxat: 3.6, taqqos: 4.4, bosqich: 4.0, aksiya: 3.6 };
+  matn: 2.4, oyna: 4.2, chat: 5.0, skaner: 4.2, ilova: 3.6, royxat: 3.6, taqqos: 4.4, bosqich: 4.0, aksiya: 3.6, kadr: 3.0, uchD: 3.6 };
 // Oynada matn yozilib, kursor bosishiga ulgurish kerak — yozuv uzun bo'lsa sahna cho'ziladi
 const qoshimchaVaqt = (S) => (S.tur === 'oyna' ? String(S.yozuv || '').length / 16 : 0)
   + (S.tur === 'chat' ? Math.max(0, (S.xabarlar || []).length - 3) * 1.2 : 0);
@@ -240,6 +240,11 @@ async function rasmlarniTayyorla(m, rasmlar = {}) {
   for (const [k, b] of Object.entries(rasmlar.ekranlar || {})) {
     try { chiq.ekranlar[k] = await m.loadImage(Buffer.from(b)); } catch { /* bu ekran bo'lmaydi */ }
   }
+  // Hikoya sahnalari uchun AI chizgan rasmlar: { sahna indeksi: bayt }
+  chiq.sahna = {};
+  for (const [i, b] of Object.entries(rasmlar.sahna || {})) {
+    try { chiq.sahna[i] = await m.loadImage(Buffer.from(b)); } catch { /* rasmsiz — oddiy fon */ }
+  }
   // Aksiyadagi mahsulotlar (rasm + bazadagi narx)
   chiq.aksiya = [];
   for (const a of (rasmlar.aksiya || []).slice(0, 4)) {
@@ -276,10 +281,12 @@ export async function chizuvchi(loyiha, { en = 1080 } = {}) {
 
   const joy = (i, t) => {
     const S = sahnalar[i];
+    Y.sahnaRasm = rasm.sahna[i] || null;
     return { dog: 0, yaltiroq: 0, yon: 1, s: 1, ...SAHNALAR[S.tur].qahramon(t, S.d, S, Y) };
   };
   const sahnaChiz = (x, i, t, ustki = true) => {
     const S = sahnalar[i], Z = SAHNALAR[S.tur];
+    Y.sahnaRasm = rasm.sahna[i] || null;              // hikoyaga mos AI rasmi (bo'lsa — fon)
     x.save(); x.setTransform(k, 0, 0, k, 0, 0);
     // Kamera: sahna davomida sekin yaqinlashadi
     const z = 1 + 0.035 * L.clamp(t / S.d);
@@ -322,6 +329,7 @@ export async function chizuvchi(loyiha, { en = 1080 } = {}) {
       const f = Math.min(lab ? lab.length - 1 : 0, Math.floor(T * fps));
       if (h.y < H + 400) qahramonChiz(ctx, { ...h, tur: loyiha.qahramon, t: T, lab: lab ? lab[f] : 0, mahsulot: rasm.mahsulot });
     }
+    Y.sahnaRasm = rasm.sahna[i] || null;
     if (!otishda) xavfsiz(() => SAHNALAR[sahnalar[i].tur].ustki(ctx, t, sahnalar[i].d, sahnalar[i], Y), sahnalar[i].tur);
     subtitr(ctx, T, ibora, Y, hJoy, loyiha.subtitrUslub);
     // Kichik logo (oxirgi sahnada katta logo bor)

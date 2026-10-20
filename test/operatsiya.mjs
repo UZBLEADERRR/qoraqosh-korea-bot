@@ -2640,6 +2640,10 @@ console.log('\n── REELS 2.0: ANIMATSION HIKOYA MOTORI ──');
     !t3t.includes('kashfiyot') && !t3t.includes('aksiya') && !t3t.includes('chat') && t3t.includes('matn') && t3t.includes('oyna')
     && t3.sahnalar.find((x) => x.tur === 'ilova').ekran_turi === 'skaner' && t3.sahnalar.find((x) => x.tur === 'skaner').punktlar.length === 3
     && t3t.at(-1) === 'cta' && /Havolani/.test(t3.sahnalar.at(-1).kichik), t3t.join(','));
+  const t4 = R.ssenariyTozala({ sahnalar: [{ tur: 'hook', ovoz: 'h', ekran: 'h' }, { tur: 'kadr', ovoz: 'k', ekran: 'k', rasm_tavsif: 'a grandmother' },
+    { tur: 'uchD', ovoz: 'u', ekran: 'u' }] }, { tur: 'skaner', mahsulotBor: false, st: R.sozlamaTozala({ rasm_soni: 0 }) });
+  test('rasm o‘chiq — «kadr» hikoyaga aylanadi; mahsulotsiz — 3D mahsulot sahnasi olib tashlanadi',
+    t4.sahnalar.map((x) => x.tur).join() === 'hook,hikoya,cta', t4.sahnalar.map((x) => x.tur).join());
   test('aralash reja: hafta kuni bo‘yicha tur', R.bugungiTur(new Date('2026-10-19T08:00:00Z')) === 'mahsulot'
     && R.bugungiTur(new Date('2026-10-22T08:00:00Z')) === 'skaner' && R.bugungiTur(new Date('2026-10-23T08:00:00Z')) === 'aksiya');
   test('mahsulotsiz turlarda mahsulot shart emas', Object.entries(R.VIDEO_TURLARI).filter(([, v]) => v.mahsulot).map(([k]) => k).join() === 'mahsulot');

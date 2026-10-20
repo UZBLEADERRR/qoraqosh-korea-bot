@@ -33,8 +33,27 @@ export function at(S, soz, zaxira = 0) {
   return w ? w.s : zaxira;
 }
 
+/** Hikoyaga mos AI chizgan rasm — sekin yaqinlashib, suzib turadi (Ken Burns). */
+function sahnaRasmi(ctx, t, img, kuch = 1) {
+  const z = 1.06 + 0.014 * t * kuch;
+  const s = Math.max(W / img.width, H / img.height) * z;
+  const w = img.width * s, h = img.height * s;
+  ctx.drawImage(img, (W - w) / 2 + Math.sin(t * 0.35) * 18 * kuch, (H - h) / 2 + Math.cos(t * 0.3) * 12 * kuch, w, h);
+}
+
 function fon(ctx, t, Y, tur = 'asosiy') {
   const m = tur === 'sovuq' ? SOVUQ : Y.mavzu;
+  if (Y.sahnaRasm) {
+    // Sahnada hikoya rasmi bor — fon o'sha; matn o'qilishi uchun tepada va pastda qoraytirish
+    sahnaRasmi(ctx, t, Y.sahnaRasm);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(0,0,0,0.62)'); g.addColorStop(0.32, 'rgba(0,0,0,0.12)');
+    g.addColorStop(0.62, 'rgba(0,0,0,0.12)'); g.addColorStop(1, 'rgba(0,0,0,0.7)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    L.particles(ctx, t, W, H, { soni: 18, rang: '#ffffff', olcham: [2, 4], yon: 'tepa', tezlik: 30, alpha: 0.35, seed: 11 });
+    L.vignette(ctx, W, H, 0.45);
+    return;
+  }
   L.blobBg(ctx, W, H, t + Y.seed, m.fon, m.asos);
   if (tur === 'mahsulot' && Y.rasm.xira) {
     ctx.save(); ctx.globalAlpha = 0.32;
@@ -729,6 +748,118 @@ const aksiya = {
   sfx: (S, Y) => (Y.aksiya || []).slice(0, 4).map((a, i) => ({ tur: 'pop', t: 0.5 + i * 0.35 })).concat([{ tur: 'ding', t: 0.9 }]),
 };
 
-export const SAHNALAR = { hook, muammo, kashfiyot, foyda, natija, sharh, narx: narxSahna, cta, hikoya,
+const kadr = {
+  // Hikoya kadri: AI chizgan rasm butun ekranda (buvi, oshxona, qishki ko'cha…) — kino kadri kabi
+  logoBor: false,
+  chiz(ctx, t, d, S, Y) {
+    const img = Y.sahnaRasm;
+    if (!img) return hikoya.chiz(ctx, t, d, S, Y);
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    // kirish: qorong'ilikdan ochiladi + kuchliroq yaqinlashish
+    ctx.save(); ctx.globalAlpha = L.prog(t, 0, 0.6);
+    sahnaRasmi(ctx, t, img, 1.6);
+    ctx.restore();
+    // yorug'lik chaqnashi (light leak) kadr bo'ylab o'tadi
+    const lp = L.prog(t, 0.3, 2.2, 'inOutSine');
+    if (lp > 0 && lp < 1) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter';
+      const x = L.lerp(-300, W + 300, lp), g = ctx.createRadialGradient(x, H * 0.3, 0, x, H * 0.3, 520);
+      g.addColorStop(0, 'rgba(255,190,120,0.28)'); g.addColorStop(1, 'rgba(255,190,120,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+    }
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, 'rgba(0,0,0,0.6)'); g.addColorStop(0.28, 'rgba(0,0,0,0)'); g.addColorStop(0.7, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.65)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // kino chiziqlari (letterbox) — birinchi soniyada ochiladi
+    const lb = (1 - L.prog(t, 0, 0.8, 'outCubic')) * 140;
+    if (lb > 1) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, lb); ctx.fillRect(0, H - lb, W, lb); }
+    if (S.ekran) L.title(ctx, S.ekran, W / 2, 380, t, { uslub: 'maska', bosh: 0.35, olcham: 86, urgu: S.urgu, aksent: Y.mavzu.aksent, maxEni: 900, maxQator: 2 });
+    kichikMatn(ctx, S, 560, t, 0.9, Y, { olcham: 44 });
+    L.vignette(ctx, W, H, 0.4);
+  },
+  ustki(ctx, t, d, S, Y) { if (!Y.sahnaRasm) hikoya.ustki(ctx, t, d, S, Y); },
+  qahramon: (t, d, S, Y) => (Y.sahnaRasm
+    ? { x: 190, y: 1580, s: 0.75, hissiyot: S.hissiyot || 'oddiy', imo: S.imo || 'korsat', yon: 1, qarash: 0.6 }
+    : hikoya.qahramon(t, d, S)),
+  sfx: () => [{ tur: 'whoosh', t: 0.05 }, { tur: 'shimmer', t: 0.4 }],
+};
+
+const uchD = {
+  // 3D: perspektivali pol to'ri, aylanayotgan kartochka (mahsulot yoki hikoya rasmi),
+  // orbita bo'ylab aylanuvchi zarrachalar va oynadek aks
+  chiz(ctx, t, d, S, Y) {
+    const img = Y.rasm.mahsulot || Y.sahnaRasm;
+    L.radialBg(ctx, W, H, [Y.mavzu.fon[0], Y.mavzu.asos, '#000000'], W / 2, H * 0.45, H * 0.8);
+    // Pol to'ri: ufq chizig'iga qarab torayadi va oldinga oqadi
+    const ufq = 1180, fov = 380;
+    ctx.save(); ctx.strokeStyle = L.hexA(Y.mavzu.aksent, 0.35); ctx.lineWidth = 2;
+    for (let i = -12; i <= 12; i++) { ctx.beginPath(); ctx.moveTo(W / 2 + i * 26, ufq); ctx.lineTo(W / 2 + i * 260, H); ctx.stroke(); }
+    const sur = (t * 0.6) % 1;
+    for (let k = 0; k < 14; k++) {
+      const z = (k + 1 - sur) / 14, y = ufq + (H - ufq) * z * z;
+      ctx.globalAlpha = L.clamp(z * 1.4); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+    ctx.restore();
+    const g = ctx.createLinearGradient(0, ufq - 160, 0, ufq + 40);
+    g.addColorStop(0, L.hexA(Y.mavzu.aksent, 0)); g.addColorStop(1, L.hexA(Y.mavzu.aksent, 0.22));
+    ctx.fillStyle = g; ctx.fillRect(0, ufq - 160, W, 200);
+
+    const cx = W / 2, cy = 860, en = 520, bo = 620;
+    const kir = L.spring(t, 0.15, { k: 110, c: 13 });
+    const burch = (1 - L.prog(t, 0.15, 1.2, 'outCubic')) * 2.6 + Math.sin(t * 0.9) * 0.45;   // Y o'qi atrofida
+    // Orbita: kartochka orqasidagi zarrachalar (chuqurlik bo'yicha saralanadi)
+    const nuqtalar = Array.from({ length: 36 }, (_, i) => {
+      const a = t * 0.9 + (i / 36) * Math.PI * 2, rx = 470, rz = 260;
+      return { x: Math.cos(a) * rx, z: Math.sin(a) * rz, y: Math.sin(a * 2 + i) * 40 - 60 + (i % 3) * 50 };
+    });
+    const nuqtaChiz = (q) => {
+      const s = fov / (fov + q.z + 300) * 1.6;
+      L.circle(ctx, cx + q.x * s, cy + q.y * s, 5 * s + 2, L.hexA(q.z > 0 ? '#ffffff' : Y.mavzu.aksent, 0.85 * L.clamp(kir)));
+    };
+    nuqtalar.filter((q) => q.z > 0).forEach(nuqtaChiz);
+    // Kartochka: vertikal bo'laklar bilan haqiqiy perspektiva (yaqin cheti kattaroq)
+    const kartaChiz = (y0, aks = false) => {
+      const BOL = 48, cos = Math.cos(burch), sin = Math.sin(burch);
+      for (let b = 0; b < BOL; b++) {
+        const u0 = b / BOL, u1 = (b + 1) / BOL;
+        const px = (u) => (u - 0.5) * en;
+        const F = 1300;                                   // kartochka uchun fokus masofasi
+        const proj = (u) => { const x = px(u) * cos, z = px(u) * sin; const s = F / (F + z); return { x: cx + x * s * kir, s }; };
+        const a = proj(u0), c = proj(u1);
+        if (c.x - a.x < 0.2 && a.x - c.x < 0.2) continue;
+        const sh = bo * ((a.s + c.s) / 2) * kir;
+        // bo'laklar 2 px ustma-ust — orasida ingichka yorug' chiziq qolmasin
+        const x0 = Math.min(a.x, c.x) - 1, w = Math.abs(c.x - a.x) + 2;
+        ctx.save();
+        if (aks) { ctx.translate(0, 2 * y0 + bo * kir + 24); ctx.scale(1, -1); }   // pastki chetidan oynadek aks
+        ctx.beginPath(); ctx.rect(x0, y0 - sh / 2, w, sh); ctx.clip();
+        if (Math.cos(burch) >= 0 && img?.width) {
+          const sx = (cos >= 0 ? u0 : 1 - u1) * img.width;
+          ctx.drawImage(img, sx, 0, img.width / BOL, img.height, x0, y0 - sh / 2, w, sh);
+        } else {
+          ctx.fillStyle = Y.mavzu.tugma; ctx.fillRect(x0, y0 - sh / 2, w, sh);
+        }
+        // yon yorug'lik: burilgan sari bir chekka qorayadi
+        ctx.fillStyle = `rgba(0,0,0,${(0.35 * Math.abs(sin) * (cos >= 0 ? u0 : 1 - u0)).toFixed(3)})`;
+        ctx.fillRect(x0, y0 - sh / 2, w, sh);
+        ctx.restore();
+      }
+    };
+    ctx.save(); ctx.globalAlpha = 0.2; kartaChiz(cy, true); ctx.restore();
+    // orqadagi nur (bitta xira to'rtburchak — har bo'lakka soya berish qimmat va chok qoldiradi)
+    const nen = en * Math.max(0.25, Math.abs(Math.cos(burch))) * kir;
+    L.rect(ctx, cx - nen / 2, cy - (bo * kir) / 2, nen, bo * kir, { fill: L.hexA(Y.mavzu.aksent, 0.25), soya: L.hexA(Y.mavzu.aksent, 0.7), blur: 80 });
+    kartaChiz(cy);
+    L.lightSweep(ctx, cx - en / 2, cy - bo / 2, en, bo, t, { bosh: 1.3, dur: 0.9, r: 0 });
+    nuqtalar.filter((q) => q.z <= 0).forEach(nuqtaChiz);
+    L.title(ctx, S.ekran || Y.mahsulot.nom || '', W / 2, 330, t, { uslub: 'keng', bosh: 0.1, olcham: 84, urgu: S.urgu, aksent: Y.mavzu.aksent, maxEni: 920, maxQator: 2 });
+    kichikMatn(ctx, S, 1290, t, 1.0, Y, { olcham: 44 });
+  },
+  ustki() {},
+  qahramon: () => ({ x: W / 2, y: 1500, s: 1, hissiyot: 'hayajon', imo: 'hayajon', korinmas: true }),
+  sfx: () => [{ tur: 'whoosh', t: 0.15 }, { tur: 'shimmer', t: 1.2 }, { tur: 'ding', t: 1.4 }],
+};
+
+export const SAHNALAR = { hook, muammo, kashfiyot, foyda, natija, sharh, narx: narxSahna, cta, hikoya, kadr, uchD,
   matn, oyna, chat, skaner, ilova, royxat, taqqos, bosqich, aksiya };
 export const SAHNA_TURLARI = Object.keys(SAHNALAR);

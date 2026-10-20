@@ -652,6 +652,22 @@ console.log('\n── KUNLIK REELS ──');
   await sorov('delete from reels_postlar where product_id = any($1)', [[p2.id, p3.id]]);
   await sorov('delete from products where id = any($1)', [[p2.id, p3.id]]);
 
+  // Hikoyaga mos AI rasmlari: «buvi» haqida — buvining rasmi chiziladi va fonga qo'yiladi
+  await sorov(`delete from media where goya like 'reels-rasm:%'`);          // avvalgi sinovdan qolgan kesh
+  const rasmOldin = 0;
+  const bv = await R.videoTayyorla({ tur: 'erkin', manba: 'qolda', goya: 'Buvim yuzini qanday asragani haqida iliq hikoya' });
+  const bvT = bv.ssenariy.sahnalar.map((x) => x.tur);
+  const rasmKeyin = (await qator(`select count(*)::int n from media where goya like 'reels-rasm:%'`)).n;
+  test('hikoya rasmlari: AI ga rasm qoidasi aytildi, tavsiyali sahnalar uchun rasm chizildi', /rasm_tavsif — sahna FONI/.test(globalThis.OXIRGI_REELS_PROMPT || '')
+    && rasmKeyin - rasmOldin === 2 && bvT.includes('kadr') && bv.ssenariy.sahnalar.find((x) => x.tur === 'kadr').rasm_tavsif.includes('grandmother'),
+    `${rasmKeyin - rasmOldin} rasm · ${bvT.join(',')}`);
+  test('rasm tavsifisiz «kadr» — oddiy hikoya sahnasiga aylanadi', bvT.filter((x) => x === 'kadr').length === 1 && bvT.filter((x) => x === 'hikoya').length === 2);
+  const bv2 = await R.qaytaYasa(bv.id, { ssenariy: bv.ssenariy });
+  test('qayta render — rasmlar qayta chizilmaydi (bazadan olinadi)', bv2.holat === 'tayyor'
+    && (await qator(`select count(*)::int n from media where goya like 'reels-rasm:%'`)).n === rasmKeyin);
+  await sorov('delete from reels_postlar where id = any($1)', [[bv.id, bv2.id]]);
+  await sorov(`delete from media where goya like 'reels-rasm:%'`);
+
   // Reels 3.0: mahsulotsiz video turi — skaner haqida
   const rs = await R.videoTayyorla({ tur: 'skaner', manba: 'qolda', qahramon: 'nigina' });
   const st3 = rs.ssenariy.sahnalar.map((x) => x.tur);
