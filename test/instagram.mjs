@@ -622,6 +622,24 @@ console.log('\n── KUNLIK REELS ──');
   await new Promise((q) => setTimeout(q, 600));
   await sorov(`delete from reels_postlar where manba = 'ai_tuzat'`);
 
+  // G'oyada / tuzatishda mahsulot nomi aytilsa — BAZADAN topiladi (rasm, narx, tarkib o'shaniki)
+  const p2 = await qator(`insert into products (name, brand, price, cost_price, stock, is_active, poster_id, description)
+    values ('Unikorn Glow Toner', 'ZEBRABREND', 99000, 40000, 3, true, $1, 'Terini namlaydi') returning id`, [m.id]);
+  const NM = await R.mahsulotNomzodlari('ZEBRABREND unikorn tonerini ko‘rsat');
+  test('mahsulot qidiruvi: nomi bo‘yicha aniq topiladi, mahsulotsiz gapda — hech narsa', R.aniqMahsulot(NM)?.id === p2.id
+    && !(await R.mahsulotNomzodlari('musiqasiz qil, hook kuchliroq bo‘lsin')).length);
+  const eg = await R.videoTayyorla({ tur: 'erkin', manba: 'qolda', goya: 'ZEBRABREND Unikorn toneri haqida kulgili hikoya' });
+  test('erkin g‘oyada aytilgan mahsulot — videoga ulandi va albatta ko‘rsatiladi', eg.product_id === p2.id
+    && eg.ssenariy.mahsulot_korsat === true && eg.ssenariy.sahnalar.some((x) => x.tur === 'kashfiyot')
+    && /ADMIN SHU MAHSULOTNI AYTDI/.test(globalThis.OXIRGI_REELS_PROMPT || '') && /Unikorn Glow Toner/.test(globalThis.OXIRGI_REELS_PROMPT || '')
+    && /«KiOVO mahsuloti»/.test(globalThis.OXIRGI_REELS_PROMPT || ''));
+  const egT = await R.aiTuzat(r2.id, 'Bu video ZEBRABREND Unikorn toneri haqida bo‘lsin');
+  test('AI muharrir: boshqa mahsulot nomi aytilsa — video o‘sha mahsulotga o‘tadi', egT.row.product_id === p2.id
+    && /ADMIN SHU MAHSULOTNI AYTDI \(bazadan topildi\)/.test(globalThis.OXIRGI_TUZAT_PROMPT || '') && /Unikorn Glow Toner/.test(egT.javob)
+    && egT.row.ssenariy.sahnalar.some((x) => x.tur === 'kashfiyot'), egT.javob);
+  await sorov('delete from reels_postlar where product_id = $1', [p2.id]);
+  await sorov('delete from products where id = $1', [p2.id]);
+
   // Reels 3.0: mahsulotsiz video turi — skaner haqida
   const rs = await R.videoTayyorla({ tur: 'skaner', manba: 'qolda', qahramon: 'nigina' });
   const st3 = rs.ssenariy.sahnalar.map((x) => x.tur);

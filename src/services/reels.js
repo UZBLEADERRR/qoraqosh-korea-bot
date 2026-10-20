@@ -226,7 +226,7 @@ const SAHNA_TAVSIF = {
   oyna: 'oyna — ilova oynasi animatsiyasi: sarlavha (oyna nomi, masalan «KiOVO bot»), ekran (bo‘lim nomi), kichik (1 qator izoh), yozuv (qidiruv/xabar maydoniga YOZILADIGAN 2–5 so‘z), natija (chiqqan natija nomi), izohcha (natija ostidagi izoh), tugma (1–2 so‘z), tayyor (bosilgandan keyingi 1–2 so‘z). Kursor kelib tugmani bosadi.',
   chat: 'chat — suhbat animatsiyasi: xabarlar 2–3 ta {kim: mijoz|ai, matn ≤ 14 so‘z}; ai javobi «yozmoqda…» dan keyin yoziladi. sarlavha — chat nomi.',
   skaner: 'skaner — yuz skaneri animatsiyasi (skan chizig‘i, yuz nuqtalari, topilgan joylar); punktlar: 3 ta ko‘rsatkich nomi {matn: 1–2 so‘z, emoji} (Namlik, Yog‘lilik, Teshiklar…).',
-  ilova: 'ilova — telefonda ilovaning HAQIQIY skrinshoti; ekran_turi: skaner|dokon|mahsulot|savat|maslahat; ekran — tepadagi sarlavha, kichik — pastdagi izoh.',
+  ilova: 'ilova — telefonda ilovaning HAQIQIY skrinshoti; ekran_turi: skaner|dokon|mahsulot|savat|maslahat (mahsulot — videodagi mahsulotning o‘z sahifasi: rasm va narx bazadan); ekran — tepadagi sarlavha, kichik — pastdagi izoh.',
   royxat: 'royxat — bajarilayotgan ishlar ro‘yxati (har biri ✓ bilan yonadi): sarlavha + punktlar 3–5 ta {matn: 2–5 so‘z}.',
   taqqos: 'taqqos — ikki ustun: yomon (2–3 noto‘g‘ri odat) va yaxshi (2–3 to‘g‘ri odat), har biri 2–4 so‘z.',
   bosqich: 'bosqich — raqamli qadamlar: punktlar 3–4 ta {matn: 2–5 so‘z, emoji}.',
@@ -252,7 +252,7 @@ const ILOVA_FAKT = `ILOVA FAKTLARI (faqat shularga tayan):
  * @param {object} st sozlamalar
  * @param {{tur?: string, goya?: string, format?: string, qahramon?: string|null, sharhlar?: object[], aksiya?: object[]}} o
  */
-export async function ssenariyYoz(p, st, { tur = 'mahsulot', goya = '', format = null, qahramon = null, sharhlar = [], aksiya = [] } = {}) {
+export async function ssenariyYoz(p, st, { tur = 'mahsulot', goya = '', format = null, qahramon = null, sharhlar = [], aksiya = [], mahsulotKorsat = false } = {}) {
   const { aiJson } = await import('../ai/index.js');
   const VT = VIDEO_TURLARI[tur] || VIDEO_TURLARI.mahsulot;
   const m = p ? mahsulotMalumoti(p) : null;
@@ -261,7 +261,9 @@ export async function ssenariyYoz(p, st, { tur = 'mahsulot', goya = '', format =
   const sahnaSoni = { 15: '4–5', 30: '6–8', 45: '8–9' }[st.davomiylik] || '6–8';
   const shaxs = qahramon === 'jasur' ? 'Jasur — doppili, quvnoq o‘zbek yigiti (erkaklar parvarishi haqida erkakcha gapiradi)'
     : qahramon === 'nigina' ? 'Nigina — do‘kon yordamchisi, quvnoq o‘zbek qizi' : null;
-  const mahsulotBlok = m ? `MAHSULOT (faqat shu faktlar — o'ylab topma)${tur === 'mahsulot' ? '' : ' — ixtiyoriy: oxirida yechim sifatida eslatsang bo‘ladi'}:
+  const mahsulotBlok = m ? `MAHSULOT (faqat shu faktlar — o'ylab topma)${tur === 'mahsulot' ? ''
+    : mahsulotKorsat ? ' — ADMIN SHU MAHSULOTNI AYTDI: videoda uni ALBATTA nomi bilan ko‘rsat (kashfiyot sahnasi), ovozda ham nomini ayt'
+      : ' — ixtiyoriy: oxirida yechim sifatida eslatsang bo‘ladi'}:
 - nom: ${m.brend ? m.brend + ' ' : ''}${m.nom}${m.hajm ? ` (${m.hajm})` : ''}
 - tavsif: ${String(p.description || '').slice(0, 700)}
 - faol moddalar: ${(p.actives || []).join(', ') || '—'}
@@ -293,6 +295,8 @@ Har sahnada:
 - ekran — ekrandagi katta matn, 2–6 so'z (ovozni takrorlamaydi, urg'u beradi). urgu — ekran ichidagi BITTA eng muhim so'z.
 - emoji — bitta mos emoji. hissiyot: ${HISSIYOT.join('/')}. imo (qo'llar): ${IMO.join('/')}.
 Taqiq: kasallikni davolaydi deb va'da berma, «100%», «abadiy», «kafolat» yozma; boshqa brendlarni yomonlama; faktlarda yo'q narsani aytma.
+Mahsulot haqida gapirsang — FAQAT yuqoridagi MAHSULOT ni aniq nomi bilan ayt; «KiOVO mahsuloti», «bizning krem» kabi umumiy nom ishlatma.
+Mahsulot berilmagan bo'lsa — aniq mahsulotni maqtama (o'ylab topilgan nom bo'lmasin).
 
 izoh — Instagram post matni: 2–4 qisqa abzats, hikoya ohangida, 1–3 emoji, oxirida «Izohga «+» yozing — ${tur === 'mahsulot' ? 'narx va maslahatni' : 'havolani'} Direct'ga yuboramiz 💌». Narxni yozma.
 hashtaglar — 6–10 ta, # bilan, bo'sh joy bilan.
@@ -300,7 +304,7 @@ format — tanlagan format kaliti (${Object.keys(FORMATLAR).join('/')}).
 cta kichik matni: «${ctaKichik}».
 Butun javob O'ZBEK tilida (lotin). Faqat JSON.` }], SXEMA,
   { temperature: 0.9, maxTokens: 3500, qayerda: 'reels', yozuv: true });
-  return ssenariyTozala(j, { st, sharhlar, format, qahramon, tur, mahsulotBor: Boolean(p), aksiyaBor: aksiya.length > 0 });
+  return ssenariyTozala(j, { st, sharhlar, format, qahramon, tur, mahsulotBor: Boolean(p), aksiyaBor: aksiya.length > 0, mahsulotKorsat });
 }
 
 /** Shu video uchun ruxsat etilgan sahna turlari. */
@@ -317,7 +321,7 @@ const qatorRoyxat = (v, n, uz) => (Array.isArray(v) ? v : []).map((q) => toza(q,
 
 /** AI javobini (yoki admin tahririni) xavfsiz ko'rinishga keltiradi. */
 export function ssenariyTozala(j, { st = STANDART, sharhlar = [], format = null, qahramon = null, tur = 'mahsulot',
-  mahsulotBor = tur === 'mahsulot', aksiyaBor = false } = {}) {
+  mahsulotBor = tur === 'mahsulot', aksiyaBor = false, mahsulotKorsat = false } = {}) {
   const sharh = sharhlar[0] || null;
   const ruxsat = new Set(ruxsatSahnalar(tur, { mahsulotBor, aksiyaBor, sharhBor: Boolean(sharh), st }));
   const stdEkran = { skaner: 'skaner', maslahat: 'maslahat', buyurtma: 'dokon' }[tur] || 'dokon';
@@ -367,7 +371,7 @@ export function ssenariyTozala(j, { st = STANDART, sharhlar = [], format = null,
     if (i > 0) sahnalar.unshift(...sahnalar.splice(i, 1));
     else sahnalar.unshift({ tur: 'hook', ekran: 'Buni bilarmidingiz?', kichik: '', ovoz: 'Buni bilarmidingiz?', emoji: '🤫', belgilar: [], punktlar: [] });
   }
-  if (tur === 'mahsulot' && mahsulotBor && !sahnalar.some((x) => x.tur === 'kashfiyot')) {
+  if ((tur === 'mahsulot' || mahsulotKorsat) && mahsulotBor && !sahnalar.some((x) => x.tur === 'kashfiyot')) {
     sahnalar.splice(Math.min(2, sahnalar.length), 0, { tur: 'kashfiyot', ekran: 'Mana u!', ovoz: 'Mana, men aytgan mahsulot.', emoji: '✨', belgilar: [], punktlar: [] });
   }
   const ctaKichik = tur === 'mahsulot' ? 'Narx va maslahat — Direct’da' : 'Havolani Direct’ga yuboramiz';
@@ -446,6 +450,61 @@ const navbatda = (fn) => {
   return r;
 };
 
+// ═══════════ MATNDAN MAHSULOTNI TOPISH ═══════════
+// Admin g'oyada yoki tuzatishda mahsulot nomini aytsa («COSRX snail kremi haqida»,
+// «Laneige ni ko'rsat») — u BAZADAN topiladi va video o'sha mahsulotning nomi,
+// rasmi, narxi va tarkibi bilan yasaladi. Aks holda AI «KiOVO mahsuloti» deb
+// umumiy gapirib qo'yardi.
+
+/** Matnga nomi mos keladigan mahsulotlar (ball bo'yicha). */
+export async function mahsulotNomzodlari(matn, n = 6) {
+  const { sozlar } = await import('../ai/katalog-tanlov.js');
+  const kalit = [...new Set(sozlar(matn))];
+  if (!kalit.length) return [];
+  // «kremi» ~ «krem», «snail» ~ «snails»: 4+ harfli so'zlarda boshi mos kelsa yetadi
+  const mos = (a, b) => a === b || (a.length >= 4 && b.length >= 4 && (a.startsWith(b) || b.startsWith(a)));
+  const bor = (t) => kalit.some((k) => mos(k, t));
+  const r = await qatorlar(`select id, name, nom_uz, brand, kalit_sozlar, poster_id, sold_count from products
+     where is_active and variant_of is null`).catch(() => []);
+  return r.map((p) => {
+    const brend = sozlar(p.brand);
+    const nom = new Set([...sozlar(p.name), ...sozlar(p.nom_uz)].filter((t) => !brend.includes(t)));
+    const kal = new Set((p.kalit_sozlar || []).flatMap((x) => sozlar(x)).filter((t) => !nom.has(t) && !brend.includes(t)));
+    let ball = brend.length && brend.every(bor) ? 5 : 0;
+    for (const t of nom) if (bor(t)) ball += 3;
+    for (const t of kal) if (bor(t)) ball += 2;
+    return { ...p, ball };
+  }).filter((p) => p.ball >= 3)
+    .sort((a, b) => b.ball - a.ball || Number(Boolean(b.poster_id)) - Number(Boolean(a.poster_id)) || (b.sold_count || 0) - (a.sold_count || 0))
+    .slice(0, n);
+}
+
+/** Bitta mahsulot aniq ajralib tursa — o'sha (aks holda null). */
+export const aniqMahsulot = (nomzod) => {
+  const [a, b] = nomzod;
+  return a && a.ball >= 6 && (!b || a.ball - b.ball >= 3) ? a : null;
+};
+
+/** Nomzodlar ko'p bo'lsa — AI qaysi biri nazarda tutilganini aytadi (yoki 0). */
+async function mahsulotniAniqla(matn, nomzod) {
+  if (!nomzod.length) return null;
+  const { aiJson } = await import('../ai/index.js');
+  const j = await aiJson([{ text: `Admin so'zlari: «${toza(matn, 600)}»
+Katalogdagi nomzodlar (id | mahsulot):
+${nomzod.map((p) => `${p.id} | ${[p.brand, p.nom_uz || p.name].filter(Boolean).join(' ')}`).join('\n')}
+Admin aynan qaysi MAHSULOTNI nazarda tutyapti? Aniq bitta mahsulot aytilgan bo'lsa — uning id si.
+Mahsulot nomi aytilmagan, yoki bir nechtasi umumiy (faqat brend) aytilgan bo'lsa — 0. Faqat JSON.` }],
+  { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] }, { temperature: 0, maxTokens: 600, qayerda: 'reels-mahsulot' })
+    .catch(() => null);
+  return nomzod.find((p) => p.id === Number(j?.id)) || null;
+}
+
+/** Matnda aytilgan mahsulot: avval aniq moslik, bo'lmasa AI tanlovi. */
+export async function matndanMahsulot(matn) {
+  const nomzod = await mahsulotNomzodlari(matn);
+  return aniqMahsulot(nomzod) || (nomzod.length ? await mahsulotniAniqla(matn, nomzod) : null);
+}
+
 /** «aralash» rejada bugungi video turi (Toshkent hafta kuni bo'yicha). */
 export function bugungiTur(sana = new Date()) {
   return HAFTA_REJASI[new Date(sana.getTime() + 5 * 3600e3).getUTCDay()];
@@ -480,6 +539,12 @@ async function aksiyaMahsulotlar(n = 4) {
 export async function videoTayyorla({ tur = null, productId = null, manba = 'jadval', goya = '', ssenariy = null, qahramon = null,
   format = null, sifat = process.env.REELS_SIFAT || 'toliq' } = {}) {
   const st = await sozlamalar();
+  // G'oyada mahsulot nomi aytilgan bo'lsa — bazadan topamiz (rasm, narx, tarkib — o'shaniki)
+  let goyaMahsulot = false;
+  if (!productId && !ssenariy && String(goya || '').trim()) {
+    const topildi = await matndanMahsulot(goya).catch(() => null);
+    if (topildi) { productId = topildi.id; goyaMahsulot = true; }
+  }
   // Mahsulot aniq tanlangan bo'lsa — mahsulot videosi; aks holda sozlama yoki hafta rejasi
   tur = tur || ssenariy?.tur || (ssenariy || productId ? 'mahsulot' : (st.tur === 'aralash' ? bugungiTur() : st.tur));
   if (!VIDEO_TURLARI[tur]) tur = 'mahsulot';
@@ -492,11 +557,14 @@ export async function videoTayyorla({ tur = null, productId = null, manba = 'jad
   try {
     const sharhlar = p ? await sharhlarOl(p.id) : [];
     const tl = await tanlovlar(st, { qahramon: qahramon ?? ssenariy?.qahramon, format: format ?? ssenariy?.format });
-    const o = { st, sharhlar, tur, mahsulotBor: Boolean(p), aksiyaBor: aksiya.length > 0 };
+    // Admin mahsulotni nomi bilan aytgan bo'lsa — videoda ALBATTA ko'rsatiladi (kashfiyot sahnasi)
+    const mahsulotKorsat = Boolean(p) && (goyaMahsulot || Boolean(ssenariy?.mahsulot_korsat));
+    const o = { st, sharhlar, tur, mahsulotBor: Boolean(p), aksiyaBor: aksiya.length > 0, mahsulotKorsat };
     const s = ssenariy
       ? { ...ssenariyTozala(ssenariy, { ...o, format: ssenariy.format || tl.format, qahramon: tl.qahramon }), izoh: String(ssenariy.izoh || '').slice(0, 2200) }
-      : await ssenariyYoz(p, st, { tur, goya, format: tl.format, qahramon: tl.qahramon, sharhlar, aksiya });
+      : await ssenariyYoz(p, st, { tur, goya, format: tl.format, qahramon: tl.qahramon, sharhlar, aksiya, mahsulotKorsat });
     s.tur = tur; s.qahramon = tl.qahramon; s.mavzu = ssenariy?.mavzu || tl.mavzu; s.musiqa = ssenariy?.musiqa || tl.musiqa;
+    if (mahsulotKorsat) s.mahsulot_korsat = true;
     if (goya) s.goya = toza(goya, 400);
 
     if (ssenariy?.ustama) s.ustama = ssenariy.ustama;
@@ -619,7 +687,11 @@ export async function aiTuzat(id, buyruq) {
   const st = await sozlamalar();
   const s = r.ssenariy;
   const tur = s.tur || (r.product_id ? 'mahsulot' : 'erkin');
-  const p = r.product_id ? await qator('select * from products where id = $1', [r.product_id]) : null;
+  let p = r.product_id ? await qator('select * from products where id = $1', [r.product_id]) : null;
+  // Admin boshqa (yoki birinchi marta) mahsulot nomini aytdimi — bazadan topamiz
+  const topildi = await matndanMahsulot(b).catch(() => null);
+  const yangiMahsulot = topildi && topildi.id !== p?.id ? await qator('select * from products where id = $1 and is_active', [topildi.id]) : null;
+  if (yangiMahsulot) p = yangiMahsulot;
   const sharhlar = p ? await sharhlarOl(p.id) : [];
   const ruxsat = ruxsatSahnalar(tur, { mahsulotBor: Boolean(p), aksiyaBor: tur === 'aksiya', sharhBor: sharhlar.length > 0, st });
   const m = p ? mahsulotMalumoti(p) : null;
@@ -634,7 +706,9 @@ Vazifa: joriy ssenariyni admin so'zlariga ko'ra TUZAT. Faqat so'ralgan narsani o
 ADMIN AYTDI: «${b}»
 ${(s.tuzatishlar || []).length ? `Avvalgi tuzatishlar (ular ham kuchda): ${s.tuzatishlar.map((x) => `«${x}»`).join('; ')}\n` : ''}
 VIDEO TURI: ${(VIDEO_TURLARI[tur] || VIDEO_TURLARI.mahsulot).nom}
-${m ? `MAHSULOT FAKTLARI (narx kartochkada bazadan chiqadi): ${m.brend} ${m.nom}; ${String(p.description || '').slice(0, 400)}; faol moddalar: ${(p.actives || []).join(', ') || '—'}; narx ${m.narx}${m.chegirma ? `, chegirma ${m.chegirma}` : ''}\n` : ''}${['skaner', 'maslahat', 'buyurtma', 'erkin'].includes(tur) ? `${ILOVA_FAKT}\n` : ''}
+${m ? `${yangiMahsulot ? `ADMIN SHU MAHSULOTNI AYTDI (bazadan topildi): video endi shu mahsulot haqida — uni ALBATTA nomi bilan ko'rsat (kashfiyot sahnasi),
+ovozda ham nomini ayt; «KiOVO mahsuloti» kabi umumiy yoki eski mahsulot nomlarini shu nom bilan almashtir.\n` : ''}MAHSULOT FAKTLARI (narx va rasm kartochkada bazadan chiqadi): ${[m.brend, m.nom].filter(Boolean).join(' ')}${m.hajm ? ` (${m.hajm})` : ''}; ${String(p.description || '').slice(0, 500)}; faol moddalar: ${(p.actives || []).join(', ') || '—'}; qaysi muammoga: ${(p.concerns || []).join(', ') || '—'}; qo'llash: ${String(p.usage_text || '').slice(0, 200)}; narx ${m.narx}${m.chegirma ? `, chegirma ${m.chegirma}` : ''}
+Mahsulot haqida gapirsang — FAQAT shu nom bilan; «KiOVO mahsuloti», «bizning krem» dema.\n` : 'Videoda aniq mahsulot yo‘q — o‘ylab topilgan mahsulot nomini aytma.\n'}${['skaner', 'maslahat', 'buyurtma', 'erkin'].includes(tur) ? `${ILOVA_FAKT}\n` : ''}
 JORIY SSENARIY (JSON):
 ${JSON.stringify(joriy)}
 
@@ -664,14 +738,15 @@ Faqat JSON.` }], TUZAT_SXEMA, { temperature: 0.4, maxTokens: 4000, qayerda: 'ree
   // Faqat haqiqatan o'zgargan sozlama yoziladi — AI qaytargan «joriy» qiymat umumiy sozlamani muzlatib qo'ymasin
   for (const k of SOZ) if (j?.[k] !== undefined && j[k] !== null && j[k] !== amal[k]) ustama[k] = j[k];
   const yangi = { ...s, sahnalar: Array.isArray(j?.sahnalar) && j.sahnalar.length ? j.sahnalar : s.sahnalar,
+    ...(yangiMahsulot ? { mahsulot_korsat: true } : {}),
     izoh: String(j?.izoh || r.izoh || '').slice(0, 2200),
     qahramon: ['nigina', 'jasur', 'yoq'].includes(j?.qahramon) ? j.qahramon : (s.qahramon || 'yoq'),
     mavzu: MAVZU_TANLOV.includes(j?.mavzu) ? j.mavzu : s.mavzu,
     musiqa: MUSIQA_TANLOV.includes(j?.musiqa) ? j.musiqa : s.musiqa,
     ustama, tuzatishlar };
   await sorov(`update reels_postlar set holat = 'bekor' where id = $1 and holat = 'tayyor'`, [id]);
-  const row = await videoTayyorla({ tur, productId: r.product_id, manba: 'ai_tuzat', ssenariy: yangi });
-  return { javob, faqatIzoh: false, row };
+  const row = await videoTayyorla({ tur, productId: p?.id ?? null, manba: 'ai_tuzat', ssenariy: yangi });
+  return { javob: yangiMahsulot ? `${javob} (Mahsulot: ${[p.brand, p.nom_uz || p.name].filter(Boolean).join(' ')})` : javob, faqatIzoh: false, row };
 }
 
 /** Ovozli xabar (Telegram voice, ogg) → matn. Admin «aytib» beradi. */

@@ -570,8 +570,19 @@ const ilova = {
     const aylan = (1 - L.prog(t, 0.15, 0.9, 'outCubic')) * 0.9;
     ctx.save();
     ctx.translate(x + w / 2, y + h / 2); ctx.scale(Math.cos(aylan), 1); ctx.rotate(-0.04 + Math.sin(t * 1.2) * 0.012); ctx.translate(-(x + w / 2), -(y + h / 2));
+    // Videoda mahsulot bor va «mahsulot» ekrani — begona skrinshot emas, AYNAN shu mahsulot sahifasi
+    const mahsulotEkrani = Y.rasm.mahsulot && (S.ekran_turi === 'mahsulot' || !rasm);
     L.phone(ctx, x, y, w, h, (ix, iy, iw, ih) => {
-      if (rasm) {
+      if (mahsulotEkrani) {
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(ix, iy, iw, ih);
+        L.image(ctx, Y.rasm.mahsulot, ix + 20, iy + 70, iw - 40, ih * 0.5, { fit: 'contain', r: 24 });
+        const m = Y.mahsulot;
+        if (m.brend) L.text(ctx, String(m.brend).toUpperCase(), ix + 30, iy + ih * 0.5 + 110, { olcham: 22, ogirlik: 800, rang: '#9a8a8d', align: 'left' });
+        L.text(ctx, m.nom || '', ix + 30, iy + ih * 0.5 + 160, { olcham: 30, ogirlik: 800, rang: '#16161a', align: 'left', maxEni: iw - 60, avtoSig: true, min: 20, maxQator: 2 });
+        if (m.narxSon) L.text(ctx, `${String(m.narxSon).replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} so‘m`, ix + 30, iy + ih * 0.5 + 240, { olcham: 36, ogirlik: 900, rang: Y.mavzu.tugma, align: 'left' });
+        L.rect(ctx, ix + 30, iy + ih - 130, iw - 60, 84, { fill: Y.mavzu.tugma, r: 42 });
+        L.text(ctx, 'Savatga', ix + iw / 2, iy + ih - 88, { olcham: 32, ogirlik: 800 });
+      } else if (rasm) {
         const pan = L.prog(t, 0.9, Math.max(1, d - 1.6), 'inOutSine');
         L.image(ctx, rasm, ix, iy, iw, ih, { fit: 'cover', zoom: 1.12, panY: -1 + pan * 2 });
       } else {
