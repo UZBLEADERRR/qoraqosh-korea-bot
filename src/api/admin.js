@@ -331,6 +331,19 @@ export async function adminRoutes(req, res, yol) {
       .catch((e) => console.error('REELS qayta:', e.message));
     return ok(res, { boshlandi: true });
   }
+  if (yol === '/api/admin/reels/ai-tuzat' && req.method === 'POST') {
+    // «Kamchilikni ayting — AI o'zi tuzatadi»: ssenariy tuzatiladi, video qayta yasaladi (fonda)
+    const b = await tana(req);
+    const R = await import('../services/reels.js');
+    const id = Number(b.id), buyruq = String(b.buyruq || '').trim();
+    if (!id || buyruq.length < 2) return xato(res, 400, 'Video va nimani o‘zgartirish kerakligini yozing.');
+    const r = await qator('select ssenariy from reels_postlar where id = $1', [id]);
+    if (!r?.ssenariy?.sahnalar) return xato(res, 400, 'Bu videoni AI bilan tuzatib bo‘lmaydi (eski format).');
+    R.aiTuzat(id, buyruq.slice(0, 1500))
+      .then((n) => R.adminlargaVideo(n.row, { tasdiq: true, sarlavha: `🤖 <b>${n.faqatIzoh ? 'Izoh yangilandi' : 'Tuzatildi'}</b> — ${n.javob.replace(/&/g, '&amp;').replace(/</g, '&lt;')}` }))
+      .catch((e) => console.error('REELS ai-tuzat:', e.message));
+    return ok(res, { boshlandi: true });
+  }
   if (yol === '/api/admin/reels/izoh' && req.method === 'POST') {
     const b = await tana(req);
     const R = await import('../services/reels.js');

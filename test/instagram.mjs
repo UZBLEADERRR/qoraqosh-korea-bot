@@ -556,8 +556,9 @@ console.log('\n── KUNLIK REELS ──');
   await R.adminlargaVideo(r, { tasdiq: true });
   const tv = yuborilgan.slice(o).find((y) => y.video);
   const tug = (tv?.reply_markup?.inline_keyboard || []).flat();
-  test('reels: tasdiq rejimi — adminga video + «Joylash», «Qayta», «Tahrirlash»', tv?.chat_id === '700001'
+  test('reels: tasdiq rejimi — adminga video + «Joylash», «AI bilan tuzatish», «Qayta», «Tahrirlash»', tv?.chat_id === '700001'
     && tug.some((b) => b.callback_data === `rl_ok:${r.id}`) && tug.some((b) => b.callback_data === `rl_qayta:${r.id}`)
+    && tug.some((b) => b.callback_data === `rl_ai:${r.id}`) && /AI o‘zi tuzatadi/.test(tv?.text || '')
     && tug.some((b) => b.url === `https://www.kiovo.shop/admin/#reels-${r.id}`), JSON.stringify(tug));
 
   // Izohni tahrirlash (video qayta yasalmaydi)
@@ -586,6 +587,40 @@ console.log('\n── KUNLIK REELS ──');
   const keyingi = await R.mahsulotTanla();
   test('reels: ertangi video boshqa mahsulot (yaqinda joylangani keyinga suriladi)', !keyingi || keyingi.id !== p.id || (await qator(
     `select count(*)::int n from products where is_active and stock > 0 and poster_id is not null and variant_of is null`)).n === 1);
+
+  // AI muharrir: «kamchilikni ayting — o'zi tuzatadi»
+  const t1 = await R.aiTuzat(r2.id, 'Hook kuchliroq bo‘lsin, qahramon Jasur, musiqasiz, subtitr qora yorliq');
+  const ts = t1.row.ssenariy;
+  test('AI muharrir: admin so‘zlari va joriy ssenariy AI ga yuborildi', /ADMIN AYTDI: «Hook kuchliroq/.test(globalThis.OXIRGI_TUZAT_PROMPT || '')
+    && /JORIY SSENARIY/.test(globalThis.OXIRGI_TUZAT_PROMPT || ''));
+  test('AI muharrir: yangi video — o‘zgarishlar qo‘llandi, qolgani saqlandi', t1.row.holat === 'tayyor' && t1.row.id !== r2.id
+    && t1.row.manba === 'ai_tuzat' && ts.sahnalar[0].ekran === 'Tuzatilgan hook' && ts.qahramon === 'jasur' && ts.musiqa === 'yoq'
+    && ts.ustama?.subtitr_uslub === 'chip' && ts.ustama?.subtitr === undefined && ts.tuzatishlar?.length === 1
+    && ts.sahnalar.length === r2.ssenariy.sahnalar.length, JSON.stringify({ q: ts.qahramon, m: ts.musiqa, u: ts.ustama }));
+  const t2 = await R.aiTuzat(t1.row.id, 'faqat Instagram izohini qisqartir');
+  test('AI muharrir: faqat izoh — video qayta yasalmaydi', t2.faqatIzoh && t2.row.id === t1.row.id && t2.row.izoh === 'Qisqa izoh ✨ #kiovo'
+    && t2.row.video_id === t1.row.video_id);
+  // Botda: videoga JAVOB qilib ovozli xabar → matnga aylanadi → AI tuzatadi
+  const adm = await import('../src/bot/handlers/admin.js');
+  // 700001 — ADMIN_TELEGRAM_IDS da; is_admin ga tegmaymiz (boshqa testlar shu foydalanuvchini ishlatadi)
+  const admU = await qator(`insert into users (telegram_id, full_name) values ('700001', 'Admin')
+    on conflict (telegram_id) do update set telegram_id = excluded.telegram_id returning *`);
+  globalThis.OXIRGI_OVOZ_SORALDI = false;
+  const oldin = (await qator(`select count(*)::int n from reels_postlar where manba = 'ai_tuzat'`)).n;
+  const ushl = await adm.adminReelsTuzat({ chat: { id: 700001 }, voice: { file_id: 'ovoz1', mime_type: 'audio/ogg' },
+    reply_to_message: { video: {}, reply_markup: { inline_keyboard: [[{ text: '✅', callback_data: `rl_ok:${t1.row.id}` }]] } } }, admU);
+  let yangiTuz = null;
+  for (let k = 0; k < 60 && !yangiTuz; k++) {
+    await new Promise((q) => setTimeout(q, 250));
+    yangiTuz = (await qator(`select count(*)::int n from reels_postlar where manba = 'ai_tuzat'`)).n > oldin;
+  }
+  test('bot: videoga javob qilingan ovozli xabar → matn → AI tuzatdi', ushl === true && globalThis.OXIRGI_OVOZ_SORALDI
+    && /qahramon Jasur bo‘lsin va musiqasiz/.test(globalThis.OXIRGI_TUZAT_PROMPT || '') && yangiTuz,
+    JSON.stringify([ushl, globalThis.OXIRGI_OVOZ_SORALDI, yangiTuz, yuborilgan.slice(-3).map((y) => String(y.text || '').slice(0, 120))]));
+  const boshqa = await adm.adminReelsTuzat({ chat: { id: 700001 }, text: 'salom' }, admU);
+  test('bot: oddiy xabar (Reels’ga javob emas) — tegilmaydi', boshqa === false);
+  await new Promise((q) => setTimeout(q, 600));
+  await sorov(`delete from reels_postlar where manba = 'ai_tuzat'`);
 
   // Reels 3.0: mahsulotsiz video turi — skaner haqida
   const rs = await R.videoTayyorla({ tur: 'skaner', manba: 'qolda', qahramon: 'nigina' });

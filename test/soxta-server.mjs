@@ -70,6 +70,23 @@ function javobMatni(sxemaMatni, prompt = '') {
   if (sxemaMatni.includes('kosmetikami')) aiHisobi.marketplace += 1;
   // Tahlil promptini eslab qolamiz — do'kon egasining qo'shimcha
   // ko'rsatmasi modelga haqiqatan yetib bordimi, sinov shuni tekshiradi
+  // Reels — AI muharrir: admin aytgan kamchilikni tuzatadi
+  if (sxemaMatni.includes('faqat_izoh')) {
+    globalThis.OXIRGI_TUZAT_PROMPT = prompt;
+    const joriy = JSON.parse(/JORIY SSENARIY \(JSON\):\n(.+)\n/.exec(prompt)?.[1] || '{}');
+    if (/ADMIN AYTDI: «faqat Instagram izohini/.test(prompt)) {
+      return JSON.stringify({ javob: 'Izoh qisqartirildi.', faqat_izoh: true, sahnalar: joriy.sahnalar || [], izoh: 'Qisqa izoh ✨ #kiovo' });
+    }
+    const sah = (joriy.sahnalar || []).map((x, i) => (i === 0 ? { ...x, ekran: 'Tuzatilgan hook' } : x));
+    return JSON.stringify({ javob: 'Hook yangilandi, qahramon Jasur, musiqasiz, subtitr qora yorliq.', faqat_izoh: false,
+      qahramon: 'jasur', mavzu: joriy.mavzu || 'brend', musiqa: 'yoq', subtitr_uslub: 'chip', subtitr: joriy.subtitr ?? true, sfx: joriy.sfx ?? true,
+      sahnalar: sah, izoh: joriy.izoh || 'Izoh' });
+  }
+  // Ovozli xabar → matn
+  if (/ovozli xabarni so‘zma-so‘z matnga/.test(prompt)) {
+    globalThis.OXIRGI_OVOZ_SORALDI = true;
+    return JSON.stringify({ matn: 'qahramon Jasur bo‘lsin va musiqasiz qil' });
+  }
   // Reels 2.0 — AI rejissyor (hikoya sahnalari)
   if (sxemaMatni.includes('sahnalar') && sxemaMatni.includes('hashtaglar')) {
     globalThis.OXIRGI_REELS_PROMPT = prompt;

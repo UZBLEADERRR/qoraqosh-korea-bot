@@ -421,7 +421,8 @@ const tasodif = (arr) => arr[Math.floor(Math.random() * arr.length)];
 async function tanlovlar(st, { qahramon, format } = {}) {
   const oxirgi = await oxirgiFormatlar(4);
   let q = null;
-  if (st.uslub === 'hikoya') {
+  // 'yoq' — admin (yoki AI muharrir) shu videoni qahramonsiz so'radi
+  if (st.uslub === 'hikoya' && qahramon !== 'yoq') {
     if (qahramon && ['nigina', 'jasur'].includes(qahramon)) q = qahramon;
     else if (st.qahramon === 'navbat') q = oxirgi.find((x) => x.q)?.q === 'nigina' ? 'jasur' : 'nigina';
     else q = st.qahramon;
@@ -479,7 +480,8 @@ async function aksiyaMahsulotlar(n = 4) {
 export async function videoTayyorla({ tur = null, productId = null, manba = 'jadval', goya = '', ssenariy = null, qahramon = null,
   format = null, sifat = process.env.REELS_SIFAT || 'toliq' } = {}) {
   const st = await sozlamalar();
-  tur = tur || ssenariy?.tur || (ssenariy ? 'mahsulot' : (st.tur === 'aralash' ? bugungiTur() : st.tur));
+  // Mahsulot aniq tanlangan bo'lsa — mahsulot videosi; aks holda sozlama yoki hafta rejasi
+  tur = tur || ssenariy?.tur || (ssenariy || productId ? 'mahsulot' : (st.tur === 'aralash' ? bugungiTur() : st.tur));
   if (!VIDEO_TURLARI[tur]) tur = 'mahsulot';
   if (tur === 'erkin' && !goya && !ssenariy) throw Object.assign(new Error('Erkin video uchun g‘oya yozing.'), { turkum: 'reels' });
   const aksiya = tur === 'aksiya' ? await aksiyaMahsulotlar() : [];
@@ -497,7 +499,11 @@ export async function videoTayyorla({ tur = null, productId = null, manba = 'jad
     s.tur = tur; s.qahramon = tl.qahramon; s.mavzu = ssenariy?.mavzu || tl.mavzu; s.musiqa = ssenariy?.musiqa || tl.musiqa;
     if (goya) s.goya = toza(goya, 400);
 
-    const { mp4, soniya, ovozli } = await navbatda(() => render(p, s, st, sifat, { aksiya }));
+    if (ssenariy?.ustama) s.ustama = ssenariy.ustama;
+    if (ssenariy?.tuzatishlar) s.tuzatishlar = ssenariy.tuzatishlar;
+    // Shu videoga xos sozlamalar (AI muharrir: «subtitr chip bo'lsin», «musiqasiz»…)
+    const stV = s.ustama ? sozlamaTozala(s.ustama, st) : st;
+    const { mp4, soniya, ovozli } = await navbatda(() => render(p, s, stV, sifat, { aksiya }));
     const m = await qator(`insert into media (tur, mime, bayt, hajm, goya) values ('video', 'video/mp4', $1, $2, $3) returning id`,
       [mp4, mp4.length, `Reels #${r.id}`]);
     return await qator(`update reels_postlar set holat = 'tayyor', video_id = $1, soniya = $2, izoh = $3,
@@ -572,6 +578,111 @@ export async function qaytaYasa(id, { ssenariy = null, izoh = null, goya = '' } 
     qahramon: eski.ssenariy?.qahramon || null });
 }
 
+// ═══════════ AI MUHARRIR — «kamchilikni ayting, o'zi tuzatadi» ═══════════
+// Admin oddiy so'z bilan (yozib yoki ovozli xabar) nima yoqmaganini aytadi:
+// «3-sahnadagi matn uzun», «qahramon Jasur bo'lsin», «musiqasiz», «oxirida
+// chegirmani ayt». AI joriy ssenariyni o'qib, FAQAT so'ralganini o'zgartiradi
+// va video qayta yasaladi. Faqat izoh haqida bo'lsa — video qayta yasalmaydi.
+export const OVOZLAR = ['Leda', 'Kore', 'Aoede', 'Zephyr', 'Despina', 'Sulafat', 'Puck', 'Charon', 'Fenrir', 'Orus', 'Achird'];
+
+const TUZAT_SXEMA = {
+  type: 'object',
+  properties: {
+    javob: { type: 'string' },
+    faqat_izoh: { type: 'boolean' },
+    qahramon: { type: 'string', enum: ['nigina', 'jasur', 'yoq'] },
+    mavzu: { type: 'string', enum: ['brend', 'pastel', 'tungi', 'yorqin'] },
+    musiqa: { type: 'string', enum: ['quvnoq', 'lofi', 'hissiy', 'energiya', 'yoq'] },
+    subtitr_uslub: { type: 'string', enum: ['karaoke', 'chip', 'oddiy'] },
+    subtitr: { type: 'boolean' },
+    sfx: { type: 'boolean' },
+    musiqa_baland: { type: 'number' },
+    ovoz: { type: 'string', enum: ['avto', ...OVOZLAR] },
+    sahnalar: SXEMA.properties.sahnalar,
+    izoh: { type: 'string' },
+  },
+  required: ['javob', 'faqat_izoh', 'sahnalar', 'izoh'],
+};
+
+/**
+ * Videoni admin aytgan kamchilik bo'yicha tuzatadi.
+ * @param {number} id      reels_postlar.id
+ * @param {string} buyruq  admin so'zlari («qahramon xursandroq bo'lsin…»)
+ * @returns {Promise<{javob: string, faqatIzoh: boolean, row: object}>}
+ */
+export async function aiTuzat(id, buyruq) {
+  const r = await qator('select * from reels_postlar where id = $1', [id]);
+  if (!r?.ssenariy?.sahnalar) throw Object.assign(new Error('Bu videoni AI bilan tuzatib bo‘lmaydi (eski format) — yangisini yasang.'), { turkum: 'reels' });
+  const b = toza(buyruq, 1500);
+  if (b.length < 2) throw Object.assign(new Error('Nimani o‘zgartirish kerakligini yozing.'), { turkum: 'reels' });
+  const { aiJson } = await import('../ai/index.js');
+  const st = await sozlamalar();
+  const s = r.ssenariy;
+  const tur = s.tur || (r.product_id ? 'mahsulot' : 'erkin');
+  const p = r.product_id ? await qator('select * from products where id = $1', [r.product_id]) : null;
+  const sharhlar = p ? await sharhlarOl(p.id) : [];
+  const ruxsat = ruxsatSahnalar(tur, { mahsulotBor: Boolean(p), aksiyaBor: tur === 'aksiya', sharhBor: sharhlar.length > 0, st });
+  const m = p ? mahsulotMalumoti(p) : null;
+  const amal = sozlamaTozala(s.ustama || {}, st);                 // shu videoda amaldagi sozlamalar
+  const SOZ = ['subtitr_uslub', 'subtitr', 'sfx', 'musiqa_baland', 'ovoz'];
+  const joriy = { qahramon: s.qahramon || 'yoq', mavzu: s.mavzu, musiqa: s.musiqa, ...Object.fromEntries(SOZ.map((k) => [k, amal[k]])),
+    sahnalar: s.sahnalar.map(({ sozlar, d, sharh, ...x }) => Object.fromEntries(Object.entries(x).filter(([, v]) => v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)))),
+    izoh: r.izoh || s.izoh || '' };
+  const j = await aiJson([{ text: `Sen KiOVO Instagram Reels MUHARRIRISAN. Admin tayyor videoni ko'rdi va kamchilikni aytdi.
+Vazifa: joriy ssenariyni admin so'zlariga ko'ra TUZAT. Faqat so'ralgan narsani o'zgartir, qolgan hamma narsani AYNAN saqla.
+
+ADMIN AYTDI: «${b}»
+${(s.tuzatishlar || []).length ? `Avvalgi tuzatishlar (ular ham kuchda): ${s.tuzatishlar.map((x) => `«${x}»`).join('; ')}\n` : ''}
+VIDEO TURI: ${(VIDEO_TURLARI[tur] || VIDEO_TURLARI.mahsulot).nom}
+${m ? `MAHSULOT FAKTLARI (narx kartochkada bazadan chiqadi): ${m.brend} ${m.nom}; ${String(p.description || '').slice(0, 400)}; faol moddalar: ${(p.actives || []).join(', ') || '—'}; narx ${m.narx}${m.chegirma ? `, chegirma ${m.chegirma}` : ''}\n` : ''}${['skaner', 'maslahat', 'buyurtma', 'erkin'].includes(tur) ? `${ILOVA_FAKT}\n` : ''}
+JORIY SSENARIY (JSON):
+${JSON.stringify(joriy)}
+
+RUXSAT ETILGAN SAHNA TURLARI:
+${ruxsat.map((k) => `- ${SAHNA_TAVSIF[k]}`).join('\n')}
+
+Qoidalar:
+- hook birinchi, cta oxirgi bo'lib qolsin. Sahnalar 4–9 ta.
+- «N-sahna» — 1 dan sanaladi (hook = 1-sahna).
+- ovoz — og'zaki o'zbek tili, raqamlar so'z bilan, belgilarsiz (+, %). Faktlarda yo'q narsani qo'shma, va'da berma.
+- Video uzunligini so'rasa: taxminan 2.2 so'z = 1 soniya (ovoz bo'yicha).
+- Qahramon, rang (mavzu), musiqa, subtitr uslubi, ovoz, effektlar haqida aytilsa — tegishli maydonni o'zgartir; aytilmasa — joriy qiymatni qaytar.
+- Agar admin FAQAT Instagram izohi (caption) haqida gapirsa — faqat_izoh: true va yangi izoh; sahnalarni o'zgartirmasdan qaytar.
+- izoh — to'liq Instagram matni (hashtaglar bilan).
+- javob — adminga 1–2 qisqa gap: nimani o'zgartirding (o'zbekcha). Agar so'rovni bajarib bo'lmasa — sababini ayt.
+Faqat JSON.` }], TUZAT_SXEMA, { temperature: 0.4, maxTokens: 4000, qayerda: 'reels-tuzat', yozuv: true });
+
+  const javob = toza(j?.javob, 300) || 'Tuzatildi.';
+  // Faqat izoh haqida bo'lsa — video qayta yasalmaydi va bu buyruq tarixga yozilmaydi
+  // (keyingi tuzatishlarda «faqat izoh» degan eski gap AI ni chalg'itmasin)
+  if (j?.faqat_izoh && j?.izoh) {
+    const row = await izohniOzgartir(id, j.izoh);
+    if (row) return { javob, faqatIzoh: true, row };
+  }
+  const tuzatishlar = [...(s.tuzatishlar || []), b].slice(-8);
+  const ustama = { ...(s.ustama || {}) };
+  // Faqat haqiqatan o'zgargan sozlama yoziladi — AI qaytargan «joriy» qiymat umumiy sozlamani muzlatib qo'ymasin
+  for (const k of SOZ) if (j?.[k] !== undefined && j[k] !== null && j[k] !== amal[k]) ustama[k] = j[k];
+  const yangi = { ...s, sahnalar: Array.isArray(j?.sahnalar) && j.sahnalar.length ? j.sahnalar : s.sahnalar,
+    izoh: String(j?.izoh || r.izoh || '').slice(0, 2200),
+    qahramon: ['nigina', 'jasur', 'yoq'].includes(j?.qahramon) ? j.qahramon : (s.qahramon || 'yoq'),
+    mavzu: MAVZU_TANLOV.includes(j?.mavzu) ? j.mavzu : s.mavzu,
+    musiqa: MUSIQA_TANLOV.includes(j?.musiqa) ? j.musiqa : s.musiqa,
+    ustama, tuzatishlar };
+  await sorov(`update reels_postlar set holat = 'bekor' where id = $1 and holat = 'tayyor'`, [id]);
+  const row = await videoTayyorla({ tur, productId: r.product_id, manba: 'ai_tuzat', ssenariy: yangi });
+  return { javob, faqatIzoh: false, row };
+}
+
+/** Ovozli xabar (Telegram voice, ogg) → matn. Admin «aytib» beradi. */
+export async function ovozdanMatn(base64, mime = 'audio/ogg') {
+  const { aiJson } = await import('../ai/index.js');
+  const j = await aiJson([{ inline_data: { mime_type: mime, data: base64 } },
+    { text: 'Bu ovozli xabarni so‘zma-so‘z matnga aylantir (o‘zbek tili, lotin yozuvi; ruscha so‘z bo‘lsa ham shunday yoz). Faqat JSON.' }],
+  { type: 'object', properties: { matn: { type: 'string' } }, required: ['matn'] }, { temperature: 0, maxTokens: 800, qayerda: 'reels-ovoz' });
+  return toza(j?.matn, 1500);
+}
+
 /** Faqat Instagram izohini o'zgartiradi (video qayta yasalmaydi). */
 export async function izohniOzgartir(id, izoh) {
   return qator(`update reels_postlar set izoh = $1 where id = $2 and holat <> 'joylandi' returning *`,
@@ -617,6 +728,7 @@ export async function adminlargaVideo(r, { tasdiq = false, sarlavha = '' } = {})
   const tahrir = config.publicUrl ? [{ text: '✏️ Matnni tahrirlash', url: `${config.publicUrl}/admin/#reels-${r.id}` }] : [];
   const tugmalar = tasdiq ? { inline_keyboard: [
     [{ text: '✅ Instagram’ga joylash', callback_data: `rl_ok:${r.id}` }],
+    [{ text: '🤖 AI bilan tuzatish', callback_data: `rl_ai:${r.id}` }],
     [{ text: '♻️ Shu mahsulot, boshqa hikoya', callback_data: `rl_qayta:${r.id}` }],
     [{ text: '🔄 Boshqa mahsulot', callback_data: 'rl_yangi' }, { text: '❌ Bekor', callback_data: `rl_bekor:${r.id}` }],
     ...(tahrir.length ? [tahrir] : [])] }
@@ -625,7 +737,9 @@ export async function adminlargaVideo(r, { tasdiq = false, sarlavha = '' } = {})
   for (const id of await adminlar()) {
     const j = await tgFayl('sendVideo', {
       chat_id: id, parse_mode: 'HTML', supports_streaming: true,
-      caption: `${sarlavha || '🎬 <b>Bugungi Reels</b>'}${VIDEO_TURLARI[r.ssenariy?.tur] ? `\n<i>${VIDEO_TURLARI[r.ssenariy.tur].nom}</i>` : ''}\n\n${qisqaIzoh(r).replace(/&/g, '&amp;').replace(/</g, '&lt;')}`.slice(0, 1024),
+      caption: (`${sarlavha || '🎬 <b>Bugungi Reels</b>'}${VIDEO_TURLARI[r.ssenariy?.tur] ? `\n<i>${VIDEO_TURLARI[r.ssenariy.tur].nom}</i>` : ''}`
+        + (tasdiq ? '\n💬 <i>Kamchilik bo‘lsa — shu videoga javob qilib yozing yoki ovozli xabar yuboring, AI o‘zi tuzatadi.</i>' : '')
+        + `\n\n${qisqaIzoh(r).replace(/&/g, '&amp;').replace(/</g, '&lt;')}`).slice(0, 1024),
       reply_markup: tugmalar,
     }, { video: { bayt, mime: 'video/mp4', nom: `reels-${r.id}.mp4` } }).catch(() => null);
     if (j?.ok) n++;

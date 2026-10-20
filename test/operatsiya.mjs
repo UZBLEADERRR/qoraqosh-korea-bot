@@ -2644,9 +2644,14 @@ console.log('\n── REELS 2.0: ANIMATSION HIKOYA MOTORI ──');
     && R.bugungiTur(new Date('2026-10-22T08:00:00Z')) === 'skaner' && R.bugungiTur(new Date('2026-10-23T08:00:00Z')) === 'aksiya');
   test('mahsulotsiz turlarda mahsulot shart emas', Object.entries(R.VIDEO_TURLARI).filter(([, v]) => v.mahsulot).map(([k]) => k).join() === 'mahsulot');
   const adm = fsK.readFileSync('src/bot/handlers/admin.js', 'utf8');
+  const aj = fsK.readFileSync('public/admin/admin.js', 'utf8');
+  const idx = fsK.readFileSync('src/bot/index.js', 'utf8');
+  test('AI muharrir: Reels’ga javob / ovozli xabar boshqa ishlovchilardan OLDIN ushlanadi',
+    idx.indexOf('admin.adminReelsTuzat(msg, user)') > 0 && idx.indexOf('admin.adminReelsTuzat(msg, user)') < idx.indexOf('admin.adminRasmi(msg, user)')
+    && /d\.startsWith\('rl_ai:'\)/.test(adm) && /REELS_TUZAT/.test(adm));
+  test('admin panel: «🤖 AI bilan tuzatish» oynasi', /function reelsAiTuzat/.test(aj) && /\/api\/admin\/reels\/ai-tuzat/.test(aj));
   test('/reels <tur> — botdan istalgan turdagi video', /case '\/reels':\s+await reelsYasash\(chatId, argument\)/.test(adm));
   test('botda «♻️ Shu mahsulot, boshqa hikoya» (rl_qayta)', /d\.startsWith\('rl_qayta:'\)/.test(adm) && /R\.qaytaYasa\(id\)/.test(adm));
-  const aj = fsK.readFileSync('public/admin/admin.js', 'utf8');
   test('admin panel: Reels studiya bo‘limi va sahna muharriri', /reels:\s+\{ nom: 'Reels studiya'/.test(aj) && /function reelsMuharrir/.test(aj)
     && /\/\^reels-\(\\d\+\)\$\//.test(aj));
   // Kod IIFE dan tashqarida qolsa, $ / api ko'rinmaydi va bo'lim bo'sh skelet bo'lib qoladi

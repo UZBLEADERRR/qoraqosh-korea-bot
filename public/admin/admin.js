@@ -5797,7 +5797,8 @@ async function reelsBolimi() {
           </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
             ${r.video_id ? `<button class="tug kichik" data-rl-kor="${esc(r.video_id)}">▶ Ko‘rish</button>` : ''}
-            ${r.ssenariy?.sahnalar ? `<button class="tug kichik" data-rl-tahrir="${r.id}">✏️ Tahrirlash</button>` : ''}
+            ${r.ssenariy?.sahnalar ? `<button class="tug kichik asos" data-rl-ai="${r.id}">🤖 AI bilan tuzatish</button>` : ''}
+            ${r.ssenariy?.sahnalar ? `<button class="tug kichik" data-rl-tahrir="${r.id}">✏️ Qo‘lda</button>` : ''}
             ${r.product_id || r.ssenariy?.tur ? `<button class="tug kichik" data-rl-qayta="${r.id}">♻️ Boshqa hikoya</button>` : ''}
             ${r.video_id && r.holat !== 'joylandi' ? `<button class="tug kichik" data-rl-botga="${r.id}">📲 Telegram’ga</button>` : ''}
             ${['tayyor', 'xato', 'bekor'].includes(r.holat) && r.video_id ? `<button class="tug kichik asos" data-rl-joyla="${r.id}">✅ Joylash</button>` : ''}
@@ -5896,7 +5897,35 @@ async function reelsBolimi() {
     } catch (e) { tost(e.message, 'xato'); }
   });
   $$('[data-rl-tahrir]').forEach((b) => b.onclick = () => reelsMuharrir(Number(b.dataset.rlTahrir)));
+  $$('[data-rl-ai]').forEach((b) => b.onclick = () => reelsAiTuzat(Number(b.dataset.rlAi)));
   if (holat.reelsTahrir) { const id = holat.reelsTahrir; holat.reelsTahrir = null; reelsMuharrir(id); }
+}
+
+/** «Kamchilikni ayting — AI o'zi tuzatadi»: oddiy so'z bilan, qo'lda tahrirsiz. */
+function reelsAiTuzat(id) {
+  const r = (holat.reels?.oxirgilar || []).find((x) => x.id === id);
+  const avval = (r?.ssenariy?.tuzatishlar || []).slice(-3);
+  modal(`🤖 Reels #${id} — AI tuzatsin`, `
+    <p style="margin:0 0 8px">Nima yoqmadi? Oddiy so‘z bilan yozing — AI ssenariyni o‘zi tuzatadi va video
+      2–3 daqiqada Telegram’ga «✅ Joylash» tugmasi bilan qayta keladi.</p>
+    <textarea id="rl-ai-matn" rows="4" maxlength="1500" placeholder="Masalan: 3-sahnadagi matn uzun, qisqartir. Qahramon Jasur bo‘lsin, subtitr qora yorliq. Oxirida chegirmani ayt."></textarea>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">
+      ${['Hook kuchliroq bo‘lsin', 'Video qisqaroq — 20 soniya', 'Musiqasiz qil', 'Qahramon xursandroq bo‘lsin', 'Subtitr qora yorliq bo‘lsin', 'Faqat izohni qisqartir']
+        .map((t) => `<button class="tug kichik" data-tayyor="${esc(t)}">${esc(t)}</button>`).join('')}
+    </div>
+    ${avval.length ? `<p style="margin:6px 0;opacity:.7">Avvalgi tuzatishlar: ${avval.map((x) => `«${esc(x)}»`).join(', ')}</p>` : ''}
+    <button class="tug asos" id="rl-ai-yubor" style="margin-top:6px">🤖 Tuzat</button>`);
+  $$('#modal [data-tayyor]').forEach((b) => b.onclick = () => {
+    const t = $('#rl-ai-matn'); t.value = t.value.trim() ? `${t.value.trim()}. ${b.dataset.tayyor}` : b.dataset.tayyor; t.focus();
+  });
+  $('#rl-ai-yubor').onclick = async () => {
+    const buyruq = $('#rl-ai-matn').value.trim();
+    if (buyruq.length < 2) return tost('Nimani o‘zgartirish kerakligini yozing', 'xato');
+    try {
+      await api('/api/admin/reels/ai-tuzat', { method: 'POST', body: JSON.stringify({ id, buyruq }) });
+      modalYop(); tost('AI tuzatyapti — 2–3 daqiqada Telegram’ga keladi'); setTimeout(reelsBolimi, 5000);
+    } catch (e) { tost(e.message, 'xato'); }
+  };
 }
 
 /** Sahnama-sahna muharrir: matn, emoji, hissiyot, imo, tartib; izoh; qayta render. */

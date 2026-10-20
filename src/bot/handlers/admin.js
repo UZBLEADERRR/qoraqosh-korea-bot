@@ -47,6 +47,7 @@ export const HOLAT = {
   BREND_NOM:    'admin_brend_nom',
   REJA_TOPSHIRIQ: 'admin_reja_topshiriq',
   REJA_SOAT:      'admin_reja_soat',
+  REELS_TUZAT:    'admin_reels_tuzat',
 };
 
 const holatSaqla = (userId, holat, data = {}) => sorov(
@@ -477,12 +478,28 @@ async function reelsYasash(chatId, argument = '') {
     .catch((e) => yubor(chatId, `⚠️ Video chiqmadi: ${esc(String(e.message).slice(0, 300))}`));
 }
 
-async function reelsCallback(cq) {
+async function reelsCallback(cq, user) {
   const d = cq.data || '';
   const chatId = cq.message.chat.id;
   const R = await import('../../services/reels.js');
   if (d === 'rl_yangi') { await javobBer(cq.id, 'Yangi video tayyorlanmoqda…'); await reelsYasash(chatId); return true; }
   const id = Number(d.split(':')[1]);
+  if (d.startsWith('rl_ai:')) {
+    await javobBer(cq.id);
+    await holatSaqla(user.id, HOLAT.REELS_TUZAT, { id });
+    await yubor(chatId, [
+      `🤖 <b>Nimani o‘zgartiray?</b> (Reels #${id})`,
+      '',
+      'Oddiy so‘z bilan yozing yoki <b>ovozli xabar</b> yuboring. Masalan:',
+      '• <i>3-sahnadagi matnni qisqartir, subtitr qora yorliq bo‘lsin</i>',
+      '• <i>qahramon Jasur bo‘lsin, musiqa lo-fi, oxirida chegirmani ayt</i>',
+      '• <i>video 20 soniya bo‘lsin, hook kuchliroq</i>',
+      '• <i>faqat Instagram izohini qisqartir</i>',
+      '',
+      'Bekor qilish: /bekor',
+    ].join('\n'));
+    return true;
+  }
   if (d.startsWith('rl_qayta:')) {
     // Shu mahsulot — yangi hikoya (boshqa format), eski video bekor bo'ladi
     await javobBer(cq.id, 'Yangi hikoya yozilmoqda…');
@@ -779,6 +796,49 @@ export async function adminRasmi(msg, user) {
   return true;
 }
 
+/**
+ * Reels'ni AI bilan tuzatish: admin «🤖 AI bilan tuzatish» ni bosgan bo'lsa
+ * yoki bot yuborgan Reels videosiga JAVOB (reply) qilib yozsa — matn yoki
+ * ovozli xabar — AI ssenariyni tuzatib, videoni qayta yasaydi.
+ */
+export async function adminReelsTuzat(msg, user) {
+  if (!adminmi(user)) return false;
+  const matn = (msg.text || '').trim();
+  const ovozli = msg.voice || msg.audio || null;
+  if (!matn && !ovozli) return false;
+  if (matn.startsWith('/')) return false;                    // buyruqlar odatdagidek
+  // Qaysi video: javob qilingan xabarning tugmasidan yoki holatdan
+  const tugmalar = (msg.reply_to_message?.reply_markup?.inline_keyboard || []).flat();
+  const rm = tugmalar.map((b) => /^rl_(?:ok|ai|qayta|bekor):(\d+)$/.exec(b.callback_data || '')).find(Boolean);
+  let id = rm ? Number(rm[1]) : null;
+  if (!id && user.state === HOLAT.REELS_TUZAT) {
+    const u = await qator('select state_data from users where id = $1', [user.id]);
+    id = Number(u?.state_data?.id) || null;
+  }
+  if (!id) return false;
+  if (user.state === HOLAT.REELS_TUZAT) await holatTozala(user.id);
+  const chatId = msg.chat.id;
+  const R = await import('../../services/reels.js');
+  let buyruq = matn;
+  if (!buyruq && ovozli) {
+    try {
+      const { faylOl } = await import('../tg.js');
+      const f = await faylOl(ovozli.file_id, 8 * 1024 * 1024);
+      buyruq = await R.ovozdanMatn(f.base64, ovozli.mime_type || 'audio/ogg');
+    } catch (e) {
+      await yubor(chatId, `⚠️ Ovozli xabarni tushunmadim (${esc(String(e.message).slice(0, 120))}). Iltimos, yozib yuboring.`);
+      return true;
+    }
+    if (!buyruq) { await yubor(chatId, '⚠️ Ovozli xabar bo‘sh chiqdi. Iltimos, yozib yuboring.'); return true; }
+  }
+  await yubor(chatId, `🤖 <b>Tushundim — tuzatyapman</b> (Reels #${id})${ovozli ? `\n<i>«${esc(buyruq.slice(0, 300))}»</i>` : ''}\n⏳ 2–3 daqiqa…`);
+  R.aiTuzat(id, buyruq)
+    .then((n) => R.adminlargaVideo(n.row, { tasdiq: true,
+      sarlavha: `🤖 <b>${n.faqatIzoh ? 'Izoh yangilandi' : 'Tuzatildi'}</b> — ${esc(n.javob)}` }))
+    .catch((e) => yubor(chatId, `⚠️ Tuzatib bo‘lmadi: ${esc(String(e.message).slice(0, 300))}`));
+  return true;
+}
+
 /** Admin ko'p qadamli holatda — javobini qabul qilamiz. */
 export async function adminHolati(msg, user) {
   if (!adminmi(user) || !user.state?.startsWith('admin_')) return false;
@@ -872,7 +932,7 @@ export async function adminCallback(cq, user) {
   if (d === 'rek_yubor')    { await reklamaniYubor(cq, user); return true; }
   if (d.startsWith('yo:'))  { await ochirishTasdigi(cq); return true; }
   if (d.startsWith('yoh:')) { await ochirishniBoshla(cq); return true; }
-  if (d.startsWith('rl_'))  { return reelsCallback(cq); }
+  if (d.startsWith('rl_'))  { return reelsCallback(cq, user); }
   if (d === 'rek_qayta')    { await javobBer(cq.id); await reklamaBoshla(cq.message.chat.id, user); return true; }
   if (d === 'rek_bekor')    { await javobBer(cq.id); await holatTozala(user.id);
                               await yubor(cq.message.chat.id, '❌ Bekor qilindi.'); return true; }
