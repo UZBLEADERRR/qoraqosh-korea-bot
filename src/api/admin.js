@@ -181,7 +181,14 @@ export async function adminRoutes(req, res, yol) {
       .catch((e) => {
         const x = xatoniTushuntir(e);
         console.error('ADMIN AGENT:', x.log);
-        ishTugat(ish, { xato: x.matn });
+        // Admin — do'kon egasi: umumiy «band» emas, aniq sabab va yechim ko'rinsin
+        const yechim = x.turkum === 'hisob'
+          ? '💳 AI hisobida kredit tugagan — Google AI Studio → Billing (ai.studio/projects) da hisobni to‘ldiring '
+            + 'yoki Railway → Variables → GEMINI_API_KEY ga boshqa kalit qo‘shing.'
+          : x.turkum === 'kalit' ? '🔑 AI kaliti noto‘g‘ri yoki bekor qilingan — Railway → Variables → GEMINI_API_KEY ni tekshiring.'
+          : x.matn;
+        const sabab = String(e?.message || '').replace(/key=[^&\s]+/gi, 'key=***').slice(0, 220);
+        ishTugat(ish, { xato: sabab ? `${yechim}\n\nSabab: ${sabab}` : yechim });
       });
     return ok(res, { ish });
   }

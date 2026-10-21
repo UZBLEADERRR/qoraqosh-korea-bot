@@ -73,6 +73,18 @@ async function yozibChaqir(parts, schema, opts) {
  *     Google: gemini-3.8-flash, yiqilsa gemini-3.7-flash (modellar.js),
  *     ikkalasi ham ishlamasa — eng oxirgi chora OpenRouter.
  */
+// Ikkala provayder ham yiqildi — admin ASOSIY sababni ko'rsin. Masalan
+// Google'da kredit tugagan (402), zaxira OpenRouter esa «band» (5xx):
+// ilgari faqat oxirgisi ko'rinardi va «AI hozir band» chiqardi, aslida
+// hisobni to'ldirish kerak edi.
+const JIDDIY = ['hisob', 'kalit', 'kvota_kunlik', 'model', 'kvota'];
+function ikkiXato(oxirgi, birinchi, nomi) {
+  if (!birinchi) return oxirgi;
+  oxirgi.message = `${oxirgi.message} | ${nomi}: ${String(birinchi.message).slice(0, 160)}`;
+  if (JIDDIY.includes(birinchi.turkum) && !JIDDIY.slice(0, 3).includes(oxirgi.turkum)) oxirgi.turkum = birinchi.turkum;
+  return oxirgi;
+}
+
 async function chaqir(parts, schema, opts) {
   if (opts.yozuv && openrouterBormi()) {
     try {
@@ -82,7 +94,7 @@ async function chaqir(parts, schema, opts) {
       if (!googleBormi()) throw e;
       // Zaxiraga o'tamiz — mijoz uchun uzilish bo'lmasin
       console.warn(`OpenRouter (yozuv) yiqildi (${e.turkum || '?'}: ${e.message.slice(0, 120)}) → Google'ga o'tildi`);
-      try { return await googleJson(parts, schema, opts); } catch (g) { cheklovmi(g); throw g; }
+      try { return await googleJson(parts, schema, opts); } catch (g) { cheklovmi(g); throw ikkiXato(g, e, 'OpenRouter'); }
     }
   }
   if (googleBormi()) {
@@ -93,7 +105,7 @@ async function chaqir(parts, schema, opts) {
       // Rasm/so'rov xavfsizlik filtriga tushgan bo'lsa boshqa provayder ham rad etadi
       if (!openrouterBormi() || e.turkum === 'xavfsizlik') throw e;
       console.warn(`Google yiqildi (${e.turkum || '?'}: ${e.message.slice(0, 120)}) → OpenRouter'ga o'tildi`);
-      try { return await openrouterJson(parts, schema, opts); } catch (o) { cheklovmi(o); throw o; }
+      try { return await openrouterJson(parts, schema, opts); } catch (o) { cheklovmi(o); throw ikkiXato(o, e, 'Google'); }
     }
   }
   try {

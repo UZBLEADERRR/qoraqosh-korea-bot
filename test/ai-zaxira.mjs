@@ -45,6 +45,20 @@ try { await aiRasm(parts, { nisbat: '1:1' }); } catch (e) { e3 = e; }
 test('ikkalasi ham kreditsiz — tushunarli sabab', e3 && e3.turkum === 'hisob' && /Google:/.test(e3.message), e3?.message?.slice(0, 120));
 test('«kutilmagan xatolik» emas', !/Kutilmagan/.test(xatoniTushuntir(e3).matn) || e3.turkum === 'hisob');
 
+console.log('\n── IKKALASI YIQILSA — ASOSIY SABAB ──');
+{
+  // Google'da kredit tugagan (402), OpenRouter esa band (503): ilgari admin
+  // faqat «AI hozir band» ko'rardi — aslida hisobni to'ldirish kerak edi
+  const { aiJson } = await import('../src/ai/index.js');
+  const sx = { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'] };
+  globalThis.AI_JSON_402 = true; globalThis.OR_JSON_503 = true;
+  let e4 = null;
+  try { await aiJson([{ text: 'sinov' }], sx, { qayerda: 'sinov-402' }); } catch (e) { e4 = e; }
+  delete globalThis.AI_JSON_402; delete globalThis.OR_JSON_503;
+  test('Google 402 + OpenRouter 503 → sabab «hisob», «band» emas', e4?.turkum === 'hisob' && /Google:.*402/.test(e4.message), `${e4?.turkum} ${e4?.message?.slice(0, 140)}`);
+  test('foydalanuvchiga: mablag‘ tugagan', /mablag‘ tugagan/.test(xatoniTushuntir(e4).matn));
+}
+
 console.log('\n── MARSHRUT (matn) ──');
 {
   // Tahlillar — Google (3.8, yiqilsa 3.7); xabar yozish — OpenRouter'dagi yozuv modeli

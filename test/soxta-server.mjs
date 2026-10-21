@@ -635,6 +635,10 @@ export function soxtaServer(port = 4444) {
           await new Promise((r) => setTimeout(r, globalThis.AI_KECHIKISH));
         }
         const model = (yol.match(/models\/([^:]+):/) || [])[1] || '';
+        if (globalThis.AI_JSON_402) {
+          res.writeHead(402, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: { code: 402, message: 'Your prepayment credits are depleted.' } }));
+        }
         const kvotasiz = globalThis.AI_429_MODELLAR || [];
         if (globalThis.AI_429 > 0 || kvotasiz.includes(model)) {
           if (globalThis.AI_429 > 0) globalThis.AI_429 -= 1;
@@ -737,6 +741,10 @@ export function soxtaServer(port = 4444) {
           }
           return j({ choices: [{ message: { role: 'assistant', content: '',
             images: [{ type: 'image_url', image_url: { url: `data:image/png;base64,${png().toString('base64')}` } }] } }] });
+        }
+        if (globalThis.OR_JSON_503) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: { code: 503, message: 'Provider overloaded' } }));
         }
         const sxema = JSON.stringify(b.response_format?.json_schema?.schema || {});
         const prompt = (b.messages || []).map((m) => (typeof m.content === 'string' ? m.content

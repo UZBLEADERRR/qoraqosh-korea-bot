@@ -7,6 +7,8 @@ const TURKUM_MATNI = {
   model:       '🤖 AI modeli mavjud emas. Administratorga xabar bering.',
   xavfsizlik:  '🛡 AI bu rasmni tahlil qilishdan bosh tortdi. Boshqa surat yuboring — yuz aniq va yorug‘ ko‘rinsin.',
   band:        '⏳ AI hozir band. 1–2 daqiqadan so‘ng qayta urinib ko‘ring.',
+  // 402 — AI hisobida mablag' tugagan: kutish yordam bermaydi, to'ldirish kerak
+  hisob:       '💳 AI xizmati hisobida mablag‘ tugagan. Administratorga xabar bering.',
   // Provayder kunlik/daqiqalik chegarani berkitdi. Mijozga «xatolik yuz
   // berdi» deyish YOMON: u aybni o'zidan yoki rasmdan qidiradi va
   // rasmni almashtirib qayta-qayta uradi. Aniq aytamiz.
