@@ -137,7 +137,12 @@ export async function webhookKeldi(body) {
   const akk = (await api.ulanish()).akkaunt_id;
   for (const entry of body.entry || []) {
     const bizniki = String(akk || entry.id || '');
-    for (const ev of entry.messaging || []) await xabarKeldi(ev, bizniki).catch((e) => console.error('IG XABAR:', e.message));
+    // Webhook boshqa akkaunt uchun keldi (Meta ilovasiga ikki akkaunt ulangan) — unga
+    // bizning token bilan javob yuborib bo'lmaydi («user cannot be found»). Belgilaymiz.
+    if (akk && entry.id && String(entry.id) !== String(akk) && (entry.messaging || []).length) {
+      await diag.belgila('begona_akkaunt', String(entry.id), { begona_akkaunt_id: String(entry.id), begona_biz_id: String(akk) });
+    }
+    for (const ev of entry.messaging || []) await xabarKeldi(ev, bizniki, String(entry.id || '')).catch((e) => console.error('IG XABAR:', e.message));
     for (const ch of entry.changes || []) {
       if (ch.field === 'comments' || ch.field === 'live_comments') {
         await kommentKeldi(ch.value || {}, bizniki).catch((e) => console.error('IG KOMMENT:', e.message));
@@ -171,7 +176,7 @@ async function xabarYoz(suhbatId, { yonalish, kim, matn: m = null, rasm = null, 
   return r;
 }
 
-async function xabarKeldi(ev, bizniki) {
+async function xabarKeldi(ev, bizniki, entryId = '') {
   const msg = ev.message;
   if (!msg || msg.is_deleted || msg.is_unsupported) return;
   // Echo — biz yuborgan (yoki admin Instagram ilovasidan yozgan) xabar
@@ -194,7 +199,7 @@ async function xabarKeldi(ev, bizniki) {
     return;
   }
   const igsid = String(ev.sender?.id || '');
-  if (!igsid || igsid === bizniki) return;
+  if (!igsid || igsid === bizniki || igsid === entryId) return;
   await diag.belgila('xabar');
   const s = await suhbatOl(igsid);
   const ilova = msg.attachments || [];
@@ -448,7 +453,7 @@ async function yuborVaYoz(s, m, kim, { niyat = null, javob_ms = null } = {}) {
       javob_ms: Number.isFinite(javob_ms) ? Math.min(2e9, Math.round(javob_ms)) : null });
   } catch (e) {
     await xabarYoz(s.id, { yonalish: 'chiquvchi', kim, matn: m, xato: e.message.slice(0, 300) });
-    await diag.belgila('yuborish_xato', e.message);
+    await diag.belgila('yuborish_xato', e.message, { yuborish_xato_kim: s.username ? '@' + s.username : (s.ism || s.igsid), yuborish_xato_suhbat: s.id });
     if (kim !== 'admin') {
       await adminlargaXabar(`📸 <b>Instagram</b>: ${s.username ? '@' + s.username : 'mijoz'}ga javob yuborilmadi.\n`
         + `Sabab: ${e.message.slice(0, 250)}\nAdmin panel → Instagram → Sozlamalar → Tekshiruv`, 'yuborish_xato').catch(() => {});
@@ -788,6 +793,11 @@ export async function tekshiruv() {
     q.push(maydon.includes('messages')
       ? { nom: 'Webhook obunasi', holat: 'ok', izoh: `Ulangan: ${maydon.join(', ')}.` }
       : { nom: 'Webhook obunasi', holat: 'xato', izoh: 'Akkaunt «messages» ga obuna emas — «Webhookni akkauntga ulash» tugmasini bosing.' });
+    if (maydon.includes('messages') && !maydon.includes('comments')) {
+      q.push({ nom: 'Komment obunasi', holat: 'ogoh', izoh: 'Kommentlarga obuna yo‘q — «+» yozganlarga avtomatik DM ketmaydi. '
+        + '«Webhookni akkauntga ulash» tugmasini bosing; o‘tmasa Meta → Webhooks da «comments» maydonini Subscribe qiling '
+        + 'va tokenni instagram_business_manage_comments ruxsati bilan qayta oling.' });
+    }
   } catch (e) {
     q.push({ nom: 'Webhook obunasi', holat: 'ogoh', izoh: `Tekshirib bo‘lmadi: ${e.message}` });
   }
@@ -806,9 +816,28 @@ export async function tekshiruv() {
           + 'boshqa odamlar uchun ilovani Live qiling va instagram_business_manage_messages ga Advanced Access oling; '
           + '3) Instagram ilovasida: Sozlamalar → Xabarlar → «Ulangan vositalar» → «Xabarlarga ruxsat» yoqilgan bo‘lsin; '
           + '4) yuqoridagi «Webhookni akkauntga ulash» tugmasini bosing.' });
+  // Bitta mijozdagi xato hammasi buzilgandek ko'rinmasin: oxirgi sutkadagi natija bilan solishtiramiz
+  const sutka = await qator(`select count(*) filter (where xato is null)::int as ok,
+      count(*) filter (where xato is not null)::int as xato,
+      count(distinct suhbat_id) filter (where xato is not null)::int as xato_suhbat,
+      count(distinct suhbat_id) filter (where xato is null)::int as ok_suhbat
+    from ig_xabarlar where yonalish = 'chiquvchi' and kim <> 'ilova' and created_at >= now() - interval '24 hours'`).catch(() => null);
+  const kimga = d.yuborish_xato_kim ? ` Mijoz: ${d.yuborish_xato_kim}.` : '';
   if (d.yuborish_xato_oxirgi && (!d.yuborildi_oxirgi || d.yuborish_xato_oxirgi > d.yuborildi_oxirgi)) {
-    q.push({ nom: 'Javob yuborish', holat: 'xato', izoh: `Oxirgi xato (${vaqt(d.yuborish_xato_oxirgi)}): ${d.yuborish_xato_izoh || ''}` });
-  } else if (d.yuborildi_oxirgi) q.push({ nom: 'Javob yuborish', holat: 'ok', izoh: `Oxirgi javob: ${vaqt(d.yuborildi_oxirgi)}.` });
+    const qisman = sutka?.ok > 0;
+    q.push({ nom: 'Javob yuborish', holat: qisman ? 'ogoh' : 'xato',
+      izoh: `Oxirgi xato (${vaqt(d.yuborish_xato_oxirgi)}): ${d.yuborish_xato_izoh || ''}${kimga}`
+        + (qisman ? ` Oxirgi 24 soatda ${sutka.ok} ta javob ${sutka.ok_suhbat} ta suhbatga yetib bordi — xato faqat ${sutka.xato_suhbat} ta suhbatda, umumiy ulanish ishlayapti.` : '') });
+  } else if (d.yuborildi_oxirgi) {
+    q.push({ nom: 'Javob yuborish', holat: 'ok', izoh: `Oxirgi javob: ${vaqt(d.yuborildi_oxirgi)}.`
+      + (sutka?.xato ? ` Oxirgi 24 soatda ${sutka.xato} ta xabar ${sutka.xato_suhbat} ta suhbatda yiqilgan (oxirgisi: ${d.yuborish_xato_izoh || ''}${kimga}).` : '') });
+  }
+  if (d.begona_akkaunt_oxirgi && Date.now() - new Date(d.begona_akkaunt_oxirgi).getTime() < 7 * 864e5) {
+    q.push({ nom: 'Boshqa akkaunt', holat: 'xato',
+      izoh: `Meta boshqa Instagram akkaunt (id ${d.begona_akkaunt_id}) ga kelgan xabarlarni ham yuboryapti, token esa @${u.username || '?'} (id ${d.begona_biz_id || u.akkaunt_id}) niki — `
+        + 'o‘sha xabarlarga javob «The requested user cannot be found» bilan yiqiladi. Meta Developers → Instagram → «API setup with Instagram login» da '
+        + 'keraksiz akkauntni olib tashlang yoki javob berilishi kerak bo‘lgan akkauntning tokenini kiriting.' });
+  }
   if (d.ai_xato_oxirgi && (!d.yuborildi_oxirgi || d.ai_xato_oxirgi > d.yuborildi_oxirgi)) {
     q.push({ nom: 'AI', holat: 'xato', izoh: `AI javob bermadi (${vaqt(d.ai_xato_oxirgi)}): ${d.ai_xato_izoh || ''}` });
   }

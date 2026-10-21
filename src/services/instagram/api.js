@@ -49,6 +49,11 @@ function xatoMatni(kod, e = {}) {
     return 'Mijoz 24 soatdan beri yozmagan — Instagram bu suhbatga hozir xabar yuborishga ruxsat bermaydi.';
   }
   if (c === 100 && /comment/i.test(e.message || '')) return 'Komment topilmadi yoki o‘chirilgan.';
+  // Meta: «The requested user cannot be found» (100 / 2534014) — IGSID bu token egasi uchun yo'q
+  if (sub === 2534014 || /user cannot be found|no matching user/i.test(e.message || '')) {
+    return 'Instagram bu mijozni topmadi (100/2534014): mijoz akkauntini o‘chirgan yoki sizni bloklagan, '
+      + 'yoki xabar BOSHQA Instagram akkauntga kelgan — token qaysi akkauntniki bo‘lsa, faqat o‘shanga kelgan xabarga javob berib bo‘ladi.';
+  }
   if (c === 4 || c === 17 || c === 32 || c === 613 || kod === 429) return 'Instagram so‘rov chegarasi — bir ozdan keyin urinib ko‘ring.';
   if (c === 200 || c === 10) return `Ruxsat yo‘q: ${e.message || ''} (Meta ilovasida instagram_business_manage_messages / manage_comments / content_publish ruxsatlarini tekshiring).`;
   return `Instagram xatosi${kod ? ` (${kod})` : ''}: ${String(e.message || 'noma’lum').slice(0, 200)}`;

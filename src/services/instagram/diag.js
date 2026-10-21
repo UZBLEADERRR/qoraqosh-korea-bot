@@ -23,11 +23,13 @@ function saqla() {
 }
 
 /**
- * @param {'webhook'|'imzo_xato'|'xabar'|'komment'|'echo'|'yuborildi'|'yuborish_xato'|'ai_xato'} tur
+ * @param {'webhook'|'imzo_xato'|'xabar'|'komment'|'echo'|'yuborildi'|'yuborish_xato'|'ai_xato'|'begona_akkaunt'} tur
+ * @param {object} [qoshimcha] — diagnostikaga qo'shiladigan maydonlar (kimga, qaysi akkaunt…)
  * @param {string} [izoh]
  */
-export async function belgila(tur, izoh = '') {
+export async function belgila(tur, izoh = '', qoshimcha = null) {
   const d = await ol();
+  if (qoshimcha) Object.assign(d, qoshimcha);
   const hozir = new Date().toISOString();
   d[`${tur}_oxirgi`] = hozir;
   d[`${tur}_soni`] = (d[`${tur}_soni`] || 0) + 1;

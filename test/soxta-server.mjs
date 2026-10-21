@@ -335,6 +335,10 @@ export function soxtaServer(port = 4444) {
         if (y === '/me/messages') {
           g.push({ yol: y, ...b });
           if (b.sender_action) return j({ recipient_id: b.recipient?.id });
+          if (b.recipient?.id === '900404') {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: { message: 'The requested user cannot be found.', type: 'IGApiException', code: 100, error_subcode: 2534014 } }));
+          }
           if (globalThis.IG_OYNA_YOPIQ && b.recipient?.id) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
             return res.end(JSON.stringify({ error: { message: 'This message is sent outside of allowed window.', code: 10, error_subcode: 2534022 } }));

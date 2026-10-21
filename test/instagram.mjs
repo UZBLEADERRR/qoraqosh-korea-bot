@@ -504,6 +504,20 @@ tk = await chaqir('/api/admin/ig/tekshir');
 delete globalThis.IG_OBUNA;
 test('tekshiruv: messages obunasi yo‘q — xato va yechim', qt('Webhook obunasi')?.holat === 'xato' && /ulash/.test(qt('Webhook obunasi').izoh));
 test('tekshiruv: imzo yangi webhookdan keyin ok', qt('Imzo')?.holat === 'ok');
+// «The requested user cannot be found» — bitta mijozdagi xato hammasi buzilgandek ko'rinmasin
+await dm('900404', 'm_topilmadi_1', { text: 'salom, krem bormi?' });
+await new Promise((r) => setTimeout(r, 300));
+tk = await chaqir('/api/admin/ig/tekshir');
+test('topilmadi: xato tushunarli va mijoz ko‘rsatilgan', /topmadi/.test(qt('Javob yuborish')?.izoh || '') && /Mijoz: @/.test(qt('Javob yuborish').izoh), qt('Javob yuborish')?.izoh);
+test('topilmadi: boshqa suhbatlarga javob ketgani aytiladi (ogoh, xato emas)', qt('Javob yuborish')?.holat === 'ogoh' && /yetib bordi/.test(qt('Javob yuborish').izoh), qt('Javob yuborish')?.holat);
+await ig.webhookKeldi({ object: 'instagram', entry: [{ id: '17841499999999999', time: Date.now(),
+  messaging: [{ sender: { id: '900405' }, recipient: { id: '17841499999999999' }, timestamp: Date.now(), message: { mid: 'm_begona_1', text: 'salom' } }] }] });
+globalThis.IG_OBUNA = ['messages'];
+tk = await chaqir('/api/admin/ig/tekshir');
+delete globalThis.IG_OBUNA;
+test('boshqa akkaunt webhooki aniqlanadi', qt('Boshqa akkaunt')?.holat === 'xato' && /17841499999999999/.test(qt('Boshqa akkaunt').izoh));
+test('komment obunasi yo‘q — ogohlantirish', qt('Komment obunasi')?.holat === 'ogoh');
+await diagM.belgila('echo', '', { begona_akkaunt_oxirgi: null });
 await sorov(`update ig_suhbatlar set ai_pauza_gacha = now() + interval '1 hour' where igsid = '900200'`);
 const po = await chaqir('/api/admin/ig/pauza-och', 'POST', {});
 test('jim suhbatlarni ochish', po.kod === 200 && po.tana.ochildi >= 1);
